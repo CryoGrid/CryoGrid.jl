@@ -1,6 +1,7 @@
 module CryoGridImplicit
 using Dates
 using Statistics
+using ProgressMeter
 include("matlab.jl")
 #implcit heat transfere with phase change following an approch by:
 #C.R. SWAMINATHAN and V.R. VOLLER (1992) in METALLURGICAL TRANSACTION
@@ -337,7 +338,7 @@ function SnowCover2(T0, Water, WaterIce, Zs, snow_depth, snow_max, snow_fall, Sn
     return Water, WaterIce, snow_depth, idx, snow_flag
 end
 # ========================================================================
-function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
+function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT; start::DateTime=nothing)
     dt = 60.0*60.0*24.0;
     t_span = FORCING.t_span;
     Tair = FORCING.Tair;
@@ -419,8 +420,11 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
     SnowDepth_max = OUT.SnowDepth_max;
     SnowDays = OUT.SnowDays;
 
-    for t = 1:length(t_span)
+    @showprogress for t = 1:length(t_span)
         current_date = matlab.datestr([t_span[t]])[1]
+        if start != nothing && current_date < start
+            continue
+        end
         #upper boundary temperature [°C] and snow fall rate [m/day]
         T0 = Tair[t];
         snow_fall = snowfall[t];
@@ -438,8 +442,8 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
             #update properties and state variables
             idx_snowmelt = (T[:,j].<0.0) .& (Water[:,j] .>0.0) .& (Zs.<=0.0)
             T[idx_snowmelt,j] .= 0.0;
-            cp[:,j] .= HeatCapacity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], cp[:,j]);
-            kp[:,j] .= ThermalConductivity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], kp[:,j]);
+            cp[:,j] = HeatCapacity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], cp[:,j]);
+            kp[:,j] = ThermalConductivity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], kp[:,j]);
             Zn, Zs, dxn, dxs, kn, ks = MakeGrid(Zp, dxp, dxn, dxs, kp[:,j], kn, ks);
             Hⱼ, dHdT = Enthalpy(T[:,j], Water[:,j], cp[:,j], H[:,j], dHdT);
             H[:,j] .= Hⱼ
@@ -494,7 +498,7 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
 
                 #if upper boundary is somewhere within the grid
                 if ubc_idx > 1
-                    bp[1:ubc_idx] .= (An[:,j]./Vp[1:ubc_idx,j].*kn[1:ubc_idx]./dxn[1:ubc_idx]) * T0;
+                    bp[1:ubc_idx] = (An[:,j]./Vp[1:ubc_idx,j].*kn[1:ubc_idx]./dxn[1:ubc_idx]) * T0;
                     anps[1:ubc_idx] .= 0.0;
                 end
 

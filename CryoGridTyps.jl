@@ -108,13 +108,47 @@ struct save
     #freezing and thawing degree days
     FDD::Array{Float32,3}
     TDD::Array{Float32,3}
-    FrostDays::Array{Int16,3}
+    FrostDays::Array{Int64,3}
 
     SnowDepth_av::Array{Float32,3}
     SnowDepth_max::Array{Float32,3}
     SnowDays::Array{Int64,3}
 end
 
-
+"""
+Convenience wrapper for truncating numerics in 'save' type.
+"""
+function save(
+    Date::Array{Int64,2},
+    H_av::Array{Float64,3},
+    T_av::Array{Float64,3},
+    T_min::Array{Float64,3},
+    T_max::Array{Float64,3},
+    W_av::Array{Float64,3},
+    W_min::Array{Float64,3},
+    W_max::Array{Float64,3},
+    Q_lat::Array{Float64,3},
+    FDD::Array{Float64,3},
+    TDD::Array{Float64,3},
+    FrostDays::Array{Int64,3},
+    SnowDepth_av::Array{Float64,3},
+    SnowDepth_max::Array{Float64,3},
+    SnowDays::Array{Int64,3})
+    save(convert(Array{Int16,2}, Date),
+         H_av,
+         convert(Array{Float16,3}, T_av),
+         convert(Array{Float16,3}, T_min),
+         convert(Array{Float16,3}, T_max),
+         convert(Array{Float16,3}, W_av),
+         convert(Array{Float16,3}, W_min),
+         convert(Array{Float16,3}, W_max),
+         convert(Array{Float32,3}, Q_lat),
+         convert(Array{Float32,3}, FDD),
+         convert(Array{Float32,3}, TDD),
+         FrostDays,
+         convert(Array{Float32,3}, SnowDepth_av),
+         convert(Array{Float32,3}, SnowDepth_max),
+         SnowDays)
+end
 
 end

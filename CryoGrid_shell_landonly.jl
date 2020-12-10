@@ -10,6 +10,7 @@ using MAT
 using Glob
 using JLD
 using JSON
+using Dates
 
 include("CryoGridImplicit.jl")
 include("matlab.jl")
@@ -66,7 +67,7 @@ LAKESTAT["LakePerimeter"]=[NaN]
 FOR, PAR, TEM, GRI, STRA, STAT, OUT = ArcticLakesSetup.SetUpInputStructs(FORCING, GRID, PARA, LAKESTAT, tile_number)
 
 #RUN model ---------------------------------------------------------------------
-CryoGridImplicit.Model(FOR, GRI, STRA, PAR, STAT, TEM, OUT)
+CryoGridImplicit.Model(FOR, GRI, STRA, PAR, STAT, TEM, OUT; start=DateTime(1500,1,1))
 
 #REDUCE output precision -------------------------------------------------------
 SAVE = CryoGridTyps.save(OUT.Date, OUT.H_av, OUT.T_av, OUT.T_min, OUT.T_max, OUT.W_av, OUT.W_min, OUT.W_max, OUT.Q_lat, OUT.FDD, OUT.TDD, OUT.FrostDays, OUT.SnowDepth_av, OUT.SnowDepth_max, OUT.SnowDays)
@@ -79,7 +80,7 @@ mkpath(subfolder * "/" * subsubfolder);
 for idx = 1:length(SAVE.Date)
         out_dict = Dict()
         year = SAVE.Date[idx]
-        FieldsInStruct = fieldnames(SAVE)
+        FieldsInStruct = fieldnames(typeof(SAVE))
         for i = 1:length(FieldsInStruct)
                 #Check fields
                 Value = getfield(SAVE, FieldsInStruct[i])
