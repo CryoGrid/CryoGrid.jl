@@ -1,5 +1,7 @@
 module ArcticLakesSetup
 using MAT
+using Statistics
+using Dates
 include("CryoGridTyps.jl")
 include("CryoGridImplicit.jl")
 include("matlab.jl")
@@ -37,21 +39,21 @@ function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
         STRAT["Mineral"][GRID["Zp"].>0.0,j] = GRID["soil"]["cT_mineral"];# [GRID["Zp"].>PARA["WaterDepth"][j],j] = 0.45; #1.0-1e-8;
         STRAT["Organic"][GRID["Zp"].>0.0,j] = GRID["soil"]["cT_organic"];# [GRID["Zp"].>PARA["WaterDepth"][j],j] = 0.05; #1.0-1e-8;
 
-        STRAT["WaterIce"][GRID["Zp"].<=PARA["WaterDepth"][j],j] = 1.0;
-        STRAT["Mineral"][GRID["Zp"].<=PARA["WaterDepth"][j],j] = 0.0;
-        STRAT["Organic"][GRID["Zp"].<=PARA["WaterDepth"][j],j] = 0.0;
+        STRAT["WaterIce"][GRID["Zp"].<=PARA["WaterDepth"][j],j] .= 1.0;
+        STRAT["Mineral"][GRID["Zp"].<=PARA["WaterDepth"][j],j] .= 0.0;
+        STRAT["Organic"][GRID["Zp"].<=PARA["WaterDepth"][j],j] .= 0.0;
 
         if PARA["WaterDepth"][j]>0.0
             STRAT["WaterIce"][GRID["Zp"].>PARA["WaterDepth"][j],j] = 1.0 - STRAT["Mineral"][GRID["Zp"].>PARA["WaterDepth"][j],j] -STRAT["Organic"][GRID["Zp"].>PARA["WaterDepth"][j],j]
         end
 
-        STRAT["Water"][:,j] = 0.0;
-        STRAT["WaterIce"][GRID["Zp"].<=0.0,j] = 0.0 #no snow #PARA["SnowDensity"]/PARA["WaterDensity"];
-        STRAT["Mineral"][GRID["Zp"].<=0.0,j] = 0.0;
-        STRAT["Organic"][GRID["Zp"].<=0.0,j] = 0.0;
+        STRAT["Water"][:,j] .= 0.0;
+        STRAT["WaterIce"][GRID["Zp"].<=0.0,j] .= 0.0 #no snow #PARA["SnowDensity"]/PARA["WaterDensity"];
+        STRAT["Mineral"][GRID["Zp"].<=0.0,j] .= 0.0;
+        STRAT["Organic"][GRID["Zp"].<=0.0,j] .= 0.0;
 
-        TEMP["cp"][:,j] = CryoGridImplicit.HeatCapacity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["cp"][:,j]);
-        TEMP["kp"][:,j] = CryoGridImplicit.ThermalConductivity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["kp"][:,j]);
+        TEMP["cp"][:,j] .= CryoGridImplicit.HeatCapacity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["cp"][:,j]);
+        TEMP["kp"][:,j] .= CryoGridImplicit.ThermalConductivity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["kp"][:,j]);
     end
     TEMP["lat_flux"] = zeros(N,tile_number);
     TEMP["SnowDepth"] = zeros(1,tile_number);
@@ -88,13 +90,14 @@ function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
         end
         #STATVAR["T"][:,j] = mean(FORCING["data"]["Tair"][1:a])+1.5 + PARA["Qgeo"]/2.0*GRID["Zp"];
 
-        idx = indmin(abs(GRID["Zp"]-0.0))
-        STATVAR["T"][1:idx,j] = mean(FORCING["data"]["Tair"][1:a])+1.5
+        idx = argmin(abs.(GRID["Zp"].-0.0))
+        STATVAR["T"][1:idx,j] .= mean(FORCING["data"]["Tair"][1:a])+1.5
         for i = idx:length(GRID["Zp"])-1
             STATVAR["T"][i+1,j] = PARA["Qgeo"]*(GRID["Zp"][i+1]-GRID["Zp"][i])/TEMP["kn"][i] + STATVAR["T"][i,j]
         end
 
-        STATVAR["H"][:,j], dummy = CryoGridImplicit.Enthalpy(STATVAR["T"][:,j], STRAT["Water"][:,j], TEMP["cp"][:,j],STATVAR["H"][:,j],STATVAR["H"][:,j]);
+        Hⱼ, dummy = CryoGridImplicit.Enthalpy(STATVAR["T"][:,j], STRAT["Water"][:,j], TEMP["cp"][:,j],STATVAR["H"][:,j],STATVAR["H"][:,j]);
+        STATVAR["H"][:,j] .= Hⱼ
     end
 
     TEM = CryoGridTyps.temporary(TEMP["lat_flux"],TEMP["SnowDepth"],TEMP["kp"],TEMP["cp"],TEMP["kn"],TEMP["ks"])
@@ -105,10 +108,10 @@ function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
     PAR = CryoGridTyps.para([PARA["snow"]["rho_snow"]],[PARA["snow"]["rho_snow_max"]],[PARA["snow"]["k1_snow"]],[PARA["snow"]["k2_snow"]],PARA["SnowCoverMax"],[PARA["WaterDensity"]],PARA["WaterDepth"],[PARA["Qgeo"]])
 
     #Preallocate output arrays
-    out_years = unique(Dates.year.(matlab.datestr(FOR.t_span)))'
+    out_years = unique(year.(matlab.datestr(FOR.t_span)))'
     out_length = length(out_years)
-    out_intervall = Dates.Year(1)
-    out_date = Dates.DateTime(Dates.DateTime(out_years[1])+out_intervall)
+    out_intervall = Year(1)
+    out_date = DateTime(DateTime(out_years[1])+out_intervall)
     out_length = length(out_years)
 
     T = ones(1,1,tile_number).*NaN #dummy for reduced output

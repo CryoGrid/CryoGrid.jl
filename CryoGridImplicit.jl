@@ -1,4 +1,6 @@
 module CryoGridImplicit
+using Dates
+using Statistics
 include("matlab.jl")
 #implcit heat transfere with phase change following an approch by:
 #C.R. SWAMINATHAN and V.R. VOLLER (1992) in METALLURGICAL TRANSACTION
@@ -139,8 +141,8 @@ function MakeGrid(Zp, dxp, dxn, dxs, kp, kn, ks)
         dxn[i,1] = Zp[i] - Zp[i-1];
         dxs[i,1] = Zp[i+1] - Zp[i];
 
-        kn[i,1] = (dxp[i,1]/(2.*dxn[i])*kp[i,1].^-1. + dxp[i-1,1]/(2.*dxn[i])*kp[i-1].^-1.).^-1.
-        ks[i,1] = (dxp[i,1]/(2.*dxs[i])*kp[i,1].^-1. + dxp[i+1,1]/(2.*dxs[i])*kp[i+1].^-1.).^-1.
+        kn[i,1] = (dxp[i,1]/(2*dxn[i])*kp[i,1].^-1 + dxp[i-1,1]/(2*dxn[i])*kp[i-1].^-1).^-1
+        ks[i,1] = (dxp[i,1]/(2*dxs[i])*kp[i,1].^-1 + dxp[i+1,1]/(2*dxs[i])*kp[i+1].^-1).^-1
     end
 
     return Zn, Zs, dxn, dxs, kn, ks
@@ -246,20 +248,20 @@ function SnowCover2(T0, Water, WaterIce, Zs, snow_depth, snow_max, snow_fall, Sn
         end
     end
     #remove all water and ice rests above actual snow cover
-    WaterIce[1:snow_up] = 0.0;
-    Water[1:snow_up] = 0.0;
+    WaterIce[1:snow_up] .= 0.0;
+    Water[1:snow_up] .= 0.0;
 
     #snow compactionmodule according to Sturm et al.(2010)
     if snow_up < snow_dw #snow cover exists
         #current_date = DateTime(2019,1,30)
-        current_year = Dates.year(current_date)
+        current_year = year(current_date)
         if current_date < DateTime(current_year,10,1)
             delta_doy = 0
         else
-            delta_doy = Dates.dayofyear(DateTime(current_year,10,1))+92
+            delta_doy = dayofyear(DateTime(current_year,10,1))+92
         end
         ##=
-        DOY = Dates.dayofyear(current_date)
+        DOY = dayofyear(current_date)
         DOY_snowseason = DOY-delta_doy
         DOY_snowseason = max(-92,min(181,DOY_snowseason)) #limints according to Sturm et al. 2010
         k1 = SnowDensityK1[1]
@@ -278,7 +280,7 @@ function SnowCover2(T0, Water, WaterIce, Zs, snow_depth, snow_max, snow_fall, Sn
         #new snow depth according to new snow bulk snow density this emulates compaction only
         snow_depth_compact = snow_depth*BulkSnowDensity_current/BulkSnowDensity_new
         snow_depth_compact = max(min(snow_depth_compact, snow_max), 0.0); #avoid values smaller 0.0 and larger max snow depth
-        new_snow_up = indmin(abs.(snow_depth_compact-(-Zs)));
+        new_snow_up = argmin(abs.(snow_depth_compact.-(-Zs)));
         #remove snow cover if snow depth is lower than gridded
 
         if new_snow_up>snow_up
@@ -288,8 +290,8 @@ function SnowCover2(T0, Water, WaterIce, Zs, snow_depth, snow_max, snow_fall, Sn
             #delta_WaterIce = tot_WaterIce_current-tot_WaterIce_new;
             #println("delta total Ice Water is: " * string(delta_WaterIce))
 
-            WaterIce[snow_up:new_snow_up] = 0.0;
-            Water[snow_up:new_snow_up] = 0.0;
+            WaterIce[snow_up:new_snow_up] .= 0.0;
+            Water[snow_up:new_snow_up] .= 0.0;
             snow_up = new_snow_up;
             snow_depth = max(-Zs[snow_up],0.0)
             #adjust ice contend to new Bulk Snow Density
@@ -305,7 +307,7 @@ function SnowCover2(T0, Water, WaterIce, Zs, snow_depth, snow_max, snow_fall, Sn
             idx_smaller_new_BD = WaterIce_current .< BulkSnowDensity_new/WaterDensity[1]
             #WaterIce_current[idx_smaller_new_BD] = WaterIce_new[idx_smaller_new_BD]
             WaterIce_current = WaterIce_new
-            WaterIce_current[WaterIce_current.>0.9] = 0.9
+            WaterIce_current[WaterIce_current.>0.9] .= 0.9
             WaterIce[snow_up+1:snow_dw] = WaterIce_current
 
         end
@@ -314,11 +316,11 @@ function SnowCover2(T0, Water, WaterIce, Zs, snow_depth, snow_max, snow_fall, Sn
     #snow accumulation
     snow_depth = snow_depth + snow_fall*WaterDensity[1]/SnowDensity[1]; #increses snow depth by snow fall
     snow_depth = max(min(snow_depth, snow_max), 0.0); #avoid values smaller 0.0 and larger max snow depth
-    new_snow_up = indmin(abs.(snow_depth-(-Zs)));
+    new_snow_up = argmin(abs.(snow_depth.-(-Zs)));
     #build a new snow cell on top if snow depth fills a complet new cell
     if new_snow_up<snow_up
-        WaterIce[new_snow_up+1:snow_up] = SnowDensity[1]/WaterDensity[1];
-        Water[new_snow_up+1:snow_up] = 0.0;
+        WaterIce[new_snow_up+1:snow_up] .= SnowDensity[1]/WaterDensity[1];
+        Water[new_snow_up+1:snow_up] .= 0.0;
         snow_up = new_snow_up;
     end
 
@@ -387,10 +389,10 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
     bp = zeros(N,1);
 
     #preallocate output arrays
-    out_years = unique(Dates.year.(matlab.datestr(t_span)))
+    out_years = unique(year.(matlab.datestr(t_span)))
     out_length = length(out_years)
-    out_intervall = Dates.Year(1)
-    out_date = Dates.DateTime(Dates.DateTime(out_years[1])+out_intervall)
+    out_intervall = Year(1)
+    out_date = DateTime(DateTime(out_years[1])+out_intervall)
     out_N = 1.0
     out_idx = 1
 
@@ -423,7 +425,7 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
         T0 = Tair[t];
         snow_fall = snowfall[t];
 
-        dp = 1./dt;
+        dp = 1.0/dt;
         T_old = copy(T);
         H_old = copy(H);
 
@@ -435,12 +437,14 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
             Water[:,j], WaterIce[:,j], SnowDepth[1,j], idx, snow_flag = SnowCover2(T0, Water[:,j], WaterIce[:,j], Zs, SnowDepth[1,j], SnowDepthMax[1,j], snow_fall, SnowDensity, SnowDensityMax, SnowDensityK1, SnowDensityK2, WaterDensity[1], current_date);
             #update properties and state variables
             idx_snowmelt = (T[:,j].<0.0) .& (Water[:,j] .>0.0) .& (Zs.<=0.0)
-            T[idx_snowmelt,j] = 0.0;
-            cp[:,j] = HeatCapacity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], cp[:,j]);
-            kp[:,j] = ThermalConductivity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], kp[:,j]);
+            T[idx_snowmelt,j] .= 0.0;
+            cp[:,j] .= HeatCapacity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], cp[:,j]);
+            kp[:,j] .= ThermalConductivity(WaterIce[:,j], Water[:,j], Mineral[:,j], Organic[:,j], kp[:,j]);
             Zn, Zs, dxn, dxs, kn, ks = MakeGrid(Zp, dxp, dxn, dxs, kp[:,j], kn, ks);
-            H[:,j], dHdT = Enthalpy(T[:,j], Water[:,j], cp[:,j], H[:,j], dHdT);
-            T[:,j], fl = EnthalpyInv(H[:,j], WaterIce[:,j], cp[:,j], T[:,j], fl);
+            Hⱼ, dHdT = Enthalpy(T[:,j], Water[:,j], cp[:,j], H[:,j], dHdT);
+            H[:,j] .= Hⱼ
+            Tⱼ, fl = EnthalpyInv(H[:,j], WaterIce[:,j], cp[:,j], T[:,j], fl);
+            T[:,j] .= Tⱼ
 
             #simple snow cover module
             #Water[:,j], SnowDepth[1,j], idx = SnowCover(Water[:,j], WaterIce[:,j], Zp, T0, SnowDepth[1,j], SnowDepthMax[1,j],snow_fall);
@@ -490,8 +494,8 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
 
                 #if upper boundary is somewhere within the grid
                 if ubc_idx > 1
-                    bp[1:ubc_idx] = (An[:,j]./Vp[1:ubc_idx,j].*kn[1:ubc_idx]./dxn[1:ubc_idx]) * T0;
-                    anps[1:ubc_idx] = 0.0;
+                    bp[1:ubc_idx] .= (An[:,j]./Vp[1:ubc_idx,j].*kn[1:ubc_idx]./dxn[1:ubc_idx]) * T0;
+                    anps[1:ubc_idx] .= 0.0;
                 end
 
                 if j!=1
@@ -510,8 +514,8 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
                     #fluxes from the other tiles.
                     ap = anpn + anps;
                     ap[end] = anpn[end];
-                    anpn[1:ubc_idx] = 0.0;
-                    bp_lat[:,j] = sum(lat_flux,2)./Vp[:,j]; #[W/m³];
+                    anpn[1:ubc_idx] .= 0.0;
+                    bp_lat[:,j] = sum(lat_flux,dims=2)./Vp[:,j]; #[W/m³];
                     #println(sum(bp_lat[:,j]))
                     #println(' ')
                 end
@@ -552,7 +556,7 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
             #Model OUTPUT
             if (current_date == out_date) .& (j == N_tiles)
                 #update to next output date
-                out_date = Dates.DateTime(current_date+out_intervall)
+                out_date = DateTime(current_date+out_intervall)
                 #increase save index
                 out_idx += 1
                 #reset counter
@@ -573,7 +577,7 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
 
                 TDD[:,out_idx,j] = T[:,j].*(T[:,j].>=0.0);
                 FDD[:,out_idx,j] = T[:,j].*(T[:,j].<0.0);
-                FrostDays[:,out_idx,j] = 1.*(T[:,j].<0.0);
+                FrostDays[:,out_idx,j] = 1.0*(T[:,j].<0.0);
 
                 SnowDays[1,out_idx,j] = 1 * (SnowDepth[1,j]>0.0);
                 SnowDepth_av[1,out_idx,j] = copy(SnowDepth[1,j]);
@@ -598,12 +602,12 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT)
                     Qlat_out[:,out_idx,j] = Qlat_out[:,out_idx,j] - lat_flux[:,j];
                 else
                     #different Q_lat of first tile which is the sum of all other lateral fluxes
-                    Qlat_out[:,out_idx,j] = Qlat_out[:,out_idx,j] + sum(lat_flux,2);
+                    Qlat_out[:,out_idx,j] = Qlat_out[:,out_idx,j] + sum(lat_flux,dims=2);
                 end
 
                 TDD[:,out_idx,j] = TDD[:,out_idx,j] + T[:,j].*(T[:,j].>=0.0);
                 FDD[:,out_idx,j] = FDD[:,out_idx,j] + T[:,j].*(T[:,j].<0.0);
-                FrostDays[:,out_idx,j] = FrostDays[:,out_idx,j] + 1.*(T[:,j].<0.0);
+                FrostDays[:,out_idx,j] = FrostDays[:,out_idx,j] + 1.0*(T[:,j].<0.0);
             end
             #increase counter (number)
             if j == 1

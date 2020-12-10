@@ -1,5 +1,6 @@
 module matlab
     using Interpolations
+    using Dates
 
     function interp1(xpt, ypt, x, method)
         extrapvalue = nothing
@@ -45,21 +46,21 @@ module matlab
         Example
             datenum(now())
         =#
-        out = Array{Float64,1}(length(d))
-        MATLAB_EPOCH = Dates.DateTime(-0001,12,31)
+        out = Array{Float64,1}(undef,length(d))
+        MATLAB_EPOCH = DateTime(-0001,12,31)
         fac = 1000. * 60. * 60. * 24.
         for i=1:length(d)
-            out[i] = Dates.value(d[i] - MATLAB_EPOCH) / fac
+            out[i] = value(d[i] - MATLAB_EPOCH) / fac
         end
         return out
     end
 
     function datestr(d::Array{Float64,1})
-        datestr=Array{DateTime,1}(length(d))
-        MATLAB_EPOCH = Dates.DateTime(-0001,12,31)
+        datestr=Array{DateTime,1}(undef,length(d))
+        MATLAB_EPOCH = DateTime(-0001,12,31)
         fac = 1000. * 60. * 60. * 24.
         for i=1:length(d)
-            datestr[i] = Dates.Millisecond(d[i]*fac) + MATLAB_EPOCH
+            datestr[i] = Millisecond(d[i]*fac) + MATLAB_EPOCH
         end
         return datestr
     end
