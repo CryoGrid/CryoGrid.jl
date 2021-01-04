@@ -5,7 +5,7 @@
 #https://julialang.org/downloads/oldreleases/
 #note that the script might require to install additional packages e.g. Pkg.add("Interpolations")
 # ========================================================================
-#ArcticLakes shell script to run the CryoGridImplicit Modell
+#ArcticLakes shell script to run the CryoGridImplicit Model
 using MAT
 using Glob
 using JLD
@@ -67,7 +67,7 @@ LAKESTAT["LakePerimeter"]=[NaN]
 FOR, PAR, TEM, GRI, STRA, STAT, OUT = ArcticLakesSetup.SetUpInputStructs(FORCING, GRID, PARA, LAKESTAT, tile_number)
 
 #RUN model ---------------------------------------------------------------------
-CryoGridImplicit.Model(FOR, GRI, STRA, PAR, STAT, TEM, OUT; start=DateTime(1500,1,1))
+Implicit.Model(FOR, GRI, STRA, PAR, STAT, TEM, OUT; start=DateTime(1900,1,1))
 
 #REDUCE output precision -------------------------------------------------------
 SAVE = CryoGridTyps.save(OUT.Date, OUT.H_av, OUT.T_av, OUT.T_min, OUT.T_max, OUT.W_av, OUT.W_min, OUT.W_max, OUT.Q_lat, OUT.FDD, OUT.TDD, OUT.FrostDays, OUT.SnowDepth_av, OUT.SnowDepth_max, OUT.SnowDays)
