@@ -1,9 +1,7 @@
-module Implicit
 using Dates
 using Statistics
 using ProgressMeter
-includ("DataLoader.jl")
-include("ArcticLakesSetup.jl")
+include("DataLoader.jl")
 include("CryoGridTyps.jl")
 include("matlab.jl")
 #implcit heat transfere with phase change following an approch by:
@@ -530,12 +528,11 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT; start::DateTime=n
                 #--------------------------------------------------------------
                 Hinv, fl = EnthalpyInv(H[:,j], WaterIce[:,j], cp[:,j], T[:,j], fl);
                 #Hinv = temperature from inverse T-H function
-                #fl = fraction of liquid water
-                Water[:,j] = fl.*WaterIce[:,j];
                 #Water = total vol fraction of liquid water
                 dummy, dHdT = Enthalpy(Hinv, Water[:,j], cp[:,j], H[:,j], dHdT);
                 #dHdT = approximated deriviative of H at T
-
+                #fl = fraction of liquid water
+                Water[:,j] = fl.*WaterIce[:,j];
                 Sp = -dp*dHdT;
                 Sc = dp*(H_old[:,j] - H[:,j]) - Sp.*Hinv;
 
@@ -631,61 +628,4 @@ function Model(FORCING, GRID, STRAT, PARA, STATVAR, TEMP, OUT; start::DateTime=n
     end
 
     return OUT
-end
-
-function Run(FORCING,PARA)
-    GRID = PARA["GRID"] #soil grid with depth
-    PARA = PARA["PARA"] #soil and snow parameters
-
-    #Set to land only (no lakes)
-    tile_number = 1 #use only one tile for reference run
-    LAKESTAT = Dict()
-    LAKESTAT["LandMaskArea"]=[1.0]
-    LAKESTAT["LakeDistance"]=[1.0]
-    LAKESTAT["LakeNumber"]=[0.0]
-    LAKESTAT["LakeDepth"]=[0.0]
-    LAKESTAT["SnowDepth"]=[NaN]
-    LAKESTAT["VorArea"]=[1.0]
-    LAKESTAT["LandMaskArea"]=[1.0]
-    LAKESTAT["LakeArea"]=[0.0]
-    LAKESTAT["LakePerimeter"]=[NaN]
-
-    #BUILD input structures --------------------------------------------------------
-    FOR, PAR, TEM, GRI, STRA, STAT, OUT = ArcticLakesSetup.SetUpInputStructs(FORCING, GRID, PARA, LAKESTAT, tile_number)
-
-    #RUN model ---------------------------------------------------------------------
-    Model(FOR, GRI, STRA, PAR, STAT, TEM, OUT; start=DateTime(1900,1,1))
-end
-
-function Save(OUT)
-    #REDUCE output precision -------------------------------------------------------
-    SAVE = CryoGridTyps.save(OUT.Date, OUT.H_av, OUT.T_av, OUT.T_min, OUT.T_max, OUT.W_av, OUT.W_min, OUT.W_max, OUT.Q_lat, OUT.FDD, OUT.TDD, OUT.FrostDays, OUT.SnowDepth_av, OUT.SnowDepth_max, OUT.SnowDays)
-    #SAVE result as JSON for each year ---------------------------------------------
-    subfolder = "RESULT_JSONfiles"
-    mkpath(subfolder);
-    subsubfolder = "ULC_" * string(ULC_lon) * "_" * string(ULC_lat)
-    mkpath(subfolder * "/" * subsubfolder);
-    for idx = 1:length(SAVE.Date)
-            out_dict = Dict()
-            year = SAVE.Date[idx]
-            FieldsInStruct = fieldnames(typeof(SAVE))
-            for i = 1:length(FieldsInStruct)
-                    #Check fields
-                    Value = getfield(SAVE, FieldsInStruct[i])
-                    if size(Value)[2]>=idx
-                            value = Value[:,idx,:]
-                    else
-                            value = Value[:,end,:]
-                    end
-                    name = string(FieldsInStruct[i])
-                    out_dict[name] = value
-            end
-            #save as json uncompressed
-            saveloc = subfolder * "/" * subsubfolder * "/" * "RESULT_" * string(year) * ".zjson"
-            open(saveloc,"w") do file
-                    write(file,JSON.json(out_dict))
-            end
-    end
-end
-
 end
