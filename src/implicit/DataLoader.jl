@@ -1,3 +1,4 @@
+module DataLoader
 using JSON
 include("json2type.jl")
 
@@ -27,4 +28,5 @@ function LoadParams(ULC_lat::Int, ULC_lon::Int; dirpath="input")
             dicttxt = read(file, String)
         end
         PARA = json2type.typenarrow!(JSON.parse(jsontxt))
+end
 end

@@ -2,8 +2,8 @@ module ArcticLakesSetup
 using MAT
 using Statistics
 using Dates
+using ..Implicit
 include("CryoGridTyps.jl")
-include("CryoGridImplicit.jl")
 include("matlab.jl")
 
 function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
@@ -52,8 +52,8 @@ function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
         STRAT["Mineral"][GRID["Zp"].<=0.0,j] .= 0.0;
         STRAT["Organic"][GRID["Zp"].<=0.0,j] .= 0.0;
 
-        TEMP["cp"][:,j] .= CryoGridImplicit.HeatCapacity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["cp"][:,j]);
-        TEMP["kp"][:,j] .= CryoGridImplicit.ThermalConductivity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["kp"][:,j]);
+        TEMP["cp"][:,j] .= HeatCapacity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["cp"][:,j]);
+        TEMP["kp"][:,j] .= ThermalConductivity(STRAT["WaterIce"][:,j], STRAT["Water"][:,j], STRAT["Mineral"][:,j],STRAT["Organic"][:,j],TEMP["kp"][:,j]);
     end
     TEMP["lat_flux"] = zeros(N,tile_number);
     TEMP["SnowDepth"] = zeros(1,tile_number);
@@ -65,7 +65,7 @@ function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
     TEMP["kn"] = copy(TEMP["kp"][:,1])
     TEMP["ks"] = copy(TEMP["kp"][:,1])
 
-    GRID["Zn"], GRID["Zs"], GRID["dxn"], GRID["dxs"], TEMP["kn"], TEMP["ks"] = CryoGridImplicit.MakeGrid(GRID["Zp"],GRID["dxp"],GRID["dxn"],GRID["dxs"],TEMP["kp"][:,1],TEMP["kn"][:,1],TEMP["ks"][:,1]);
+    GRID["Zn"], GRID["Zs"], GRID["dxn"], GRID["dxs"], TEMP["kn"], TEMP["ks"] = MakeGrid(GRID["Zp"],GRID["dxp"],GRID["dxn"],GRID["dxs"],TEMP["kp"][:,1],TEMP["kn"][:,1],TEMP["ks"][:,1]);
     GRID["dxo"] = [NaN lakestat["LakeDistance"][lc_idx]'/2.0]#half the average distance between lake class #[NaN 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0 300.0]; #lateral distance between landscape units[m]
     LandArea = sum(lakestat["VorArea"][lc_idx])-sum(lakestat["LakeArea"][lc_idx])
 
@@ -96,7 +96,7 @@ function SetUpInputStructs(FORCING, GRID, PARA, lakestat, tile_number)
             STATVAR["T"][i+1,j] = PARA["Qgeo"]*(GRID["Zp"][i+1]-GRID["Zp"][i])/TEMP["kn"][i] + STATVAR["T"][i,j]
         end
 
-        Hⱼ, dummy = CryoGridImplicit.Enthalpy(STATVAR["T"][:,j], STRAT["Water"][:,j], TEMP["cp"][:,j],STATVAR["H"][:,j],STATVAR["H"][:,j]);
+        Hⱼ, dummy = Enthalpy(STATVAR["T"][:,j], STRAT["Water"][:,j], TEMP["cp"][:,j],STATVAR["H"][:,j],STATVAR["H"][:,j]);
         STATVAR["H"][:,j] .= Hⱼ
     end
 
