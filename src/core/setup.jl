@@ -101,7 +101,9 @@ end
         end push!(expr.args)
     end
     @>> quote
-    return u, du
+    # call getdata to fetch underlying arrays; this avoids the performance penalty of using a custom array type
+    # as the state variable in integration.
+    return getdata(u), getdata(du)
     end push!(expr.args)
 end
 
