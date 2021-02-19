@@ -13,7 +13,7 @@ end
 @with_kw struct SoilHCParams <: Params @deftype UFloat"J/(K*m^3)"
     cw = 4.2*10^6U"J/(K*m^3)" #[J/m^3K] heat capacity water
     co = 2.5*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity organic
-    cm = 2*10^6U"J/(K*m^3)", #[J/m^3K]  heat capacity mineral
+    cm = 2*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity mineral
     ca = 0.00125*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity pore space
     ci = 1.9*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity ice
 end

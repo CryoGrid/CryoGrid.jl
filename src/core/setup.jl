@@ -73,7 +73,7 @@ is only executed during compilation and will not appear in the compiled version.
     return expr
 end
 
-@generated function initial_condition(setup::CryoGridSetup{TStrat}) where {TStrat}
+@generated function initialcondition(setup::CryoGridSetup{TStrat}) where {TStrat}
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -96,8 +96,8 @@ end
         $nstate = state(layerdata.$n, u.$n, du.$n, [])
         $nlayer = strat.nodes[i].layer
         $nprocess = strat.nodes[i].process
-        initial_condition!($nlayer,$nstate)
-        initial_condition!($nlayer,$nprocess,$nstate)
+        initialcondition!($nlayer,$nstate)
+        initialcondition!($nlayer,$nprocess,$nstate)
         end push!(expr.args)
     end
     @>> quote
@@ -107,8 +107,8 @@ end
     end push!(expr.args)
 end
 
-@inline @generated function state(ldata::L, u, du, params) where {L<:LayerData{TPvars,TDvars}}
-    value(val::Val{T}) = T
+@inline @generated function state(ldata::L, u, du, params) where {TPvars,TDvars,L<:LayerData{TPvars,TDvars}}
+    value(val::Val{T}) where T = T
     pvals = tuple(TPvars.parameters...,)
     dvals = tuple(TDvars.parameters...,)
     # extract symbol from Val types
@@ -134,7 +134,8 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}, arrayproto::A=zer
         # determine subgrid for layer
         lo = strat.boundaries[i]
         hi = i < length(strat) ? strat.boundaries[i+1] : grid[end]
-        subgrid = grid[lo..hi]
+        # build subgrid using half open interval to avoid overlapping grid edges
+        subgrid = grid[Interval{:closed,:open}(lo,hi)]
         # build layer metadata
         layer_data[name(node)] = buildlayer(node,subgrid,arrayproto)
     end
@@ -181,8 +182,8 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     function buildcomponent(vars::Tuple{<:Var}, grid::Grid{Edges})
         names = @>> vars map(var -> name(var))
         vars_with_names = NamedTuple{names...}(vars...)
-        grids = @>> vars_with_names map(var -> similar(arrayproto, size(var(grid))))
-        carray = ComponentArray(grids)
+        grids = @>> vars_with_names map(var -> var(grid))
+        carray = ComponentArray(map(grid -> similar(arrayproto, size(grid))))
         return carray, grids
     end
     diag_carr, diag_grids = buildcomponent(diag_vars, grid)

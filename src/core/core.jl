@@ -11,6 +11,7 @@ export Unit, DistUnit, DistQuantity, CAxis
 
 # include standalone(-ish) types and methods
 include("utils.jl")
+include("math.jl")
 include("grid.jl")
 include("forcing.jl")
 include("variables.jl")
@@ -44,10 +45,22 @@ struct Processes{TProcs} <: Process
     processes::TProcs
     Processes(processes::Process...) = new{typeof(processes)}(processes)
 end
+@propagate_inbounds @inline Base.getindex(ps::Processes, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
 
-export Process, SubSurfaceProcess, BoundaryProcess, DirichletBC, NeumannBC, Processes
+export Process, SubSurfaceProcess, BoundaryProcess, Processes
+
+# Boundary condition trait
+"""
+Trait that specifies the "style" or kind of boundary condition.
+"""
+abstract type BoundaryStyle end
+struct Dirichlet <: BoundaryStyle end
+struct Neumann <: BoundaryStyle end
+struct Robin <: BoundaryStyle end
+# Default to an error to avoid erroneously labeling a boundary condition.
+BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary condition $T")
 
 const State{names,T} = NamedTuple{names,T} where {names,T}
 # Model core method stubs
@@ -65,7 +78,7 @@ interact!(l1::Layer, p1::Process, l2::Layer, p2::Process, s1::State, s2::State) 
 Declares an interraction to be present between two layer/process pairs. Default rule is that all processes of the
 same family (i.e. same base type name) should interact.
 """
-interactrule(::Layer, ::P1, ::Layer, ::P2) where {P1<:SubSurfaceProcess,P2<:SubSubsurfaceProcess} =
+interactrule(::Layer, ::P1, ::Layer, ::P2) where {P1<:SubSurfaceProcess,P2<:SubSurfaceProcess} =
     Base.typename(P1).wrapper == Base.typename(P2).wrapper
 interactrule(::Type{P1},::Type{<:BoundaryProcess{P2}}) where {P1,P2} = interactrule(P1,P2)
 interactrule(::Type{<:BoundaryProcess{P1}},::Type{P2}) where {P1,P2} = interactrule(P1,P2)
@@ -78,7 +91,8 @@ Convenience macro for adding dispatches. Adds CryoGrid qualifier to function nam
 macro cryogrid(func)
     @assert func.head == :function "@cryogrid may only be applied to functions"
     fname = func.args[1].args[1]
-    func.args[1].args[1] = Symbol(:CryoGrid,fname)
+    func.args[1].args[1] = Symbol(:CryoGrid,:.,fname)
+    println(func)
     func
 end
 

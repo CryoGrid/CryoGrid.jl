@@ -7,13 +7,13 @@ end
 """
 Get the name of the given stratigraphy node.
 """
-name(::StratNode{L,P,I,name}) where {L,P,I,name} = name
-name(::Type{StratNode{L,P,I,name}}) where {L,P,I,name} = name
+name(::StratNode{L,P,name}) where {L,P,I,name} = name
+name(::Type{StratNode{L,P,name}}) where {L,P,I,name} = name
 
 # Constructors for stratigraphy nodes
 Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), Processes(boundaries...))
 Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), Processes(boundaries...))
-Ground(layer::L, name::Symbol, processes::SubSurfaceProcess...) = StratNode(name, layer, Processes(processes...))
+Ground(layer::SubSurface, name::Symbol, processes::SubSurfaceProcess...) = StratNode(name, layer, Processes(processes...))
 
 """
     Stratigraphy{TNodes,N,Q}

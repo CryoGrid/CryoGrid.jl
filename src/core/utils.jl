@@ -5,7 +5,7 @@ not during normal execution to avoid unnecessary overhead.
 """
 macro U_str(unit) CRYOGRID_DEBUG ? :(@u_str($unit)) : 1 end
 """
-Similar to @UType_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
+Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
 If debug mode is not enabled, plain Float64 is used instead.
 """
 macro UFloat_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
@@ -13,9 +13,9 @@ macro UFloat_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64
 Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the unit rather than the instance. NOT conditional
 on debug mode.
 """
-macro UType_str(unit) :(typeof(@u_str($unit))) end
+macro UT_str(unit) :(typeof(@u_str($unit))) end
 
-export U_str, UFloat_str, UType_str
+export U_str, UFloat_str, UT_str
 
 """
 Provides implementation of `Base.iterate` for structs.

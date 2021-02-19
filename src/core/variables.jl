@@ -11,9 +11,6 @@ const Scalar = Shape()
 abstract type VarStyle end
 struct Prognostic <: VarStyle end
 struct Diagnostic <: VarStyle end
-VarStyle(::Type{Var{T,D,S}}) where {T,D,S} = S()
-isprognostic(var::Var{T,D,S}) where {T,D,S} = S == Prognostic
-isdiagnostic(var::Var{T,D,S}) where {T,D,S} = S == Diagnostic
 
 # Variable type
 struct Var{T,D,S,name}
@@ -27,3 +24,7 @@ name(::Var{T,D,S,name}) where {T,D,S,name} = name
 (var::Var{T,TDim})(grid::Grid{Edges}) where {T,TDim<:OnGrid{Edges}} = var.dim.f(grid)
 (var::Var{T,TDim})(grid::Grid{Edges}) where {T,TDim<:OnGrid{Cells}} = var.dim.f(cells(grid))
 (var::Var{T,TDim})(grid::Grid{Edges}) where {T,dims,TDim<:Shape{dims}} = 1:prod(dims)
+
+VarStyle(::Type{Var{T,D,S}}) where {T,D,S} = S()
+isprognostic(var::Var{T,D,S}) where {T,D,S} = S == Prognostic
+isdiagnostic(var::Var{T,D,S}) where {T,D,S} = S == Diagnostic
