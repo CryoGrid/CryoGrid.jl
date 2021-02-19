@@ -4,7 +4,7 @@ abstract type GridSpec end
 struct Edges <: GridSpec end
 struct Cells <: GridSpec end
 
-const CAxis = ComponentArrays.Axis
+export GridSpec, Edges, Cells
 
 struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
     values::G
@@ -17,16 +17,27 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         edges .= vals
         cells = @view fullgrid[2:2:end-1]
         cells .= (vals[1:end-1] + vals[2:end]) / (2.0*one(Q))
+        # initialize delta grid; note that the distinction between edges and cells here is kind of
+        # redundant since the distance between midpoints should always be the same as distance between boundaries...
         deltas = similar(fullgrid, N-2)
         dedges = @view deltas[1:2:end]
         dedges .= edges[2:end] .- edges[1:end-1]
         dcells = @view deltas[2:2:end-1]
         dcells .= cells[2:end] .- cells[1:end-1]
+        # convert to immutable SVectors
         fullgrid = fullgrid |> SVector{N,Q}
         deltas = deltas |> SVector{N-2,Q}
+        # manually specify interleaved axes
         values = ComponentArray(fullgrid,(CAxis{(edges=1:2:N,cells=2:2:N-1)}(),))
         deltas = ComponentArray(deltas,(CAxis{(edges=1:2:N-2,cells=2:2:N-3)}(),))
         new{Edges,Q,typeof(values),typeof(deltas)}(values,deltas)
+    end
+    Grid(grid::Grid{S,Q,G,D}, inds::AbstractRange) where {S<:GridSpec,Q,G,D} = begin
+        start, stop = inds.start, inds.stop
+        # create new ComponentArrays with adjusted axes; this should be allocation-free
+        values = ComponentArray(grid.values,(CAxis{(edges=start:2:stop,cells=start+1:2:stop-1)}(),))
+        deltas = ComponentArray(grid.deltas,(CAxis{(edges=start:2:stop-2,cells=start+1:2:stop-3)}(),))
+        new{S,Q,typeof(values),typeof(deltas)}(values,deltas)
     end
     Grid(::Type{Cells}, grid::Grid{Edges,Q,G,D}) where {Q,G,D} =
         new{Cells,Q,G,D}(grid.values,grid.deltas)
@@ -34,35 +45,32 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         new{Edges,Q,G,D}(grid.values,grid.deltas)
 end
 
-function findinterval(values::A, interval::ClosedInterval{Q}) where {Q,A<:AbstractArray{Q}}
+function subgrid(grid::Grid{S,Q}, interval::ClosedInterval{Q}) where {S,Q}
     l,r = interval.left,interval.right
+    vals = values(grid)
     # Determine shortest interval that encloses l and r in *full* grid
-    l_ind = argmin(abs.(values .- l))+1
-    r_ind = argmin(abs.(values .- r))
-    values[l_ind:r_ind]
+    l_ind = argmin(abs.(vals .- l))+1
+    r_ind = argmin(abs.(vals .- r))
+    # Map back to full grid indices
+    idxmap = indexmap(grid)
+    Grid(grid,idxmap[l_ind]:idxmap[r_ind])
 end
-# TODO: there must be a better way to do this than repeating defs for both edges and cells;
-# Maybe a macro?
 Δ(grid::Grid{Edges}) = grid.deltas.edges
 Δ(grid::Grid{Cells}) = grid.deltas.cells
 cells(grid::Grid{Edges}) = Grid(Cells, grid)
 edges(grid::Grid{Cells}) = Grid(Edges, grid)
-subgrid(grid::Grid{Edges,Q}, interval::ClosedInterval{Q}) where Q = Grid(findinterval(grid.values.edges, interval))
-subgrid(grid::Grid{Cells,Q}, interval::ClosedInterval{Q}) where Q = Grid(findinterval(grid.values.cells, interval))
-Base.similar(grid::Grid{Edges}) = Grid(grid.values.edges)
-Base.similar(grid::Grid{Cells}) = Grid(grid.values.edges) |> cells
-Base.size(grid::Grid{Edges}) = size(grid.values.edges)
-Base.size(grid::Grid{Cells}) = size(grid.values.cells)
-Base.length(grid::Grid{Edges}) = length(grid.values.edges)
-Base.length(grid::Grid{Cells}) = length(grid.values.cells)
-@propagate_inbounds Base.getindex(grid::Grid{Edges}, i::Int) = grid.values.edges[i]
-@propagate_inbounds Base.getindex(grid::Grid{Cells}, i::Int) = grid.values.cells[i]
+@inline indexmap(grid::Grid{Edges}) = ComponentArrays.indexmap(getaxes(grid.values)[1]).edges
+@inline indexmap(grid::Grid{Cells}) = ComponentArrays.indexmap(getaxes(grid.values)[1]).cells
+@inline Base.values(grid::Grid{Edges}) = grid.values.edges
+@inline Base.values(grid::Grid{Cells}) = grid.values.cells
+@inline Base.similar(grid::Grid{Edges}) = Grid(grid.values.edges)
+@inline Base.similar(grid::Grid{Cells}) = Grid(grid.values.edges) |> cells
+@inline Base.size(grid::Grid) = size(values(grid))
+@inline Base.length(grid::Grid) = length(values(grid))
+@propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
 @propagate_inbounds Base.getindex(grid::Grid{S,Q}, interval::ClosedInterval{Q}) where {S,Q} = subgrid(grid,interval)
 AxisArrays.axistrait(::Type{<:Grid}) = AxisArrays.Dimensional
-AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid{Edges}, idx) =
-    AxisArrays.axisindexes(AxisArrays.Dimensional,ax.values.edges,idx)
-AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid{Cells}, idx) =
-    AxisArrays.axisindexes(AxisArrays.Dimensional,ax.values.cells,idx)
+AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid, idx) =
+    AxisArrays.axisindexes(AxisArrays.Dimensional,values(ax),idx)
 
-export GridSpec, Edges, Cells
-export Grid, cells, edges, Δ
+export Grid, cells, edges, indexmap, subgrid, Δ

@@ -13,6 +13,7 @@ export Unit, DistUnit, DistQuantity, CAxis
 include("utils.jl")
 include("grid.jl")
 include("forcing.jl")
+include("variables.jl")
 
 # Base type for composite parameter types
 abstract type Params end
@@ -34,9 +35,6 @@ struct Bottom <: Layer end
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)
 
 export Layer, SubSurface, Top, Bottom
-
-# Types for symbolic state variables
-include("vars.jl")
 
 # Base types for dynamical processes
 abstract type Process end
@@ -85,6 +83,5 @@ macro cryogrid(func)
 end
 
 # include core-dependent types/functions
-include("processes.jl")
 include("stratigraphy.jl")
 include("setup.jl")
