@@ -3,19 +3,30 @@ Similar to Unitful.@u_str (i.e. u"kg") but conditional on debug mode being enabl
 This should be used to apply units (and thus dimensional analysis checks) to physical quantities at test time but
 not during normal execution to avoid unnecessary overhead.
 """
-macro U_str(unit) CRYOGRID_DEBUG ? :(@u_str($unit)) : 1 end
+macro xu_str(unit) CRYOGRID_DEBUG ? :(@u_str($unit)) : 1 end
 """
 Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
 If debug mode is not enabled, plain Float64 is used instead.
 """
-macro UFloat_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
+macro Float_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
+"""
+Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the quantity rather than the instance. NOT conditional
+on debug mode.
+"""
+macro UFloat_str(unit) :(typeof(@u_str($unit)*0.0)) end
 """
 Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the unit rather than the instance. NOT conditional
 on debug mode.
 """
 macro UT_str(unit) :(typeof(@u_str($unit))) end
 
-export @U_str, @UFloat_str, @UT_str
+"""
+Debug ustrip. Remove units if and only if debug mode is NOT enabled.
+"""
+dustrip(x::Number) = CRYOGRID_DEBUG ? x : ustrip(x)
+dustrip(u::Unitful.Units, x::Number) = CRYOGRID_DEBUG ? x : ustrip(u,x)
+
+export @xu_str, @Float_str, @UFloat_str, @UT_str, dustrip
 
 """
 Provides implementation of `Base.iterate` for structs.

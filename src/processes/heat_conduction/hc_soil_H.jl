@@ -4,17 +4,17 @@ Soil heat conduction implementation for enthalpy (H) prognostic state.
 
 """ Defined variables for heat conduction (enthalpy) on soil layer. """
 variables(soil::Soil, heat::Heat{UT"J"}) = (
-    Prognostic(:H, UFloat"J", OnGrid(Cells)),
-    Diagnostic(:T, UFloat"K", OnGrid(Cells)),
-    Diagnostic(:C, UFloat"J/(K*m^3)", OnGrid(Cells)),
-    Diagnostic(:k, UFloat"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:θw_k, UFloat"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:θl_k, UFloat"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:θm_k, UFloat"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:θo_k, UFloat"W/(m*K)", OnGrid(Edges)),
+    Prognostic(:H, Float"J", OnGrid(Cells)),
+    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θw_k, Float"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θl_k, Float"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θm_k, Float"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θo_k, Float"W/(m*K)", OnGrid(Edges)),
 )
 
-function enthalpyInv(::Heat{UT"J"}, H::UFloat"J", C::UFloat"J/(K*m^3)", totalWater, L::UFloat"J/m^3")
+function enthalpyInv(::Heat{UT"J"}, H::Float"J", C::Float"J/(K*m^3)", totalWater, L::Float"J/m^3")
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         # indicator variables for thawed and frozen states respectively
         I_t = (H > L*θ) |> float;
@@ -27,7 +27,7 @@ end
 
 Enthalpy at temperature T with the given water content and heat capacity.
 """
-function enthalpy(::Heat{UT"J"}, T::UFloat"K", C::UFloat"J/(K*m^3)", liquidWater, L::UFloat"J/m^3")
+function enthalpy(::Heat{UT"J"}, T::Float"K", C::Float"J/(K*m^3)", liquidWater, L::Float"J/m^3")
     let θ = liquidWater; #[Vol. fraction]
         H = T*C + θ*L
     end
@@ -37,7 +37,7 @@ end
 Phase change with linear freeze curve. Assumes diagnostic liquid water variable. Should *not* be used with prognostic
 water variable.
 """
-function freezethaw(::Heat{UT"J"}, H::UFloat"J", totalWater, L::UFloat"J/m^3")
+function freezethaw(::Heat{UT"J"}, H::Float"J", totalWater, L::Float"J/m^3")
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         I_t = (H > Lθ) |> float,

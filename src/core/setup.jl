@@ -1,3 +1,9 @@
+"""
+    CryoGridSetup{S,G,U,D}
+
+Defines the full specification of a CryoGrid model; i.e. stratigraphy, grids, variables, and diagnostic state. `uproto`
+field is an uninitialized, prototype `ComponentArray` that holds the axis information for the prognostic state vector.
+"""
 struct CryoGridSetup{S,G,U,D}
     strat::S
     grid::G
@@ -7,6 +13,40 @@ struct CryoGridSetup{S,G,U,D}
         new{S,G,U,D}(strat,grid,uproto,state)
 end
 
+"""
+Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
+(of any arbitrary length, including zero) that will determine the array type used for all state vectors.
+"""
+function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zeros()) where {A<:AbstractArray}
+    pvar_arrays = OrderedDict()
+    layer_states = OrderedDict()
+    for (i,node) in enumerate(strat)
+        # determine subgrid for layer
+        lo = strat.boundaries[i] |> dustrip
+        hi = (i < length(strat) ? strat.boundaries[i+1] : grid[end]) |> dustrip
+        # build subgrid using closed interval [lo,hi]
+        subgrid = grid[lo..hi]
+        # build layer
+        parr, state = buildlayer(node,subgrid,arrayproto)
+        pvar_arrays[nameof(node)] = parr
+        layer_states[nameof(node)] = state
+    end
+    # construct named tuples containing data for each layer
+    nt_parr = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
+    nt_state = NamedTuple{Tuple(keys(layer_states))}(Tuple(values(layer_states)))
+    # construct prototype of u (prognostic state) array (note that this currently performs a copy)
+    uproto = ComponentArray(nt_parr)
+    # reconstruct with given array type
+    uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
+    CryoGridSetup(strat,grid,uproto,nt_state)
+end
+
+"""
+    withaxes(u::AbstractVector, setup::CryoGridSetup)
+
+Constructs a `ComponentArray` from `u` for recovering variable partitions. Assumes `u` to be a prognostic state vector
+of the same shape/layout as `uproto`.
+"""
 withaxes(u::AbstractVector, setup::CryoGridSetup) = ComponentArray(u,getaxes(setup.uproto))
 
 """
@@ -70,7 +110,7 @@ is only executed during compilation and will not appear in the compiled version.
         end push!(expr.args)
     end
     # Prognostic step
-    for i in 1:N-1
+    for i in 1:N
         n = nameof(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
@@ -85,6 +125,9 @@ is only executed during compilation and will not appear in the compiled version.
     return expr
 end
 
+"""
+Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 state vectors.
+"""
 @generated function initialcondition!(setup::CryoGridSetup{TStrat}) where {TStrat}
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
@@ -147,30 +190,9 @@ state variables at runtime.
     end
 end
 
-function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}, arrayproto::A=zeros()) where {A<:AbstractArray}
-    pvar_arrays = OrderedDict()
-    layer_states = OrderedDict()
-    for (i,node) in enumerate(strat)
-        # determine subgrid for layer
-        lo = strat.boundaries[i]
-        hi = i < length(strat) ? strat.boundaries[i+1] : grid[end]
-        # build subgrid using closed interval [lo,hi]
-        subgrid = grid[lo..hi]
-        # build layer
-        parr, state = buildlayer(node,subgrid,arrayproto)
-        pvar_arrays[nameof(node)] = parr
-        layer_states[nameof(node)] = state
-    end
-    # construct named tuples containing data for each layer
-    nt_parr = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
-    nt_state = NamedTuple{Tuple(keys(layer_states))}(Tuple(values(layer_states)))
-    # construct prototype of u (prognostic state) array (note that this currently performs a copy)
-    uproto = ComponentArray(nt_parr)
-    # reconstruct with given array type
-    uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
-    CryoGridSetup(strat,grid,uproto,nt_state)
-end
-
+"""
+Constructs prognostic state vector and state named-tuple for the given node/layer.
+"""
 function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<:AbstractArray}
     layer, process = node.layer, node.process
     layer_vars = variables(layer)
@@ -205,8 +227,8 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     # merge grid
     grids = merge(diag_grids, prog_grids)
     # get variable names for diagnostic and prognostic
-    dvarnames = @>> diag_vars map(var->nameof(var))
-    pvarnames = @>> prog_vars map(var->nameof(var))
+    dvarnames = @>> diag_vars map(nameof)
+    pvarnames = @>> prog_vars map(nameof)
     # return prognostic variable component array for top-level composition;
     # return layer state with variable name, grid information, and diagnostic state variables
     pvars = @>> pvarnames map(var->Val{var}())
@@ -216,7 +238,9 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     return prog_carr, layer_state
 end
 
-# build prognostic and diagnostic component arrays and corresponding grid tuples
+"""
+Constructs prognostic and diagnostic component arrays and corresponding grid tuples for the given variables.
+"""
 function buildcomponent(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     if isempty(vars)
         return similar(arrayproto,0),NamedTuple()

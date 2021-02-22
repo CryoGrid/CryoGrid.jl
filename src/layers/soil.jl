@@ -3,19 +3,19 @@ struct Sand <: SoilType end
 struct Silt <: SoilType end
 struct Clay <: SoilType end
 
-@with_kw struct SoilTCParams <: Params @deftype UFloat"W/(m*K)"
-    kw = 0.57U"W/(m*K)" #water [Hillel(1982)]
-    ko = 0.25U"W/(m*K)" #organic [Hillel(1982)]
-    km = 3.8U"W/(m*K)" #mineral [Hillel(1982)]
-    ka = 0.025U"W/(m*K)" #air [Hillel(1982)]
-    ki = 2.2U"W/(m*K)" #ice [Hillel(1982)]
+@with_kw struct SoilTCParams <: Params @deftype Float"W/(m*K)"
+    kw = 0.57xu"W/(m*K)" #water [Hillel(1982)]
+    ko = 0.25xu"W/(m*K)" #organic [Hillel(1982)]
+    km = 3.8xu"W/(m*K)" #mineral [Hillel(1982)]
+    ka = 0.025xu"W/(m*K)" #air [Hillel(1982)]
+    ki = 2.2xu"W/(m*K)" #ice [Hillel(1982)]
 end
-@with_kw struct SoilHCParams <: Params @deftype UFloat"J/(K*m^3)"
-    cw = 4.2*10^6U"J/(K*m^3)" #[J/m^3K] heat capacity water
-    co = 2.5*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity organic
-    cm = 2*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity mineral
-    ca = 0.00125*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity pore space
-    ci = 1.9*10^6U"J/(K*m^3)" #[J/m^3K]  heat capacity ice
+@with_kw struct SoilHCParams <: Params @deftype Float"J/(K*m^3)"
+    cw = 4.2*10^6xu"J/(K*m^3)" #[J/m^3K] heat capacity water
+    co = 2.5*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity organic
+    cm = 2*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity mineral
+    ca = 0.00125*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity pore space
+    ci = 1.9*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity ice
 end
 
 const SoilProfile{D,Q,T} = Profile{D,5,Q,T} where {D,Q,T}
