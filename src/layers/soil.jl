@@ -20,10 +20,11 @@ end
 
 const SoilProfile{D,Q,T} = Profile{D,5,Q,T} where {D,Q,T}
 function SoilProfile(pairs::Pair{<:DistQuantity,NTuple{5,Float64}}...)
-    # order: water+ice (total), liquidWater, mineral, organic
-    @assert all([p.second[1] + p.second[3] + p.second[4] <= 1.0 for p in pairs]) "composition must be <= 1.0"
-    @assert all([p.second[end] >= 0.0 for p in pairs]) "porosity must be >= 0.0"
-    Profile(pairs...;names=(:θw,:θl,:θm,:θo,:por))
+    # order: water+ice (total), liquidWater, mineral, organic, porosity
+    @assert begin
+        all([(p[2][1] + p[2][3] + p[2][4] ≈ 1.0) || (p[2][5] + p[2][3] + p[2][4] ≈ 1.0) for p in pairs])
+    end "either (waterIce + mineral + organic == 1.0) or (porosity + mineral + organic == 1.0) must hold"
+    Profile(pairs...;names=(:θw,:θl,:θm,:θo,:θp))
 end
 
 """
@@ -42,7 +43,7 @@ variables(soil::Soil) = (
     Diagnostic(:θl, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
-    Diagnostic(:por, Float64, OnGrid(Cells))
+    Diagnostic(:θp, Float64, OnGrid(Cells))
 )
 
 function initialcondition!(soil::Soil, state)
