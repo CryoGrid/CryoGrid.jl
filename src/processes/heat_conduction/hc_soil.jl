@@ -1,8 +1,12 @@
 variables(soil::Soil, heat::Heat{UT"J"}) = (
-    Var(:H, UFloat"J", OnGrid(Cells), Prognostic),
-    Var(:T, UFloat"K", OnGrid(Cells)),
-    Var(:C, UFloat"J/(K*m^3)", OnGrid(Cells)),
-    Var(:k, UFloat"W/(m*K)", OnGrid(Edges))
+    Prognostic(:H, UFloat"J", OnGrid(Cells)),
+    Diagnostic(:T, UFloat"K", OnGrid(Cells)),
+    Diagnostic(:C, UFloat"J/(K*m^3)", OnGrid(Cells)),
+    Diagnostic(:k, UFloat"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θw_k, UFloat"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θl_k, UFloat"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θm_k, UFloat"W/(m*K)", OnGrid(Edges)),
+    Diagnostic(:θo_k, UFloat"W/(m*K)", OnGrid(Edges)),
 )
 
 function enthalpyInv(H::UFloat"J", C::UFloat"J/(K*m^3)", totalWater, L::UFloat"J/m^3")
@@ -28,12 +32,12 @@ end
 Phase change with linear freeze curve. Assumes diagnostic liquid water variable. Should *not* be used with prognostic
 water variable.
 """
-function freezethaw(H::UFloat"J", totalWater, L::UFloat"J/m^3") where {P<:HeatParams{LinearFC}}
+function freezethaw(H::UFloat"J", totalWater, L::UFloat"J/m^3")
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         I_t = (H > Lθ) |> float,
         I_c = (H > 0.0 && H <= Lθ) |> float;
-        θl = I_c*(H/Lθ) + I_t
+        liquidfraction = I_c*(H/Lθ) + I_t
     end
 end
 
@@ -45,12 +49,11 @@ function initialcondition!(soil::Soil, heat::Heat{UT"J"}, state)
     @. state.C = heatCapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     @. state.H = enthalpy(state.T, state.C, state.θl, L)
     # k lies on the boundary grid, so we have to regrid the soil properties
-    let θw = regrid(state.θw, state.grids.θw, state.grids.k),
-        θl = regrid(state.θl, state.grids.θl, state.grids.k),
-        θm = regrid(state.θm, state.grids.θm, state.grids.k),
-        θo = regrid(state.θo, state.grids.θo, state.grids.k);
-        @. state.k = thermalConductivity(soil.tcparams, θw, θl, θm, θo)
-    end
+    regrid!(state.θw_k, state.θw, state.grids.θw, state.grids.k)
+    regrid!(state.θl_k, state.θl, state.grids.θl, state.grids.k)
+    regrid!(state.θm_k, state.θm, state.grids.θm, state.grids.k)
+    regrid!(state.θo_k, state.θo, state.grids.θo, state.grids.k)
+    @. state.k = thermalConductivity(soil.tcparams, state.θw_k, state.θl_k, state.θm_k, state.θo_k)
 end
 
 function diagnosticstep!(soil::Soil, heat::Heat{UT"J",P}, state) where {P<:HeatParams{LinearFC}}
@@ -59,7 +62,11 @@ function diagnosticstep!(soil::Soil, heat::Heat{UT"J",P}, state) where {P<:HeatP
         L = ρ*Lsl; #[J/m^3];
         @. state.T = enthalpyInv(state.H, state.C, state.θw, L)
         @. state.θl = freezethaw(state.H, state.θw, L)
+        @. state.θl = state.θw*state.θl
     end
+    @. state.C = heatCapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+    regrid!(state.θl_k, state.θl, state.grids.θl, state.grids.k)
+    @. state.k = thermalConductivity(soil.tcparams, state.θw_k, state.θl_k, state.θm_k, state.θo_k)
     return nothing # ensure no allocation
 end
 

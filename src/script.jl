@@ -28,13 +28,14 @@ strat = Stratigraphy(
 )
 grid = Grid(gridvals)
 model = CryoGridSetup(strat,grid)
-u0, du0 = initialcondition!(model)
 # define time span
 tspan = [0.0u"s",365u"d"] |> Tuple
+u0, du0 = initialcondition!(model)
 # setup ODEProblem
 prob = ODEProblem(model,u0,ustrip.(tspan))
 # solve discretized system; save at 3 hour intervals
 sol = @time solve(prob,alg_hints=[:stiff], saveat=3.0*3600.0)
+
 
 using Plots
 Hgrid = round.(model.state.soil.grids.H,digits=2)

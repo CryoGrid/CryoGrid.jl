@@ -23,7 +23,10 @@ nameof(var::Var{T,D,S}) where {T,D,S} = var.name
 export Var, nameof
 export VarDim, OnGrid, Shape, Scalar
 
+Prognostic(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Prognostic)
+Diagnostic(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Diagnostic)
+
 VarStyle(::Type{Var{T,D,S}}) where {T,D,S} = S()
 isprognostic(var::Var{T,D,S}) where {T,D,S} = S == Prognostic
 isdiagnostic(var::Var{T,D,S}) where {T,D,S} = S == Diagnostic
-export VarStyle, isprognostic, isdiagnostic
+export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic

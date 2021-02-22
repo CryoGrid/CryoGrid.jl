@@ -38,11 +38,11 @@ struct Soil{T,P} <: SubSurface
 end
 
 variables(soil::Soil) = (
-    Var(:θw, Float64, OnGrid(Cells)),
-    Var(:θl, Float64, OnGrid(Cells)),
-    Var(:θm, Float64, OnGrid(Cells)),
-    Var(:θo, Float64, OnGrid(Cells)),
-    Var(:por, Float64, OnGrid(Cells))
+    Diagnostic(:θw, Float64, OnGrid(Cells)),
+    Diagnostic(:θl, Float64, OnGrid(Cells)),
+    Diagnostic(:θm, Float64, OnGrid(Cells)),
+    Diagnostic(:θo, Float64, OnGrid(Cells)),
+    Diagnostic(:por, Float64, OnGrid(Cells))
 )
 
 function initialcondition!(soil::Soil, state)
