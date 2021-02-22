@@ -36,4 +36,4 @@ GeothermalHeatFlux(value::UFloat"J") = Constant{Heat,Neumann}(value)
 
 export ConstantAirTemp, GeothermalHeatFlux
 
-include("hc_soil.jl")
+include("hc_soil_H.jl")

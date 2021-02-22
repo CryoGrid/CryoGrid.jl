@@ -1,3 +1,8 @@
+"""
+Soil heat conduction implementation for enthalpy (H) prognostic state.
+"""
+
+""" Defined variables for heat conduction (enthalpy) on soil layer. """
 variables(soil::Soil, heat::Heat{UT"J"}) = (
     Prognostic(:H, UFloat"J", OnGrid(Cells)),
     Diagnostic(:T, UFloat"K", OnGrid(Cells)),
@@ -9,7 +14,7 @@ variables(soil::Soil, heat::Heat{UT"J"}) = (
     Diagnostic(:θo_k, UFloat"W/(m*K)", OnGrid(Edges)),
 )
 
-function enthalpyInv(H::UFloat"J", C::UFloat"J/(K*m^3)", totalWater, L::UFloat"J/m^3")
+function enthalpyInv(::Heat{UT"J"}, H::UFloat"J", C::UFloat"J/(K*m^3)", totalWater, L::UFloat"J/m^3")
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         # indicator variables for thawed and frozen states respectively
         I_t = (H > L*θ) |> float;
@@ -22,7 +27,7 @@ end
 
 Enthalpy at temperature T with the given water content and heat capacity.
 """
-function enthalpy(T::UFloat"K", C::UFloat"J/(K*m^3)", liquidWater, L::UFloat"J/m^3")
+function enthalpy(::Heat{UT"J"}, T::UFloat"K", C::UFloat"J/(K*m^3)", liquidWater, L::UFloat"J/m^3")
     let θ = liquidWater; #[Vol. fraction]
         H = T*C + θ*L
     end
@@ -32,7 +37,7 @@ end
 Phase change with linear freeze curve. Assumes diagnostic liquid water variable. Should *not* be used with prognostic
 water variable.
 """
-function freezethaw(H::UFloat"J", totalWater, L::UFloat"J/m^3")
+function freezethaw(::Heat{UT"J"}, H::UFloat"J", totalWater, L::UFloat"J/m^3")
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         I_t = (H > Lθ) |> float,
@@ -47,7 +52,7 @@ function initialcondition!(soil::Soil, heat::Heat{UT"J"}, state)
     interpolateprofile!(heat.profile, state)
     L = ρ(heat)*Lsl(heat)
     @. state.C = heatCapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
-    @. state.H = enthalpy(state.T, state.C, state.θl, L)
+    @. state.H = enthalpy(heat, state.T, state.C, state.θl, L)
     # k lies on the boundary grid, so we have to regrid the soil properties
     regrid!(state.θw_k, state.θw, state.grids.θw, state.grids.k)
     regrid!(state.θl_k, state.θl, state.grids.θl, state.grids.k)
@@ -60,8 +65,8 @@ function diagnosticstep!(soil::Soil, heat::Heat{UT"J",P}, state) where {P<:HeatP
     let ρ = heat.params.ρ,
         Lsl = heat.params.Lsl,
         L = ρ*Lsl; #[J/m^3];
-        @. state.T = enthalpyInv(state.H, state.C, state.θw, L)
-        @. state.θl = freezethaw(state.H, state.θw, L)
+        @. state.T = enthalpyInv(heat, state.H, state.C, state.θw, L)
+        @. state.θl = freezethaw(heat, state.H, state.θw, L) # overwrite θl temporarily to avoid allocation
         @. state.θl = state.θw*state.θl
     end
     @. state.C = heatCapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
