@@ -1,18 +1,13 @@
-struct LayerData{TPvars,TDvars,TDstate,TGrids}
-    pvarnames::TPvars
-    dvarnames::TDvars
-    dstate::TDstate
-    grids::TGrids
-end
-
 struct CryoGridSetup{S,G,U,D}
     strat::S
     grid::G
     uproto::U
-    layerdata::D
-    CryoGridSetup(strat::S,grid::G,uproto::U,layerdata::D) where {S<:Stratigraphy,G<:Grid{Edges},U,D} =
-        new{S,G,U,D}(strat,grid,uproto,layerdata)
+    state::D
+    CryoGridSetup(strat::S,grid::G,uproto::U,state::D) where {S<:Stratigraphy,G<:Grid{Edges},U,D} =
+        new{S,G,U,D}(strat,grid,uproto,state)
 end
+
+withaxes(u::AbstractVector, setup::CryoGridSetup) = ComponentArray(u,getaxes(setup.uproto))
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
@@ -26,54 +21,71 @@ prognostic_step!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function (setup::CryoGridSetup{TStrat})(du,u,p,t) where {TStrat}
+@generated function (setup::CryoGridSetup{TStrat})(_du,_u,p,t) where {TStrat}
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Build ComponentArrays directly from pre-allocated axes (should be fast and allocation free)
     # TODO also need to handle autodiff types for u and du
     @>> quote
-    u = ComponentArray(u,getaxes(setup.uproto))
-    du = ComponentArray(du,getaxes(setup.uproto))
+    u = ComponentArray(_u,getaxes(setup.uproto))
+    du = ComponentArray(_du,getaxes(setup.uproto))
+    du .= zero(eltype(du))
     end push!(expr.args) # add to expression block
     # Declare variables
     @>> quote
     strat = setup.strat
-    layerdata = setup.layerdata
+    state = setup.state
     end push!(expr.args)
-    # Iterate over layers
+    # Initialize variables for all layers
+    for i in 1:N
+        n = nameof(nodetyps[i])
+        nstate = Symbol(n,:state)
+        nlayer = Symbol(n,:layer)
+        nprocess = Symbol(n,:process)
+        @>> quote
+        $nstate = buildstate(state.$n, u.$n, du.$n, nothing)
+        $nlayer = strat.nodes[$i].layer
+        $nprocess = strat.nodes[$i].process
+        end push!(expr.args)
+    end
+    # Diagnostic step
+    for i in 1:N
+        n = nameof(nodetyps[i])
+        nstate = Symbol(n,:state)
+        nlayer = Symbol(n,:layer)
+        nprocess = Symbol(n,:process)
+        @>> quote
+        diagnosticstep!($nlayer,$nprocess,$nstate)
+        end push!(expr.args)
+    end
+    # Interact
     for i in 1:N-1
-        n1,n2 = name(nodetyps[i]), name(nodetyps[i+1])
-        # create variable names
+        n1,n2 = nameof(nodetyps[i]), nameof(nodetyps[i+1])
         n1state, n2state = Symbol(n1,:state), Symbol(n2,:state)
         n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
         n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
-        # generated code for layer updates
         @>> quote
-        $n1state = state(layerdata.$n1, u.$n1, du.$n1, p.$n1)
-        $n2state = state(layerdata.$n2, u.$n2, du.$n2, p.$n2)
-        $n1layer = strat.nodes[i].layer
-        $n2layer = strat.nodes[i+1].layer
-        $n1process = strat.nodes[i].process
-        $n2process = strat.nodes[i+1].process
-        diagnosticstep!($n1layer,$n1process,$n1state)
         interact!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
-        prognosticstep!($n1layer,$n1process,$n1state)
         end push!(expr.args)
     end
-    # Call diagnostic/prognostic update for bottom; we can assume from the preceding
-    # block that "bottom" variables have already been declared.
-    @>> quote
-    diagnosticstep!(bottomlayer, bottomprocess, bottomstate)
-    prognosticstep!(bottomlayer, bottomprocess, bottomstate)
-    # all updates are done in-place; return nothing
-    return nothing
-    end push!(expr.args)
-    # final expression block for generated function
+    # Prognostic step
+    for i in 1:N-1
+        n = nameof(nodetyps[i])
+        nstate = Symbol(n,:state)
+        nlayer = Symbol(n,:layer)
+        nprocess = Symbol(n,:process)
+        @>> quote
+        prognosticstep!($nlayer,$nprocess,$nstate)
+        end push!(expr.args)
+    end
+    # make sure compiled method returns no value
+    @>> :(return nothing) push!(expr.args)
+    # emit generated expression block
     return expr
 end
 
-@generated function initialcondition(setup::CryoGridSetup{TStrat}) where {TStrat}
+@generated function initialcondition!(setup::CryoGridSetup{TStrat}) where {TStrat}
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -84,80 +96,90 @@ end
     end push!(expr.args) # add to expression block
     @>> quote
     strat = setup.strat
-    layerdata = setup.layerdata
+    state = setup.state
     end push!(expr.args)
     # Iterate over layers
     for i in 1:N
-        n = name(nodetyps[i])
+        n = nameof(nodetyps[i])
         # create variable names
         nstate, nlayer, nprocess = Symbol(n,:state), Symbol(n,:layer), Symbol(n,:process)
         # generated code for layer updates
         @>> quote
-        $nstate = state(layerdata.$n, u.$n, du.$n, [])
-        $nlayer = strat.nodes[i].layer
-        $nprocess = strat.nodes[i].process
+        $nstate = buildstate(state.$n, u.$n, du.$n, nothing)
+        $nlayer = strat.nodes[$i].layer
+        $nprocess = strat.nodes[$i].process
         initialcondition!($nlayer,$nstate)
         initialcondition!($nlayer,$nprocess,$nstate)
         end push!(expr.args)
     end
     @>> quote
-    # call getdata to fetch underlying arrays; this avoids the performance penalty of using a custom array type
-    # as the state variable in integration.
+    # return raw arrays to avoid performance penalty from ComponentArray
     return getdata(u), getdata(du)
     end push!(expr.args)
+    return expr
 end
 
-@inline @generated function state(ldata::L, u, du, params) where {TPvars,TDvars,L<:LayerData{TPvars,TDvars}}
-    value(val::Val{T}) where T = T
-    pvals = tuple(TPvars.parameters...,)
-    dvals = tuple(TDvars.parameters...,)
-    # extract symbol from Val types
-    pnames = map(v -> value(v), pvals)
-    dnames = map(v -> value(v), dvals)
+"""
+Generates a function from layer state type D which builds a type-stable NamedTuple of
+state variables at runtime.
+"""
+@inline @generated function buildstate(state::D, u, du, params) where {names,types,D<:NamedTuple{names,types}}
+    """ Extracts the enclosed value from a Val type. """
+    val(::Type{Val{V}}) where V = V
+    # extract symbols from type D; we assume the first two parameters in the NamedTuple
+    # are the prognostic and diagnostic variable names respeictively. This must be respected by buildlayer.
+    # note that types.parameters[1] is Tuple{Val{:name},...} so we call parameters again to get (Val{:name},...)
+    pnames = types.parameters[1].parameters |> Tuple .|> val
+    # again for diagnostic, assumed to be at position 2
+    dnames = types.parameters[2].parameters |> Tuple .|> val
     # construct symbols for derivative variables; assumes no existing conflicts
-    dpnames = map(n -> Symbol(:d,n), pnames)
-    # generate accessor expressions
-    paccessors = tuple((:(u[$p]) for p in pvals)...,)
-    dpaccessors = tuple((:(du[$p]) for p in pvals)...,)
-    daccessors = tuple((:(ldata.dstate[$d]) for d in dvals)...,)
-    # build state named tuple
+    dpnames = @>> pnames map(n -> Symbol(:d,n))
+    # generate state variable accessor expressions
+    pacc = tuple((:(u.$p) for p in pnames)...,)
+    dpacc = tuple((:(du.$p) for p in pnames)...,)
+    dacc = tuple((:(state.$d) for d in dnames)...,)
+    # build state named tuple; QuoteNode is used to force names to be interpolated as symbols
+    # rather than literals.
     quote
-    NamedTuple{tuple($(pnames...),$(dpnames...),$(dnames...),:params)}(
-        tuple($(paccessors...),$(dpaccessors...),$(daccessors...),params)
+    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),:grids,:params)}(
+        tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params)
     )
     end
 end
 
 function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}, arrayproto::A=zeros()) where {A<:AbstractArray}
-    layer_data = OrderedDict()
+    pvar_arrays = OrderedDict()
+    layer_states = OrderedDict()
     for (i,node) in enumerate(strat)
         # determine subgrid for layer
         lo = strat.boundaries[i]
         hi = i < length(strat) ? strat.boundaries[i+1] : grid[end]
-        # build subgrid using half open interval to avoid overlapping grid edges
-        subgrid = grid[Interval{:closed,:open}(lo,hi)]
-        # build layer metadata
-        layer_data[name(node)] = buildlayer(node,subgrid,arrayproto)
+        # build subgrid using closed interval [lo,hi]
+        subgrid = grid[lo..hi]
+        # build layer
+        parr, state = buildlayer(node,subgrid,arrayproto)
+        pvar_arrays[nameof(node)] = parr
+        layer_states[nameof(node)] = state
     end
-    # unzip list of tuples into three separate lists
-    pvar_arrays, data = zip(values(layer_data)...)
     # construct named tuples containing data for each layer
-    nt_parr = NamedTuple{keys(layer_data)...}(pvar_arrays...)
-    nt_data = NamedTuple{keys(layer_data)...}(data...)
-    # construct prototype of u (prognostic state) array
+    nt_parr = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
+    nt_state = NamedTuple{Tuple(keys(layer_states))}(Tuple(values(layer_states)))
+    # construct prototype of u (prognostic state) array (note that this currently performs a copy)
     uproto = ComponentArray(nt_parr)
-    CryoGridSetup(strat,grid,uproto,nt_data)
+    # reconstruct with given array type
+    uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
+    CryoGridSetup(strat,grid,uproto,nt_state)
 end
 
 function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<:AbstractArray}
-    nodename = name(node)
     layer, process = node.layer, node.process
     layer_vars = variables(layer)
     @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
     process_vars = variables(layer, process)
-    all_vars = tuple(layer_vars...,process_vars...)
+    all_vars = [layer_vars...,process_vars...]
+    @info "Building layer $(nameof(node)) with $(length(all_vars)) variables"
     # check for (permissible) duplicates between variables
-    groups = groupby(var -> name(var), all_vars)
+    groups = groupby(var -> nameof(var), all_vars)
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
         if !reduce(==, gvars)
@@ -176,26 +198,40 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     end
     # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
     setdiff!(diag_vars, diag_prog)
-    # convert back to tuples
+    # convert back to lists
     diag_vars, prog_vars = tuple(diag_vars...), tuple(prog_vars...)
-    # build prognostic and diagnostic component arrays and corresponding grid tuples
-    function buildcomponent(vars::Tuple{<:Var}, grid::Grid{Edges})
-        names = @>> vars map(var -> name(var))
-        vars_with_names = NamedTuple{names...}(vars...)
-        grids = @>> vars_with_names map(var -> var(grid))
-        carray = ComponentArray(map(grid -> similar(arrayproto, size(grid))))
-        return carray, grids
-    end
-    diag_carr, diag_grids = buildcomponent(diag_vars, grid)
-    prog_carr, prog_grids = buildcomponent(prog_vars, grid)
-    # merge grid tuples
+    diag_carr, diag_grids = buildcomponent(diag_vars, grid, arrayproto)
+    prog_carr, prog_grids = buildcomponent(prog_vars, grid, arrayproto)
+    # merge grid
     grids = merge(diag_grids, prog_grids)
     # get variable names for diagnostic and prognostic
-    dvarnames = map(var->name(var),diag_vars)
-    pvarnames = map(var->name(var),prog_vars)
+    dvarnames = @>> diag_vars map(var->nameof(var))
+    pvarnames = @>> prog_vars map(var->nameof(var))
     # return prognostic variable component array for top-level composition;
-    # return LayerData with type-stable indices for all variables, diagnostic state array, and layer grids.
-    return prog_carr, LayerData(fastindices(pvarnames...),fastindices(dvarnames...),diag_carr,grids)
+    # return layer state with variable name, grid information, and diagnostic state variables
+    pvars = @>> pvarnames map(var->Val{var}())
+    dvars = @>> dvarnames map(var->Val{var}())
+    dstates = (diag_carr[d] for d in dvars)
+    layer_state = NamedTuple{tuple(:pvars,:dvars,:grids,dvarnames...)}(tuple(pvars,dvars,grids,dstates...))
+    return prog_carr, layer_state
 end
 
-export CryoGridSetup
+# build prognostic and diagnostic component arrays and corresponding grid tuples
+function buildcomponent(vars, grid::Grid{Edges}, arrayproto::A) where {A}
+    if isempty(vars)
+        return similar(arrayproto,0),NamedTuple()
+    end
+    togrid(var::Var{T,OnGrid{Edges}}) where T = var.dim.f(grid)
+    togrid(var::Var{T,OnGrid{Cells}}) where T = var.dim.f(cells(grid))
+    togrid(var::Var{T,Shape{dims}}) where {T,dims} = 1:prod(dims)
+    names = @>> vars map(var -> nameof(var))
+    vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
+    grids = @>> vars_with_names map(togrid)
+    # build component array to configure axes
+    carray = ComponentArray(grids)
+    # rebuild with given array type
+    carray = ComponentArray(similar(arrayproto,length(carray)), getaxes(carray))
+    return carray, grids
+end
+
+export CryoGridSetup, initialcondition!, withaxes

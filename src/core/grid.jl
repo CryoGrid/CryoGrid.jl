@@ -10,7 +10,7 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
     Grid(vals::TArray) where {Q,TArray<:AbstractArray{Q,1}} = begin
         # initialize full grid (edges with cells/midpoints)
         N = 2*length(vals)-1
-        fullgrid = MVector{N,Q}(undef)
+        fullgrid = similar(vals,N)
         edges = @view fullgrid[1:2:end]
         edges .= vals
         cells = @view fullgrid[2:2:end-1]
@@ -23,8 +23,8 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         dcells = @view deltas[2:2:end-1]
         dcells .= cells[2:end] .- cells[1:end-1]
         # convert to immutable SVectors
-        fullgrid = fullgrid |> SVector{N,Q}
-        deltas = deltas |> SVector{N-2,Q}
+        # fullgrid = fullgrid |> SVector{N,Q}
+        # deltas = deltas |> SVector{N-2,Q}
         # manually specify interleaved axes
         values = ComponentArray(fullgrid,(CAxis{(edges=1:2:N,cells=2:2:N-1)}(),))
         deltas = ComponentArray(deltas,(CAxis{(edges=1:2:N-2,cells=2:2:N-3)}(),))
@@ -54,6 +54,7 @@ function subgrid(grid::Grid{S,Q}, interval::Interval{L,R,Q}) where {S,L,R,Q}
     # Determine indices which lie in the given interval
     l_ind = findfirst(x -> x ∈ interval, vals)
     r_ind = findlast(x -> x ∈ interval, vals)
+    @assert !isnothing(l_ind) && !isnothing(r_ind) "No grid points in the given interval $interval"
     # Map back to full grid indices
     idxmap = indexmap(grid)
     Grid(grid,idxmap[l_ind]..idxmap[r_ind])
@@ -76,4 +77,12 @@ AxisArrays.axistrait(::Type{<:Grid}) = AxisArrays.Dimensional
 AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid, idx) =
     AxisArrays.axisindexes(AxisArrays.Dimensional,values(ax),idx)
 
-export Grid, cells, edges, indexmap, subgrid, Δ
+regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid; interp=Linear()) =
+    regrid!(similar(x,length(newgrid)), x, xgrid, newgrid; interp=interp)
+function regrid!(out::AbstractVector, x::AbstractVector, xgrid::Grid, newgrid::Grid; interp=Linear())
+    let f = @> interpolate((xgrid,), x, Gridded(interp)) extrapolate(Line());
+        out .= f.(newgrid)
+    end
+end
+
+export Grid, cells, edges, indexmap, subgrid, Δ, regrid, regrid!

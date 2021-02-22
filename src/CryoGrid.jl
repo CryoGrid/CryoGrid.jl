@@ -4,16 +4,17 @@ using Base: @propagate_inbounds
 using Interpolations
 using TimeSeries
 using Dates
-using Unitful
 using Lazy
-using DataStructures: SortedDict
-using IntervalSets
+using DataStructures: SortedDict, OrderedDict
 using AxisArrays
 using StaticArrays
 using ComponentArrays
-using Parameters
-using FastClosures
-using DifferentialEquations, DiffEqBase
+using DiffEqBase
+using Reexport
+@reexport using Unitful
+@reexport using IntervalSets
+@reexport using Parameters
+@reexport using DifferentialEquations
 
 # main version
 include("core/core.jl")

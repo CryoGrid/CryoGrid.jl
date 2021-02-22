@@ -4,10 +4,12 @@ global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
 const Unit{N,D,A} = Unitful.Units{N,D,A}
 const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
 const DistQuantity{T,U} = Quantity{T,Unitful.𝐋,U} where {T,U<:DistUnit}
+const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
+const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 # Qualified name for ComponentArrays.Axis
 const CAxis = ComponentArrays.Axis
 
-export Unit, DistUnit, DistQuantity, CAxis
+export Unit, DistUnit, DistQuantity, TempUnit, TempQuantity, CAxis
 
 # include standalone(-ish) types and methods
 include("utils.jl")
@@ -39,7 +41,7 @@ export Layer, SubSurface, Top, Bottom
 
 # Base types for dynamical processes
 abstract type Process end
-abstract type SubSurfaceProcess end
+abstract type SubSurfaceProcess <: Process end
 abstract type BoundaryProcess{P<:SubSurfaceProcess} <: Process end
 struct Processes{TProcs} <: Process
     processes::TProcs
@@ -62,28 +64,29 @@ struct Robin <: BoundaryStyle end
 # Default to an error to avoid erroneously labeling a boundary condition.
 BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary condition $T")
 
-const State{names,T} = NamedTuple{names,T} where {names,T}
 # Model core method stubs
 variables(::Layer) = ()
 variables(::Layer, ::Process) = ()
 parameters(::Layer) = ()
 parameters(::Layer, ::Process) = ()
-initialcondition!(::Layer, ::State) = nothing
-initialcondition!(::Layer, ::Process, ::State) = nothing
-diagnosticstep!(l::Layer, p::Process, ::State) = error("no diagnostic step defined for $(typeof(l)) with $(typeof(p))")
-prognosticstep!(l::Layer, p::Process, ::State) = error("no prognostic step defined for $(typeof(l)) with $(typeof(p))")
-interact!(l1::Layer, p1::Process, l2::Layer, p2::Process, s1::State, s2::State) =
+initialcondition!(::Layer, state) = nothing
+initialcondition!(::Layer, ::Process, state) = nothing
+diagnosticstep!(l::Layer, p::Process, state) = error("no diagnostic step defined for $(typeof(l)) with $(typeof(p))")
+prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined for $(typeof(l)) with $(typeof(p))")
+interact!(l1::Layer, p1::Process, l2::Layer, p2::Process, state1, state2) =
     error("no interaction defined betweeen $(typeof(l1)) with $(typeof(p1)) and $(typeof(l2)) with $(tyepof(p2))")
 """
 Declares an interraction to be present between two layer/process pairs. Default rule is that all processes of the
 same family (i.e. same base type name) should interact.
 """
-interactrule(::Layer, ::P1, ::Layer, ::P2) where {P1<:SubSurfaceProcess,P2<:SubSurfaceProcess} =
+interactrule(::Type{<:Layer}, ::Type{P1}, ::Type{<:Layer}, ::Type{P2}) where {P1<:SubSurfaceProcess,P2<:SubSurfaceProcess} =
     Base.typename(P1).wrapper == Base.typename(P2).wrapper
-interactrule(::Type{P1},::Type{<:BoundaryProcess{P2}}) where {P1,P2} = interactrule(P1,P2)
-interactrule(::Type{<:BoundaryProcess{P1}},::Type{P2}) where {P1,P2} = interactrule(P1,P2)
+interactrule(::Type{L1}, ::Type{P1}, ::Type{L2}, ::Type{<:BoundaryProcess{P2}}) where {L1,L2,P1,P2} =
+    interactrule(L1,P1,L2,P2)
+interactrule(::Type{L1}, ::Type{<:BoundaryProcess{P1}}, ::Type{L2}, ::Type{P2}) where {L1,L2,P1,P2} =
+    interactrule(L1,P1,L2,P2)
 
-export State, variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!, interactrule
+export variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!, interactrule
 
 """
 Convenience macro for adding dispatches. Adds CryoGrid qualifier to function names. Really just for prettiness :)
@@ -92,7 +95,6 @@ macro cryogrid(func)
     @assert func.head == :function "@cryogrid may only be applied to functions"
     fname = func.args[1].args[1]
     func.args[1].args[1] = Symbol(:CryoGrid,:.,fname)
-    println(func)
     func
 end
 

@@ -10,23 +10,29 @@ end
 
 #HeatParams(::Type{TFreezeCurve}=LinearFC;kwargs...) where {TFreezeCurve} = HeatParams{TFreezeCurve}(kwargs...)
 
-const TempProfile{D,Q} = Profile{D,1,Q} where {D,Q<:DistQuantity}
-TempProfile(pairs::Pair{UFloat"m", UFloat"°C"}...) = Profile([d=>(T,) for (d,T) in pairs]...;names=(:T,))
+const TempProfile{D,Q,T} = Profile{D,1,Q,T} where {D,Q,T}
+TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
+    Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
 
 struct Heat{U,TParams,TProfile} <: SubSurfaceProcess
     params::TParams
     profile::TProfile
-    Heat{UT"J"}(profile::TProfile, params::HeatParams=HeatParams()) where {TProfile<:TempProfile} =
-        new{UT"J",typeof(params),TProfile}(params)
-    Heat{UT"K"}(profile::TProfile, params::HeatParams=HeatParams()) where {TProfile<:TempProfile} =
-        new{UT"K",typeof(params),TProfile}(params)
+    Heat{UT"J"}(profile::TProfile, params::HeatParams=HeatParams{LinearFC}()) where {TProfile<:TempProfile} =
+        new{UT"J",typeof(params),TProfile}(params,profile)
+    Heat{UT"K"}(profile::TProfile, params::HeatParams=HeatParams{LinearFC}()) where {TProfile<:TempProfile} =
+        new{UT"K",typeof(params),TProfile}(params,profile)
 end
 
-export Heat, HeatParams, TempProfile
+ρ(heat::Heat) = heat.params.ρ
+Lsl(heat::Heat) = heat.params.Lsl
+
+export Heat, HeatParams, TempProfile, ρ, Lsl
 
 # Boundary condition type aliases
-const ConstantAirTemp{H} = Constant{H,Dirichlet,UFloat"K"} where {H<:Heat}
-const GeothermalHeatFlux{H} = Constant{H,Neumann,UFloat"J"} where {H<:Heat}
+const ConstantAirTemp = Constant{Heat,Dirichlet,UFloat"K"}
+ConstantAirTemp(value::UFloat"K") = Constant{Heat,Dirichlet}(value)
+const GeothermalHeatFlux = Constant{Heat,Neumann,UFloat"J"}
+GeothermalHeatFlux(value::UFloat"J") = Constant{Heat,Neumann}(value)
 
 export ConstantAirTemp, GeothermalHeatFlux
 

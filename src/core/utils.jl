@@ -15,7 +15,7 @@ on debug mode.
 """
 macro UT_str(unit) :(typeof(@u_str($unit))) end
 
-export U_str, UFloat_str, UT_str
+export @U_str, @UFloat_str, @UT_str
 
 """
 Provides implementation of `Base.iterate` for structs.
@@ -36,6 +36,12 @@ end
 
 export structiterate
 
+@inline tuplejoin(x) = x
+@inline tuplejoin(x, y) = (x..., y...)
+@inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
+
+export tuplejoin
+
 const DepthAxis{D,Q} = AxisArrays.Axis{:depth,MVector{D,Q}} where {D,Q}
 const ParamAxis{N} = AxisArrays.Axis{:param,MVector{N,Symbol}}
 """
@@ -45,7 +51,7 @@ where D is the "depth" dimension or number of rows/knots defined, N is the numbe
 Q is the type of each depth D (e.g. a quantity of meters). Profile is ultimately just a type-alias for an AxisArray
 with statically defined rows and columns.
 """
-const Profile{D,N,Q} = AxisArray{Float64,2,MMatrix{D,N,Float64},Tuple{DepthAxis{D,Q},ParamAxis{N}}} where {D,N,Q}
+const Profile{D,N,Q,T} = AxisArray{T,2,MMatrix{D,N,T},Tuple{DepthAxis{D,Q},ParamAxis{N}}} where {D,N,Q,T}
 """
     Profile(pairs...;names)
 
@@ -53,31 +59,34 @@ Constructs a Profile from the given pairs Q => (x1,...,xn) where x1...xn are the
 Column names for the resulting AxisArray can be set via the names parameter which accepts an NTuple of symbols,
 where N must match the number of parameters given (i.e. n).
 """
-function Profile(pairs::Pair{Q,NTuple{N,Float64}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {N,Q}
+function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {N,Q,T}
     D = length(pairs)
     depths, vals = zip(pairs...)
-    params = hcat([[ps...] for ps in vals]...)
+    params = hcat(collect.(vals)...)'
     sparams = MMatrix{D,N}(params...)
     sdepths = MVector{D}(depths...)
     # auto-generate column names if not assigned
     names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : names
-    Profile{D,N,Q}(sparams,(DepthAxis{D,Q}(sdepths),ParamAxis{N}(MVector{N}(names...))))
+    Profile{D,N,Q,T}(sparams,(DepthAxis{D,Q}(sdepths),ParamAxis{N}(MVector{N}(names...))))
 end
 
 """
-    interpolate_to_grid(profile::Profile, grid, state; interp=Linear())
+    interpolateprofile(profile::Profile, state; interp=Linear())
 
-Interpolates the given profile to the given grid. Assumes state to be indexable via the corresponding variable
-symbol and that the parameter names in state and profile match. The indexed value in state must be an array-like
-object broadcastable to length(grid). This function is intended to be used by initializers.
+Interpolates the given profile to the corresponding variable grids. Assumes state to be indexable via the corresponding
+variable symbol and that the parameter names in state and profile match.
 """
-function interpolate_to_grid(profile::Profile, grid, state; interp=Linear())
-    let (z,names) = AxisArrays.axes(profile);
+function interpolateprofile!(profile::Profile, state; interp=Linear())
+    let (depths,names) = AxisArrays.axes(profile),
+        z = ustrip.(depths);
         for p in names
-            profile_itrp = interpolate((z,), profile[:,p], Gridded(interp))
-            @. state[p] = profile_itrp.(grid) # assume length(grid) == length(state.p)
+            # in case state is unit-free, reinterpret to match eltype of profile
+            pstate = reinterpret(eltype(profile),state[p])
+            pgrid = state.grids[p]
+            f = @> interpolate((z,), profile[:,p], Gridded(interp)) extrapolate(Flat())
+            pstate .= f.(state.grids[p])   # assume length(grid) == length(state.p)
         end
     end
 end
 
-export Profile, interpolate_to_grid
+export Profile, interpolateprofile!
