@@ -16,12 +16,8 @@ using Reexport
 @reexport using Parameters
 @reexport using DifferentialEquations
 
-# main version
 include("core/core.jl")
 include("layers/layers.jl")
 include("processes/processes.jl")
-
-# implicit version
-# include("implicit/CryoGridImplicit.jl")
 
 end # module

@@ -77,10 +77,10 @@ AxisArrays.axistrait(::Type{<:Grid}) = AxisArrays.Dimensional
 AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid, idx) =
     AxisArrays.axisindexes(AxisArrays.Dimensional,values(ax),idx)
 
-regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid; interp=Linear()) =
-    regrid!(similar(x,length(newgrid)), x, xgrid, newgrid; interp=interp)
-function regrid!(out::AbstractVector, x::AbstractVector, xgrid::Grid, newgrid::Grid; interp=Linear())
-    let f = @> interpolate((xgrid,), x, Gridded(interp)) extrapolate(Line());
+regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line()) =
+    regrid!(similar(x,length(newgrid)), x, xgrid, newgrid, interp, bc)
+function regrid!(out::AbstractVector, x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line())
+    let f = @> interpolate((xgrid,), x, Gridded(interp)) extrapolate(bc);
         out .= f.(newgrid)
     end
 end

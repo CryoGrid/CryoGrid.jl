@@ -1,7 +1,7 @@
 struct Forcing{T,A}
       tarray::TimeArray{T,1,DateTime,A}
       Forcing(values::A, timestamps::AbstractArray{DateTime,1},
-              name::Symbol=:forcing; interpolation::Type=Linear) where
+              name::Symbol=:forcing; interpolation=Linear) where
               {T,A<:AbstractArray{T,1}} = begin
               degree = interpolation()
               ts = datetime2unix.(timestamps)

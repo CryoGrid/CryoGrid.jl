@@ -101,3 +101,4 @@ end
 # include core-dependent types/functions
 include("stratigraphy.jl")
 include("setup.jl")
+include("problem.jl")
