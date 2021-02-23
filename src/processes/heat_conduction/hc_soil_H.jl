@@ -14,22 +14,24 @@ variables(soil::Soil, heat::Heat{UT"J"}) = (
     Diagnostic(:θo_k, Float"W/(m*K)", OnGrid(Edges)),
 )
 
-function enthalpyInv(::Heat{UT"J"}, H::Float"J", C::Float"J/(K*m^3)", totalWater, L::Float"J/m^3")
-    let θ = max(1.0e-8, totalWater), #[Vol. fraction]
-        # indicator variables for thawed and frozen states respectively
-        I_t = (H > L*θ) |> float;
-        T = (H - I_t*L*θ) / C
-    end
-end
-
 """
     enthalpy(T,water,hc)
 
 Enthalpy at temperature T with the given water content and heat capacity.
 """
-function enthalpy(::Heat{UT"J"}, T::Float"K", C::Float"J/(K*m^3)", liquidWater, L::Float"J/m^3")
+function enthalpy(::Heat{UT"J"}, T, C, liquidWater, L)
     let θ = liquidWater; #[Vol. fraction]
-        H = T*C + θ*L
+        H = (T-273.15)*C + θ*L
+    end
+end
+
+function enthalpyInv(::Heat{UT"J"}, H, C, totalWater, L)
+    let θ = max(1.0e-8, totalWater), #[Vol. fraction]
+        Lθ = L*θ,
+        # indicator variables for thawed and frozen states respectively
+        I_t = H > Lθ,
+        I_f = H <= 0.0;
+        T = (I_t*(H-Lθ) + I_f*H)/C + 273.15
     end
 end
 
@@ -37,11 +39,11 @@ end
 Phase change with linear freeze curve. Assumes diagnostic liquid water variable. Should *not* be used with prognostic
 water variable.
 """
-function freezethaw(::Heat{UT"J"}, H::Float"J", totalWater, L::Float"J/m^3")
+function freezethaw(::Heat{UT"J"}, H, totalWater, L)
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         Lθ = L*θ,
-        I_t = (H > Lθ) |> float,
-        I_c = (H > 0.0 && H <= Lθ) |> float;
+        I_t = H > Lθ,
+        I_c = H > 0.0 && H <= Lθ;
         liquidfraction = I_c*(H/Lθ) + I_t
     end
 end
