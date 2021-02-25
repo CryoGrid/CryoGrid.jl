@@ -1,7 +1,7 @@
 struct StratNode{TLayer,TProcess,name}
     layer::TLayer
     process::TProcess
-    StratNode(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:Process} =
+    StratNode(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:Processes} =
         new{TLayer,TProcess,name}(layer,process)
 end
 """
