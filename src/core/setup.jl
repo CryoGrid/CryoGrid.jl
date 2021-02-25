@@ -84,7 +84,7 @@ is only executed during compilation and will not appear in the compiled version.
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
         @>> quote
-        $nstate = buildstate(state.$n, u.$n, du.$n, nothing)
+        $nstate = buildstate(state.$n, u.$n, du.$n, nothing, t)
         $nlayer = strat.nodes[$i].layer
         $nprocess = strat.nodes[$i].process
         end push!(expr.args)
@@ -148,7 +148,7 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
         nstate, nlayer, nprocess = Symbol(n,:state), Symbol(n,:layer), Symbol(n,:process)
         # generated code for layer updates
         @>> quote
-        $nstate = buildstate(state.$n, u.$n, du.$n, nothing)
+        $nstate = buildstate(state.$n, u.$n, du.$n, nothing, 0.0)
         $nlayer = strat.nodes[$i].layer
         $nprocess = strat.nodes[$i].process
         initialcondition!($nlayer,$nstate)
@@ -166,7 +166,7 @@ end
 Generates a function from layer state type D which builds a type-stable NamedTuple of
 state variables at runtime.
 """
-@inline @generated function buildstate(state::D, u, du, params) where {names,types,D<:NamedTuple{names,types}}
+@inline @generated function buildstate(state::D, u, du, params, t) where {names,types,D<:NamedTuple{names,types}}
     """ Extracts the enclosed value from a Val type. """
     val(::Type{Val{V}}) where V = V
     # extract symbols from type D; we assume the first two parameters in the NamedTuple
@@ -184,9 +184,8 @@ state variables at runtime.
     # build state named tuple; QuoteNode is used to force names to be interpolated as symbols
     # rather than literals.
     quote
-    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),:grids,:params)}(
-        tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params)
-    )
+    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),:grids,
+        :params, :t)}(tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params,t))
     end
 end
 

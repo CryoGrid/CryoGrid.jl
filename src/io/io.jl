@@ -13,6 +13,8 @@ JSON input format. Version parameter allows for forward/backward-compatibility w
 """
 struct JsonSpec{Version} <: InputSpec end
 
+export InputSpec, JsonSpec
+
 """
 Loads forcing data from the given file according to the format specified by `spec::InputSpec`. Default is JsonSpec{1}.
 Returns a NamedTuple of the form `(data=(...), timestamps=Array{DateTime,1})` where `data` is a NamedTuple matching
@@ -37,3 +39,5 @@ function loadforcings(::Type{JsonSpec{1}}, filename::String, units::Pair{Symbol,
         # construct new named tuple
         (data=NamedTuple{Tuple(keys(data))}(tuple(unitvals...)), timestamps=Array(ts))
 end
+
+export loadforcings

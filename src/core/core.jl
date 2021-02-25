@@ -6,6 +6,8 @@ const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
 const DistQuantity{T,U} = Quantity{T,Unitful.𝐋,U} where {T,U<:DistUnit}
 const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
 const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
+const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
+const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TempUnit}
 # Qualified name for ComponentArrays.Axis
 const CAxis = ComponentArrays.Axis
 
