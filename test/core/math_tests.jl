@@ -1,10 +1,8 @@
-ENV["CG_DEBUG"] = "true"
-using CryoGrid
-using Test
+using CryoGrid, Test
 
 include("../testutils.jl")
 
-@testset "∇ (fist order finite diff)" begin
+@testset "∇" begin
 	f(x) = (1/2)x^2 # function to differntiate
 	df(x) = x # analytical 2nd derivative
 	x = exp.(0.0:0.001:0.05)
@@ -17,7 +15,7 @@ include("../testutils.jl")
 	@test allequal(∂y,dy,atol=0.01)
 end
 
-@testset "∇² (second order finite diff, constant k)" begin
+@testset "∇² constant k" begin
 	f(x) = (1/6)x^3 # function to differntiate
 	d2f(x) = x # analytical 2nd derivative
 	x = exp.(0.0:0.001:0.05)
@@ -31,7 +29,7 @@ end
 	@test allequal(∂²y,k*d2y,atol=0.01)
 end
 
-@testset "∇² (second order finite diff, non-linear k)" begin
+@testset "∇² non-linear k" begin
 	f(x) = (1/6)x^3 # function to differntiate
 	df(x) = (1/2)x^2 # analytical 1st derivative
 	d2f(x) = x # analytical 2nd derivative
