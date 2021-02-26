@@ -38,4 +38,5 @@ GeothermalHeatFlux(value::UFloat"J/s") = Constant{Heat,Neumann}(dustrip(value))
 
 export ConstantAirTemp, GeothermalHeatFlux
 
+include("airtemp.jl")
 include("hc_soil_H.jl")

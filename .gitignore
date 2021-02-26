@@ -25,3 +25,6 @@ Manifest.toml
 
 # Results
 RESULT*/
+
+# User test scripts
+user/

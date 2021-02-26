@@ -26,7 +26,7 @@ function enthalpy(::Heat{UT"J",FreeWaterFC}, T, C, liquidWater, L)
 end
 
 function enthalpyInv(::Heat{UT"J",FreeWaterFC}, H, C, totalWater, L)
-    let θ = max(1.0e-8, totalWater), #[Vol. fraction]
+    let θ = max(1.0e-12, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         # indicator variables for thawed and frozen states respectively
         I_t = H > Lθ,
@@ -40,7 +40,7 @@ Phase change with linear freeze curve. Assumes diagnostic liquid water variable.
 water variable.
 """
 function freezethaw(::Heat{UT"J",FreeWaterFC}, H, totalWater, L)
-    let θ = max(1.0e-8, totalWater), #[Vol. fraction]
+    let θ = max(1.0e-12, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         I_t = H > Lθ,
         I_c = H > 0.0 && H <= Lθ;
@@ -108,6 +108,21 @@ Top interaction, constant temperature (Dirichlet) boundary condition.
 function interact!(top::Top, c::ConstantAirTemp, soil::Soil, heat::Heat{UT"J"}, stop, ssoil)
     Δk = Δ(ssoil.grids.k)
     ssoil.dH[1] += let Tair=c.value,
+        Tsoil=ssoil.T[1],
+        k=ssoil.k[1],
+        m=Δk[1],
+        δ=(Δk[1]/2); # distance to surface
+        -k*(Tsoil-Tair)/δ/m
+    end
+    return nothing # ensure no allocation
+end
+
+"""
+Top interaction, forced air temperature (Dirichlet) boundary condition.
+"""
+function interact!(top::Top, tair::AirTemperature, soil::Soil, heat::Heat{UT"J"}, stop, ssoil)
+    Δk = Δ(ssoil.grids.k)
+    ssoil.dH[1] += let Tair=tair(stop.t),
         Tsoil=ssoil.T[1],
         k=ssoil.k[1],
         m=Δk[1],
