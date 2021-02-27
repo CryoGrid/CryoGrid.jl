@@ -28,6 +28,8 @@ struct Stratigraphy{TNodes,TBounds}
     Stratigraphy(top::Pair{Q,<:StratNode{Top}}, sub::Tuple{Vararg{Pair{Q,<:StratNode{<:SubSurface}}}},
         bot::Pair{Q,<:StratNode{Bottom}}) where Q = begin
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
+        names = @>> sub map(last) map(nameof)
+        @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
         dict = SortedDict(top, sub..., bot)
         boundaries = tuple(keys(dict)...)
         nodes = tuple(values(dict)...)
