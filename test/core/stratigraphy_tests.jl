@@ -16,15 +16,15 @@ include("types.jl")
         # Check iteration and node types
         for (i,node) in enumerate(strat)
             if i == 1
-                @test CryoGrid.nameof(node) == :top
+                @test CryoGrid.nodename(node) == :top
                 @test typeof(node.layer) <: Top
                 @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
             elseif i == 2
-                @test CryoGrid.nameof(node) == :testground
+                @test CryoGrid.nodename(node) == :testground
                 @test typeof(node.layer) <: TestGroundLayer
                 @test typeof(node.process) <: Processes{Tuple{TestGroundProcess}}
             elseif i == 3
-                @test CryoGrid.nameof(node) == :bottom
+                @test CryoGrid.nodename(node) == :bottom
                 @test typeof(node.layer) <: Bottom
                 @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
             end
@@ -44,19 +44,19 @@ include("types.jl")
         # Check iteration and node types
         for (i,node) in enumerate(strat)
             if i == 1
-                @test CryoGrid.nameof(node) == :top
+                @test CryoGrid.nodename(node) == :top
                 @test typeof(node.layer) <: Top
                 @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
             elseif i == 2
-                @test CryoGrid.nameof(node) == :testground1
+                @test CryoGrid.nodename(node) == :testground1
                 @test typeof(node.layer) <: TestGroundLayer
                 @test typeof(node.process) <: Processes{Tuple{TestGroundProcess}}
             elseif i == 3
-                @test CryoGrid.nameof(node) == :testground2
+                @test CryoGrid.nodename(node) == :testground2
                 @test typeof(node.layer) <: TestGroundLayer
                 @test typeof(node.process) <: Processes{Tuple{TestGroundProcess}}
             elseif i == 4
-                @test CryoGrid.nameof(node) == :bottom
+                @test CryoGrid.nodename(node) == :bottom
                 @test typeof(node.layer) <: Bottom
                 @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
             end

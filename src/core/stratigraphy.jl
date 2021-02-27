@@ -7,8 +7,8 @@ end
 """
 Get the name of the given stratigraphy node.
 """
-nameof(::StratNode{L,P,name}) where {L,P,name} = name
-nameof(::Type{StratNode{L,P,name}}) where {L,P,name} = name
+nodename(::StratNode{L,P,name}) where {L,P,name} = name
+nodename(::Type{<:StratNode{L,P,name}}) where {L,P,name} = name
 
 # Constructors for stratigraphy nodes
 Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), Processes(boundaries...))
@@ -28,7 +28,7 @@ struct Stratigraphy{TNodes,TBounds}
     Stratigraphy(top::Pair{Q,<:StratNode{Top}}, sub::Tuple{Vararg{Pair{Q,<:StratNode{<:SubSurface}}}},
         bot::Pair{Q,<:StratNode{Bottom}}) where Q = begin
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
-        names = @>> sub map(last) map(nameof)
+        names = @>> sub map(last) map(nodename)
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
         dict = SortedDict(top, sub..., bot)
         boundaries = tuple(keys(dict)...)
@@ -47,4 +47,4 @@ Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
 
 export Stratigraphy
 export Top, Bottom, Ground
-export nameof, nodetypes
+export nodename, nodetypes

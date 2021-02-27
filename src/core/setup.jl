@@ -28,8 +28,8 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
         subgrid = grid[lo..hi]
         # build layer
         parr, state = buildlayer(node,subgrid,arrayproto)
-        pvar_arrays[nameof(node)] = parr
-        layer_states[nameof(node)] = state
+        pvar_arrays[nodename(node)] = parr
+        layer_states[nodename(node)] = state
     end
     # construct named tuples containing data for each layer
     nt_parr = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
@@ -79,7 +79,7 @@ is only executed during compilation and will not appear in the compiled version.
     end push!(expr.args)
     # Initialize variables for all layers
     for i in 1:N
-        n = nameof(nodetyps[i])
+        n = nodename(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
@@ -91,7 +91,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Diagnostic step
     for i in 1:N
-        n = nameof(nodetyps[i])
+        n = nodename(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
@@ -101,7 +101,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Interact
     for i in 1:N-1
-        n1,n2 = nameof(nodetyps[i]), nameof(nodetyps[i+1])
+        n1,n2 = nodename(nodetyps[i]), nodename(nodetyps[i+1])
         n1state, n2state = Symbol(n1,:state), Symbol(n2,:state)
         n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
         n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
@@ -111,7 +111,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Prognostic step
     for i in 1:N
-        n = nameof(nodetyps[i])
+        n = nodename(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
@@ -143,7 +143,7 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     end push!(expr.args)
     # Iterate over layers
     for i in 1:N
-        n = nameof(nodetyps[i])
+        n = nodename(nodetyps[i])
         # create variable names
         nstate, nlayer, nprocess = Symbol(n,:state), Symbol(n,:layer), Symbol(n,:process)
         # generated code for layer updates
@@ -167,14 +167,14 @@ Generates a function from layer state type D which builds a type-stable NamedTup
 state variables at runtime.
 """
 @inline @generated function buildstate(state::D, u, du, params, t) where {names,types,D<:NamedTuple{names,types}}
-    """ Extracts the enclosed value from a Val type. """
-    val(::Type{Val{V}}) where V = V
-    # extract symbols from type D; we assume the first two parameters in the NamedTuple
+    # extract variables types from D; we assume the first two parameters in the NamedTuple
     # are the prognostic and diagnostic variable names respeictively. This must be respected by buildlayer.
-    # note that types.parameters[1] is Tuple{Val{:name},...} so we call parameters again to get (Val{:name},...)
-    pnames = types.parameters[1].parameters |> Tuple .|> val
+    # note that types.parameters[1] is Tuple{Var,...} so we call parameters again to get (Var,...)
+    ptypes = types.parameters[1].parameters |> Tuple
     # again for diagnostic, assumed to be at position 2
-    dnames = types.parameters[2].parameters |> Tuple .|> val
+    dtypes = types.parameters[2].parameters |> Tuple
+    pnames = ptypes .|> varname
+    dnames = dtypes .|> varname
     # construct symbols for derivative variables; assumes no existing conflicts
     dpnames = @>> pnames map(n -> Symbol(:d,n))
     # generate state variable accessor expressions
@@ -198,9 +198,9 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
     process_vars = variables(layer, process)
     all_vars = [layer_vars...,process_vars...]
-    @info "Building layer $(nameof(node)) with $(length(all_vars)) variables"
+    @info "Building layer $(nodename(node)) with $(length(all_vars)) variables"
     # check for (permissible) duplicates between variables
-    groups = groupby(var -> nameof(var), all_vars)
+    groups = groupby(var -> varname(var), all_vars)
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
         if !reduce(==, gvars)
@@ -219,21 +219,21 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     end
     # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
     setdiff!(diag_vars, diag_prog)
-    # convert back to lists
+    # convert back to tuples
     diag_vars, prog_vars = tuple(diag_vars...), tuple(prog_vars...)
     diag_carr, diag_grids = buildcomponent(diag_vars, grid, arrayproto)
     prog_carr, prog_grids = buildcomponent(prog_vars, grid, arrayproto)
     # merge grid
     grids = merge(diag_grids, prog_grids)
     # get variable names for diagnostic and prognostic
-    dvarnames = @>> diag_vars map(nameof)
-    pvarnames = @>> prog_vars map(nameof)
+    dvarnames = @>> diag_vars map(varname)
+    pvarnames = @>> prog_vars map(varname)
     # return prognostic variable component array for top-level composition;
     # return layer state with variable name, grid information, and diagnostic state variables
-    pvars = @>> pvarnames map(var->Val{var}())
-    dvars = @>> dvarnames map(var->Val{var}())
-    dstates = (diag_carr[d] for d in dvars)
-    layer_state = NamedTuple{tuple(:pvars,:dvars,:grids,dvarnames...)}(tuple(pvars,dvars,grids,dstates...))
+    pnamevals = @>> pvarnames map(var->Val{var}())
+    dnamevals = @>> dvarnames map(var->Val{var}())
+    dstates = (diag_carr[d] for d in dnamevals)
+    layer_state = NamedTuple{tuple(:pvars,:dvars,:grids,dvarnames...)}(tuple(prog_vars,diag_vars,grids,dstates...))
     return prog_carr, layer_state
 end
 
@@ -244,10 +244,10 @@ function buildcomponent(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     if isempty(vars)
         return similar(arrayproto,0),NamedTuple()
     end
-    togrid(var::Var{T,OnGrid{Edges}}) where T = var.dim.f(grid)
-    togrid(var::Var{T,OnGrid{Cells}}) where T = var.dim.f(cells(grid))
-    togrid(var::Var{T,Shape{dims}}) where {T,dims} = 1:prod(dims)
-    names = @>> vars map(var -> nameof(var))
+    togrid(var::Var{name,T,OnGrid{Edges}}) where {name,T} = var.dim.f(grid)
+    togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = var.dim.f(cells(grid))
+    togrid(var::Var{name,T,Shape{dims}}) where {name,T,dims} = 1:prod(dims)
+    names = @>> vars map(var -> varname(var))
     vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
     grids = @>> vars_with_names map(togrid)
     # build component array to configure axes

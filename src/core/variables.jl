@@ -13,20 +13,22 @@ struct Prognostic <: VarStyle end
 struct Diagnostic <: VarStyle end
 
 # Variable type
-struct Var{T,D,S}
+struct Var{name,T,D,S}
     dim::D
-    name::Symbol
     Var(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar, style::Type{S}=Diagnostic) where {T,S<:VarStyle} =
-        new{T,typeof(dim),S}(dim,name)
+        new{name,T,typeof(dim),S}(dim)
 end
-nameof(var::Var{T,D,S}) where {T,D,S} = var.name
-export Var, nameof
+varname(::Var{name}) where {name} = name
+varname(::Type{<:Var{name}}) where {name} = name
+vartype(::Var{name,T}) where {name,T} = T
+vartype(::Type{<:Var{name,T}}) where {name,T} = T
+export Var, varname
 export VarDim, OnGrid, Shape, Scalar
 
 Prognostic(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Prognostic)
 Diagnostic(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Diagnostic)
 
-VarStyle(::Type{Var{T,D,S}}) where {T,D,S} = S()
-isprognostic(var::Var{T,D,S}) where {T,D,S} = S == Prognostic
-isdiagnostic(var::Var{T,D,S}) where {T,D,S} = S == Diagnostic
+VarStyle(::Type{Var{name,T,D,S}}) where {name,T,D,S} = S()
+isprognostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Prognostic
+isdiagnostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Diagnostic
 export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic
