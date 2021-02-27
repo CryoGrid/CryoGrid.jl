@@ -6,3 +6,5 @@ end
 (bc::Constant)(t) = bc.value
 
 BoundaryStyle(::Type{Constant{P,S}}) where {P,S} = S()
+
+export Constant
