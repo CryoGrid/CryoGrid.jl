@@ -1,7 +1,7 @@
 using CryoGrid
 using Test
 
-include("types.jl")
+include("../types.jl")
 
 @testset "Stratigraphy" begin
     @testset "3-layer" begin
