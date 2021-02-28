@@ -36,10 +36,11 @@ abstract type Layer end
 abstract type SubSurface <: Layer end
 struct Top <: Layer end
 struct Bottom <: Layer end
+const BoundaryLayer = Union{Top,Bottom}
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)
 
-export Layer, SubSurface, Top, Bottom
+export Layer, SubSurface, Top, Bottom, BoundaryLayer
 
 # Base types for dynamical processes
 abstract type Process end
@@ -65,6 +66,8 @@ struct Neumann <: BoundaryStyle end
 struct Robin <: BoundaryStyle end
 # Default to an error to avoid erroneously labeling a boundary condition.
 BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary condition $T")
+
+export BoundaryStyle, Dirichlet, Neumann, Robin
 
 # Model core method stubs
 variables(::Layer) = ()

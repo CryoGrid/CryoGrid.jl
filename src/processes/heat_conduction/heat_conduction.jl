@@ -25,16 +25,18 @@ struct Heat{U,TParams,TProfile} <: SubSurfaceProcess
         new{UT"K",typeof(params),TProfile}(params,profile)
 end
 
+export Heat, HeatParams, TempProfile
+
 ρ(heat::Heat) = heat.params.ρ
 Lsl(heat::Heat) = heat.params.Lsl
 """
-    heatconduction(T,ΔT,k,Δk,∂H)
+    heatconduction!(T,ΔT,k,Δk,∂H)
 
 1-D heat conduction/diffusion given T, k, and their deltas. Resulting enthalpy gradient is stored in ∂H.
 Note that this function does not perform bounds checking. It is up to the user to ensure that all variables are
 arrays of the correct length.
 """
-function heatconduction(T,ΔT,k,Δk,∂H)
+function heatconduction!(T,ΔT,k,Δk,∂H)
     # upper boundary
     @inbounds ∂H[1] += let T₂=T[2],
         T₁=T[1],
@@ -60,8 +62,44 @@ function heatconduction(T,ΔT,k,Δk,∂H)
     end
     return nothing
 end
+"""
+    boundaryflux(boundary::BoundaryLayer, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{Heat}}
 
-export Heat, HeatParams, TempProfile, ρ, Lsl, heatconduction
+Computes the flux dH/dt at the given boundary. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic
+implementations by boundary condition type.
+"""
+boundaryflux(boundary::BoundaryLayer, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{<:Heat}} =
+    boundaryflux(BoundaryStyle(B), boundary, bc, sub, h, sbound, ssub)
+boundaryflux(::Neumann, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}} =
+    @inbounds let a = Δ(ssub.grids.k)[1]
+        bc(top,sub,h,stop,ssub)/a
+    end
+boundaryflux(::Neumann, bot::Bottom, bc::B, sub::SubSurface, h::Heat, sbot, ssub) where {B<:BoundaryProcess{<:Heat}} =
+    @inbounds let a = Δ(ssub.grids.k)[end]
+        bc(bot,sub,h,sbot,ssub)/a
+    end
+function boundaryflux(::Dirichlet, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+    Δk = Δ(ssub.grids.k)
+    @inbounds let Tupper=bc(top,sub,h,stop,ssub),
+        Tsub=ssub.T[1],
+        k=ssub.k[1],
+        a=Δk[1],
+        δ=(Δk[1]/2); # distance to surface
+        -k*(Tsub-Tupper)/δ/a
+    end
+end
+function boundaryflux(::Dirichlet, bot::Bottom, bc::B, sub::SubSurface, h::Heat, sbot, ssub) where {B<:BoundaryProcess{<:Heat}}
+    Δk = Δ(ssub.grids.k)
+    @inbounds let Tlower=bc(bot,sub,h,sbot,ssub),
+        Tsub=ssub.T[end],
+        k=ssub.k[end],
+        a=Δk[end],
+        δ=(Δk[end]/2); # distance to surface
+        -k*(Tsub-Tlower)/δ/a
+    end
+end
+
+export ρ, Lsl, heatconduction!, boundaryflux
 
 # Boundary condition type aliases
 const ConstantAirTemp = Constant{Heat,Dirichlet,Float"K"}

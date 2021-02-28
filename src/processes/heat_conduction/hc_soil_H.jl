@@ -78,45 +78,22 @@ end
 function prognosticstep!(soil::Soil, heat::Heat{UT"J"}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
-    heatconduction(state.T,ΔT,state.k,Δk,state.dH)
+    heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
 end
 
 """
-Top interaction, constant temperature (Dirichlet) boundary condition.
+Generic top interaction. Computes flux dH at top cell.
 """
-function interact!(top::Top, c::ConstantAirTemp, soil::Soil, heat::Heat{UT"J"}, stop, ssoil)
-    Δk = Δ(ssoil.grids.k)
-    @inbounds ssoil.dH[1] += let Tair=c.value,
-        Tsoil=ssoil.T[1],
-        k=ssoil.k[1],
-        a=Δk[1],
-        δ=(Δk[1]/2); # distance to surface
-        -k*(Tsoil-Tair)/δ/a
-    end
+function interact!(top::Top, bc::B, soil::Soil, heat::Heat{UT"J"}, stop, ssoil) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssoil.dH[1] += boundaryflux(top, bc, soil, heat, stop, ssoil)
     return nothing # ensure no allocation
 end
 
 """
-Top interaction, forced air temperature (Dirichlet) boundary condition.
+Generic bottom interaction. Computes flux dH at bottom cell.
 """
-function interact!(top::Top, tair::AirTemperature, soil::Soil, heat::Heat{UT"J"}, stop, ssoil)
-    Δk = Δ(ssoil.grids.k)
-    @inbounds ssoil.dH[1] += let Tair=tair(stop.t),
-        Tsoil=ssoil.T[1],
-        k=ssoil.k[1],
-        a=Δk[1],
-        δ=(Δk[1]/2); # distance to surface
-        -k*(Tsoil-Tair)/δ/a
-    end
-    return nothing # ensure no allocation
-end
-
-"""
-Bottom interaction, constant geothermal heat flux (Neumann) boundary condition.
-"""
-function interact!(soil::Soil, heat::Heat{UT"J"}, bottom::Bottom, Qgeo::GeothermalHeatFlux, ssoil, sbot)
-    Δk = Δ(ssoil.grids.k)
-    @inbounds ssoil.dH[end] += Qgeo.value/Δk[end]
+function interact!(soil::Soil, heat::Heat{UT"J"}, bot::Bottom, bc::B, ssoil, sbot) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssoil.dH[end] += boundaryflux(bot, bc, soil, heat, sbot, ssoil)
     return nothing # ensure no allocation
 end
 
