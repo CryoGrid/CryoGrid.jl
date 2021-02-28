@@ -30,7 +30,7 @@ include("../../types.jl")
 		T₀ = uconvert.(u"K",(sin.(2.0.*π.*nxc))u"°C")
 		f_analytic(t) = let x=xc; exp(-pi^2*t).*sin.(2.0*π.*nxc) end
 		sub = TestGroundLayer()
-		heat = Heat{UT"J"}(DummyTempProfile)
+		heat = Heat{UT"J"}()
 		bc = Constant{Heat,Dirichlet}(uconvert(u"K",0.0u"°C"))
 		function dTdt(T,p,t)
 			dT = similar(∂H)
@@ -53,8 +53,8 @@ include("../../types.jl")
 		u_sol = hcat(sol.u...)'
 		u_analytic = (hcat(f_analytic.(sol.t)...)'.+273.15)u"K"
 		# verify inifnity norm of abs error < 1.0 K (i.e. all predicted values <1.0 K error)
-		@test norm(abs.(u_sol .- u_analytic), Inf) < 1.0u"K"
+		@test norm(mean(abs.(u_sol .- u_analytic),dims=1), Inf) < 1.0u"K"
 		# verify convergence, last values should be almost identical
-		@test norm(abs.(u_sol[end,:] .- u_analytic[end,:]), Inf) < 1.0e-4u"K"
+		@test norm(mean(abs.(u_sol[end,:] .- u_analytic[end,:]),dims=1), Inf) < 1.0e-4u"K"
 	end
 end
