@@ -36,11 +36,11 @@ abstract type Layer end
 abstract type SubSurface <: Layer end
 struct Top <: Layer end
 struct Bottom <: Layer end
-const BoundaryLayer = Union{Top,Bottom}
+const Boundary = Union{Top,Bottom}
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)
 
-export Layer, SubSurface, Top, Bottom, BoundaryLayer
+export Layer, SubSurface, Top, Bottom, Boundary
 
 # Base types for dynamical processes
 abstract type Process end

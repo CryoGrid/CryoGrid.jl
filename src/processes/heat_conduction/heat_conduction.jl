@@ -63,12 +63,12 @@ function heatconduction!(T,ΔT,k,Δk,∂H)
     return nothing
 end
 """
-    boundaryflux(boundary::BoundaryLayer, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{Heat}}
+    boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{Heat}}
 
 Computes the flux dH/dt at the given boundary. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic
 implementations by boundary condition type.
 """
-boundaryflux(boundary::BoundaryLayer, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{<:Heat}} =
+boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{<:Heat}} =
     boundaryflux(BoundaryStyle(B), boundary, bc, sub, h, sbound, ssub)
 boundaryflux(::Neumann, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}} =
     @inbounds let a = Δ(ssub.grids.k)[1]
