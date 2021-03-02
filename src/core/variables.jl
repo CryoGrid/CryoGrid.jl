@@ -1,3 +1,5 @@
+import Base.==
+
 # Variable dimensions
 abstract type VarDim end
 struct OnGrid{S} <: VarDim
@@ -18,6 +20,7 @@ struct Var{name,T,D,S}
     Var(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar, style::Type{S}=Diagnostic) where {T,S<:VarStyle} =
         new{name,T,typeof(dim),S}(dim)
 end
+==(var1::Var{N1,T1,D1},var2::Var{N2,T2,D2}) where {N1,N2,T1,T2,D1,D2} = (N1==N2) && (T1==T2) && (D1==D2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
 vartype(::Var{name,T}) where {name,T} = T

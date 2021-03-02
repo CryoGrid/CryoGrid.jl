@@ -34,6 +34,11 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     # construct named tuples containing data for each layer
     nt_parr = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
     nt_state = NamedTuple{Tuple(keys(layer_states))}(Tuple(values(layer_states)))
+    npvars = (length(layerstate.pvars) for layerstate in nt_state) |> sum
+    ndvars = (length(layerstate.dvars) for layerstate in nt_state) |> sum
+    nvars = npvars + ndvars
+    @assert nvars > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
+    @assert npvars > 0 "At least one prognostic variable must be specified."
     # construct prototype of u (prognostic state) array (note that this currently performs a copy)
     uproto = ComponentArray(nt_parr)
     # reconstruct with given array type
@@ -197,8 +202,8 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     layer_vars = variables(layer)
     @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
     process_vars = variables(layer, process)
-    all_vars = [layer_vars...,process_vars...]
-    @info "Building layer $(nodename(node)) with $(length(all_vars)) variables"
+    all_vars = tuple(layer_vars...,process_vars...)
+    @debug "Building layer $(nodename(node)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables
     groups = groupby(var -> varname(var), all_vars)
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
@@ -209,16 +214,16 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     end
     diag_vars = filter(x -> isdiagnostic(x), all_vars)
     prog_vars = filter(x -> isprognostic(x), all_vars)
-    # filter duplicates by converting to Sets
-    diag_vars = Set(diag_vars)
-    prog_vars = Set(prog_vars)
     # check for re-definition of diagnostic variables as prognostic
-    diag_prog = diag_vars ∩ prog_vars
+    diag_prog = filter(v -> v ∈ prog_vars, diag_vars)
     if !isempty(diag_prog)
-        @warn "Variables $(tuple(diag_prog...,)) declared as both prognostic and diagnostic. In-place modifications outside of callbacks may cause integration errors."
+        @warn "Variables $(tuple(map(varname,diag_prog)...,)) declared as both prognostic and diagnostic. In-place modifications outside of callbacks may cause integration errors."
     end
     # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
-    setdiff!(diag_vars, diag_prog)
+    diag_vars = filter(v -> v ∉ diag_prog, diag_vars)
+    # filter remaining duplicates
+    diag_vars = unique(diag_vars)
+    prog_vars = unique(prog_vars)
     # convert back to tuples
     diag_vars, prog_vars = tuple(diag_vars...), tuple(prog_vars...)
     diag_carr, diag_grids = buildcomponent(diag_vars, grid, arrayproto)

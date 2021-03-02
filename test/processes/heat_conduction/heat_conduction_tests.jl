@@ -30,14 +30,14 @@ include("../../types.jl")
 		sub = TestGroundLayer()
 		heat = Heat{UT"J"}()
 		bc = Constant{Heat,Dirichlet}(uconvert(u"K",0.0u"°C"))
-		@testset "+/-" begin
+		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(250,300,length(xc)))u"K"
 			∂H = zeros(length(T₀))u"J/s/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(Top(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
 			@test boundaryflux(Bottom(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
 		end
-		@testset "-/+" begin
+		@testset "top: -, bot: +" begin
 			T₀ = Vector(LinRange(300,250,length(xc)))u"K"
 			∂H = zeros(length(T₀))u"J/s/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
@@ -81,8 +81,7 @@ include("../../types.jl")
 			state = (T=T_K,k=k,dH=dT,grids=(T=xc,k=x),t=t)
 			dT[1] += boundaryflux(Top(),bc,sub,heat,state,state)
 			dT[end] += boundaryflux(Bottom(),bc,sub,heat,state,state)
-			# assume heat capacity = 1.0 J/(Km^3) and convert to K
-			# ODEProblem assumes that du and u have same type, so we do s*K/s = K to make it happy
+			# strip units from dT before returning dT to the solver
 			return ustrip.(dT)
 		end
 		tspan = (0.0,0.5)
