@@ -3,7 +3,8 @@ struct AirTemperature{F} <: BoundaryProcess{Heat}
     AirTemperature(forcing::Forcing{Float"°C"}) = new{typeof(forcing)}(forcing)
 end
 
-(bc::AirTemperature)(t) = bc.forcing(t)
+@inline (bc::AirTemperature)(t) = bc.forcing(t)
+@inline (bc::AirTemperature)(l1,l2,p2,s1,s2) = bc(s1.t)
 
 BoundaryStyle(::Type{<:AirTemperature}) = Dirichlet()
 

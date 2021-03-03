@@ -12,20 +12,21 @@ variables(soil::Soil, heat::Heat{UT"J"}) = (
 )
 
 # convenience constants for HeatParams parametric types
-const FreeWaterFC = HeatParams{FreeWater}
+const FreeWater = HeatParams{FreeWaterFC}
+const Instant = HeatParams{InstantFC}
 
 """
     enthalpy(T,water,hc)
 
 Enthalpy at temperature T with the given water content and heat capacity.
 """
-function enthalpy(::Heat{UT"J",FreeWaterFC}, T, C, liquidWater, L)
+function enthalpy(::Heat{UT"J",FreeWater}, T, C, liquidWater, L)
     let θ = liquidWater; #[Vol. fraction]
         H = (T-273.15)*C + θ*L
     end
 end
 
-function enthalpyInv(::Heat{UT"J",FreeWaterFC}, H, C, totalWater, L)
+function enthalpyInv(::Heat{UT"J",FreeWater}, H, C, totalWater, L)
     let θ = max(1.0e-12, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         # indicator variables for thawed and frozen states respectively
@@ -39,7 +40,7 @@ end
 Phase change with linear freeze curve. Assumes diagnostic liquid water variable. Should *not* be used with prognostic
 water variable.
 """
-function freezethaw(::Heat{UT"J",FreeWaterFC}, H, totalWater, L)
+function freezethaw(::Heat{UT"J",FreeWater}, H, totalWater, L)
     let θ = max(1.0e-12, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         I_t = H > Lθ,
@@ -60,7 +61,7 @@ function initialcondition!(soil::Soil, heat::Heat{UT"J"}, state)
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
 end
 
-function diagnosticstep!(soil::Soil, heat::Heat{UT"J",FreeWaterFC}, state)
+function diagnosticstep!(soil::Soil, heat::Heat{UT"J",FreeWater}, state)
     let ρ = heat.params.ρ,
         Lsl = heat.params.Lsl,
         L = ρ*Lsl; #[J/m^3];
@@ -77,67 +78,22 @@ end
 function prognosticstep!(soil::Soil, heat::Heat{UT"J"}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
-    # upper boundary
-    state.dH[1] += let T₂=state.T[2],
-        T₁=state.T[1],
-        k=state.k[2],
-        δ=ΔT[1],
-        m=Δk[1];
-        k*(T₂-T₁)/δ/m
-    end
-    # diffusion on non-boundary cells
-    let T = state.T,
-        k = (@view state.k[2:end-1]),
-        ∂H = (@view state.dH[2:end-1]);
-        ∇²(T, ΔT, k, ∂H)
-    end
-    # lower boundary
-    state.dH[end] += let T₂=state.T[end],
-        T₁=state.T[end-1],
-        k=state.k[end-1],
-        δ=ΔT[end],
-        m=Δk[end];
-        -k*(T₂-T₁)/δ/m
-    end
+    heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
+end
+
+"""
+Generic top interaction. Computes flux dH at top cell.
+"""
+function interact!(top::Top, bc::B, soil::Soil, heat::Heat{UT"J"}, stop, ssoil) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssoil.dH[1] += boundaryflux(top, bc, soil, heat, stop, ssoil)
     return nothing # ensure no allocation
 end
 
 """
-Top interaction, constant temperature (Dirichlet) boundary condition.
+Generic bottom interaction. Computes flux dH at bottom cell.
 """
-function interact!(top::Top, c::ConstantAirTemp, soil::Soil, heat::Heat{UT"J"}, stop, ssoil)
-    Δk = Δ(ssoil.grids.k)
-    ssoil.dH[1] += let Tair=c.value,
-        Tsoil=ssoil.T[1],
-        k=ssoil.k[1],
-        m=Δk[1],
-        δ=(Δk[1]/2); # distance to surface
-        -k*(Tsoil-Tair)/δ/m
-    end
-    return nothing # ensure no allocation
-end
-
-"""
-Top interaction, forced air temperature (Dirichlet) boundary condition.
-"""
-function interact!(top::Top, tair::AirTemperature, soil::Soil, heat::Heat{UT"J"}, stop, ssoil)
-    Δk = Δ(ssoil.grids.k)
-    ssoil.dH[1] += let Tair=tair(stop.t),
-        Tsoil=ssoil.T[1],
-        k=ssoil.k[1],
-        m=Δk[1],
-        δ=(Δk[1]/2); # distance to surface
-        -k*(Tsoil-Tair)/δ/m
-    end
-    return nothing # ensure no allocation
-end
-
-"""
-Bottom interaction, constant geothermal heat flux (Neumann) boundary condition.
-"""
-function interact!(soil::Soil, heat::Heat{UT"J"}, bottom::Bottom, Qgeo::GeothermalHeatFlux, ssoil, sbot)
-    Δk = Δ(ssoil.grids.k)
-    ssoil.dH[end] += Qgeo.value/Δk[end]
+function interact!(soil::Soil, heat::Heat{UT"J"}, bot::Bottom, bc::B, ssoil, sbot) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssoil.dH[end] += boundaryflux(bot, bc, soil, heat, sbot, ssoil)
     return nothing # ensure no allocation
 end
 

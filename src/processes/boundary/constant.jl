@@ -3,6 +3,9 @@ struct Constant{P,S,T} <: BoundaryProcess{P}
     Constant{P,S}(value::T) where {P<:SubSurfaceProcess,S<:BoundaryStyle,T} = new{P,S,T}(value)
 end
 
-(bc::Constant)(t) = bc.value
+# Arguments are irrelevant for Constant, so we can just use args...
+(bc::Constant)(args...) = bc.value
 
-BoundaryStyle(::Type{Constant{P,S}}) where {P,S} = S()
+BoundaryStyle(::Type{<:Constant{P,S}}) where {P,S} = S()
+
+export Constant

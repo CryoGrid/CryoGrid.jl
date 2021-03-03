@@ -36,10 +36,11 @@ abstract type Layer end
 abstract type SubSurface <: Layer end
 struct Top <: Layer end
 struct Bottom <: Layer end
+const Boundary = Union{Top,Bottom}
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)
 
-export Layer, SubSurface, Top, Bottom
+export Layer, SubSurface, Top, Bottom, Boundary
 
 # Base types for dynamical processes
 abstract type Process end
@@ -66,6 +67,8 @@ struct Robin <: BoundaryStyle end
 # Default to an error to avoid erroneously labeling a boundary condition.
 BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary condition $T")
 
+export BoundaryStyle, Dirichlet, Neumann, Robin
+
 # Model core method stubs
 variables(::Layer) = ()
 variables(::Layer, ::Process) = ()
@@ -91,14 +94,26 @@ interactrule(::Type{L1}, ::Type{<:BoundaryProcess{P1}}, ::Type{L2}, ::Type{P2}) 
 export variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!, interactrule
 
 """
-Convenience macro for adding dispatches. Adds CryoGrid qualifier to function names. Really just for prettiness :)
+Convenience macro for setting scalar (single-element) arrays/vectors. It turns an expression of the form:
+    `a.b = ...`
+into
+    `a.b[1] = ...`
+
+This is primarily intended for code clarity, i.e to clearly discern scalar and non-scalar values.
 """
-macro cryogrid(func)
-    @assert func.head == :function "@cryogrid may only be applied to functions"
-    fname = func.args[1].args[1]
-    func.args[1].args[1] = Symbol(:CryoGrid,:.,fname)
-    func
+macro setscalar(expr)
+    @assert expr.head == :(=) "@setscalar must be applied to an assignment expression of the form: a = ... where a is a 1-element collection."
+    refexpr = expr.args[1]
+    valexpr = expr.args[2]
+    @assert refexpr.head == :. "@setscalar must be applied to an assignment expression of the form: a = ... where a is a 1-element collection"
+    quote
+        $(refexpr)[1] = $(esc(valexpr))
+    end
 end
+
+getscalar(a::AbstractArray{T,1}) where T = a[1]
+
+export @setscalar, getscalar
 
 # include core-dependent types/functions
 include("stratigraphy.jl")
