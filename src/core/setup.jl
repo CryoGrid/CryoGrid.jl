@@ -226,28 +226,27 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     prog_vars = unique(prog_vars)
     # convert back to tuples
     diag_vars, prog_vars = tuple(diag_vars...), tuple(prog_vars...)
-    diag_carr, diag_grids = buildcomponent(diag_vars, grid, arrayproto)
-    prog_carr, prog_grids = buildcomponent(prog_vars, grid, arrayproto)
+    diag_grids = buildgrids(diag_vars, grid, arrayproto)
+    prog_grids = buildgrids(prog_vars, grid, arrayproto)
     # merge grid
     grids = merge(diag_grids, prog_grids)
     # get variable names for diagnostic and prognostic
     dvarnames = @>> diag_vars map(varname)
     pvarnames = @>> prog_vars map(varname)
+    dstates = (similar(arrayproto,length(diag_grids[d])) for d in dvarnames)
     # return prognostic variable component array for top-level composition;
     # return layer state with variable name, grid information, and diagnostic state variables
-    pnamevals = @>> pvarnames map(var->Val{var}())
-    dnamevals = @>> dvarnames map(var->Val{var}())
-    dstates = (diag_carr[d] for d in dnamevals)
     layer_state = NamedTuple{tuple(:pvars,:dvars,:grids,dvarnames...)}(tuple(prog_vars,diag_vars,grids,dstates...))
+    prog_carr = isempty(prog_vars) ? similar(arrayproto, 0) : ComponentArray(prog_grids)
     return prog_carr, layer_state
 end
 
 """
-Constructs prognostic and diagnostic component arrays and corresponding grid tuples for the given variables.
+Constructs grid tuples for the given variables.
 """
-function buildcomponent(vars, grid::Grid{Edges}, arrayproto::A) where {A}
+function buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     if isempty(vars)
-        return similar(arrayproto,0),NamedTuple()
+        return NamedTuple()
     end
     togrid(var::Var{name,T,OnGrid{Edges}}) where {name,T} = var.dim.f(grid)
     togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = var.dim.f(cells(grid))
@@ -255,11 +254,6 @@ function buildcomponent(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     names = @>> vars map(var -> varname(var))
     vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
     grids = @>> vars_with_names map(togrid)
-    # build component array to configure axes
-    carray = ComponentArray(grids)
-    # rebuild with given array type
-    carray = ComponentArray(similar(arrayproto,length(carray)), getaxes(carray))
-    return carray, grids
 end
 
 export CryoGridSetup, initialcondition!, withaxes
