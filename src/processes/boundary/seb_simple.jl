@@ -22,24 +22,24 @@ initialcondition!(soil::Soil, heat::Heat{UT"J"}, state) = (
 
 @with_kw struct SEBParams{T} <: Params
     # surface properties --> should be associated with the Stratigraphy
-    @setscalar α::Float"1" = 0.2xu"1"                          # surface albedo [-]
-    @setscalar ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
-    @setscalar z₀::Float"m" = 1e-3xu"m"                        # surface roughness length [m]
-    @setscalar rₛ::Float"1/m" = 50.0xu"1/m"                      # surface resistance against evapotranspiration and sublimation [1/m]
+    α::Float"1" = 0.2xu"1"                          # surface albedo [-]
+    ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
+    z₀::Float"m" = 1e-3xu"m"                        # surface roughness length [m]
+    rₛ::Float"1/m" = 50.0xu"1/m"                    # surface resistance against evapotranspiration and sublimation [1/m]
 
     # "natural" constant
-    @setscalar σ::Float64 = 5.6704e-8                          # Stefan-Boltzmann constant
-    @setscalar κ::Float"1" = 0.4xu"1"                          # von Kármán constant [-]
-    @setscalar γ::Float"1" = 0.622xu"1"                        # Psychrometric constant [-]
-    @setscalar Rₐ::Float"J/(kg*K)" = 287.058xu"J/(kg*K)"       # specific gas constant of air [J/(kg*K)]
-    @setscalar g::Float"m/s^2" = 9.81xu"m/s^2"                 # gravitational acceleration [m/s^2]
+    σ::Float"J/(s*m^2*K^4)" = 5.6704e-8xu"J/(s*m^2*K^4)"   # Stefan-Boltzmann constant
+    κ::Float"1" = 0.4xu"1"                          # von Kármán constant [-]
+    γ::Float"1" = 0.622xu"1"                        # Psychrometric constant [-]
+    Rₐ::Float"J/(kg*K)" = 287.058xu"J/(kg*K)"       # specific gas constant of air [J/(kg*K)]
+    g::Float"m/s^2" = 9.81xu"m/s^2"                 # gravitational acceleration [m/s^2]
 
     # material properties (assumed to be constant)
-    @setscalar ρₐ::Float"kg/m^3" = 1.293xu"kg/m^3"             # density of air at standard pressure and 0°C [kg/m^3]
-    @setscalar cₐ::Float"J/(m^3*K)"= 1005.7xu"J/(kg*K)"*ρₐ     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
+    ρₐ::Float"kg/m^3" = 1.293xu"kg/m^3"             # density of air at standard pressure and 0°C [kg/m^3]
+    cₐ::Float"J/(m^3*K)"= 1005.7xu"J/(kg*K)"*ρₐ     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-@with_kw struct SurfaceEnergyBalance{P,T} <: BoundaryProcess{P}
+struct SurfaceEnergyBalance{P,T} <: BoundaryProcess{P}
     forcing::T
     sebparams::SEBParams
     SurfaceEnergyBalance{P}(forcing::T) where {P<:Heat,T} = new{P,T}(forcing)
