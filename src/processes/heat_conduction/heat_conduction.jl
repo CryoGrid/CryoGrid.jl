@@ -98,6 +98,20 @@ function boundaryflux(::Dirichlet, bot::Bottom, bc::B, sub::SubSurface, h::Heat,
         -k*(Tsub-Tlower)/δ/a
     end
 end
+"""
+Generic top interaction. Computes flux dH at top cell.
+"""
+function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{UT"J"}, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
+    return nothing # ensure no allocation
+end
+"""
+Generic bottom interaction. Computes flux dH at bottom cell.
+"""
+function interact!(sub::SubSurface, heat::Heat{UT"J"}, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
+    return nothing # ensure no allocation
+end
 
 export ρ, Lsl, heatconduction!, boundaryflux
 

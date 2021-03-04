@@ -69,7 +69,7 @@ include("../types.jl")
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             Diagnostic(:w, Float"kg/m", OnGrid(Edges)),
         )
-        @test_throws ErrorException setup = CryoGridSetup(strat,grid)
+        @test_throws AssertionError setup = CryoGridSetup(strat,grid)
         # test scalar variables
         CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
             Prognostic(:x, Float"J", OnGrid(Cells)),

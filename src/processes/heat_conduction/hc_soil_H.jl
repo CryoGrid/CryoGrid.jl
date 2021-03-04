@@ -81,22 +81,6 @@ function prognosticstep!(soil::Soil, heat::Heat{UT"J"}, state)
     heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
 end
 
-"""
-Generic top interaction. Computes flux dH at top cell.
-"""
-function interact!(top::Top, bc::B, soil::Soil, heat::Heat{UT"J"}, stop, ssoil) where {B<:BoundaryProcess{<:Heat}}
-    @inbounds ssoil.dH[1] += boundaryflux(top, bc, soil, heat, stop, ssoil)
-    return nothing # ensure no allocation
-end
-
-"""
-Generic bottom interaction. Computes flux dH at bottom cell.
-"""
-function interact!(soil::Soil, heat::Heat{UT"J"}, bot::Bottom, bc::B, ssoil, sbot) where {B<:BoundaryProcess{<:Heat}}
-    @inbounds ssoil.dH[end] += boundaryflux(bot, bc, soil, heat, sbot, ssoil)
-    return nothing # ensure no allocation
-end
-
 # Note for future use: harmonic mean of thermal conductivities
 # for i=2:N-1
 #     kn(i,1) = (dxp(i,1)/(2*dxn(i))*kp(i,1).^-1 + dxp(i-1,1)/(2*dxn(i))*kp(i-1).^-1).^-1;
