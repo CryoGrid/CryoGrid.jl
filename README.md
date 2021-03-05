@@ -3,6 +3,8 @@
 Julia implementation of the CryoGrid land surface model using `DifferentialEquations.jl` and the [SciML](https://github.com/SciML)
 package ecosystem.
 
+Part of the broader research project: [Quantifying and explaining uncertainty in permafrost modeling under a warming climate](https://drive.google.com/file/d/1wB_EXtlO_PMXFSzZ-bRV8cg0a0DGDtAB/view?usp=sharing)
+
 Author: Brian Groenke (brian.groenke@awi.de)
 
 ### Quick start
