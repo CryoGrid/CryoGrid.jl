@@ -116,4 +116,7 @@ end
 
 export ρ, Lsl, heatconduction!, boundaryflux
 
+
 include("soil/soilheat.jl")
+include("soil/seb_simple.jl")
+

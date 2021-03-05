@@ -5,23 +5,23 @@ variables(soil::Soil, heat::Heat{UT"J"}) = (
     Diagnostic(:Qh, Float"W/(m^2)", Scalar()),      # sensible heat flux [J/(s*m^2)]
     Diagnostic(:Qe, Float"W/(m^2)", Scalar()),      # latent heat flux [J/(s*m^2)]
     Diagnostic(:Qg, Float"W/(m^2)", Scalar()),      # ground heat flux [J/(s*m^2)]
-    Diagnostic(:L∗, Float"m", Scalar()),            # Obukhov length [m]
-    Diagnostic(:u∗, Float"m/s", Scalar()),          # friction velocity [m/s]
+    Diagnostic(:Lstar, Float"m", Scalar()),         # Obukhov length [m]
+    Diagnostic(:ustar, Float"m/s", Scalar()),       # friction velocity [m/s]
 )
 
 initialcondition!(soil::Soil, heat::Heat{UT"J"}, state) = (
-    @setscalar state.S↑ = 0.;
-    @setscalar state.L↑ = 0.;
+    @setscalar state.Sout = 0.;
+    @setscalar state.Lout = 0.;
     @setscalar state.Qnet = 0.;
     @setscalar state.Qh = 0.;
     @setscalar state.Qe = 0.;
     @setscalar state.Qg = 0.;
-    @setscalar state.L∗ = -1e5;
-    @setscalar state.u∗ = 10.;
+    @setscalar state.Lstar = -1e5;
+    @setscalar state.ustar = 10.;
 )
 
 @with_kw struct SEBParams{T} <: Params
-    # surface properties --> should be associated with the Stratigraphy
+    # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
     ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
     z₀::Float"m" = 1e-3xu"m"                        # surface roughness length [m]
@@ -39,13 +39,21 @@ initialcondition!(soil::Soil, heat::Heat{UT"J"}, state) = (
     cₐ::Float"J/(m^3*K)"= 1005.7xu"J/(kg*K)"*ρₐ     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-struct SurfaceEnergyBalance{P,T} <: BoundaryProcess{P}
-    forcing::T
+struct SurfaceEnergyBalance{T} <: BoundaryProcess{Heat}
+    Tair::T
+    p::T
+    q::T
+    wind::T
+    Lin::T
+    Sin::T
     sebparams::SEBParams
-    SurfaceEnergyBalance{P}(forcing::T) where {P<:Heat,T} = new{P,T}(forcing)
+    SurfaceEnergyBalance(Tair::TimeSeriesForcing, p::TimeSeriesForcing, q::TimeSeriesForcing,
+                         wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
+                         Sin::TimeSeriesForcing) =  new{TimeSeriesForcing}(Tair,p,q,wind,Lin,Sin)
 end
 
 BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
+
 
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
@@ -54,34 +62,35 @@ function (seb::SurfaceEnergyBalance)(top::Top, soil::Soil, heat::Heat, stop, sso
 
     # 1. calculate radiation budget
     # outgoing shortwave radiation as reflected
-    @setscalar stop.S↑ = let α=seb.sebparams.α, S↓=seb.forcing.Sin(stop.t)
-                -α * S↓                                                    # Eq. (2) in Westermann et al. (2016)
+    @setscalar stop.Sout = let α=seb.sebparams.α, Sin=seb.forcing.Sin(stop.t);
+                -α * Sin                                                    # Eq. (2) in Westermann et al. (2016)
     end
 
     # outgoing longwave radiation composed of emitted and reflected radiation
-    @setscalar stop.L↑ = let ϵ=seb.sebparams.ϵ, σ=seb.sebparams.σ, T₀=ssoil.T[1], L↓=seb.forcing.Lin(stop.t);
-                -ϵ * σ * T₀^4 - (1-ϵ) * L↓                                  # Eq. (3) in Westermann et al. (2016)
+    @setscalar stop.Lout = let ϵ=seb.sebparams.ϵ, σ=seb.sebparams.σ, T₀=ssoil.T[1], Lin=seb.forcing.Lin(stop.t);
+                -ϵ * σ * T₀^4 - (1-ϵ) * Lin                                  # Eq. (3) in Westermann et al. (2016)
     end
 
     # net radiation budget
-    @setscalar stop.Qnet = let S↓=seb.forcing.Sin(stop.t), L↓=seb.forcing.Lin(stop.t), Sout=stop.S↑, Lout=stop.L↑;
-                S↓ + S↑ + L↓ + L↑
+    @setscalar stop.Qnet = let Sin=seb.forcing.Sin(stop.t), Lin=seb.forcing.Lin(stop.t), Sout=stop.Sout, Lout=stop.Lout;
+                Sin + Sout + Lin + Lout
     end
 
     # 2. calcuate turbulent heat flux budget
     # determine atmospheric stability conditions
-    @setscalar stop.u∗ = u∗(seb, stop)
-    @setscalar stop.L∗ = L∗(seb, stop)
+    @setscalar stop.ustar = ustar(seb, stop);
+    @setscalar stop.Lstar = Lstar(seb, stop);
 
     # sensible heat flux
-    @setscalar stop.Qh = Q_H(seb, stop, ssoil)
+    @setscalar stop.Qh = Q_H(seb, stop, ssoil);
 
     # latent heat flux
-    @setscalar stop.Qe = Q_E(seb, stop, ssoil)
+    @setscalar stop.Qe = Q_E(seb, stop, ssoil);
 
     # 3. determine ground heat flux as the residual of the radiative and turbulent fluxes
     @setscalar stop.Qg = let Qnet=stop.Qnet, Qₕ=stop.Qh, Qₑ=stop.Qe;
                     Qnet - Qₕ - Qₑ                                                  # essentially Eq. (1) in Westermann et al. (2016)
+    end
 
     # 4. return the ground heat flux to the uppermost soil grid cell
     return stop.Qg
@@ -96,7 +105,7 @@ density_air(seb::SurfaceEnergyBalance,T::Float"K",p::Float"Pa") = p/(T*seb.sebpa
 Saturation pressure of water/ice according to the empirical August-Roche-Magnus formula
 Note: T is passed [K] and converted to [°C]
 """
-e∗(T::Float"K") = ( (T>0) ? 611.2 * exp(17.62*(T-273.15)/(243.12-273.15+T))     # Eq. (B3) in Westermann et al. (2016)
+estar(T::Float"K") = ( (T>0) ? 611.2 * exp(17.62*(T-273.15)/(243.12-273.15+T))     # Eq. (B3) in Westermann et al. (2016)
                           : 611.2 * exp(22.46*(T-273.15)/(272.62-273.15+T)) ;
 )
 
@@ -113,36 +122,35 @@ Lsg(T::Float"K") = 1000 * (2834.1 - 0.29*T - 0.004*T^2);
 """
 Friction velocity according to Monin-Obukhov theory
 """
-function u∗(seb::SurfaceEnergyBalance, stop)
-    u∗ = let κ = seb.sebparams.κ,
+function ustar(seb::SurfaceEnergyBalance, stop)
+    ustar = let κ = seb.sebparams.κ,
              uz = seb.forcing.wind(stop.t),                                                  # wind speed at height z
              z = seb.forcing.z,                                                              # height z of wind forcing
              z₀ = seb.sebparams.z₀,                                                          # aerodynamic roughness length [m]
-             L∗ = stop.L∗;
-        κ * uz * (log(z/z₀) - Ψ_M(z/L∗,z₀/L∗))^-1                                            #Eq. (7) in Westermann et al. (2016)
+             Lstar = stop.Lstar;
+        κ * uz * (log(z/z₀) - Ψ_M(z/Lstar,z₀/Lstar))^-1                                            #Eq. (7) in Westermann et al. (2016)
     end
 end
 
 """
 Obukhov length according to Monin-Obukhov theory
 """
-function L∗(seb::SurfaceEnergyBalance, stop, ssoil)
-    L∗ = let κ = seb.sebparams.κ,
+function Lstar(seb::SurfaceEnergyBalance, stop, ssoil)
+    Lstar = let κ = seb.sebparams.κ,
                 g = seb.sebparams.g,
                 Rₐ = seb.sebparams.Rₐ,
                 cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                                       # specific heat capacity of air at constant pressure
                 Tₕ = seb.forcing.Tair(stop.t),                                                   # air temperature at height z over surface
-                p = seb.forcing.p(stop.t),                                                              # atmospheric pressure at surface
-                u∗ = stop.u∗,
+                p = seb.forcing.pressure(stop.t),                                                              # atmospheric pressure at surface
+                ustar = stop.ustar,
                 Qₑ = stop.Qe,
                 Llg = Llg(ssoil.T[1]),
-                ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
-            -ρₐ * cₚ * Tₕ / (κ * g) * u∗^3 / (Qₕ + 0.61*cₚ / Llg * Tₕ * Qₑ))                # Eq. (8) in Westermann et al. (2016)
+                ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.pressure(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
+            -ρₐ * cₚ * Tₕ / (κ * g) * ustar^3 / (Qₕ + 0.61*cₚ / Llg * Tₕ * Qₑ)                # Eq. (8) in Westermann et al. (2016)
     end
-    # upper and lower limits for L∗
-    (abs(L∗)<1e-7) ? L∗=sign(L∗)*1e-7 : ;
-    (abs(L∗)>1e+7) ? L∗=sign(L∗)*1e7 : ;
-
+    # upper and lower limits for Lstar
+    Lstar = (abs(Lstar)<1e-7) && sign(Lstar)*1e-7
+    Lstar = (abs(Lstar)>1e+7) && sign(Lstar)*1e+7
 end
 
 """
@@ -155,13 +163,13 @@ function Q_H(seb::SurfaceEnergyBalance, stop, ssoil)
         T₀ = ssoil.T[1],                                                         # surface temperature
         cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                                       # specific heat capacity of air at constant pressure
         z = seb.forcing.z,                                                          # height at which forcing data are provided
-        L∗ = stop.L∗,
-        u∗ = stop.u∗,
-        p = seb.forcing.p(stop.t),
+        Lstar = stop.Lstar,
+        ustar = stop.ustar,
+        p = seb.forcing.pressure(stop.t),
         z₀ = seb.sebparams.z₀,
-        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));# density of air at surface air temperature and surface pressure [kg/m^3]
+        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.pressure(stop.t));# density of air at surface air temperature and surface pressure [kg/m^3]
 
-        rₐᴴ = (κ * u∗)^-1 * (log(z/z₀) - Ψ_HW(z/L∗,z₀/L∗))                          # Eq. (6) in Westermann et al. (2016)
+        rₐᴴ = (κ * ustar)^-1 * (log(z/z₀) - Ψ_HW(z/Lstar,z₀/Lstar))                          # Eq. (6) in Westermann et al. (2016)
         Q_H = -ρₐ * cₚ * (Tₕ-T₀) / rₐᴴ                                              # Eq. (4) in Westermann et al. (2016)
     end
 end
@@ -177,24 +185,24 @@ function Q_E(seb::SurfaceEnergyBalance, stop, ssoil)
         Rₐ = seb.sebparams.Rₐ,
         Tₕ = seb.forcing.Tair(stop.t),                                                   # air temperature at height z over surface
         T₀ = ssoil.T[1],                                                         # surface temperature
-        p = seb.forcing.p(stop.t),                                                              # atmospheric pressure at surface
+        p = seb.forcing.pressure(stop.t),                                                              # atmospheric pressure at surface
         qₕ = seb.forcing.q(stop.t),                                                             # specific humidity at height h over surface
         z = seb.forcing.z(stop.t),                                                              # height at which forcing data are provided
         rₛ = seb.sebparams.rₛ,                                                               # surface resistance against evapotranspiration / sublimation [1/m]
-        L∗ = stop.L∗,
-        u∗ = stop.u∗,
+        Lstar = stop.Lstar,
+        ustar = stop.ustar,
         Llg = Llg(ssoil.T[1]),
         Lsg = Lsg(ssoil.T[1]),
         z₀ = seb.sebparams.z₀,                                                               # aerodynamic roughness length [m]
-        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
+        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.pressure(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
 
-        q₀ = γ*e∗(T₀)/p                                                          # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
-        rₐᵂ = (κ * u∗)^-1 * (log(z/z₀) - Ψ_HW(z/L∗,z₀/L∗))                          # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
-        (T₀<=273.15) ? L = Lsg : L = Llg                                            # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
+        q₀ = γ*estar(T₀)/p                                                              # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
+        rₐᵂ = (κ * ustar)^-1 * (log(z/z₀) - Ψ_HW(z/Lstar,z₀/Lstar))                     # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
+        (T₀<=273.15) ? L = Lsg : L = Llg                                                # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
 
         # calculate Q_E
-        (qₕ>q₀) ? Q_E = -ρₐ * L * (qₕ-q₀) / (rₐᵂ)                                    # Eq. (5) in Westermann et al. (2016) # condensation / resublimation (no aerodynamics resistance)
-                : Q_E = -ρₐ * L * (qₕ-q₀) / (rₐᵂ+rₛ)                                 # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
+        (qₕ>q₀) ? Q_E = -ρₐ * L * (qₕ-q₀) / (rₐᵂ)   :                                   # Eq. (5) in Westermann et al. (2016) # condensation / resublimation (no aerodynamics resistance)
+                  Q_E = -ρₐ * L * (qₕ-q₀) / (rₐᵂ+rₛ)                                    # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
     end
 end
 
@@ -222,3 +230,5 @@ function Ψ_M(ζ₁::Float64, ζ₂::Float64)
         (-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1 + ζ₂)^(1/3)) + 4.35131*log(3+4.4814*(1+ζ₂)^(1/3)) - 2.17566*log(3 - 4.4814*(1 + ζ₂)^(1/3) + 6.69433*(1 + ζ₂)^(2/3)))
     end
 end
+
+export SurfaceEnergyBalance
