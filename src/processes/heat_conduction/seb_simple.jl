@@ -1,4 +1,4 @@
-@with_kw struct SEBParams{T} <: Params
+@with_kw struct SEBParams{} <: Params
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
     ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
@@ -24,8 +24,8 @@ struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
                             wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
                             Sin::TimeSeriesForcing) =
                             begin
-                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin)
                                 sebparams = SEBParams()
+                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin)
                                 new{typeof(forcing)}(forcing)
                             end
 
@@ -33,27 +33,27 @@ end
 
 BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 
-variables(top::Top, seb::SurfaceEnergyBalance, soil::Soil, heat::Heat{UT"J"}) = (
-    Diagnostic(:Sout, Float"W/(m^2)", Scalar()),    # outgoing shortwave radiation [J/(s*m^2)]
-    Diagnostic(:Lout, Float"W/(m^2)", Scalar()),    # outgoing longwave radiation [J/(s*m^2)]
-    Diagnostic(:Qnet, Float"W/(m^2)", Scalar()),    # net radiation budget at surface [J/(s*m^2)]
-    Diagnostic(:Qh, Float"W/(m^2)", Scalar()),      # sensible heat flux [J/(s*m^2)]
-    Diagnostic(:Qe, Float"W/(m^2)", Scalar()),      # latent heat flux [J/(s*m^2)]
-    Diagnostic(:Qg, Float"W/(m^2)", Scalar()),      # ground heat flux [J/(s*m^2)]
-    Diagnostic(:Lstar, Float"m", Scalar()),         # Obukhov length [m]
-    Diagnostic(:ustar, Float"m/s", Scalar()),       # friction velocity [m/s]
+variables(top::Top, seb::SurfaceEnergyBalance) = (
+    Diagnostic(:Sout, Float"W/(m^2)", Scalar),    # outgoing shortwave radiation [J/(s*m^2)]
+    Diagnostic(:Lout, Float"W/(m^2)", Scalar,    # outgoing longwave radiation [J/(s*m^2)]
+    Diagnostic(:Qnet, Float"W/(m^2)", Scalar),    # net radiation budget at surface [J/(s*m^2)]
+    Diagnostic(:Qh, Float"W/(m^2)", Scalar),      # sensible heat flux [J/(s*m^2)]
+    Diagnostic(:Qe, Float"W/(m^2)", Scalar,      # latent heat flux [J/(s*m^2)]
+    Diagnostic(:Qg, Float"W/(m^2)", Scalar),      # ground heat flux [J/(s*m^2)]
+    Diagnostic(:Lstar, Float"m", Scalar),         # Obukhov length [m]
+    Diagnostic(:ustar, Float"m/s", Scalar),       # friction velocity [m/s]
 )
 
-initialcondition!(top::Top, seb::SurfaceEnergyBalance, soil::Soil, heat::Heat{UT"J"}, state) = (
-    @setscalar state.Sout = 0.;
-    @setscalar state.Lout = 0.;
-    @setscalar state.Qnet = 0.;
-    @setscalar state.Qh = 0.;
-    @setscalar state.Qe = 0.;
-    @setscalar state.Qg = 0.;
-    @setscalar state.Lstar = -1e5;
-    @setscalar state.ustar = 10.;
-)
+function initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
+    state.Sout[1] = 0.;
+    state.Lout[1] = 0.;
+    state.Qnet[1] = 0.;
+    state.Qh[1] = 0.;
+    state.Qe[1] = 0.;
+    state.Qg[1] = 0.;
+    state.Lstar[1] = -1e5;
+    state.ustar[1] = 10.;
+end
 
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
@@ -62,38 +62,38 @@ function (seb::SurfaceEnergyBalance)(top::Top, soil::Soil, heat::Heat, stop, sso
 
     # 1. calculate radiation budget
     # outgoing shortwave radiation as reflected
-    @setscalar stop.Sout = let α=seb.sebparams.α, Sin=seb.forcing.Sin(stop.t);
+    stop.Sout[1] = let α=seb.sebparams.α, Sin=seb.forcing.Sin(stop.t);
                 -α * Sin                                                    # Eq. (2) in Westermann et al. (2016)
     end
 
     # outgoing longwave radiation composed of emitted and reflected radiation
-    @setscalar stop.Lout = let ϵ=seb.sebparams.ϵ, σ=seb.sebparams.σ, T₀=ssoil.T[1], Lin=seb.forcing.Lin(stop.t);
+    stop.Lout[1] = let ϵ=seb.sebparams.ϵ, σ=seb.sebparams.σ, T₀=ssoil.T[1], Lin=seb.forcing.Lin(stop.t);
                 -ϵ * σ * T₀^4 - (1-ϵ) * Lin                                  # Eq. (3) in Westermann et al. (2016)
     end
 
     # net radiation budget
-    @setscalar stop.Qnet = let Sin=seb.forcing.Sin(stop.t), Lin=seb.forcing.Lin(stop.t), Sout=stop.Sout, Lout=stop.Lout;
+    stop.Qnet[1] = let Sin=seb.forcing.Sin(stop.t), Lin=seb.forcing.Lin(stop.t), Sout=stop.Sout, Lout=stop.Lout;
                 Sin + Sout + Lin + Lout
     end
 
     # 2. calcuate turbulent heat flux budget
     # determine atmospheric stability conditions
-    @setscalar stop.ustar = ustar(seb, stop);
-    @setscalar stop.Lstar = Lstar(seb, stop);
+    stop.ustar[1] = ustar(seb, stop);
+    stop.Lstar[1] = Lstar(seb, stop);
 
     # sensible heat flux
-    @setscalar stop.Qh = Q_H(seb, stop, ssoil);
+    stop.Qh[1] = Q_H(seb, stop, ssoil);
 
     # latent heat flux
-    @setscalar stop.Qe = Q_E(seb, stop, ssoil);
+    stop.Qe[1] = Q_E(seb, stop, ssoil);
 
     # 3. determine ground heat flux as the residual of the radiative and turbulent fluxes
-    @setscalar stop.Qg = let Qnet=stop.Qnet, Qₕ=stop.Qh, Qₑ=stop.Qe;
+    stop.Qg[1] = let Qnet=stop.Qnet, Qₕ=stop.Qh, Qₑ=stop.Qe;
                     Qnet - Qₕ - Qₑ                                                  # essentially Eq. (1) in Westermann et al. (2016)
     end
 
     # 4. return the ground heat flux to the uppermost soil grid cell
-    return stop.Qg
+    return stop.Qg[1]
 end
 
 """
