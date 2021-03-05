@@ -1,25 +1,3 @@
-variables(soil::Soil, heat::Heat{UT"J"}) = (
-    Diagnostic(:Sout, Float"W/(m^2)", Scalar()),    # outgoing shortwave radiation [J/(s*m^2)]
-    Diagnostic(:Lout, Float"W/(m^2)", Scalar()),    # outgoing longwave radiation [J/(s*m^2)]
-    Diagnostic(:Qnet, Float"W/(m^2)", Scalar()),    # net radiation budget at surface [J/(s*m^2)]
-    Diagnostic(:Qh, Float"W/(m^2)", Scalar()),      # sensible heat flux [J/(s*m^2)]
-    Diagnostic(:Qe, Float"W/(m^2)", Scalar()),      # latent heat flux [J/(s*m^2)]
-    Diagnostic(:Qg, Float"W/(m^2)", Scalar()),      # ground heat flux [J/(s*m^2)]
-    Diagnostic(:Lstar, Float"m", Scalar()),         # Obukhov length [m]
-    Diagnostic(:ustar, Float"m/s", Scalar()),       # friction velocity [m/s]
-)
-
-initialcondition!(soil::Soil, heat::Heat{UT"J"}, state) = (
-    @setscalar state.Sout = 0.;
-    @setscalar state.Lout = 0.;
-    @setscalar state.Qnet = 0.;
-    @setscalar state.Qh = 0.;
-    @setscalar state.Qe = 0.;
-    @setscalar state.Qg = 0.;
-    @setscalar state.Lstar = -1e5;
-    @setscalar state.ustar = 10.;
-)
-
 @with_kw struct SEBParams{T} <: Params
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
@@ -39,21 +17,43 @@ initialcondition!(soil::Soil, heat::Heat{UT"J"}, state) = (
     cₐ::Float"J/(m^3*K)"= 1005.7xu"J/(kg*K)"*ρₐ     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-struct SurfaceEnergyBalance{T} <: BoundaryProcess{Heat}
-    Tair::T
-    p::T
-    q::T
-    wind::T
-    Lin::T
-    Sin::T
+struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
+    forcing::F
     sebparams::SEBParams
-    SurfaceEnergyBalance(Tair::TimeSeriesForcing, p::TimeSeriesForcing, q::TimeSeriesForcing,
-                         wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
-                         Sin::TimeSeriesForcing) =  new{TimeSeriesForcing}(Tair,p,q,wind,Lin,Sin)
+    SurfaceEnergyBalance(   Tair::TimeSeriesForcing, p::TimeSeriesForcing, q::TimeSeriesForcing,
+                            wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
+                            Sin::TimeSeriesForcing) =
+                            begin
+                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin)
+                                sebparams = SEBParams()
+                                new{typeof(forcing)}(forcing)
+                            end
+
 end
 
 BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 
+variables(top::Top, seb::SurfaceEnergyBalance, soil::Soil, heat::Heat{UT"J"}) = (
+    Diagnostic(:Sout, Float"W/(m^2)", Scalar()),    # outgoing shortwave radiation [J/(s*m^2)]
+    Diagnostic(:Lout, Float"W/(m^2)", Scalar()),    # outgoing longwave radiation [J/(s*m^2)]
+    Diagnostic(:Qnet, Float"W/(m^2)", Scalar()),    # net radiation budget at surface [J/(s*m^2)]
+    Diagnostic(:Qh, Float"W/(m^2)", Scalar()),      # sensible heat flux [J/(s*m^2)]
+    Diagnostic(:Qe, Float"W/(m^2)", Scalar()),      # latent heat flux [J/(s*m^2)]
+    Diagnostic(:Qg, Float"W/(m^2)", Scalar()),      # ground heat flux [J/(s*m^2)]
+    Diagnostic(:Lstar, Float"m", Scalar()),         # Obukhov length [m]
+    Diagnostic(:ustar, Float"m/s", Scalar()),       # friction velocity [m/s]
+)
+
+initialcondition!(top::Top, seb::SurfaceEnergyBalance, soil::Soil, heat::Heat{UT"J"}, state) = (
+    @setscalar state.Sout = 0.;
+    @setscalar state.Lout = 0.;
+    @setscalar state.Qnet = 0.;
+    @setscalar state.Qh = 0.;
+    @setscalar state.Qe = 0.;
+    @setscalar state.Qg = 0.;
+    @setscalar state.Lstar = -1e5;
+    @setscalar state.ustar = 10.;
+)
 
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
@@ -106,7 +106,7 @@ Saturation pressure of water/ice according to the empirical August-Roche-Magnus 
 Note: T is passed [K] and converted to [°C]
 """
 estar(T::Float"K") = ( (T>0) ? 611.2 * exp(17.62*(T-273.15)/(243.12-273.15+T))     # Eq. (B3) in Westermann et al. (2016)
-                          : 611.2 * exp(22.46*(T-273.15)/(272.62-273.15+T)) ;
+                             : 611.2 * exp(22.46*(T-273.15)/(272.62-273.15+T)) ;
 )
 
 """
