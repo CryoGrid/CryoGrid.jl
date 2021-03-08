@@ -112,18 +112,18 @@ estar(T::Float"K") = ( (T>0) ? 611.2 * exp(17.62*(T-273.15)/(243.12-273.15+T))  
 """
 Latent heat of evaporation/condensation of water according to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-Llg(T::Float"K") = 1000 * (2500.8 - 2.36*T + 0.0016*T^2 - 0.00006*T^3);
+L_lg(T::Float"K") = 1000 * (2500.8 - 2.36*T + 0.0016*T^2 - 0.00006*T^3);
 
 """
 Latent heat of sublimation/resublimation of water accodring to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-Lsg(T::Float"K") = 1000 * (2834.1 - 0.29*T - 0.004*T^2);
+L_sg(T::Float"K") = 1000 * (2834.1 - 0.29*T - 0.004*T^2);
 
 """
 Friction velocity according to Monin-Obukhov theory
 """
 function ustar(seb::SurfaceEnergyBalance, stop)
-    ustar = let κ = seb.sebparams.κ,
+    let κ = seb.sebparams.κ,
              uz = seb.forcing.wind(stop.t),                                                  # wind speed at height z
              z = seb.forcing.z,                                                              # height z of wind forcing
              z₀ = seb.sebparams.z₀,                                                          # aerodynamic roughness length [m]
@@ -136,7 +136,7 @@ end
 Obukhov length according to Monin-Obukhov theory
 """
 function Lstar(seb::SurfaceEnergyBalance, stop, ssoil)
-    Lstar = let κ = seb.sebparams.κ,
+    res = let κ = seb.sebparams.κ,
                 g = seb.sebparams.g,
                 Rₐ = seb.sebparams.Rₐ,
                 cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                    # specific heat capacity of air at constant pressure
@@ -145,13 +145,13 @@ function Lstar(seb::SurfaceEnergyBalance, stop, ssoil)
                 ustar = stop.ustar[1],
                 Qₑ = stop.Qe[1],
                 Qₕ = stop.Qh[1],
-                Llg = Llg(ssoil.T[1]),
+                Llg = L_lg(ssoil.T[1]),
                 ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));  # density of air at surface air temperature and surface pressure [kg/m^3]
             -ρₐ * cₚ * Tₕ / (κ * g) * ustar^3 / (Qₕ + 0.61*cₚ / Llg * Tₕ * Qₑ)                # Eq. (8) in Westermann et al. (2016)
     end
     # upper and lower limits for Lstar
-    Lstar = (abs(Lstar)<1e-7) && sign(Lstar)*1e-7
-    Lstar = (abs(Lstar)>1e+7) && sign(Lstar)*1e+7
+    res = (abs(res)<1e-7) && sign(res)*1e-7
+    res = (abs(res)>1e+7) && sign(res)*1e+7
 end
 
 """
@@ -171,7 +171,9 @@ function Q_H(seb::SurfaceEnergyBalance, stop, ssoil)
         ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));# density of air at surface air temperature and surface pressure [kg/m^3]
 
         rₐᴴ = (κ * ustar)^-1 * (log(z/z₀) - Ψ_HW(z/Lstar,z₀/Lstar))                          # Eq. (6) in Westermann et al. (2016)
-        Q_H = -ρₐ * cₚ * (Tₕ-T₀) / rₐᴴ                                              # Eq. (4) in Westermann et al. (2016)
+
+        # calculate Q_H
+        -ρₐ * cₚ * (Tₕ-T₀) / rₐᴴ                                              # Eq. (4) in Westermann et al. (2016)
     end
 end
 
@@ -188,34 +190,40 @@ function Q_E(seb::SurfaceEnergyBalance, stop, ssoil)
         T₀ = ssoil.T[1],                                                         # surface temperature
         p = seb.forcing.p(stop.t),                                                              # atmospheric pressure at surface
         qₕ = seb.forcing.q(stop.t),                                                             # specific humidity at height h over surface
-        z = seb.forcing.z(stop.t),                                                              # height at which forcing data are provided
+        z = seb.forcing.z,                                                              # height at which forcing data are provided
         rₛ = seb.sebparams.rₛ,                                                               # surface resistance against evapotranspiration / sublimation [1/m]
         Lstar = stop.Lstar[1],
         ustar = stop.ustar[1],
-        Llg = Llg(ssoil.T[1]),
-        Lsg = Lsg(ssoil.T[1]),
+        Llg = L_lg(ssoil.T[1]),
+        Lsg = L_sg(ssoil.T[1]),
         z₀ = seb.sebparams.z₀,                                                               # aerodynamic roughness length [m]
         ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
 
         q₀ = γ*estar(T₀)/p                                                              # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
         rₐᵂ = (κ * ustar)^-1 * (log(z/z₀) - Ψ_HW(z/Lstar,z₀/Lstar))                     # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
-        (T₀<=273.15) ? L = Lsg : L = Llg                                                # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
+        L = (T₀<=273.15) ? Lsg : Llg                                                # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
 
         # calculate Q_E
-        (qₕ>q₀) ? Q_E = -ρₐ * L * (qₕ-q₀) / (rₐᵂ)   :                                   # Eq. (5) in Westermann et al. (2016) # condensation / resublimation (no aerodynamics resistance)
-                  Q_E = -ρₐ * L * (qₕ-q₀) / (rₐᵂ+rₛ)                                    # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
+        (qₕ>q₀) ? -ρₐ * L * (qₕ-q₀) / (rₐᵂ)   :                                   # Eq. (5) in Westermann et al. (2016) # condensation / resublimation (no aerodynamics resistance)
+                  -ρₐ * L * (qₕ-q₀) / (rₐᵂ+rₛ)                                    # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
     end
 end
 
 """
 Integrated stability function for heat/water transport
+    Högström, 1988
+    SHEBA, Uttal et al., 2002, Grachev et al. 2007
+
 """
 function Ψ_HW(ζ₁::Float64, ζ₂::Float64)
-    if ζ₁<=0 # neutral and unstable conditions
-        1.9 * atanh((1 - 11.6 * ζ₁)^0.5) + log(ζ₁) - (1.9 * atanh((1 - 11.6 * ζ₂)^0.5) + log(ζ₂))
-    else     # stable stratification
-        0.5*((-5 + 5^0.5) * log(-3 + 5^0.5- 2*ζ₁) - (5 + 5^0.5) * log(3 + 5^0.5 + 2*ζ₁)) -
-        0.5*((-5 + 5^0.5) * log(-3 + 5^0.5- 2*ζ₂) - (5 + 5^0.5) * log(3 + 5^0.5 + 2*ζ₂))
+    if ζ₁<=0 # neutral and unstable conditions (according to Høgstrøm, 1988)
+        # computed using WolframAlpha command "Integrate[ (1-(0.95*(1-11.6x)^(-1/2)))/x ] assuming x<0"
+        real( log(Complex(ζ₁)) + 1.9*atanh((1 - 11.6 * ζ₁)^0.5) -
+             (log(Complex(ζ₂)) + 1.9*atanh((1 - 11.6 * ζ₂)^0.5) ) )
+    else     # stable stratification (according to Grachev et al. 2007)
+        # computed using WolframAlpha command "Integrate[ (1-(1+(5x*(1+x))/(1+3x+x^2)))/x ] assuming x>0"
+        real( 0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₁)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₁))) -
+              0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₂)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₂)))  )
     end
 end
 
@@ -223,12 +231,20 @@ end
 Integrated stability function for momentum transport
 """
 function Ψ_M(ζ₁::Float64, ζ₂::Float64)
-    if ζ₁<=0 # neutral and unstable conditions
-         -2*atan((1 - 19*ζ₁)^(1/4)) + 2*log(1 + (1 - 19*ζ₁)^(1/4)) + log(1 + (1 - 19*ζ₁)^0.5) -
-        (-2*atan((1 - 19*ζ₂)^(1/4)) + 2*log(1 + (1 - 19*ζ₂)^(1/4)) + log(1 + (1 - 19*ζ₂)^0.5))
-    else     # stable stratification
-         -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1 + ζ₁)^(1/3)) + 4.35131*log(3+4.4814*(1+ζ₁)^(1/3)) - 2.17566*log(3 - 4.4814*(1 + ζ₁)^(1/3) + 6.69433*(1 + ζ₁)^(2/3)) -
-        (-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1 + ζ₂)^(1/3)) + 4.35131*log(3+4.4814*(1+ζ₂)^(1/3)) - 2.17566*log(3 - 4.4814*(1 + ζ₂)^(1/3) + 6.69433*(1 + ζ₂)^(2/3)))
+    if ζ₁<=0 # neutral and unstable conditions (according to Høgstrøm, 1988)
+        # computed using WolframAlpha command "Integrate[ (1-(1-19.3x)^(-1/4))/x ] assuming x<0"
+        # log(ζ₁) - 2*atan((1-19.3*ζ₁)^(1/4)) + 2*atanh((1-19.3*ζ₁)^(1/4)) -
+        #(log(ζ₂) - 2*atan((1-19.3*ζ₂)^(1/4)) + 2*atanh((1-19.3*ζ₂)^(1/4)) )
+        # copied from MATLAB code (Note: Høgstrøm, 1988 suggest phi_M=(1-19.3x)^(-1/4) while here (1-19.0x)^(-1/4) is used.)
+        real( -2*atan((1 - 19*ζ₁)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₁)^(1/4))) + log(Complex(1 + (1 - 19*ζ₁)^0.5)) -
+             (-2*atan((1 - 19*ζ₂)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₂)^(1/4))) + log(Complex(1 + (1 - 19*ζ₂)^0.5))) )
+    else     # stable stratification (according to Grachev et al. 2007)
+        # computed using WolframAlpha command "Integrate[ (1-(1+6.5x*(1+x)^(1/3)/(1.3+x)))/x ] assuming x>0"
+         -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₁)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₁)^(1/3) + 4.64159*(1+ζ₁)^(2/3)) -
+        (-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₂)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₂)^(1/3) + 4.64159*(1+ζ₂)^(2/3)) )
+        # copied from CryoGrid MATLAB code
+        # -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₁)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₁)^(1/3) + 6.69433*(1 + ζ₁)^(2/3)) -
+        #(-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₂)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₂)^(1/3) + 6.69433*(1 + ζ₂)^(2/3)))
     end
 end
 
