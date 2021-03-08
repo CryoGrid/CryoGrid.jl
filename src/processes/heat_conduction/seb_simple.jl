@@ -22,10 +22,10 @@ struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
     sebparams::SEBParams
     SurfaceEnergyBalance(   Tair::TimeSeriesForcing, p::TimeSeriesForcing, q::TimeSeriesForcing,
                             wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
-                            Sin::TimeSeriesForcing) =
+                            Sin::TimeSeriesForcing, z::Float"m") =
                             begin
                                 sebparams = SEBParams()
-                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin)
+                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin,z=z)
                                 new{typeof(forcing)}(forcing)
                             end
 
@@ -35,10 +35,10 @@ BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 
 variables(top::Top, seb::SurfaceEnergyBalance) = (
     Diagnostic(:Sout, Float"W/(m^2)", Scalar),    # outgoing shortwave radiation [J/(s*m^2)]
-    Diagnostic(:Lout, Float"W/(m^2)", Scalar,    # outgoing longwave radiation [J/(s*m^2)]
+    Diagnostic(:Lout, Float"W/(m^2)", Scalar),    # outgoing longwave radiation [J/(s*m^2)]
     Diagnostic(:Qnet, Float"W/(m^2)", Scalar),    # net radiation budget at surface [J/(s*m^2)]
     Diagnostic(:Qh, Float"W/(m^2)", Scalar),      # sensible heat flux [J/(s*m^2)]
-    Diagnostic(:Qe, Float"W/(m^2)", Scalar,      # latent heat flux [J/(s*m^2)]
+    Diagnostic(:Qe, Float"W/(m^2)", Scalar),      # latent heat flux [J/(s*m^2)]
     Diagnostic(:Qg, Float"W/(m^2)", Scalar),      # ground heat flux [J/(s*m^2)]
     Diagnostic(:Lstar, Float"m", Scalar),         # Obukhov length [m]
     Diagnostic(:ustar, Float"m/s", Scalar),       # friction velocity [m/s]
@@ -72,14 +72,14 @@ function (seb::SurfaceEnergyBalance)(top::Top, soil::Soil, heat::Heat, stop, sso
     end
 
     # net radiation budget
-    stop.Qnet[1] = let Sin=seb.forcing.Sin(stop.t), Lin=seb.forcing.Lin(stop.t), Sout=stop.Sout, Lout=stop.Lout;
+    stop.Qnet[1] = let Sin=seb.forcing.Sin(stop.t), Lin=seb.forcing.Lin(stop.t), Sout=stop.Sout[1], Lout=stop.Lout[1];
                 Sin + Sout + Lin + Lout
     end
 
     # 2. calcuate turbulent heat flux budget
     # determine atmospheric stability conditions
     stop.ustar[1] = ustar(seb, stop);
-    stop.Lstar[1] = Lstar(seb, stop);
+    stop.Lstar[1] = Lstar(seb, stop, ssoil);
 
     # sensible heat flux
     stop.Qh[1] = Q_H(seb, stop, ssoil);
@@ -88,7 +88,7 @@ function (seb::SurfaceEnergyBalance)(top::Top, soil::Soil, heat::Heat, stop, sso
     stop.Qe[1] = Q_E(seb, stop, ssoil);
 
     # 3. determine ground heat flux as the residual of the radiative and turbulent fluxes
-    stop.Qg[1] = let Qnet=stop.Qnet, Qₕ=stop.Qh, Qₑ=stop.Qe;
+    stop.Qg[1] = let Qnet=stop.Qnet[1], Qₕ=stop.Qh[1], Qₑ=stop.Qe[1];
                     Qnet - Qₕ - Qₑ                                                  # essentially Eq. (1) in Westermann et al. (2016)
     end
 
@@ -127,8 +127,8 @@ function ustar(seb::SurfaceEnergyBalance, stop)
              uz = seb.forcing.wind(stop.t),                                                  # wind speed at height z
              z = seb.forcing.z,                                                              # height z of wind forcing
              z₀ = seb.sebparams.z₀,                                                          # aerodynamic roughness length [m]
-             Lstar = stop.Lstar;
-        κ * uz * (log(z/z₀) - Ψ_M(z/Lstar,z₀/Lstar))^-1                                            #Eq. (7) in Westermann et al. (2016)
+             Lstar = stop.Lstar[1];
+        κ * uz * (log(z/z₀) - Ψ_M(z/Lstar,z₀/Lstar))^-1                                      #Eq. (7) in Westermann et al. (2016)
     end
 end
 
@@ -139,13 +139,14 @@ function Lstar(seb::SurfaceEnergyBalance, stop, ssoil)
     Lstar = let κ = seb.sebparams.κ,
                 g = seb.sebparams.g,
                 Rₐ = seb.sebparams.Rₐ,
-                cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                                       # specific heat capacity of air at constant pressure
-                Tₕ = seb.forcing.Tair(stop.t),                                                   # air temperature at height z over surface
-                p = seb.forcing.pressure(stop.t),                                                              # atmospheric pressure at surface
-                ustar = stop.ustar,
-                Qₑ = stop.Qe,
+                cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                    # specific heat capacity of air at constant pressure
+                Tₕ = seb.forcing.Tair(stop.t),                                               # air temperature at height z over surface
+                p = seb.forcing.p(stop.t),                                            # atmospheric pressure at surface
+                ustar = stop.ustar[1],
+                Qₑ = stop.Qe[1],
+                Qₕ = stop.Qh[1],
                 Llg = Llg(ssoil.T[1]),
-                ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.pressure(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
+                ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));  # density of air at surface air temperature and surface pressure [kg/m^3]
             -ρₐ * cₚ * Tₕ / (κ * g) * ustar^3 / (Qₕ + 0.61*cₚ / Llg * Tₕ * Qₑ)                # Eq. (8) in Westermann et al. (2016)
     end
     # upper and lower limits for Lstar
@@ -163,11 +164,11 @@ function Q_H(seb::SurfaceEnergyBalance, stop, ssoil)
         T₀ = ssoil.T[1],                                                         # surface temperature
         cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                                       # specific heat capacity of air at constant pressure
         z = seb.forcing.z,                                                          # height at which forcing data are provided
-        Lstar = stop.Lstar,
-        ustar = stop.ustar,
-        p = seb.forcing.pressure(stop.t),
+        Lstar = stop.Lstar[1],
+        ustar = stop.ustar[1],
+        p = seb.forcing.p(stop.t),
         z₀ = seb.sebparams.z₀,
-        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.pressure(stop.t));# density of air at surface air temperature and surface pressure [kg/m^3]
+        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));# density of air at surface air temperature and surface pressure [kg/m^3]
 
         rₐᴴ = (κ * ustar)^-1 * (log(z/z₀) - Ψ_HW(z/Lstar,z₀/Lstar))                          # Eq. (6) in Westermann et al. (2016)
         Q_H = -ρₐ * cₚ * (Tₕ-T₀) / rₐᴴ                                              # Eq. (4) in Westermann et al. (2016)
@@ -185,16 +186,16 @@ function Q_E(seb::SurfaceEnergyBalance, stop, ssoil)
         Rₐ = seb.sebparams.Rₐ,
         Tₕ = seb.forcing.Tair(stop.t),                                                   # air temperature at height z over surface
         T₀ = ssoil.T[1],                                                         # surface temperature
-        p = seb.forcing.pressure(stop.t),                                                              # atmospheric pressure at surface
+        p = seb.forcing.p(stop.t),                                                              # atmospheric pressure at surface
         qₕ = seb.forcing.q(stop.t),                                                             # specific humidity at height h over surface
         z = seb.forcing.z(stop.t),                                                              # height at which forcing data are provided
         rₛ = seb.sebparams.rₛ,                                                               # surface resistance against evapotranspiration / sublimation [1/m]
-        Lstar = stop.Lstar,
-        ustar = stop.ustar,
+        Lstar = stop.Lstar[1],
+        ustar = stop.ustar[1],
         Llg = Llg(ssoil.T[1]),
         Lsg = Lsg(ssoil.T[1]),
         z₀ = seb.sebparams.z₀,                                                               # aerodynamic roughness length [m]
-        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.pressure(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
+        ρₐ = density_air(seb,seb.forcing.Tair(stop.t),seb.forcing.p(stop.t));                        # density of air at surface air temperature and surface pressure [kg/m^3]
 
         q₀ = γ*estar(T₀)/p                                                              # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
         rₐᵂ = (κ * ustar)^-1 * (log(z/z₀) - Ψ_HW(z/Lstar,z₀/Lstar))                     # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
