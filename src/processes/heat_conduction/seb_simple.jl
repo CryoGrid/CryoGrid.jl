@@ -1,3 +1,5 @@
+using QuadGK
+
 @with_kw struct SEBParams{} <: Params
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
@@ -17,19 +19,22 @@
     cₐ::Float"J/(m^3*K)"= 1005.7xu"J/(kg*K)"*ρₐ     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
+struct SurfaceEnergyBalance{F,TParams} <: BoundaryProcess{Heat}
     forcing::F
-    sebparams::SEBParams
+    sebparams::TParams
     SurfaceEnergyBalance(   Tair::TimeSeriesForcing, p::TimeSeriesForcing, q::TimeSeriesForcing,
                             wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
-                            Sin::TimeSeriesForcing, z::Float"m") =
+                            Sin::TimeSeriesForcing, z::Float"m",
+                            params::SEBParams=SEBParams()) =
                             begin
-                                sebparams = SEBParams()
-                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin,z=z)
-                                new{typeof(forcing)}(forcing)
+                                forcing = (Tair=Tair,p=p,q=q,wind=wind,Lin=Lin,Sin=Sin,z=z);
+                                sebparams = params;
+                                new{typeof(forcing),typeof(sebparams)}(forcing,sebparams)
                             end
 
 end
+
+
 
 BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 
@@ -110,12 +115,14 @@ estar(T::Float"K") = ( (T>0) ? 611.2 * exp(17.62*(T-273.15)/(243.12-273.15+T))  
 )
 
 """
-Latent heat of evaporation/condensation of water according to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
+Latent heat of evaporation/condensation of water
+according to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
 L_lg(T::Float"K") = 1000 * (2500.8 - 2.36*T + 0.0016*T^2 - 0.00006*T^3);
 
 """
-Latent heat of sublimation/resublimation of water accodring to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
+Latent heat of sublimation/resublimation of water
+accodring to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
 L_sg(T::Float"K") = 1000 * (2834.1 - 0.29*T - 0.004*T^2);
 
@@ -150,8 +157,8 @@ function Lstar(seb::SurfaceEnergyBalance, stop, ssoil)
             -ρₐ * cₚ * Tₕ / (κ * g) * ustar^3 / (Qₕ + 0.61*cₚ / Llg * Tₕ * Qₑ)                # Eq. (8) in Westermann et al. (2016)
     end
     # upper and lower limits for Lstar
-    res = (abs(res)<1e-7) && sign(res)*1e-7
-    res = (abs(res)>1e+7) && sign(res)*1e+7
+    res = (abs(res)<1e-7) ? sign(res)*1e-7 : res
+    res = (abs(res)>1e+7) ? sign(res)*1e+7 : res
 end
 
 """
@@ -218,12 +225,18 @@ Integrated stability function for heat/water transport
 function Ψ_HW(ζ₁::Float64, ζ₂::Float64)
     if ζ₁<=0 # neutral and unstable conditions (according to Høgstrøm, 1988)
         # computed using WolframAlpha command "Integrate[ (1-(0.95*(1-11.6x)^(-1/2)))/x ] assuming x<0"
-        real( log(Complex(ζ₁)) + 1.9*atanh((1 - 11.6 * ζ₁)^0.5) -
-             (log(Complex(ζ₂)) + 1.9*atanh((1 - 11.6 * ζ₂)^0.5) ) )
+        #real( log(Complex(ζ₁)) + 1.9*atanh((1 - 11.6 * ζ₁)^0.5) -
+        #     (log(Complex(ζ₂)) + 1.9*atanh((1 - 11.6 * ζ₂)^0.5) ) )
+        # numerical integration using the QuadGK package
+        res, err = quadgk(x -> (1-(0.95*(1-11.6*x)^(-1/2)))/x, ζ₂, ζ₁, rtol=1e-6);
+        return res
     else     # stable stratification (according to Grachev et al. 2007)
         # computed using WolframAlpha command "Integrate[ (1-(1+(5x*(1+x))/(1+3x+x^2)))/x ] assuming x>0"
-        real( 0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₁)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₁))) -
-              0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₂)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₂)))  )
+        #real( 0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₁)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₁))) -
+        #      0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₂)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₂)))  )
+        # numerical integration using the QuadGK package
+        res, err = quadgk(x -> (1-(1+(5*x*(1+x))/(1+3*x+x^2)))/x, ζ₂, ζ₁, rtol=1e-6);
+        return res
     end
 end
 
@@ -235,16 +248,22 @@ function Ψ_M(ζ₁::Float64, ζ₂::Float64)
         # computed using WolframAlpha command "Integrate[ (1-(1-19.3x)^(-1/4))/x ] assuming x<0"
         # log(ζ₁) - 2*atan((1-19.3*ζ₁)^(1/4)) + 2*atanh((1-19.3*ζ₁)^(1/4)) -
         #(log(ζ₂) - 2*atan((1-19.3*ζ₂)^(1/4)) + 2*atanh((1-19.3*ζ₂)^(1/4)) )
-        # copied from MATLAB code (Note: Høgstrøm, 1988 suggest phi_M=(1-19.3x)^(-1/4) while here (1-19.0x)^(-1/4) is used.)
-        real( -2*atan((1 - 19*ζ₁)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₁)^(1/4))) + log(Complex(1 + (1 - 19*ζ₁)^0.5)) -
-             (-2*atan((1 - 19*ζ₂)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₂)^(1/4))) + log(Complex(1 + (1 - 19*ζ₂)^0.5))) )
+        # copied from CryoGrid MATLAB code (Note: Høgstrøm (1988) suggests phi_M=(1-19.3x)^(-1/4) while here (1-19.0x)^(-1/4) is used.)
+        #real( -2*atan((1 - 19*ζ₁)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₁)^(1/4))) + log(Complex(1 + (1 - 19*ζ₁)^0.5)) -
+        #     (-2*atan((1 - 19*ζ₂)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₂)^(1/4))) + log(Complex(1 + (1 - 19*ζ₂)^0.5))) )
+        # numerical integration using the QuadGK package
+        res, err = quadgk(x -> (1-(1-19.3*x)^(-1/4))/x, ζ₂, ζ₁, rtol=1e-6);
+        return res
     else     # stable stratification (according to Grachev et al. 2007)
         # computed using WolframAlpha command "Integrate[ (1-(1+6.5x*(1+x)^(1/3)/(1.3+x)))/x ] assuming x>0"
-         -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₁)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₁)^(1/3) + 4.64159*(1+ζ₁)^(2/3)) -
-        (-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₂)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₂)^(1/3) + 4.64159*(1+ζ₂)^(2/3)) )
+        # -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₁)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₁)^(1/3) + 4.64159*(1+ζ₁)^(2/3)) -
+        #(-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₂)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₂)^(1/3) + 4.64159*(1+ζ₂)^(2/3)) )
         # copied from CryoGrid MATLAB code
         # -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₁)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₁)^(1/3) + 6.69433*(1 + ζ₁)^(2/3)) -
         #(-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₂)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₂)^(1/3) + 6.69433*(1 + ζ₂)^(2/3)))
+        # numerical integration using the QuadGK package
+        res, err = quadgk(x -> (1-(1+6.5*x*(1+x)^(1/3)/(1.3+x)))/x, ζ₂, ζ₁, rtol=1e-6);
+        return res
     end
 end
 
