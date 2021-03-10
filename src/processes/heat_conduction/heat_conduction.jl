@@ -1,8 +1,7 @@
 abstract type PhaseChangeStyle end
-struct InstantFC <: PhaseChangeStyle end
 struct FreeWaterFC <: PhaseChangeStyle end
 
-export PhaseChangeStyle, FreeWaterFC, InstantFC, NoPhaseChange
+export PhaseChangeStyle, FreeWaterFC
 
 @with_kw struct HeatParams{T} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3] (default value assumes pure water)
@@ -16,14 +15,16 @@ const TempProfile{D,Q,T} = Profile{D,1,Q,T} where {D,Q,T}
 TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
     Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
 
-struct Heat{U,TParams,TProfile} <: SubSurfaceProcess
+struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
-    profile::TProfile
+    profile::TempProfile
     Heat{UT"J"}(profile::TProfile=nothing, params::HeatParams=HeatParams{FreeWaterFC}()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{UT"J",typeof(params),TProfile}(params,profile)
+        new{UT"J",typeof(params)}(params,profile)
     Heat{UT"K"}(profile::TProfile=nothing, params::HeatParams=HeatParams{FreeWaterFC}()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{UT"K",typeof(params),TProfile}(params,profile)
+        new{UT"K",typeof(params)}(params,profile)
 end
+
+Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params))")
 
 export Heat, HeatParams, TempProfile
 
@@ -115,14 +116,4 @@ end
 
 export ρ, Lsl, heatconduction!, boundaryflux
 
-# Boundary condition type aliases
-const ConstantAirTemp = Constant{Heat,Dirichlet,Float"K"}
-ConstantAirTemp(value::UFloat"K") = Constant{Heat,Dirichlet}(dustrip(value))
-ConstantAirTemp(value::UFloat"°C") = Constant{Heat,Dirichlet}(dustrip(u"K",value))
-const GeothermalHeatFlux = Constant{Heat,Neumann,Float"J/s"}
-GeothermalHeatFlux(value::UFloat"J/s") = Constant{Heat,Neumann}(dustrip(value))
-
-export ConstantAirTemp, GeothermalHeatFlux
-
-include("airtemp.jl")
-include("hc_soil_H.jl")
+include("soil/soilheat.jl")

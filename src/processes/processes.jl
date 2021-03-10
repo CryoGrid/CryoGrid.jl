@@ -58,5 +58,5 @@ Default implementation of `initialcondition!` for multi-process types. Calls eac
     return expr
 end
 
-include("boundary/boundaries.jl")
 include("heat_conduction/heat_conduction.jl")
+include("boundary/boundaries.jl")
