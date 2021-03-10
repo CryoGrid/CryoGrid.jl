@@ -25,7 +25,13 @@ withaxes(u::CryoGridState) = ComponentArray(u.x, u.ax)
 
 export CryoGridState, withaxes
 
+# type piracy to make CryoGridState types less verbose in errors and console output
+Base.show(io::IO, state::Type{<:CryoGridState{T,A,Ax}}) where {T,A,Ax} = print(io, "CryoGridState{$T,$A,$Ax}")
 Base.show(io::IO, state::CryoGridState{T,A,Ax}) where {T,A,Ax} = print(io, "CryoGridState{$T,$A,$Ax}")
+function Base.show(io::IO, mime::MIME"text/plain", state::CryoGridState{T,A,Ax}) where {T,A,Ax}
+    print(io, "CryoGridState{$T,$A,$Ax}")
+    print(io, state.x)
+end
 # similar CryoGridState
 Base.similar(A::CryoGridState{T}) where T = similar(A,T)
 Base.similar(A::CryoGridState, ::Type{T}) where T = CryoGridState(similar(A.x,T),A.ax,copystate(A.state,T))
