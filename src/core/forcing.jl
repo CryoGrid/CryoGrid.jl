@@ -19,6 +19,8 @@ struct TimeSeriesForcing{T,A,I} <: Forcing{T,1}
       end
 end
 
+Base.show(io::IO, forcing::TimeSeriesForcing{T}) where T = print(io, "TimeSeriesForcing{$T}($(forcing.t0),$(typeof(forcing.tarray))}")
+
 export TimeSeriesForcing, Forcing
 
 """

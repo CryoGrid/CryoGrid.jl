@@ -51,6 +51,7 @@ struct Processes{TProcs} <: Process
     processes::TProcs
     Processes(processes::Process...) = new{typeof(processes)}(processes)
 end
+Base.show(io::IO, ps::Processes{T}) where T = print(io, "$T")
 @propagate_inbounds @inline Base.getindex(ps::Processes, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)

@@ -30,13 +30,15 @@ end
 """
 Basic Soil layer with interchangeable type T to allow for specificity in dispatch.
 """
-struct Soil{T,P} <: SubSurface
-    profile::P
+struct Soil{T} <: SubSurface
+    profile::SoilProfile
     tcparams::SoilTCParams
     hcparams::SoilHCParams
     Soil{T}(profile::P, tcparams::SoilTCParams=SoilTCParams(), hcparams=SoilHCParams()) where
-        {T<:SoilType,P<:SoilProfile} = new{T,P}(profile,tcparams,hcparams)
+        {T<:SoilType,P<:SoilProfile} = new{T}(profile,tcparams,hcparams)
 end
+
+Base.show(io::IO, soil::Soil{T}) where T = print(io, "Soil{$T}($(soil.tcparams),$(soil.hcparams))")
 
 variables(soil::Soil) = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),

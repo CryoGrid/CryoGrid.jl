@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 """
     CryoGridState{T,A,Ax,S} <: DEDataVector{T}
 
@@ -23,6 +25,7 @@ withaxes(u::CryoGridState) = ComponentArray(u.x, u.ax)
 
 export CryoGridState, withaxes
 
+Base.show(io::IO, state::CryoGridState{T,A,Ax}) where {T,A,Ax} = print(io, "CryoGridState{$T,$A,$Ax}")
 # similar CryoGridState
 Base.similar(A::CryoGridState{T}) where T = similar(A,T)
 Base.similar(A::CryoGridState, ::Type{T}) where T = CryoGridState(similar(A.x,T),A.ax,copystate(A.state,T))
@@ -50,3 +53,4 @@ function RecursiveArrayTools.recursivecopy!(dest::T, src::T) where {T<:CryoGridS
     @inbounds recursivecopy!(dest.state, src.state)
     return dest
 end
+LinearAlgebra.ldiv!(F::LinearAlgebra.Factorization, state::CryoGridState) = ldiv!(F,state.x)
