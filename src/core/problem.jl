@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 """
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
@@ -6,7 +8,9 @@ function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing;kwargs...)
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p)
-	ODEProblem(setup,u0,tspan,p,kwargs...)
+	N = length(u0)
+	func = ODEFunction(setup;jac_prototype=Tridiagonal(ones(N-1),ones(N),ones(N-1)))
+	ODEProblem(func,u0,tspan,p,kwargs...)
 end
 
 # @generated function selectvars(varnames::NamedTuple, setup::CryoGridSetup)
