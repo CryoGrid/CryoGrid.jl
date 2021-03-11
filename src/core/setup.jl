@@ -60,7 +60,8 @@ function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing;kwargs...)
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p)
 	N = length(u0)
-	ld, d, ud = similar(p, N-1), similar(p, N), similar(p, N-1)
+	# initialize diagonals for tridiag jacobian; use eltype of p for compatibility with autodiff
+	ld, d, ud = similar(u0.x, eltype(p), N-1), similar(u0.x, eltype(p), N), similar(u0.x, eltype(p), N-1)
 	func = ODEFunction(setup;jac_prototype=Tridiagonal(ld,d,ud))
 	ODEProblem(func,u0,tspan,p,kwargs...)
 end
@@ -279,4 +280,4 @@ function buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     grids = @>> vars_with_names map(togrid)
 end
 
-export CryoGridSetup, initialcondition!, withaxes
+export CryoGridSetup, CryoGridProblem, initialcondition!, withaxes
