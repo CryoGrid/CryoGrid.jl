@@ -17,7 +17,7 @@ TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
 
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
-    profile::TempProfile
+    profile::Union{Nothing,TempProfile}
     Heat{UT"J"}(profile::TProfile=nothing, params::HeatParams=HeatParams{FreeWaterFC}()) where {TProfile<:Union{Nothing,TempProfile}} =
         new{UT"J",typeof(params)}(params,profile)
     Heat{UT"K"}(profile::TProfile=nothing, params::HeatParams=HeatParams{FreeWaterFC}()) where {TProfile<:Union{Nothing,TempProfile}} =
