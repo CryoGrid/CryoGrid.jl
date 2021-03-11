@@ -19,6 +19,7 @@ include("math.jl")
 include("grid.jl")
 include("forcing.jl")
 include("variables.jl")
+include("state.jl")
 
 # Base type for composite parameter types
 abstract type Params end
@@ -50,6 +51,7 @@ struct Processes{TProcs} <: Process
     processes::TProcs
     Processes(processes::Process...) = new{typeof(processes)}(processes)
 end
+Base.show(io::IO, ps::Processes{T}) where T = print(io, "$T")
 @propagate_inbounds @inline Base.getindex(ps::Processes, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
@@ -72,8 +74,6 @@ export BoundaryStyle, Dirichlet, Neumann, Robin
 # Model core method stubs
 variables(::Layer) = ()
 variables(::Layer, ::Process) = ()
-parameters(::Layer) = ()
-parameters(::Layer, ::Process) = ()
 initialcondition!(::Layer, state) = nothing
 initialcondition!(::Layer, ::Process, state) = nothing
 diagnosticstep!(l::Layer, p::Process, state) = error("no diagnostic step defined for $(typeof(l)) with $(typeof(p))")
@@ -107,7 +107,7 @@ macro setscalar(expr)
     valexpr = expr.args[2]
     @assert refexpr.head == :. "@setscalar must be applied to an assignment expression of the form: a = ... where a is a 1-element collection"
     quote
-        $(refexpr)[1] = $(esc(valexpr))
+        $(esc(refexpr))[1] = $(esc(valexpr))
     end
 end
 
@@ -118,4 +118,3 @@ export @setscalar, getscalar
 # include core-dependent types/functions
 include("stratigraphy.jl")
 include("setup.jl")
-include("problem.jl")

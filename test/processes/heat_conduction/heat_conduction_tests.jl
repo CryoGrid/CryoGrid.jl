@@ -91,8 +91,8 @@ include("../../types.jl")
 		# build solution matrices: time x depth
 		res_sol = hcat(sol.u...)'u"K"
 		res_analytic = (f_analytic.(ustrip.(xc),sol.t')'.+273.15)u"K"
-		ϵ = 1.0e-5u"K" # tolerance
-		# verify inifnity norm of abs error < 0.1 K (i.e. all predicted values <1.0 K error)
+		ϵ = 1.0e-5u"K" # error tolerance
+		# verify inifnity norm of abs error < ϵ K (i.e. all predicted values differ < ϵ K)
 		@test norm(mean(abs.(res_sol .- res_analytic),dims=1), Inf) < ϵ
 		# verify convergence, last values should be almost identical
 		@test norm(mean(abs.(res_sol[end,:] .- res_analytic[end,:]),dims=1), Inf) < ϵ

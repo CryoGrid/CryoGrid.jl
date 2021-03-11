@@ -9,12 +9,13 @@ using DataStructures: SortedDict, OrderedDict
 using AxisArrays
 using StaticArrays
 using ComponentArrays
+using LinearAlgebra
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets
 @reexport using Parameters
-@reexport using DiffEqBase
 @reexport using DifferentialEquations
+@reexport using DiffEqBase
 
 include("io/io.jl")
 include("core/core.jl")

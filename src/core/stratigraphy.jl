@@ -10,13 +10,15 @@ Get the name of the given stratigraphy node.
 nodename(::StratNode{L,P,name}) where {L,P,name} = name
 nodename(::Type{<:StratNode{L,P,name}}) where {L,P,name} = name
 
+Base.show(io::IO, node::StratNode{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
+
 # Constructors for stratigraphy nodes
 Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), Processes(boundaries...))
 Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), Processes(boundaries...))
 Ground(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratNode(name, layer, Processes(processes...))
 
 """
-    Stratigraphy{TNodes,N,Q}
+    Stratigraphy{TNodes,TBounds}
 
 Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to 1 or more subsurface layers.
 """
@@ -44,6 +46,7 @@ Base.getindex(strat::Stratigraphy, i::Int) = strat.nodes[i]
 Base.iterate(strat::Stratigraphy) = (strat.nodes[1],strat.nodes[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
+Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod(("$b => $n, " for (n,b) in zip(strat.nodes,strat.boundaries))))")
 
 export Stratigraphy
 export Top, Bottom, Ground
