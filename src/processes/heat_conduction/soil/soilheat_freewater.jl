@@ -28,7 +28,7 @@ water variable.
 function freezethaw(::Heat{UT"J",TFreeWater}, H, totalWater, L)
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         Lθ = L*θ,
-        I_t = H > Lθ,bgv
+        I_t = H > Lθ,
         I_c = H > 0.0 && H <= Lθ;
         liquidfraction = I_c*(H/Lθ) + I_t
     end

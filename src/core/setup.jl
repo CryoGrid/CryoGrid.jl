@@ -45,10 +45,24 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     uproto = ComponentArray(nt_parr)
     # ditto for parameter array (need a hack here to get an empty ComponentArray...)
     pproto = sum(map(length, nt_params)) > 0 ? ComponentArray(nt_params) :
-        ComponentArray(similar(arrayproto,0),(CAxis{NamedTuple{Tuple(keys(nt_params))}(map(a->1:0,nt_params))}(),))
+        ComponentArray(similar(arrayproto,0),(CAxis{NamedTuple{Tuple(keys(nt_params))}(Tuple(map(a->1:0,nt_params)))}(),))
     # reconstruct with given array type
     uproto = CryoGridState(ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto)), nt_state)
     CryoGridSetup(strat,grid,uproto,pproto)
+end
+
+"""
+CryoGrid specialized constructor for ODEProblem that automatically generates the initial
+condition and necessary callbacks.
+"""
+function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing;kwargs...)
+	p = isnothing(p) ? setup.pproto : p
+	# compute initial condition
+	u0,_ = initialcondition!(setup, p)
+	N = length(u0)
+	ld, d, ud = similar(p, N-1), similar(p, N), similar(p, N-1)
+	func = ODEFunction(setup;jac_prototype=Tridiagonal(ld,d,ud))
+	ODEProblem(func,u0,tspan,p,kwargs...)
 end
 
 """
@@ -241,11 +255,12 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     paramnames = @>> param_vars map(varname)
     dstates = (similar(arrayproto, size(diag_grids[d])) for d in dvarnames)
     params = (similar(arrayproto, size(param_grids[p])) for p in paramnames)
+    nt_params = NamedTuple{Tuple(paramnames)}(Tuple(params))
     # return prognostic variable component array for top-level composition;
     # return layer state with variable name, grid information, and diagnostic state variables
     layer_state = NamedTuple{tuple(:pvars,:dvars,:grids,dvarnames...)}(tuple(prog_vars,diag_vars,grids,dstates...))
     prog_carr = isempty(prog_vars) ? similar(arrayproto, 0) : ComponentArray(prog_grids)
-    param_carr = isempty(param_vars) ? similar(arrayproto, 0) : ComponentArray(params)
+    param_carr = isempty(param_vars) ? similar(arrayproto, 0) : ComponentArray(nt_params)
     return prog_carr, param_carr, layer_state
 end
 

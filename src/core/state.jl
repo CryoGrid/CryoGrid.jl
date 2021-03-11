@@ -60,3 +60,4 @@ function RecursiveArrayTools.recursivecopy!(dest::T, src::T) where {T<:CryoGridS
     return dest
 end
 LinearAlgebra.ldiv!(F::LinearAlgebra.Factorization, state::CryoGridState) = ldiv!(F,state.x)
+LinearAlgebra.ldiv!(F::LinearAlgebra.LU{T,LinearAlgebra.Tridiagonal{T,V}}, state::CryoGridState) where {T,V} = ldiv!(F,state.x)

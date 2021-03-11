@@ -9,6 +9,7 @@ using DataStructures: SortedDict, OrderedDict
 using AxisArrays
 using StaticArrays
 using ComponentArrays
+using LinearAlgebra
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets
