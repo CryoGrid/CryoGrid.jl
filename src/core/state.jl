@@ -1,4 +1,4 @@
-using LinearAlgebra
+import ForwardDiff
 
 """
     CryoGridState{T,A,Ax,S} <: DEDataVector{T}
@@ -38,12 +38,16 @@ Base.similar(A::CryoGridState, ::Type{T}) where T = CryoGridState(similar(A.x,T)
 Base.similar(A::CryoGridState, ::Type{T}, dims::NTuple{N,Int}) where {T,N} = similar(A.x,T,dims)
 # copy state named tuples (nested tuples of arrays);
 # recurses through each named tuple calling simlar on all arrays.
-copystate(s::NamedTuple, ::Type{T}) where T = map(x -> copystate(x,T), s)
-# base case 1: similar array type
+copystate(s::NamedTuple, ::Type{T}) where T = map(x -> copystate(x,T),s)
+# base case: similar array type
 copystate(x::AbstractArray, ::Type{T}) where T = copyto!(similar(x,T),x)
-# base case 2: grid type
+function copystate(x::AbstractArray{D}, ::Type{T}) where {T,V,N,D<:ForwardDiff.Dual{V,T,N}}
+    out = similar(x,T)
+    out .= ForwardDiff.value.(x)
+end
+# base case: grid type
 copystate(x::Grid, ::Type{T}) where T = x
-# base case 3: any other type, just copy (assume immutable)
+# base case: any other type, just copy (assume immutable)
 copystate(x, ::Type{T}) where T = x
 # DiffEqBase copy_fields
 DiffEqBase.copy_fields!(arr::CryoGridState{TDest}, template::CryoGridState{TSrc}) where {TDest,TSrc} =

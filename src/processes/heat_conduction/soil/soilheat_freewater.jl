@@ -11,7 +11,7 @@ function enthalpy(::Heat{UT"J",TFreeWater}, T, C, liquidWater, L)
     end
 end
 
-function enthalpyInv(::Heat{UT"J",TFreeWater}, H, C, totalWater, L)
+function enthalpyinv(::Heat{UT"J",TFreeWater}, H, C, totalWater, L)
     let θ = max(1.0e-8, totalWater), #[Vol. fraction]
         Lθ = L*θ,
         # indicator variables for thawed and frozen states respectively
@@ -40,12 +40,12 @@ function diagnosticstep!(soil::Soil, heat::Heat{UT"J",TFreeWater}, state)
     let ρ = heat.params.ρ,
         Lsl = heat.params.Lsl,
         L = ρ*Lsl; #[J/m^3];
-        @. state.T = enthalpyInv(heat, state.H, state.C, state.θw, L)
+        @. state.T = enthalpyinv(heat, state.H, state.C, state.θw, L)
         @. state.θl = freezethaw(heat, state.H, state.θw, L) # overwrite θl temporarily to avoid allocation
         @. state.θl = state.θw*state.θl
     end
-    @. state.C = heatCapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
-    @. state.kc = thermalConductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
     return nothing # ensure no allocation
 end

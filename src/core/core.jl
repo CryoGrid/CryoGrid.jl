@@ -102,10 +102,8 @@ into
 This is primarily intended for code clarity, i.e to clearly discern scalar and non-scalar values.
 """
 macro setscalar(expr)
-    @assert expr.head == :(=) "@setscalar must be applied to an assignment expression of the form: a = ... where a is a 1-element collection."
     refexpr = expr.args[1]
     valexpr = expr.args[2]
-    @assert refexpr.head == :. "@setscalar must be applied to an assignment expression of the form: a = ... where a is a 1-element collection"
     quote
         $(esc(refexpr))[1] = $(esc(valexpr))
     end

@@ -10,10 +10,10 @@ variables(soil::Soil, heat::Heat{UT"J"}) = (
 function initialcondition!(soil::Soil, heat::Heat{UT"J"}, state)
     interpolateprofile!(heat.profile, state)
     L = ρ(heat)*Lsl(heat)
-    @. state.C = heatCapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     @. state.H = enthalpy(heat, state.T, state.C, state.θl, L)
     # k lies on the boundary grid, so we have to regrid the soil properties
-    @. state.kc = thermalConductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
 end
 
