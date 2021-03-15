@@ -52,7 +52,7 @@ function initialcondition!(soil::Soil, state)
     interpolateprofile!(soil.profile, state)
 end
 
-function thermalConductivity(params::SoilTCParams, totalWater, liquidWater, mineral, organic)
+function thermalconductivity(params::SoilTCParams, totalWater, liquidWater, mineral, organic)
     @unpack kw, ko, km, ka, ki = params
     let air = 1.0 - totalWater - mineral - organic,
         ice = totalWater - liquidWater,
@@ -61,7 +61,7 @@ function thermalConductivity(params::SoilTCParams, totalWater, liquidWater, mine
     end
 end
 
-function heatCapacity(params::SoilHCParams, totalWater, liquidWater, mineral, organic)
+function heatcapacity(params::SoilHCParams, totalWater, liquidWater, mineral, organic)
     @unpack cw, co, cm, ca, ci = params
     let air = 1.0 - totalWater - mineral - organic,
         ice = totalWater - liquidWater,

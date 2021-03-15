@@ -51,19 +51,32 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     CryoGridSetup(strat,grid,uproto,pproto)
 end
 
+abstract type JacobianStyle end
+struct TridiagJac <: JacobianStyle end
+struct DenseJac<: JacobianStyle end
+
+export JacobianStyle, TridiagJac, DenseJac
+
 """
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
+
+TODO: infer 'jac' (JacobianStyle) from stratigraphy definition.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing;kwargs...)
+function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing, jac::J=TridiagJac();kwargs...) where {J<:JacobianStyle}
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p)
-	N = length(u0)
-	# initialize diagonals for tridiag jacobian; use eltype of p for compatibility with autodiff
-	ld, d, ud = similar(u0.x, eltype(p), N-1), similar(u0.x, eltype(p), N), similar(u0.x, eltype(p), N-1)
-	func = ODEFunction(setup;jac_prototype=Tridiagonal(ld,d,ud))
+	func = odefunction(jac,setup,u0,p)
 	ODEProblem(func,u0,tspan,p,kwargs...)
+end
+
+odefunction(::DenseJac, setup::CryoGridSetup, u0::CryoGridState, p) = setup
+odefunction(::TridiagJac, setup::CryoGridSetup, u0::CryoGridState, p) = let N = length(u0);
+	ODEFunction(setup;jac_prototype=Tridiagonal(similar(u0.x, eltype(p), N-1),
+		similar(u0.x, eltype(p), N),
+		similar(u0.x, eltype(p), N-1))
+	)
 end
 
 """
