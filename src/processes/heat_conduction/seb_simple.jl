@@ -102,7 +102,7 @@ function (seb::SurfaceEnergyBalance)(top::Top, soil::Soil, heat::Heat, stop, sso
 end
 
 """
-Density of air at giben tempeature and pressure
+Density of air at given tempeature and pressure
 """
 density_air(seb::SurfaceEnergyBalance,T::Float"K",p::Float"Pa") = p/(T*seb.sebparams.Rₐ);
 
@@ -135,7 +135,7 @@ function ustar(seb::SurfaceEnergyBalance, stop)
              z = seb.forcing.z,                                                              # height z of wind forcing
              z₀ = seb.sebparams.z₀,                                                          # aerodynamic roughness length [m]
              Lstar = stop.Lstar[1];
-        κ * uz * (log(z/z₀) - Ψ_M(z/Lstar,z₀/Lstar))^-1                                      #Eq. (7) in Westermann et al. (2016)
+        κ * uz ./ (log(z/z₀) - Ψ_M(z/Lstar,z₀/Lstar))                                     #Eq. (7) in Westermann et al. (2016)
     end
 end
 
@@ -220,7 +220,6 @@ end
 Integrated stability function for heat/water transport
     Högström, 1988
     SHEBA, Uttal et al., 2002, Grachev et al. 2007
-
 """
 function Ψ_HW(ζ₁::Float64, ζ₂::Float64)
     if ζ₁<=0 # neutral and unstable conditions (according to Høgstrøm, 1988)
