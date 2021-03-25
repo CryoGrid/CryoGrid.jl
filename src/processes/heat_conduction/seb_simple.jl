@@ -1,11 +1,11 @@
-using QuadGK
+#using QuadGK
 
 @with_kw struct SEBParams{} <: Params
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
     ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
     z₀::Float"m" = 1e-3xu"m"                        # surface roughness length [m]
-    rₛ::Float"1/m" = 50.0xu"1/m"                    # surface resistance against evapotranspiration and sublimation [1/m]
+    rₛ::Float"1/m" = 50.0xu"s/m"                    # surface resistance against evapotranspiration and sublimation [s/m]
 
     # "natural" constant
     σ::Float"J/(s*m^2*K^4)" = 5.6704e-8xu"J/(s*m^2*K^4)"   # Stefan-Boltzmann constant
@@ -224,17 +224,17 @@ Integrated stability function for heat/water transport
 function Ψ_HW(ζ₁::Float64, ζ₂::Float64)
     if ζ₁<=0 # neutral and unstable conditions (according to Høgstrøm, 1988)
         # computed using WolframAlpha command "Integrate[ (1-(0.95*(1-11.6x)^(-1/2)))/x ] assuming x<0"
-        #real( log(Complex(ζ₁)) + 1.9*atanh((1 - 11.6 * ζ₁)^0.5) -
-        #     (log(Complex(ζ₂)) + 1.9*atanh((1 - 11.6 * ζ₂)^0.5) ) )
+        res = real( log(Complex(ζ₁)) + 1.9*atanh(Complex((1 - 11.6 * ζ₁)^0.5)) -
+                   (log(Complex(ζ₂)) + 1.9*atanh(Complex((1 - 11.6 * ζ₂)^0.5)) ) )
         # numerical integration using the QuadGK package
-        res, err = quadgk(x -> (1-(0.95*(1-11.6*x)^(-1/2)))/x, ζ₂, ζ₁, rtol=1e-6);
+        #res, err = quadgk(x -> (1-(0.95*(1-11.6*x)^(-1/2)))/x, ζ₂, ζ₁, rtol=1e-6);
         return res
     else     # stable stratification (according to Grachev et al. 2007)
         # computed using WolframAlpha command "Integrate[ (1-(1+(5x*(1+x))/(1+3x+x^2)))/x ] assuming x>0"
-        #real( 0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₁)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₁))) -
-        #      0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₂)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₂)))  )
+        res = real( 0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₁)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₁))) -
+                    0.5*((-5 + 5^0.5) * log(Complex(-3 + 5^0.5- 2*ζ₂)) - (5 + 5^0.5) * log(Complex(3 + 5^0.5 + 2*ζ₂)))  )
         # numerical integration using the QuadGK package
-        res, err = quadgk(x -> (1-(1+(5*x*(1+x))/(1+3*x+x^2)))/x, ζ₂, ζ₁, rtol=1e-6);
+        #res, err = quadgk(x -> (1-(1+(5*x*(1+x))/(1+3*x+x^2)))/x, ζ₂, ζ₁, rtol=1e-6);
         return res
     end
 end
@@ -248,20 +248,20 @@ function Ψ_M(ζ₁::Float64, ζ₂::Float64)
         # log(ζ₁) - 2*atan((1-19.3*ζ₁)^(1/4)) + 2*atanh((1-19.3*ζ₁)^(1/4)) -
         #(log(ζ₂) - 2*atan((1-19.3*ζ₂)^(1/4)) + 2*atanh((1-19.3*ζ₂)^(1/4)) )
         # copied from CryoGrid MATLAB code (Note: Høgstrøm (1988) suggests phi_M=(1-19.3x)^(-1/4) while here (1-19.0x)^(-1/4) is used.)
-        #real( -2*atan((1 - 19*ζ₁)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₁)^(1/4))) + log(Complex(1 + (1 - 19*ζ₁)^0.5)) -
-        #     (-2*atan((1 - 19*ζ₂)^(1/4)) + 2*log(Complex(1 + (1 - 19*ζ₂)^(1/4))) + log(Complex(1 + (1 - 19*ζ₂)^0.5))) )
+        res = real( -2*atan((1 - 19.3*ζ₁)^(1/4)) + 2*log(Complex(1 + (1 - 19.3*ζ₁)^(1/4))) + log(Complex(1 + (1 - 19.3*ζ₁)^0.5)) -
+                   (-2*atan((1 - 19.3*ζ₂)^(1/4)) + 2*log(Complex(1 + (1 - 19.3*ζ₂)^(1/4))) + log(Complex(1 + (1 - 19.3*ζ₂)^0.5))) )
         # numerical integration using the QuadGK package
-        res, err = quadgk(x -> (1-(1-19.3*x)^(-1/4))/x, ζ₂, ζ₁, rtol=1e-6);
+        #res, err = quadgk(x -> (1-(1-19.3*x)^(-1/4))/x, ζ₂, ζ₁, rtol=1e-6);
         return res
     else     # stable stratification (according to Grachev et al. 2007)
         # computed using WolframAlpha command "Integrate[ (1-(1+6.5x*(1+x)^(1/3)/(1.3+x)))/x ] assuming x>0"
         # -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₁)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₁)^(1/3) + 4.64159*(1+ζ₁)^(2/3)) -
         #(-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(1.44225 + 2.15443*(1+ζ₂)^(1/3)) - 2.17566*log(2.08008 - 3.10723*(1+ζ₂)^(1/3) + 4.64159*(1+ζ₂)^(2/3)) )
         # copied from CryoGrid MATLAB code
-        # -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₁)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₁)^(1/3) + 6.69433*(1 + ζ₁)^(2/3)) -
-        #(-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₂)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₂)^(1/3) + 6.69433*(1 + ζ₂)^(2/3)))
+        res = real( -19.5*(1 + ζ₁)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₁)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₁)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₁)^(1/3) + 6.69433*(1 + ζ₁)^(2/3)) -
+                   (-19.5*(1 + ζ₂)^(1/3) - 7.5367*atan(0.57735 - 1.72489*(1+ζ₂)^(1/3)) + 4.35131*log(3       + 4.4814 *(1+ζ₂)^(1/3)) - 2.17566*log(3       - 4.4814 *(1+ζ₂)^(1/3) + 6.69433*(1 + ζ₂)^(2/3))) )
         # numerical integration using the QuadGK package
-        res, err = quadgk(x -> (1-(1+6.5*x*(1+x)^(1/3)/(1.3+x)))/x, ζ₂, ζ₁, rtol=1e-6);
+        #res, err = quadgk(x -> (1-(1+6.5*x*(1+x)^(1/3)/(1.3+x)))/x, ζ₂, ζ₁, rtol=1e-6);
         return res
     end
 end
