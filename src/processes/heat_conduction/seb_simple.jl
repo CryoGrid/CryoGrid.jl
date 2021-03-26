@@ -214,7 +214,7 @@ function Q_E(seb::SurfaceEnergyBalance, stop, ssoil)
         res = (qₕ>q₀) ? -ρₐ * L * (qₕ-q₀) / (rₐᵂ)  :                                  # Eq. (5) in Westermann et al. (2016) # condensation / deposition (no aerodynamics resistance)
                         -ρₐ * L * (qₕ-q₀) / (rₐᵂ+rₛ) ;                                # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
 
-        res = (qₕ<=q₀ && T₀<=273.15) ? 0 : res ;                                      # set sublimation to zero
+        res = (T₀<=273.15) ? 0 : res ;                                                # for now: set sublimation and deposition to zero.
     end
 end
 
