@@ -1,11 +1,13 @@
-abstract type PhaseChangeStyle end
-struct FreeWaterFC <: PhaseChangeStyle end
+abstract type FreezeCurve end
+struct FreeWater <: FreezeCurve end
 
-export PhaseChangeStyle, FreeWaterFC
+export FreeWater, FreezeCurve
 
-@with_kw struct HeatParams{T} <: Params
-    ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3] (default value assumes pure water)
+@with_kw struct HeatParams{T<:FreezeCurve} <: Params
+    ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
+    L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
+    fc::T = FreeWater()
 end
 
 """
@@ -18,10 +20,10 @@ TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
     profile::Union{Nothing,TempProfile}
-    Heat{UT"J"}(profile::TProfile=nothing, params::HeatParams=HeatParams{FreeWaterFC}()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{UT"J",typeof(params)}(params,profile)
-    Heat{UT"K"}(profile::TProfile=nothing, params::HeatParams=HeatParams{FreeWaterFC}()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{UT"K",typeof(params)}(params,profile)
+    Heat{u"J"}(profile::TProfile=nothing, params::HeatParams=HeatParams()) where {TProfile<:Union{Nothing,TempProfile}} =
+        new{u"J",typeof(params)}(params,profile)
+    Heat{u"K"}(profile::TProfile=nothing, params::HeatParams=HeatParams()) where {TProfile<:Union{Nothing,TempProfile}} =
+        new{u"K",typeof(params)}(params,profile)
 end
 
 Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params))")
@@ -30,6 +32,11 @@ export Heat, HeatParams, TempProfile
 
 ρ(heat::Heat) = heat.params.ρ
 Lsl(heat::Heat) = heat.params.Lsl
+freezecurve(heat::Heat) = heat.params.fc
+enthalpy(T::Float"K", C::Float"J/K/m^3", L::Float"J/m^3", θ::Float64) = (T-273.15)*C + L*θ
+
+export ρ, Lsl, freezecurve, enthalpy
+
 """
     heatconduction!(T,ΔT,k,Δk,∂H)
 
@@ -102,20 +109,19 @@ end
 """
 Generic top interaction. Computes flux dH at top cell.
 """
-function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{UT"J"}, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{u"J"}, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
     @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
     return nothing # ensure no allocation
 end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
-function interact!(sub::SubSurface, heat::Heat{UT"J"}, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
+function interact!(sub::SubSurface, heat::Heat{u"J"}, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
     return nothing # ensure no allocation
 end
 
-export ρ, Lsl, heatconduction!, boundaryflux
+export heatconduction!, boundaryflux
 
-
+include("freewaterfc.jl")
 include("soil/soilheat.jl")
-include("seb_simple.jl")
