@@ -109,7 +109,7 @@ macro setscalar(expr)
     end
 end
 
-getscalar(a::AbstractArray{T,1}) where T = a[1]
+getscalar(a::AbstractArray) = a[1]
 
 export @setscalar, getscalar
 
