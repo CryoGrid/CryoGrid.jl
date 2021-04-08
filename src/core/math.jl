@@ -38,4 +38,9 @@ function ∇²(x::NumVec,Δx::NumVec,k::NumVec,Δk::NumVec,∂y::NumVec)
     end
 end
 
-export ∇,∇²
+"""
+Differentiable implementation of heaviside step function.
+"""
+heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
+
+export ∇,∇²,heaviside

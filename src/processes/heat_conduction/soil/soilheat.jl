@@ -5,6 +5,7 @@ variables(soil::Soil, heat::Heat{u"J"}) = (
     Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
     Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
+    variables(freezecurve(heat))...,
 )
 
 function initialcondition!(soil::Soil, heat::Heat{u"J"}, state)

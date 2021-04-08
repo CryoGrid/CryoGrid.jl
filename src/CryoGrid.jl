@@ -10,6 +10,7 @@ using AxisArrays
 using StaticArrays
 using ComponentArrays
 using LinearAlgebra
+using ExprTools
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets
