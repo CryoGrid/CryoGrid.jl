@@ -1,8 +1,5 @@
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
-# Fallback (error) implementation for freeze curve
-(fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
-    error("freeze curve $(typeof(fc)) not implemented for layer $(typeof(layer))")
 # Default implementation of variables
 variables(fc::FreezeCurve) = ()
 export FreeWater, FreezeCurve
@@ -151,6 +148,9 @@ total water content (θw), and liquid water content (θl).
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
     @. state.θl = freezethaw(state.H, state.C, L, state.θw)*state.θw
 end
+# Fallback (error) implementation for freeze curve
+(fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
+    error("freeze curve $(typeof(fc)) not implemented for layer $(typeof(layer))")
 
 export heatconduction!, boundaryflux
 

@@ -100,6 +100,8 @@ is only executed during compilation and will not appear in the compiled version.
     strat = setup.strat
     state = u.state
     du .= zero(eltype(du))
+    # println("u: $u")
+    # println("du: $du")
     u_x = withaxes(u)
     du_x = withaxes(du)
     end push!(expr.args)

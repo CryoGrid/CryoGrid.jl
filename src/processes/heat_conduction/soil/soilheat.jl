@@ -33,6 +33,8 @@ function prognosticstep!(soil::Soil, heat::Heat{u"J"}, state)
     heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
 end
 
+include("sfcc.jl")
+
 # Note for future use: harmonic mean of thermal conductivities
 # for i=2:N-1
 #     kn(i,1) = (dxp(i,1)/(2*dxn(i))*kp(i,1).^-1 + dxp(i-1,1)/(2*dxn(i))*kp(i-1).^-1).^-1;
