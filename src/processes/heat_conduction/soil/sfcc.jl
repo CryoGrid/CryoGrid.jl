@@ -110,7 +110,11 @@ and non-monotonic behavior in most common soil freeze curves.
     tol::float64 = 0.01 # absolute tolerance for convergence
     α₀::Float64 = 1.0 # initial step size multiplier
     τ::Float64 = 0.5 # step size decay for backtracking
+    onfail::Symbol = Symbol("warn") # error, warn, or ignore
 end
+convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed to converge after $maxiter iterations; residual: $(res)")
+convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res)"
+convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     # helper functions for handling arguments to freeze curve function, f;
     # some arguments may be grid state variables and thus we need to choose
@@ -164,8 +168,8 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
                 T = T̂ # update T
                 Tres = T̂res # update residual
                 itercount += 1
-                if itercount > maxiter
-                    error("grid cell $i failed to converge after $maxiter iterations; residual: $(Tres[i])")
+                if itercount > s.maxiter
+                    convergencefailure(Val{s.onfail}(), i, s.maxiter, Tres)
                 end
             end
             # update state variables for cell i
