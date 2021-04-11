@@ -126,12 +126,14 @@ function generate_derivative(f, dvar::Symbol; choosefn=first)
     symbol(expr::Expr) = expr.args[1]
     argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
     @assert dvar in argnames "function must have $dvar as an argument"
+    dind = findfirst(s -> s == dvar, argnames)
     # Convert to MTK symbols
     argsyms = map(s -> Num(Sym{Real}(s)), argnames)
     # Generate analytical derivative of f
-    ∂x = Differential(dsym)
-    ∇f_expr = build_function(∂x(f(x)) |> expand_derivatives,argsyms...)
-    ∇f = eval(dFdT_expr)
+    x = argsyms[dind]
+    ∂x = Differential(x)
+    ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
+    ∇f = eval(∇f_expr)
 end
 
 export generate_derivative

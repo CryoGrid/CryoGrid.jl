@@ -1,3 +1,3 @@
 @testset "Processes" begin
-	include("heat_conduction/heat_conduction_tests.jl")
+	include("heat_conduction/runtests.jl")
 end

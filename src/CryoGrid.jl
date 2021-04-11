@@ -11,6 +11,8 @@ using StaticArrays
 using ComponentArrays
 using LinearAlgebra
 using ExprTools
+using FastClosures
+using IfElse
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets

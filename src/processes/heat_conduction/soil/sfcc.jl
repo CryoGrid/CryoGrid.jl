@@ -1,4 +1,16 @@
 """
+Abstract representation of a soil freeze characteristic curve (SFCC) function.
+Subtypes should be callable structs that implement the freeze curve and contain
+any necessary additional constants or configuration options. User-specified parameters
+can either be supplied in the struct or declared as model parameters via the `variables`
+method.
+"""
+abstract type SFCCFunction end
+"""
+Abstract type for SFCC H <--> T solvers.
+"""
+abstract type SFCCSolver end
+"""
     SFCC{F,∇F,S} <: FreezeCurve
 
 Generic representation of the soil freeze characteristic curve. The shape and parameters
@@ -9,8 +21,10 @@ struct SFCC{F,∇F,S} <: FreezeCurve
     f::F # freeze curve function f: (T,...) -> θ
     ∇f::∇F # derivative of freeze curve function
     solver::S # solver for H -> T or T -> H
-    SFCC(f::F,∇f::∇F,s::S) where {F<:SFCCFunction,∇F<:Function,S<:SFCCSolver} = new{F,∇F,S}(f,∇f,solver)
+    SFCC(f::F,∇f::∇F,s::S) where {F<:SFCCFunction,∇F<:Function,S<:SFCCSolver} = new{F,∇F,S}(f,∇f,s)
 end
+
+export SFCC
 
 """
     SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver())
@@ -36,14 +50,6 @@ By default, this is implemented as a simple passthrough to the solver.
 (sfcc::SFCC)(soil::Soil, heat::Heat, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
 
 """
-Abstract representation of a soil freeze characteristic curve (SFCC) function.
-Subtypes should be callable structs that implement the freeze curve and contain
-any necessary additional constants or configuration options. User-specified parameters
-can either be supplied in the struct or declared as model parameters via the `variables`
-method.
-"""
-abstract type SFCCFunction end
-"""
     params(f::SFCCFunction, soil::Soil, heat::Heat, state)
 
 Retrieves a tuple of values corresponding to each parameter declared by SFCCFunction `f` given the
@@ -53,24 +59,26 @@ of the freeze curve function `f`.
 params(f::SFCCFunction, soil::Soil, heat::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
 variables(f::SFCCFunction) = ()
+
+export params
+
 """
-    VanGenuchtenFunction <: SFCCFunction
+    VanGenuchten <: SFCCFunction
 """
-@with_kw struct VanGenuchtenFunction <: SFCCFunction
+@with_kw struct VanGenuchten <: SFCCFunction
     Tₘ::Float"K" = 273.15 # freezing point of water
     θres::Float64 = 0.0 # residual water content
     g::Float64 = 9.80665 # acceleration due to gravity
 end
-variables(::VanGenuchtenFunction) = (Parameter(:α), Parameter(:n))
-params(f::VanGenuchtenFunction, soil::Soil, heat::Heat, state) = (
-    state.T,
+variables(::VanGenuchten) = (Parameter(:α), Parameter(:n))
+params(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
     state.params.α, 
     state.params.n,
     state.θw,
     state.θp, # θ saturated = porosity
-    heat.params.ρ*heat.params.Lsl, # specific latent heat of fusion, L
+    heat.params.L, # specific latent heat of fusion, L
 )
-function (f::VanGenuchtenFunction)(T,α,n,θtot,θsat,L)
+function (f::VanGenuchten)(T,α,n,θtot,θsat)
     let Tₘ = f.Tₘ,
         θres = f.θres,
         g = f.g,
@@ -82,22 +90,29 @@ function (f::VanGenuchtenFunction)(T,α,n,θtot,θsat,L)
     end
 end
 
-"""
-    McKenzieFunction <: SFCCFunction
-"""
-@with_kw struct McKenzieFunction <: SFCCFunction
-    θres::Float64 = 0.0 # residual water content
-end
-variables(::McKenzieFunction) = (Parameter(:δ),)
-params(f::McKenzieFunction, soil::Soil, heat::Heat, state) = (state.params.δ, state.θp)
-function (f::McKenzieFunction)(T,δ,θsat)
-    IfElse.ifelse(T<=0.0, θres + (θsat-θres)*exp(-(T/δ)^2),θtot)
-end
+export VanGenuchten
 
 """
-Abstract type for SFCC H <--> T solvers.
+    McKenzie <: SFCCFunction
 """
-abstract type SFCCSolver end
+@with_kw struct McKenzie <: SFCCFunction
+    θres::Float64 = 0.0 # residual water content
+end
+variables(::McKenzie) = (Parameter(:δ),)
+params(f::McKenzie, soil::Soil, heat::Heat, state) = (
+    state.params.δ, 
+    state.θw,
+    state.θp,
+)
+function (f::McKenzie)(T,δ,θtot,θsat)
+    let θres = f.θres,
+        T₀ = 273.15; # reference T in K
+        IfElse.ifelse(T<=T₀, θres + (θsat-θres)*exp(-((T - T₀)/δ)^2), θtot)
+    end
+end
+
+export McKenzie
+
 """
 Specialized implementation of Newton's method with backtracking line search for resolving
 the energy conservation law, H = TC + Lθ. Attempts to find the root of the corresponding
@@ -107,7 +122,7 @@ and non-monotonic behavior in most common soil freeze curves.
 """
 @with_kw struct SFCCNewtonSolver <: SFCCSolver
     maxiter::Int = 10 # maximum number of iterations
-    tol::float64 = 0.01 # absolute tolerance for convergence
+    tol::Float64 = 0.01 # absolute tolerance for convergence
     α₀::Float64 = 1.0 # initial step size multiplier
     τ::Float64 = 0.5 # step size decay for backtracking
     onfail::Symbol = Symbol("warn") # error, warn, or ignore
@@ -122,10 +137,10 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     @inline atindex(x, i) = x
     @inline atindex(x::AbstractArray, i) = x[i]
     # helper function for updating θl, C, and the residual.
-    @closure function residual(T, H, θw, θm, θo, f_args)
-        θl = f(f_args...) # freeze curve
+    function residual(T, T₀, H, θw, θm, θo, L, f_args)
+        θl = f(T,f_args...) # freeze curve
         C = heatcapacity(soil.hcparams, θw, θl, θm, θo)
-        Tres = T - (H - θl*L) / C
+        Tres = (T-T₀) - (H - θl*L) / C
         return Tres, θl, C
     end
     # get f arguments; note that this does create some redundancy in the arguments
@@ -133,9 +148,10 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
     f_args = params(f, soil, heat, state)
     # iterate over each cell and solve the conservation law: H = TC + Lθ
-    @inbounds @fastmath for i in 1:length(state.grids.T)
+    @inbounds @fastmath for i in 1:length(state.T)
         itercount = 0
-        let T = state.T[i], # temperature
+        let T₀ = 273.15, # reference temperature: K -> °C
+            T = state.T[i], # temperature (K)
             H = state.H[i], # enthalpy
             C = state.C[i], # heat capacity
             θl = state.θl[i], # liquid water content
@@ -143,34 +159,39 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
             θm = state.θm[i], # mineral content
             θo = state.θo[i], # organic content
             θp = state.θp[i], # porosity and/or θsat
+            L = heat.params.L, # specific latent heat of fusion
             cw = soil.hcparams.cw, # heat capacity of liquid water
-            f_argsᵢ = map(atindex, f_args);
+            α₀ = s.α₀,
+            τ = s.τ,
+            f_argsᵢ = map(x -> atindex(x,i), f_args);
             # compute initial residual
-            Tres, θl, C = residual(T, H, θw, θm, θo, f_argsᵢ)
+            Tres, θl, C = residual(T, T₀, H, θtot, θm, θo, L, f_argsᵢ)
             while abs(Tres) > s.tol
+                if itercount > s.maxiter
+                    convergencefailure(Val{s.onfail}(), i, s.maxiter, Tres)
+                    break
+                end
                 # derivative of freeze curve
-                ∂θ∂T = ∇f(f_argsᵢ...)
+                ∂θ∂T = ∇f(T,f_argsᵢ...)
                 # derivative of residual by quotient rule;
                 # note that this assumes heatcapacity to be a simple weighted average!
                 # in the future, it might be a good idea to compute an automatic derivative
                 # of heatcapacity in addition to the freeze curve function.
-                ∂Tres∂T = 1.0 - ∂θ∂T*(-L*C - (H - θ*L)*cw)/C^2
-                α = s.α₀ / ∂Tres∂T
+                ∂Tres∂T = 1.0 - ∂θ∂T*(-L*C - (H - θl*L)*cw)/C^2
+                α = α₀ / ∂Tres∂T
                 T̂ = T - α*Tres
                 # do first residual check outside of loop;
                 # this way, we don't decrease α unless we have to.
-                T̂res, θl, C = residual(T̂, H, θw, θm, θo, f_argsᵢ)
+                T̂res, θl, C = residual(T̂, T₀, H, θtot, θm, θo, L, f_argsᵢ)
+                # simple backtracking line search to avoid jumping over the solution
                 while sign(T̂res) != sign(Tres)
-                    α = α*s.τ # decrease step size by τ
+                    α = α*τ # decrease step size by τ
                     T̂ = T - α*Tres # new guess for T
-                    T̂res, θl, C = residual(T̂, H, θw, θm, θo, f_argsᵢ)
+                    T̂res, θl, C = residual(T̂, T₀, H, θtot, θm, θo, L, f_argsᵢ)
                 end
                 T = T̂ # update T
                 Tres = T̂res # update residual
                 itercount += 1
-                if itercount > s.maxiter
-                    convergencefailure(Val{s.onfail}(), i, s.maxiter, Tres)
-                end
             end
             # update state variables for cell i
             state.T[i] = T
@@ -180,3 +201,5 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     end
     nothing
 end
+
+export SFCCNewtonSolver

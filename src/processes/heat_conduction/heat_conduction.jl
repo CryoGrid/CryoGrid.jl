@@ -8,7 +8,7 @@ export FreeWater, FreezeCurve
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
-    fc::T = FreeWater()
+    freezecurve::T = FreeWater()
 end
 
 """
@@ -21,22 +21,21 @@ TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
     profile::Union{Nothing,TempProfile}
-    Heat{u"J"}(profile::TProfile=nothing, params::HeatParams=HeatParams()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{u"J",typeof(params)}(params,profile)
-    Heat{u"K"}(profile::TProfile=nothing, params::HeatParams=HeatParams()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{u"K",typeof(params)}(params,profile)
+    function Heat{stateunit}(profile::TProfile=nothing; kwargs...) where {stateunit, TProfile<:Union{Nothing,TempProfile}}
+        @assert stateunit == u"J" || stateunit == u"K" "State unit type parameter must be either J or K"
+        params = HeatParams(;kwargs...)
+        new{stateunit,typeof(params)}(params,profile)
+    end
 end
 
 Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params))")
 
 export Heat, HeatParams, TempProfile
 
-ρ(heat::Heat) = heat.params.ρ
-Lsl(heat::Heat) = heat.params.Lsl
-freezecurve(heat::Heat) = heat.params.fc
+freezecurve(heat::Heat) = heat.params.freezecurve
 enthalpy(T::Float"K", C::Float"J/K/m^3", L::Float"J/m^3", θ::Float64) = (T-273.15)*C + L*θ
 
-export ρ, Lsl, freezecurve, enthalpy
+export freezecurve, enthalpy
 
 """
     heatconduction!(T,ΔT,k,Δk,∂H)
