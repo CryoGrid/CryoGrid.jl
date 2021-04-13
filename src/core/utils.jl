@@ -119,7 +119,7 @@ indeterminate control flow such as if-else or while blocks (technically should w
 argument names are extracted automatically from the method signature of `f`. Keyword arg `choosefn` should be a function
 which selects from available methods of `f` (returned by `methods`); defaults to `first`.
 """
-function generate_derivative(f, dvar::Symbol; choosefn=first)
+function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=CryoGrid)
     # Parse function parameter names using ExprTools
     fms = methods(f)
     symbol(arg::Symbol) = arg
@@ -133,7 +133,7 @@ function generate_derivative(f, dvar::Symbol; choosefn=first)
     x = argsyms[dind]
     ∂x = Differential(x)
     ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
-    ∇f = eval(∇f_expr)
+    ∇f = @RuntimeGeneratedFunction(∇f_expr)
 end
 
 export generate_derivative

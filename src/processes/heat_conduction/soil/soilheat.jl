@@ -20,7 +20,6 @@ end
 
 function diagnosticstep!(soil::Soil, heat::Heat{u"J"}, state)
     fc! = freezecurve(heat);
-    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     fc!(soil,heat,state)
     @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())

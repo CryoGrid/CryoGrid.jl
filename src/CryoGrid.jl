@@ -13,12 +13,15 @@ using LinearAlgebra
 using ExprTools
 using FastClosures
 using IfElse
+using RuntimeGeneratedFunctions
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets
 @reexport using Parameters
 @reexport using DifferentialEquations
 @reexport using DiffEqBase
+
+RuntimeGeneratedFunctions.init(CryoGrid)
 
 include("io/io.jl")
 include("core/core.jl")
