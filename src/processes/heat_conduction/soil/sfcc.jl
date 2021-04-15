@@ -67,6 +67,11 @@ export params
 
 """
     VanGenuchten <: SFCCFunction
+
+van Genuchten MT, 1980. A closed-form equation for predicting the hydraulic conductivity of unsaturated soils.
+    Soil Science Society of America Journal, 44(5): 892–898. DOI: 10.2136/sssaj 1980.03615995004400050002x.
+
+Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
 @with_kw struct VanGenuchten <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
@@ -85,7 +90,7 @@ function (f::VanGenuchten)(T,α,n,Tₘ,θtot,θsat,L)
     let θres = f.θres,
         g = f.g,
         m = 1-1/n,
-        ψ₀ = (-1/α)*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n),
+        ψ₀ = 0.0, #(-1/α)*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n),
         Tstar = Tₘ + g*Tₘ/L*ψ₀,
         ψ(T) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T); # pressure head at T
         θl = θres + (θsat - θres)*(1 + (-α*ψ(T))^n)^(-m) # van Genuchten
@@ -96,24 +101,54 @@ export VanGenuchten
 
 """
     McKenzie <: SFCCFunction
+
+McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport and water-ice phase change:
+    numerical simulations, benchmarks, and application to freezing in peat bogs. Advances in Water Resources,
+    30(4): 966–983. DOI: 10.1016/j.advwatres.2006.08.008.
 """
 @with_kw struct McKenzie <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
 variables(::McKenzie) = (Parameter(:δ),)
 params(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    state.params.δ |> getscalar, 
+    state.params.γ |> getscalar, 
     state.θw,
     state.θp,
 )
-function (f::McKenzie)(T,δ,θtot,θsat)
+function (f::McKenzie)(T,γ,θtot,θsat)
     let θres = f.θres,
-        T₀ = 273.15; # reference T in K
-        IfElse.ifelse(T<=T₀, θres + (θsat-θres)*exp(-((T - T₀)/δ)^2), θtot)
+        Tref = 273.15; # reference T in K
+        # TODO: perhaps T<=Tref should be T<=Tₘ as in VG curve?
+        IfElse.ifelse(T<=Tref, θres + (θsat-θres)*exp(-((T - Tref)/γ)^2), θtot)
     end
 end
 
 export McKenzie
+
+"""
+    Westermann <: SFCCFunction
+
+Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Modeling the impact of
+    wintertime rain events on the thermal regime of permafrost, The Cryosphere, 5, 945–959,
+    https://doi.org/10.5194/tc-5-945-2011, 2011. 
+"""
+@with_kw struct Westermann <: SFCCFunction
+    θres::Float64 = 0.0 # residual water content
+end
+variables(::Westermann) = (Parameter(:δ),)
+params(f::Westermann, soil::Soil, heat::Heat, state) = (
+    state.params.δ |> getscalar, 
+    state.θw,
+)
+function (f::Westermann)(T,δ,θtot)
+    let θres = f.θres,
+        Tref = 273.15; # reference T in K
+        # TODO: perhaps T<=Tref should be T<=Tₘ as in VG curve?
+        IfElse.ifelse(T<=Tref, θres - (θtot-θres)*(δ/(T-δ)), θtot)
+    end
+end
+
+export Westermann
 
 """
 Specialized implementation of Newton's method with backtracking line search for resolving
@@ -135,16 +170,17 @@ convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed t
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 # Helper function for handling arguments to freeze curve function, f;
 # select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
-# we use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization)
-@generated select(args::T, i::Int) where {T<:Tuple} = :(tuple($([typ <: Vector ?  :(args[$k][i]) : :(args[$k]) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
+# we use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
+# function f is then applied to each element
+@generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: Vector ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 # Newton solver implementation
 function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     # Helper function for updating θl, C, and the residual.
-    function residual(T, T₀, H, θw, θm, θo, L, hcparams, f, f_args)
+    function residual(T, Tref, H, θw, θm, θo, L, hcparams, f, f_args)
         args = tuplejoin((T,),f_args)
         θl = f(args...)
         C = heatcapacity(hcparams, θw, θl, θm, θo)
-        Tres = (T-T₀) - (H - θl*L) / C
+        Tres = (T-Tref) - (H - θl*L) / C
         return Tres, θl, C
     end
     # get f arguments; note that this does create some redundancy in the arguments
@@ -154,22 +190,23 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     # iterate over each cell and solve the conservation law: H = TC + Lθ
     @inbounds @fastmath for i in 1:length(state.T)
         itercount = 0
-        let T₀ = 273.15, # reference temperature: K -> °C
-            T = state.T[i], # temperature (K)
-            H = state.H[i], # enthalpy
-            C = state.C[i], # heat capacity
-            θl = state.θl[i], # liquid water content
-            θtot = state.θw[i], # total water content
-            θm = state.θm[i], # mineral content
-            θo = state.θo[i], # organic content
-            θp = state.θp[i], # porosity and/or θsat
+        let Tref = 273.15, # reference temperature: K -> °C
+            T₀ = state.T[i] |> adstrip,
+            T = T₀, # temperature (K)
+            H = state.H[i] |> adstrip, # enthalpy
+            C = state.C[i] |> adstrip, # heat capacity
+            θl = state.θl[i] |> adstrip, # liquid water content
+            θtot = state.θw[i] |> adstrip, # total water content
+            θm = state.θm[i] |> adstrip, # mineral content
+            θo = state.θo[i] |> adstrip, # organic content
+            θp = state.θp[i] |> adstrip, # porosity and/or θsat
             L = heat.params.L, # specific latent heat of fusion
             cw = soil.hcparams.cw, # heat capacity of liquid water
             α₀ = s.α₀,
             τ = s.τ,
-            f_argsᵢ = select(f_args, i);
+            f_argsᵢ = selectat(i, adstrip, f_args);
             # compute initial residual
-            Tres, θl, C = residual(T, T₀, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+            Tres, θl, C = residual(T, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
             while abs(Tres) > s.tol
                 if itercount > s.maxiter
                     convergencefailure(s.onfail, i, s.maxiter, Tres)
@@ -187,21 +224,31 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
                 T̂ = T - α*Tres
                 # do first residual check outside of loop;
                 # this way, we don't decrease α unless we have to.
-                T̂res, θl, C = residual(T̂, T₀, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+                T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
                 # simple backtracking line search to avoid jumping over the solution
                 while sign(T̂res) != sign(Tres)
                     α = α*τ # decrease step size by τ
                     T̂ = T - α*Tres # new guess for T
-                    T̂res, θl, C = residual(T̂, T₀, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+                    T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
                 end
                 T = T̂ # update T
                 Tres = T̂res # update residual
                 itercount += 1
             end
-            # update state variables for cell i
-            state.T[i] = T
-            state.θl[i] = θl
-            state.C[i] = C
+            # Here we apply the optimized result to the state variables;
+            # Since we perform the Newton iteration on untracked variables,
+            # we need to recompute θl, C, and T here with the tracked variables.
+            # Note that this results in one additional freeze curve function evaluation.
+            let f_argsᵢ = selectat(i,identity,f_args);
+                # recompute liquid water content with (possibly) tracked variables
+                args = tuplejoin((T,),f_argsᵢ)
+                state.θl[i] = f(args...)
+            end
+            let θl = state.θl[i],
+                H = state.H[i];
+                state.C[i] = heatcapacity(soil.hcparams,θtot,θl,θm,θo)
+                state.T[i] = (H - L*θl) / state.C[i] + Tref
+            end
         end
     end
     nothing

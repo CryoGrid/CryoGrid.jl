@@ -20,6 +20,8 @@ using Reexport
 @reexport using Parameters
 @reexport using DifferentialEquations
 @reexport using DiffEqBase
+import ForwardDiff
+import ReverseDiff
 
 RuntimeGeneratedFunctions.init(CryoGrid)
 

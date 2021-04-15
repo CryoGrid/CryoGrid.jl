@@ -137,3 +137,12 @@ function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=Cryo
 end
 
 export generate_derivative
+
+"""
+adstrip extracts the underlying numeric value from `x` if `x` is a tracked value from
+an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type, then
+`adstrip` simply returns `x` as-is.
+"""
+adstrip(x::Number) = x
+adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x)
+adstrip(x::ReverseDiff.TrackedReal) = x.value

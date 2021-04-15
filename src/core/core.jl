@@ -109,6 +109,7 @@ macro setscalar(expr)
     end
 end
 
+getscalar(x::Number) = x
 getscalar(a::AbstractArray) = a[1]
 
 export @setscalar, getscalar

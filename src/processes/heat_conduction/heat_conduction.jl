@@ -146,7 +146,6 @@ total water content (θw), and liquid water content (θl).
     L = heat.params.L
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
     @. state.θl = freezethaw(state.H, state.C, L, state.θw)*state.θw
-    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
 end
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =

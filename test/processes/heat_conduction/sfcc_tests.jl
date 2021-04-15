@@ -1,6 +1,7 @@
 using CryoGrid
 using Test
 using ForwardDiff
+using ComponentArrays
 
 testprofile = SoilProfile(
 	0.0u"m" => (0.80,0.0,0.05,0.15,0.80),
@@ -19,7 +20,7 @@ testprofile = SoilProfile(
         end
         @testset "Newton solver checks" begin
             tol = 0.01
-            δ = 0.1
+            γ = 0.1
             f = McKenzie()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
             soil = Soil{Sand}(testprofile)
@@ -29,10 +30,10 @@ testprofile = SoilProfile(
                 # set up single-grid-cell state vars
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
-                θl = f.(T,δ,θw,θp) # set liquid water content according to freeze curve
+                θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
                 H = enthalpy.(T.+1,C,L,θl) # compute enthalpy at +1 degree
-                params = (δ=δ,)
+                params = (γ=γ,)
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=params)
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
@@ -41,10 +42,10 @@ testprofile = SoilProfile(
                 # set up single-grid-cell state vars
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
-                θl = f.(T,δ,θw,θp) # set liquid water content according to freeze curve
+                θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
                 H = enthalpy.(T.+1,C,L,θl) # compute enthalpy at +1 degree
-                params = (δ=δ,)
+                params = (γ=γ,)
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=params)
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
@@ -53,10 +54,10 @@ testprofile = SoilProfile(
                 # set up single-grid-cell state vars
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
-                θl = f.(T,δ,θw,θp) # set liquid water content according to freeze curve
+                θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
                 H = enthalpy.(T.+0.02,C,L,θl) # compute enthalpy at +.02 degree
-                params = (δ=δ,)
+                params = (γ=γ,)
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=params)
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
@@ -130,7 +131,7 @@ testprofile = SoilProfile(
         # set up
         tol = 0.01
         θsat = 0.8
-        δ = 0.1
+        γ = 0.1
         f = McKenzie()
         sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
         soil = Soil{Sand}(testprofile)
@@ -138,12 +139,12 @@ testprofile = SoilProfile(
         L = heat.params.L
         θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
         T = [-0.1 + 273.15] # convert to K
-        θl = f.(T,δ,θw,θp) # set liquid water content according to freeze curve
+        θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
         C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
         H = enthalpy.(T.+0.09,C,L,θl) # compute enthalpy at +1 degree
         # test gradients
-        p = ComponentArray(δ=δ)
-        ∂f∂p = ForwardDiff.gradient(p ->  sum(f.(T,p.δ,θw,θp)), p)
+        p = ComponentArray(γ=γ)
+        ∂f∂p = ForwardDiff.gradient(p ->  sum(f.(T,p.γ,θw,θp)), p)
         @test all(isfinite.(∂f∂p))
         function F(p)
             T = similar(T,eltype(p))
@@ -154,11 +155,11 @@ testprofile = SoilProfile(
             sfcc(soil, heat, state)
             state.T[1]
         end
-        p = ComponentArray(δ=[δ])
+        p = ComponentArray(γ=[γ])
         ∂F∂p = ForwardDiff.gradient(F, p)
         @test all(isfinite.(∂F∂p))
     end
-end
+end;
 
 using BenchmarkTools
 function benchmarksfcc()
