@@ -144,7 +144,7 @@ function (f::Westermann)(T,δ,θtot)
     let θres = f.θres,
         Tref = 273.15; # reference T in K
         # TODO: perhaps T<=Tref should be T<=Tₘ as in VG curve?
-        IfElse.ifelse(T<=Tref, θres - (θtot-θres)*(δ/(T-δ)), θtot)
+        IfElse.ifelse(T<=Tref, θres - (θtot-θres)*(δ/(T-Tref-δ)), θtot)
     end
 end
 
@@ -165,8 +165,8 @@ and non-monotonic behavior in most common soil freeze curves.
     onfail::Symbol = Symbol("warn") # error, warn, or ignore
 end
 convergencefailure(sym::Symbol, i, maxiter, res) = convergencefailure(Val{sym}(), i, maxiter, res)
-convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed to converge after $maxiter iterations; residual: $(res)")
-convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res)"
+convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size.")
+convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size."
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 # Helper function for handling arguments to freeze curve function, f;
 # select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.

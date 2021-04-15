@@ -65,7 +65,63 @@ testprofile = SoilProfile(
         end
     end
     # TODO: DRY violation; a lot of this code is redundant and could possibly be
-    # shared with the McKenzie freeze curve test.
+    # shared between different freeze curve tests.
+    @testset "Westermann freeze curve" begin
+        @testset "Sanity checks" begin
+            f = Westermann()
+            θtot = 0.8
+            δ = 0.1
+            @test isapprox(f(263.15,δ,θtot), 0.0, atol=1e-2)
+            @test f(273.15,δ,θtot) ≈ θtot
+            θl = f(273.05,δ,θtot)
+            @test θl > 0.0 && θl < 1.0
+        end
+        @testset "Newton solver checks" begin
+            tol = 0.01
+            δ = 0.1
+            f = Westermann()
+            sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
+            soil = Soil{Sand}(testprofile)
+            heat = Heat{u"J"}(freezecurve=sfcc)
+            L = heat.params.L
+            @testset "Left tail" begin
+                # set up single-grid-cell state vars
+                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                T = [-5.0 + 273.15] # convert to K
+                θl = f.(T,δ,θw) # set liquid water content according to freeze curve
+                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                H = enthalpy.(T.+1,C,L,θl) # compute enthalpy at +1 degree
+                params = (δ=δ,)
+                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=params)
+                sfcc(soil, heat, state)
+                @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
+            end
+            @testset "Right tail" begin
+                # set up single-grid-cell state vars
+                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                T = [5.0 + 273.15] # convert to K
+                θl = f.(T,δ,θw) # set liquid water content according to freeze curve
+                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                H = enthalpy.(T.+1,C,L,θl) # compute enthalpy at +1 degree
+                params = (δ=δ,)
+                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=params)
+                sfcc(soil, heat, state)
+                @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
+            end
+            @testset "Near zero" begin
+                # set up single-grid-cell state vars
+                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                T = [-0.05 + 273.15] # convert to K
+                θl = f.(T,δ,θw) # set liquid water content according to freeze curve
+                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                H = enthalpy.(T.+0.02,C,L,θl) # compute enthalpy at +.02 degree
+                params = (δ=δ,)
+                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=params)
+                sfcc(soil, heat, state)
+                @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
+            end
+        end
+    end
     @testset "Van Genuchten freeze curve" begin
         @testset "Sanity checks" begin
             f = VanGenuchten()
