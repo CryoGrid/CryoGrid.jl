@@ -109,7 +109,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 @with_kw struct McKenzie <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::McKenzie) = (Parameter(:δ),)
+variables(::McKenzie) = (Parameter(:γ),)
 params(f::McKenzie, soil::Soil, heat::Heat, state) = (
     state.params.γ |> getscalar, 
     state.θw,
