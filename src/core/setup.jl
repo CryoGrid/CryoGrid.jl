@@ -63,13 +63,15 @@ condition and necessary callbacks.
 
 TODO: infer 'jac' (JacobianStyle) from stratigraphy definition.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing, jac::J=TridiagJac();kwargs...) where {J<:JacobianStyle}
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing, jac::J=TridiagJac();kwargs...) where {J<:JacobianStyle}
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p)
 	func = odefunction(jac,setup,u0,p)
 	ODEProblem(func,u0,tspan,p,kwargs...)
 end
+# converts tspan from DateTime to float
+CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup, Dates.datetime2epochms.(tspan)./1000,args...;kwargs...)
 
 odefunction(::DenseJac, setup::CryoGridSetup, u0::CryoGridState, p) = setup
 odefunction(::TridiagJac, setup::CryoGridSetup, u0::CryoGridState, p) = let N = length(u0);
