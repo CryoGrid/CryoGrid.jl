@@ -29,5 +29,6 @@ include("io/io.jl")
 include("core/core.jl")
 include("layers/layers.jl")
 include("processes/processes.jl")
+include("models/Models.jl")
 
 end # module
