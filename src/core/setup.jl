@@ -53,7 +53,7 @@ end
 
 abstract type JacobianStyle end
 struct TridiagJac <: JacobianStyle end
-struct DenseJac<: JacobianStyle end
+struct DenseJac <: JacobianStyle end
 
 export JacobianStyle, TridiagJac, DenseJac
 
@@ -223,8 +223,8 @@ state variables at runtime.
     # build state named tuple; QuoteNode is used to force names to be interpolated as symbols
     # rather than literals.
     quote
-    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),:grids,
-        :params, :t)}(tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params,t))
+    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),
+        :grids,:params,:t)}(tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params,t))
     end
 end
 
