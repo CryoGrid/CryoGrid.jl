@@ -117,3 +117,4 @@ export @setscalar, getscalar
 # include core-dependent types/functions
 include("stratigraphy.jl")
 include("setup.jl")
+include("output.jl")
