@@ -3,10 +3,10 @@
 
 Helper type that stores the solution to a CryoGrid `ODEProblem` along with `DimArray` views of all
 state variables. `CryoGridOutput` overrides `Base.getproperty` to allow for direct dot-syntax
-access of state variables. For example, if your model has a grid variable named `T`, then for a
-`CryoGridOutput` value `out`, `out.T` returns a `DimArray` with indexed time and depth axes. The
-solution can be accessed via `out.sol`, or for convenience, the continuous solution at time `t`
-can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`.
+access of state variables. For example, if your model has a grid variable named `T` in layer `layer`,
+then for a `CryoGridOutput` value `out`, `out.layer.T` returns a `DimArray` with indexed time and
+depth axes. The `ODESolution` can be accessed via `out.sol`, or for convenience, the continuous solution
+at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`.
 """
 struct CryoGridOutput{TSol,TVars}
     sol::TSol
@@ -44,7 +44,8 @@ function CryoGridOutput(sol::TSol) where {T,N,TSol <: ODESolution{T,N,<:Vector{<
         end
         # construct named tuple and merge with named tuple from previous layers
         varnames = map(var -> varname(var), keys(vararrays) |> Tuple)
-        layerstates = merge(layerstates, NamedTuple{tuple(varnames...)}(tuple(values(vararrays)...)))
+        layer_nt = NamedTuple{tuple(varnames...)}(tuple(values(vararrays)...))
+        layerstates = merge(layerstates, NamedTuple{tuple(layername)}((layer_nt,)))
     end
     CryoGridOutput(sol, layerstates)
 end
