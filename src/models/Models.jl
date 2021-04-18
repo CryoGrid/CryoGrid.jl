@@ -56,11 +56,11 @@ export SamoylovDefault
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the van Genuchten freeze curve, set `freezecurve=SFCC(VanGenuchten())`.
 """
-function GroundHeatOnly(upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where
-    {F<:FreezeCurve}
+function GroundHeatOnly(upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig;
+    grid::Grid=DefaultGrid, freezecurve::F=FreeWater(), hcunit=u"J") where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
-        0.0u"m" => Ground(:soil, Soil{Sand}(soilconfig.soilprofile), Heat{u"J"}(soilconfig.tempprofile, freezecurve=freezecurve)),
+        0.0u"m" => Ground(:soil, Soil{Sand}(soilconfig.soilprofile), Heat{hcunit}(soilconfig.tempprofile, freezecurve=freezecurve)),
         1000.0u"m" => Bottom(GeothermalHeatFlux(0.05u"J/s/m^2"))
     )
     model = CryoGridSetup(strat,grid)

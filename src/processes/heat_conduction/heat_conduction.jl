@@ -113,11 +113,21 @@ function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{u"J"}, stop, ssu
     @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
     return nothing # ensure no allocation
 end
+function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{u"K"}, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
+    @inbounds ssub.dT[1] += ssub.dH[1] / ssub.Ceff[1]
+    return nothing # ensure no allocation
+end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
 function interact!(sub::SubSurface, heat::Heat{u"J"}, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
+    return nothing # ensure no allocation
+end
+function interact!(sub::SubSurface, heat::Heat{u"K"}, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
+    @inbounds ssub.dT[end] += ssub.dH[end] / ssub.Ceff[end]
     return nothing # ensure no allocation
 end
 # Free water freeze curve

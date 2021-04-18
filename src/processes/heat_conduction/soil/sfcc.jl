@@ -46,10 +46,22 @@ end
 # Join the declared state variables of the SFCC function and the solver
 variables(sfcc::SFCC) = tuplejoin(variables(sfcc.f), variables(sfcc.solver))
 """
-Updates T, θ, and C according to the specified SFCC function and solver.
-By default, this is implemented as a simple passthrough to the solver.
+Updates state variables according to the specified SFCC function and solver.
+For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
+For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
 """
-(sfcc::SFCC)(soil::Soil, heat::Heat, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
+(sfcc::SFCC)(soil::Soil, heat::Heat{u"J"}, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
+function (sfcc:SFCC, soil::Soil, heat::Heat{u"K"}, state)
+    let L = heat.params.L,
+        f = sfcc.f,
+        ∇f = sfcc.∇f;
+        @. state.θl = f(state.T,params(f,soil,heat,state)...)
+        @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+        @. state.H = enthalpy(state.T, state.C, L, state.θl)
+        @. state.Ceff = L*∇f(state.T) + state.C
+    end
+    return nothing
+end
 
 """
     params(f::SFCCFunction, soil::Soil, heat::Heat, state)
