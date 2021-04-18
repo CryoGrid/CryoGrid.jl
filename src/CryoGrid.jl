@@ -6,6 +6,8 @@ using Interpolations
 using TimeSeries
 using Dates
 using DataStructures: SortedDict, OrderedDict
+using DimensionalData
+using ArraysOfArrays
 using AxisArrays
 using StaticArrays
 using ComponentArrays

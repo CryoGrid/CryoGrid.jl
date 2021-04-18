@@ -292,6 +292,7 @@ function buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     togrid(var::Var{name,T,OnGrid{Edges}}) where {name,T} = var.dim.f(grid)
     togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = var.dim.f(cells(grid))
     togrid(var::Var{name,T,Shape{dims}}) where {name,T,dims} = reshape(1:prod(dims),dims...)
+    togrid(var::Var{name,T,typeof(Scalar)}) where {name,T} = 1:1
     names = @>> vars map(var -> varname(var))
     vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
     grids = @>> vars_with_names map(togrid)
