@@ -51,14 +51,19 @@ For heat conduction with enthalpy, this is implemented as a simple passthrough t
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
 """
 (sfcc::SFCC)(soil::Soil, heat::Heat{u"J"}, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
-function (sfcc:SFCC, soil::Soil, heat::Heat{u"K"}, state)
-    let L = heat.params.L,
+function (sfcc::SFCC)(soil::Soil, heat::Heat{u"K"}, state)
+    @inbounds @fastmath let L = heat.params.L,
         f = sfcc.f,
-        ∇f = sfcc.∇f;
-        @. state.θl = f(state.T,params(f,soil,heat,state)...)
+        ∇f = sfcc.∇f,
+        f_args = tuplejoin((state.T,),params(f,soil,heat,state));
+        @. state.θl = f(f_args...)
         @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
         @. state.H = enthalpy(state.T, state.C, L, state.θl)
-        @. state.Ceff = L*∇f(state.T) + state.C
+        # can't use broadcasting for ∇f because it's unary
+        for i in 1:length(state.T)
+            f_argsᵢ = selectat(i, identity, f_args)
+            state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
+        end
     end
     return nothing
 end
@@ -180,11 +185,6 @@ convergencefailure(sym::Symbol, i, maxiter, res) = convergencefailure(Val{sym}()
 convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size.")
 convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size."
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
-# Helper function for handling arguments to freeze curve function, f;
-# select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
-# we use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
-# function f is then applied to each element
-@generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: Vector ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 # Newton solver implementation
 function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     # Helper function for updating θl, C, and the residual.

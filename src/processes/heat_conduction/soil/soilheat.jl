@@ -30,10 +30,16 @@ function initialcondition!(soil::Soil, heat::Heat, state)
 end
 
 function diagnosticstep!(soil::Soil, heat::Heat, state)
+    # Reset energy flux to zero; this is redundant when H is the prognostic variable
+    # but necessary when it is not.
+    @. state.dH = zero(eltype(state.dH))
+    # Evaluate the freeze curve
     fc! = freezecurve(heat);
     fc!(soil,heat,state)
+    # Update heat capacity and thermal conductivity
     @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
+    # Interpolate thermal conductivity to boundary grid
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
     return nothing # ensure no allocation
 end
@@ -42,7 +48,7 @@ end
 function prognosticstep!(soil::Soil, heat::Heat{u"J"}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
-    state.dH .= zero(eltype(state.dH))
+    # Diffusion on non-boundary cells
     heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
 end
 
@@ -50,7 +56,10 @@ end
 function prognosticstep!(soil::Soil, heat::Heat{u"K"}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
     heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
+    # Compute temperature flux by dividing by C_eff;
+    # C_eff should be computed by the freeze curve.
     @inbounds @. state.dT[2:end-1] = state.dH[2:end-1] / state.Ceff[2:end-1]
     return nothing
 end

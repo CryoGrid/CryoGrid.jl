@@ -10,6 +10,11 @@ If debug mode is not enabled, plain Float64 is used instead.
 """
 macro Float_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
 """
+Similar to @UT_str but produces a Real quantity type for the given unit if and only if debug mode is enabled.
+If debug mode is not enabled, plain Float64 is used instead.
+"""
+macro Real_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Real) end
+"""
 Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the quantity rather than the instance. NOT conditional
 on debug mode.
 """
@@ -137,6 +142,12 @@ function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=Cryo
 end
 
 export generate_derivative
+
+# Helper function for handling arguments to freeze curve function, f;
+# select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
+# we use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
+# function f is then applied to each element
+@generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 
 """
 adstrip extracts the underlying numeric value from `x` if `x` is a tracked value from

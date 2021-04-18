@@ -33,7 +33,7 @@ Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params)
 export Heat, HeatParams, TempProfile
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-enthalpy(T::Float"K", C::Float"J/K/m^3", L::Float"J/m^3", θ::Float64) = (T-273.15)*C + L*θ
+enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
 
 export freezecurve, enthalpy
 
@@ -159,7 +159,7 @@ total water content (θw), and liquid water content (θl).
 end
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
-    error("freeze curve $(typeof(fc)) not implemented for layer $(typeof(layer))")
+    error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
 
 export heatconduction!, boundaryflux
 
