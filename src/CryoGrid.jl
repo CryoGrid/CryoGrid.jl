@@ -6,7 +6,6 @@ using Interpolations
 using TimeSeries
 using Dates
 using DataStructures: SortedDict, OrderedDict
-using DimensionalData
 using ArraysOfArrays
 using AxisArrays
 using StaticArrays
@@ -19,6 +18,7 @@ using RuntimeGeneratedFunctions
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets
+@reexport using DimensionalData
 @reexport using Parameters
 @reexport using DifferentialEquations
 @reexport using DiffEqBase
