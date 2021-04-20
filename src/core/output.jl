@@ -50,6 +50,17 @@ function CryoGridOutput(sol::TSol) where {T,N,TSol <: ODESolution{T,N,<:Vector{<
     CryoGridOutput(sol, layerstates)
 end
 
+function Base.show(io::IO, out::CryoGridOutput)
+    vars = out.vars
+    nvars = sum(map(v -> keys(v) |> length, vars))
+    println(io, "CryoGridOutput with $(length(out.sol.t)) time steps and $(nvars) variables:")
+    for (name,vars) in zip(keys(vars),values(vars))
+        if length(vars) > 0
+            println("  $name: $(tuple(keys(vars)...))")
+        end
+    end
+end
+
 """
 Evaluates the continuous solution at time `t`.
 """
