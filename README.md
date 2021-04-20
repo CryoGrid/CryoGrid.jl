@@ -10,39 +10,47 @@ Author: Brian Groenke (brian.groenke@awi.de)
 ### Quick start
 
 ```julia
-	using CryoGrid
-	const gridvals = vcat([0:0.02:2...,2.05:0.05:4.0...,
-		4.1:0.1:10...,10.2:0.2:20...,21:1:30...,
-		35:5:50...,60:10:100...,200:100:1000...]...)
-	# soil profile: depth => (total water, liquid water, mineral organic, porosity)
-	soilprofile = SoilProfile(
-		0.0u"m" => (0.80,0.0,0.05,0.15,0.80),
-		0.1u"m" => (0.80,0.0,0.15,0.05,0.80),
-		0.4u"m" => (0.80,0.0,0.15,0.05,0.55),
-		3.0u"m" => (0.50,0.0,0.50,0.0,0.50),
-		10.0u"m" => (0.30,0.0,0.70,0.0,0.30),
-	)
-	tempprofile = TempProfile(
-		0.0u"m" => -1.0u"°C",
-		2.0u"m" => -1.0u"°C",
-		5.0u"m" => -3.0u"°C",
-		10.0u"m" => -6.0u"°C",
-		25.0u"m" => -9.0u"°C",
-		100.0u"m" => -9.0u"°C",
-		1000.0u"m" => 10.2*u"°C"
-	)
-	strat = Stratigraphy(
-		-2.0u"m" => Top(ConstantAirTemp(5.0u"°C")),
-		0.0u"m" => Ground(:soil, Soil{Sand}(soilprofile), Heat{UT"J"}(tempprofile)),
-		1000.0u"m" => Bottom(GeothermalHeatFlux(0.05u"J/s"))
-	)
-	grid = Grid(gridvals)
-	model = CryoGridSetup(strat,grid)
-	# define time span
-	tspan = [0.0u"s",365u"d"] |> ustrip
-	# CryoGrid front-end for ODEProblem
-	prob, out = CryoGridProblem(model,tspan,savevars=(soil=(:T,:θl),))
-	# solve discretized system w/ trapezoid method (Crank-Nicolson); save at 24 hour intervals
-	sol = @time solve(prob, Trapezoid(autodiff=false), abstol=1.0e-4, saveat=24*3600.0)
-	# 6.516993 seconds (673.82 k allocations: 297.257 MiB, 0.65% gc time)
+using CryoGrid
+using CryoGrid.Models
+using Dates
+using Plots
+
+forcings = loadforcings("input/FORCING_JSONfiles/FORCING_ULC_126_72.json", :Tair => u"°C");
+# use air temperature as upper boundary forcing
+tair = TimeSeriesForcing(ustrip.(u"K", forcings.data.Tair), forcings.timestamps, :Tair);
+# basic 1-layer heat conduction model (defaults to free water freezing scheme)
+model = Models.SoilHeat(TemperatureGradient(tair), SamoylovDefault)
+# define time span
+tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
+# CryoGrid front-end for ODEProblem
+prob = CryoGridProblem(model,tspan)
+# solve discretized system, saving every 6 hours;
+# ROS3P is a third order Rosenbrock solver that should work well without a freeze curve.
+out = @time solve(prob, ROS3P(), abstol=1e-2, saveat=6*3600.0) |> CryoGridOutput;
+zs = [1:10...,20:10:100...]
+cg = Plots.cgrad(:berlin,rev=true)
+plot(out.soil.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
+
+# Alternatively, we can use a van Genuchten freeze curve
+model = Models.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(VanGenuchten()))
+# Set-up parameters
+p = copy(model.pproto)
+p.soil.α .= 4.0
+p.soil.n .= 2.0
+p.soil.Tₘ .= 273.15
+tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
+prob = CryoGridProblem(model,tspan,p)
+# stiff solvers don't work well with van Genuchten due to the ill-conditioned Jacobian;
+# Thus, we use forward Euler instead
+out = @time solve(prob, Euler(), dt=2*60.0, saveat=6*3600.0) |> CryoGridOutput;
+zs = [1:10...,20:10:100...]
+cg = Plots.cgrad(:berlin,rev=true)
+plot(out.soil.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
+```
+
+Note that `SoilHeat` uses energy as the state variable by default. To use temperature as the state variable instead:
+
+```julia
+# Note that this will work with any freeze curve, here we use Westermann (2011).
+model = Models.SoilHeat(u"T", TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
 ```

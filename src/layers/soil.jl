@@ -72,4 +72,4 @@ end
 
 export Soil, SoilProfile, SoilTCParams, SoilHCParams
 export SoilType, Sand, Silt, Clay
-export thermalConductivity, heatCapacity, initialcondition!, variables
+export thermalconductivity, heatcapacity, initialcondition!, variables

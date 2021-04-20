@@ -1,13 +1,14 @@
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
-
+# Default implementation of variables
+variables(fc::FreezeCurve) = ()
 export FreeWater, FreezeCurve
 
 @with_kw struct HeatParams{T<:FreezeCurve} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
-    fc::T = FreeWater()
+    freezecurve::T = FreeWater()
 end
 
 """
@@ -20,22 +21,21 @@ TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
     profile::Union{Nothing,TempProfile}
-    Heat{u"J"}(profile::TProfile=nothing, params::HeatParams=HeatParams()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{u"J",typeof(params)}(params,profile)
-    Heat{u"K"}(profile::TProfile=nothing, params::HeatParams=HeatParams()) where {TProfile<:Union{Nothing,TempProfile}} =
-        new{u"K",typeof(params)}(params,profile)
+    function Heat{stateunit}(profile::TProfile=nothing; kwargs...) where {stateunit, TProfile<:Union{Nothing,TempProfile}}
+        @assert stateunit == u"J" || stateunit == u"K" "State unit type parameter must be either J or K"
+        params = HeatParams(;kwargs...)
+        new{stateunit,typeof(params)}(params,profile)
+    end
 end
 
 Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params))")
 
 export Heat, HeatParams, TempProfile
 
-ρ(heat::Heat) = heat.params.ρ
-Lsl(heat::Heat) = heat.params.Lsl
-freezecurve(heat::Heat) = heat.params.fc
-enthalpy(T::Float"K", C::Float"J/K/m^3", L::Float"J/m^3", θ::Float64) = (T-273.15)*C + L*θ
+freezecurve(heat::Heat) = heat.params.freezecurve
+enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
 
-export ρ, Lsl, freezecurve, enthalpy
+export freezecurve, enthalpy
 
 """
     heatconduction!(T,ΔT,k,Δk,∂H)
@@ -113,6 +113,11 @@ function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{u"J"}, stop, ssu
     @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
     return nothing # ensure no allocation
 end
+function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat{u"K"}, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
+    @inbounds ssub.dT[1] += ssub.dH[1] / ssub.Ceff[1]
+    return nothing # ensure no allocation
+end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
@@ -120,8 +125,42 @@ function interact!(sub::SubSurface, heat::Heat{u"J"}, bot::Bottom, bc::B, ssub, 
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
     return nothing # ensure no allocation
 end
+function interact!(sub::SubSurface, heat::Heat{u"K"}, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
+    @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
+    @inbounds ssub.dT[end] += ssub.dH[end] / ssub.Ceff[end]
+    return nothing # ensure no allocation
+end
+# Free water freeze curve
+"""
+Implementation of "free water" freeze curve for any subsurface layer. Assumes that
+'state' contains at least temperature (T), enthalpy (H), heat capacity (C),
+total water content (θw), and liquid water content (θl).
+"""
+@inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{u"J"}, state)
+    @inline function enthalpyinv(H, C, L, θtot)
+        let θtot = max(1.0e-8,θtot),
+            Lθ = L*θtot,
+            I_t = H > Lθ,
+            I_f = H <= 0.0;
+            T = (I_t*(H-Lθ) + I_f*H)/C + 273.15
+        end
+    end
+    @inline function freezethaw(H, C, L, θtot)
+        let θtot = max(1.0e-8,θtot),
+            Lθ = L*θtot,
+            I_t = H > Lθ,
+            I_c = (H > 0.0) && (H <= Lθ);
+            liquidfraction = I_c*(H/Lθ) + I_t
+        end
+    end
+    L = heat.params.L
+    @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
+    @. state.θl = freezethaw(state.H, state.C, L, state.θw)*state.θw
+end
+# Fallback (error) implementation for freeze curve
+(fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
+    error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
 
 export heatconduction!, boundaryflux
 
-include("freewaterfc.jl")
 include("soil/soilheat.jl")

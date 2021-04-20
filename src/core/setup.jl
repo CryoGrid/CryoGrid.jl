@@ -53,7 +53,7 @@ end
 
 abstract type JacobianStyle end
 struct TridiagJac <: JacobianStyle end
-struct DenseJac<: JacobianStyle end
+struct DenseJac <: JacobianStyle end
 
 export JacobianStyle, TridiagJac, DenseJac
 
@@ -63,13 +63,15 @@ condition and necessary callbacks.
 
 TODO: infer 'jac' (JacobianStyle) from stratigraphy definition.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan, p=nothing, jac::J=TridiagJac();kwargs...) where {J<:JacobianStyle}
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing, jac::J=TridiagJac();kwargs...) where {J<:JacobianStyle}
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p)
 	func = odefunction(jac,setup,u0,p)
 	ODEProblem(func,u0,tspan,p,kwargs...)
 end
+# converts tspan from DateTime to float
+CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup, Dates.datetime2epochms.(tspan)./1000,args...;kwargs...)
 
 odefunction(::DenseJac, setup::CryoGridSetup, u0::CryoGridState, p) = setup
 odefunction(::TridiagJac, setup::CryoGridSetup, u0::CryoGridState, p) = let N = length(u0);
@@ -100,6 +102,8 @@ is only executed during compilation and will not appear in the compiled version.
     strat = setup.strat
     state = u.state
     du .= zero(eltype(du))
+    # println("u: $u")
+    # println("du: $du")
     u_x = withaxes(u)
     du_x = withaxes(du)
     end push!(expr.args)
@@ -219,8 +223,8 @@ state variables at runtime.
     # build state named tuple; QuoteNode is used to force names to be interpolated as symbols
     # rather than literals.
     quote
-    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),:grids,
-        :params, :t)}(tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params,t))
+    NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),
+        :grids,:params,:t)}(tuple($(pacc...),$(dpacc...),$(dacc...),state.grids,params,t))
     end
 end
 
@@ -288,6 +292,7 @@ function buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     togrid(var::Var{name,T,OnGrid{Edges}}) where {name,T} = var.dim.f(grid)
     togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = var.dim.f(cells(grid))
     togrid(var::Var{name,T,Shape{dims}}) where {name,T,dims} = reshape(1:prod(dims),dims...)
+    togrid(var::Var{name,T,typeof(Scalar)}) where {name,T} = 1:1
     names = @>> vars map(var -> varname(var))
     vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
     grids = @>> vars_with_names map(togrid)

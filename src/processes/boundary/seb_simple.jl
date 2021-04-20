@@ -102,13 +102,13 @@ end
 """
 Density of air at given tempeature and pressure
 """
-density_air(seb::SurfaceEnergyBalance,T::Float"K",p::Float"Pa") = p / (T * seb.sebparams.Rₐ);
+density_air(seb::SurfaceEnergyBalance,T::Real"K",p::Real"Pa") = p / (T * seb.sebparams.Rₐ);
 
 """
 Saturation pressure of water/ice according to the empirical August-Roche-Magnus formula
 Note: T is passed [K] and converted to [°C]
 """
-estar(T::Float"K") = ( (T > 0) ? 611.2 * exp(17.62 * (T - 273.15) / (243.12 + (T - 273.15)))# Eq. (B3) in Westermann et al. (2016)
+estar(T::Real"K") = ( (T > 0) ? 611.2 * exp(17.62 * (T - 273.15) / (243.12 + (T - 273.15)))# Eq. (B3) in Westermann et al. (2016)
 : 611.2 * exp(22.46 * (T - 273.15) / (272.62 + (T - 273.15))) ;
 )
 
@@ -116,13 +116,13 @@ estar(T::Float"K") = ( (T > 0) ? 611.2 * exp(17.62 * (T - 273.15) / (243.12 + (T
 Latent heat of evaporation/condensation of water in [J/kg]
 according to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-L_lg(T::Float"K") = 1000 * (2500.8 - 2.36 * (T - 273.15) + 0.0016 * (T - 273.15)^2 - 0.00006 * (T - 273.15)^3);
+L_lg(T::Real"K") = 1000 * (2500.8 - 2.36 * (T - 273.15) + 0.0016 * (T - 273.15)^2 - 0.00006 * (T - 273.15)^3);
 
 """
 Latent heat of sublimation/resublimation of water in [J/kg]
 accodring to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-L_sg(T::Float"K") = 1000 * (2834.1 - 0.29 * (T - 273.15) - 0.004 * (T - 273.15)^2);
+L_sg(T::Real"K") = 1000 * (2834.1 - 0.29 * (T - 273.15) - 0.004 * (T - 273.15)^2);
 
 """
 Friction velocity according to Monin-Obukhov theory
@@ -221,7 +221,7 @@ Integrated stability function for heat/water transport
     Högström, 1988
     SHEBA, Uttal et al., 2002, Grachev et al. 2007
 """
-function Ψ_HW(ζ₁::Float64, ζ₂::Float64)
+function Ψ_HW(ζ₁::Real, ζ₂::Real)
     if ζ₁ <= 0 # neutral and unstable conditions (according to Høgstrøm, 1988)
         # computed using WolframAlpha command "Integrate[ (1-(0.95*(1-11.6x)^(-1/2)))/x ] assuming x<0"
         res = real( log(Complex(ζ₁)) + 1.9 * atanh(Complex((1 - 11.6 * ζ₁)^0.5)) -
@@ -242,7 +242,7 @@ end
 """
 Integrated stability function for momentum transport
 """
-function Ψ_M(ζ₁::Float64, ζ₂::Float64)
+function Ψ_M(ζ₁::Real, ζ₂::Real)
     if ζ₁ <= 0 # neutral and unstable conditions (according to Høgstrøm, 1988)
         # computed using WolframAlpha command "Integrate[ (1-(1-19.3x)^(-1/4))/x ] assuming x<0"
         # log(ζ₁) - 2*atan((1-19.3*ζ₁)^(1/4)) + 2*atanh((1-19.3*ζ₁)^(1/4)) -

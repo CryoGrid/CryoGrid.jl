@@ -109,6 +109,7 @@ macro setscalar(expr)
     end
 end
 
+getscalar(x::Number) = x
 getscalar(a::AbstractArray) = a[1]
 
 export @setscalar, getscalar
@@ -116,3 +117,4 @@ export @setscalar, getscalar
 # include core-dependent types/functions
 include("stratigraphy.jl")
 include("setup.jl")
+include("output.jl")
