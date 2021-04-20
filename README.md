@@ -52,5 +52,7 @@ Note that `SoilHeat` uses energy as the state variable by default. To use temper
 
 ```julia
 # Note that this will work with any freeze curve, here we use Westermann (2011).
-model = Models.SoilHeat(u"T", TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
+# u"K" is the unit (Kelvin) for temperature, u"J" (Joules) represents energy.
+# This is used in the specification of the Heat process type.
+model = Models.SoilHeat(u"K", TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
 ```
