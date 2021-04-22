@@ -45,6 +45,7 @@ end
 
 # Join the declared state variables of the SFCC function and the solver
 variables(sfcc::SFCC) = tuplejoin(variables(sfcc.f), variables(sfcc.solver))
+
 """
 Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
@@ -211,7 +212,6 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
             θtot = state.θw[i] |> adstrip, # total water content
             θm = state.θm[i] |> adstrip, # mineral content
             θo = state.θo[i] |> adstrip, # organic content
-            θp = state.θp[i] |> adstrip, # porosity and/or θsat
             L = heat.params.L, # specific latent heat of fusion
             cw = soil.hcparams.cw, # heat capacity of liquid water
             α₀ = s.α₀,

@@ -19,6 +19,14 @@ variables(soil::Soil, heat::Heat{u"K"}) = (
     variables(freezecurve(heat))...,
 )
 
+function heatcapacity!(soil::Soil, heat::Heat, state)
+    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+end
+
+function thermalconductivity!(soil::Soil, heat::Heat, state)
+    @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
+end
+
 function initialcondition!(soil::Soil, heat::Heat, state)
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
@@ -33,11 +41,10 @@ function diagnosticstep!(soil::Soil, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
-    # Evaluate the freeze curve
+    # Evaluate the freeze curve (updates T, C, and θl)
     fc! = freezecurve(heat);
     fc!(soil,heat,state)
-    # Update heat capacity and thermal conductivity
-    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+    # Update thermal conductivity
     @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
     # Interpolate thermal conductivity to boundary grid
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
