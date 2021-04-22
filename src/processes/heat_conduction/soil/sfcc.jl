@@ -259,7 +259,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
             let θl = state.θl[i],
                 H = state.H[i];
                 state.C[i] = heatcapacity(soil.hcparams,θtot,θl,θm,θo)
-                state.T[i] = (H - L*θl) / state.C[i] + Tres + Tref
+                state.T[i] = (H - L*θl) / state.C[i] + Tref
             end
         end
     end
