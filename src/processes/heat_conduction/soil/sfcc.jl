@@ -51,7 +51,9 @@ Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
 """
-(sfcc::SFCC)(soil::Soil, heat::Heat{u"J"}, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
+function (sfcc::SFCC)(soil::Soil, heat::Heat{u"J"}, state)
+    sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
+end
 function (sfcc::SFCC)(soil::Soil, heat::Heat{u"K"}, state)
     @inbounds @fastmath let L = heat.params.L,
         f = sfcc.f,
@@ -179,7 +181,7 @@ and non-monotonic behavior in most common soil freeze curves.
     maxiter::Int = 10 # maximum number of iterations
     tol::Float64 = 0.01 # absolute tolerance for convergence
     α₀::Float64 = 1.0 # initial step size multiplier
-    τ::Float64 = 0.75 # step size decay for backtracking
+    τ::Float64 = 0.7 # step size decay for backtracking
     onfail::Symbol = Symbol("warn") # error, warn, or ignore
 end
 convergencefailure(sym::Symbol, i, maxiter, res) = convergencefailure(Val{sym}(), i, maxiter, res)
@@ -217,6 +219,16 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
             α₀ = s.α₀,
             τ = s.τ,
             f_argsᵢ = selectat(i, adstrip, f_args);
+            # compute initial guess T by setting θl according to free water scheme
+            T = let Lθ = L*θtot;
+                if H < 0
+                    H / heatcapacity(soil.hcparams,θtot,0.0,θm,θo) + Tref
+                elseif H >= 0 && H < Lθ
+                    Tref - (1.0 - H/Lθ)*0.1
+                else
+                    (H - Lθ) / heatcapacity(soil.hcparams,θtot,θtot,θm,θo) + Tref
+                end
+            end
             # compute initial residual
             Tres, θl, C = residual(T, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
             while abs(Tres) > s.tol
@@ -237,11 +249,17 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
                 # do first residual check outside of loop;
                 # this way, we don't decrease α unless we have to.
                 T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+                inneritercount = 0
                 # simple backtracking line search to avoid jumping over the solution
-                while sign(T̂res) != sign(Tres)
+                while abs(T̂res) >= abs(Tres)
+                    if inneritercount > 100
+                        @warn "Backtracking failed; this is probably a bug in the solver. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
+                        break
+                    end
                     α = α*τ # decrease step size by τ
                     T̂ = T - α*Tres # new guess for T
                     T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+                    inneritercount += 1
                 end
                 T = T̂ # update T
                 Tres = T̂res # update residual
