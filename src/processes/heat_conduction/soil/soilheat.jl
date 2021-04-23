@@ -1,3 +1,5 @@
+include("sfcc.jl")
+
 """ Defined variables for heat conduction (enthalpy) on soil layer. """
 variables(soil::Soil, heat::Heat{u"J"}) = (
     Prognostic(:H, Float"J", OnGrid(Cells)),
@@ -27,14 +29,20 @@ function thermalconductivity!(soil::Soil, heat::Heat, state)
     @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
 end
 
-function initialcondition!(soil::Soil, heat::Heat, state)
+function initialcondition!(soil::Soil, heat::Heat{u"J"}, state)
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
     @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
-    # k lies on the boundary grid, so we have to regrid the soil properties
-    @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
-    regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
+end
+
+function initialcondition!(soil::Soil, heat::Heat{U,HeatParams{<:SFCC}}, state) where U
+    interpolateprofile!(heat.profile, state)
+    L = heat.params.L
+    sfcc = freezecurve(heat)
+    state.θl .= sfcc.f.(params(sfcc.f, soil, heat, state)...)
+    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
 
 function diagnosticstep!(soil::Soil, heat::Heat, state)
@@ -70,8 +78,6 @@ function prognosticstep!(soil::Soil, heat::Heat{u"K"}, state)
     @inbounds @. state.dT[2:end-1] = state.dH[2:end-1] / state.Ceff[2:end-1]
     return nothing
 end
-
-include("sfcc.jl")
 
 # Note for future use: harmonic mean of thermal conductivities
 # for i=2:N-1

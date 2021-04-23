@@ -18,10 +18,11 @@ using RuntimeGeneratedFunctions
 using Reexport
 @reexport using Unitful
 @reexport using IntervalSets
-@reexport using DimensionalData
+@reexport using DimensionalData: DimArray, dims, Z, Ti
 @reexport using Parameters
 @reexport using DifferentialEquations
 @reexport using DiffEqBase
+@reexport using SimulationLogs
 import ForwardDiff
 import ReverseDiff
 
