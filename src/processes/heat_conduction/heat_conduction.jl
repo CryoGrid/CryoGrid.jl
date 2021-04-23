@@ -4,11 +4,12 @@ struct FreeWater <: FreezeCurve end
 variables(fc::FreezeCurve) = ()
 export FreeWater, FreezeCurve
 
-@with_kw struct HeatParams{T<:FreezeCurve} <: Params
+@with_kw struct HeatParams{T<:FreezeCurve,S} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
-    freezecurve::T = FreeWater()
+    freezecurve::T = FreeWater() # freeze curve, defautls to free water fc
+    sp::S = nothing
 end
 
 """
@@ -21,10 +22,15 @@ TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
     profile::Union{Nothing,TempProfile}
-    function Heat{stateunit}(profile::TProfile=nothing; kwargs...) where {stateunit, TProfile<:Union{Nothing,TempProfile}}
-        @assert stateunit == u"J" || stateunit == u"K" "State unit type parameter must be either J or K"
+    function Heat{u"J"}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
         params = HeatParams(;kwargs...)
-        new{stateunit,typeof(params)}(params,profile)
+        new{u"J",typeof(params)}(params,profile)
+    end
+    function Heat{u"K"}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
+        @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
+        @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
+        params = HeatParams(;kwargs...)
+        new{u"K",typeof(params)}(params,profile)
     end
 end
 
@@ -33,9 +39,12 @@ Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params)
 export Heat, HeatParams, TempProfile
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
 
-export freezecurve, enthalpy
+enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
+heatcapacity(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
+thermalconductivity(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
+
+export freezecurve, enthalpy, heatcapacity
 
 """
     heatconduction!(T,ΔT,k,Δk,∂H)
@@ -145,7 +154,7 @@ total water content (θw), and liquid water content (θl).
             T = (I_t*(H-Lθ) + I_f*H)/C + 273.15
         end
     end
-    @inline function freezethaw(H, C, L, θtot)
+    @inline function freezethaw(H, L, θtot)
         let θtot = max(1.0e-8,θtot),
             Lθ = L*θtot,
             I_t = H > Lθ,
@@ -154,8 +163,9 @@ total water content (θw), and liquid water content (θl).
         end
     end
     L = heat.params.L
+    @. state.θl = freezethaw(state.H, L, state.θw)*state.θw
+    heatcapacity!(layer, heat, state) # update heat capacity, C
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
-    @. state.θl = freezethaw(state.H, state.C, L, state.θw)*state.θw
 end
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
