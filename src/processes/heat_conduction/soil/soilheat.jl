@@ -75,7 +75,7 @@ function prognosticstep!(soil::Soil, heat::Heat{u"K"}, state)
     heatconduction!(state.T,ΔT,state.k,Δk,state.dH)
     # Compute temperature flux by dividing by C_eff;
     # C_eff should be computed by the freeze curve.
-    @inbounds @. state.dT[2:end-1] = state.dH[2:end-1] / state.Ceff[2:end-1]
+    @inbounds @. state.dT = state.dH / state.Ceff
     return nothing
 end
 
