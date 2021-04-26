@@ -29,18 +29,18 @@ function thermalconductivity!(soil::Soil, heat::Heat, state)
     @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
 end
 
-function initialcondition!(soil::Soil, heat::Heat{u"J"}, state)
+function initialcondition!(soil::Soil, heat::Heat, state)
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
     @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
 
-function initialcondition!(soil::Soil, heat::Heat{U,HeatParams{<:SFCC}}, state) where U
+function initialcondition!(soil::Soil, heat::Heat{U,<:HeatParams{<:SFCC}}, state) where U
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
     sfcc = freezecurve(heat)
-    state.θl .= sfcc.f.(params(sfcc.f, soil, heat, state)...)
+    state.θl .= sfcc.f.(state.T, params(sfcc.f, soil, heat, state)...)
     @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end

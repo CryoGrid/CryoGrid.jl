@@ -63,7 +63,7 @@ condition and necessary callbacks.
 
 TODO: infer 'jac' (JacobianStyle) from stratigraphy definition.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing, jac::J=TridiagJac();kwargs...) where {J<:JacobianStyle}
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;jac::J=TridiagJac(),kwargs...) where {J<:JacobianStyle}
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p)
