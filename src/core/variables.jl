@@ -38,3 +38,10 @@ isprognostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Prognostic
 isdiagnostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Diagnostic
 isparameter(var::Var{name,T,D,S}) where {name,T,D,S} = S == Parameter
 export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic, isparameter
+
+struct Vars{ProgVars,NT}
+    data::NT
+    Vars(progvars::NTuple{N,Symbol}, data::NamedTuple) where {N} = new{progvars,typeof(data)}(data)
+end
+# Passthrough to named tuple
+Base.getproperty(vars::Vars, sym::Symbol) = getproperty(getfield(vars, :data), sym)

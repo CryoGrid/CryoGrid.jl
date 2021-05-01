@@ -22,15 +22,16 @@ TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
     profile::Union{Nothing,TempProfile}
-    function Heat{u"J"}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
+    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,TempProfile}}
+        @assert var in [:H,(:Hs,:Hl)] "Invalid Heat prognostic variable: $var; must be one of :H,(:Hs,:Hl),:T"
         params = HeatParams(;kwargs...)
-        new{u"J",typeof(params)}(params,profile)
+        new{var,typeof(params)}(params,profile)
     end
-    function Heat{u"K"}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
+    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
         @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
         @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
         params = HeatParams(;kwargs...)
-        new{u"K",typeof(params)}(params,profile)
+        new{:T,typeof(params)}(params,profile)
     end
 end
 
@@ -39,7 +40,6 @@ Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params)
 export Heat, HeatParams, TempProfile
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-
 enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
 heatcapacity(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
@@ -135,7 +135,7 @@ Implementation of "free water" freeze curve for any subsurface layer. Assumes th
 'state' contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θw), and liquid water content (θl).
 """
-@inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{u"J"}, state)
+@inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{:H}, state)
     @inline function enthalpyinv(H, C, L, θtot)
         let θtot = max(1.0e-8,θtot),
             Lθ = L*θtot,

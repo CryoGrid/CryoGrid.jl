@@ -27,7 +27,7 @@ end
 	ΔT = Δ(xc)
 	Δk = Δ(x)
 	sub = TestGroundLayer()
-	heat = Heat{u"J"}()
+	heat = Heat{:H}()
 	bc = Constant{Heat,Dirichlet}(uconvert(u"K",0.0u"°C"))
 	@testset "top: +, bot: -" begin
 		T₀ = Vector(LinRange(250,300,length(xc)))u"K"
@@ -68,7 +68,7 @@ end
 	T₀ = uconvert.(u"K",(sin.(2π.*ustrip.(xc)))u"°C")
 	f_analytic(x,t) = exp(-t*4π^2)*sin(2.0*π*x)
 	sub = TestGroundLayer()
-	heat = Heat{u"J"}()
+	heat = Heat{:H}()
 	bc = Constant{Heat,Dirichlet}(uconvert(u"K",0.0u"°C"))
 	function dTdt(T,p,t)
 		dT = similar(T)u"J/s/m^3"

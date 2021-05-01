@@ -9,8 +9,8 @@ struct CryoGridSetup{S,G,U,P}
     grid::G
     uproto::U
     pproto::P
-    CryoGridSetup(strat::S,grid::G,uproto::U,pproto::P) where {S<:Stratigraphy,G<:Grid{Edges},U<:CryoGridState,
-        P<:AbstractArray} = new{S,G,U,P}(strat,grid,uproto,pproto)
+    CryoGridSetup(strat::S,grid::G,uproto::U,pproto::P) where {S<:Stratigraphy,G<:Grid{Edges},U<:CryoGridState,P<:AbstractArray} =
+        new{S,G,U,P}(strat,grid,uproto,pproto)
 end
 
 """
@@ -34,7 +34,7 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
         layer_states[nodename(node)] = state
     end
     # construct named tuples containing data for each layer
-    nt_parr = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
+    nt_prog = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
     nt_params = NamedTuple{Tuple(keys(param_arrays))}(Tuple(values(param_arrays)))
     nt_state = NamedTuple{Tuple(keys(layer_states))}(Tuple(values(layer_states)))
     npvars = (length(layerstate.pvars) for layerstate in nt_state) |> sum
@@ -42,42 +42,39 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     # construct prototype of u (prognostic state) array (note that this currently performs a copy)
-    uproto = ComponentArray(nt_parr)
+    uproto = ComponentArray(nt_prog)
     # ditto for parameter array (need a hack here to get an empty ComponentArray...)
     pproto = sum(map(length, nt_params)) > 0 ? ComponentArray(nt_params) :
         ComponentArray(similar(arrayproto,0),(CAxis{NamedTuple{Tuple(keys(nt_params))}(Tuple(map(a->1:0,nt_params)))}(),))
     # reconstruct with given array type
-    uproto = CryoGridState(ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto)), nt_state)
+    uproto = CryoGridState(ComponentArray(similar(arrayproto, length(uproto)), getaxes(uproto)), nt_state)
     CryoGridSetup(strat,grid,uproto,pproto)
 end
-
-abstract type JacobianStyle end
-struct TridiagJac <: JacobianStyle end
-struct DenseJac <: JacobianStyle end
-
-export JacobianStyle, TridiagJac, DenseJac
 
 """
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 
-TODO: infer 'jac' (JacobianStyle) from stratigraphy definition.
+TODO: infer jacobian sparsity from stratigraphy definition or via SparsityDetection.jl.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;jac::J=TridiagJac(),kwargs...) where {J<:JacobianStyle}
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;jac::Symbol=:tridag,kwargs...)
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
-	u0,_ = initialcondition!(setup, p)
-	func = odefunction(jac,setup,u0,p)
+	u0,_ = initialcondition!(setup, p, tspan)
+	func = odefunction(Val{jac}(), setup, u0, p, tspan)
 	ODEProblem(func,u0,tspan,p,kwargs...)
 end
 # converts tspan from DateTime to float
 CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup, Dates.datetime2epochms.(tspan)./1000,args...;kwargs...)
 
-odefunction(::DenseJac, setup::CryoGridSetup, u0::CryoGridState, p) = setup
-odefunction(::TridiagJac, setup::CryoGridSetup, u0::CryoGridState, p) = let N = length(u0);
-	ODEFunction(setup;jac_prototype=Tridiagonal(similar(u0.x, eltype(p), N-1),
-		similar(u0.x, eltype(p), N),
-		similar(u0.x, eltype(p), N-1))
+odefunction(::Val{:dense}, setup::CryoGridSetup, u0::CryoGridState, p, tspan) = setup
+function odefunction(::Val{:tridiag}, setup::CryoGridSetup, u0::CryoGridState, p, tspan)
+    N = length(u0)
+	ODEFunction(setup;jac_prototype=Tridiagonal(
+            similar(u0.x, eltype(p), N-1),
+            similar(u0.x, eltype(p), N),
+            similar(u0.x, eltype(p), N-1)
+        )
 	)
 end
 
@@ -86,9 +83,9 @@ Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialize
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 < i < N:
 
-diagnostic_step!(layer i, ...)
+diagnosticstep!(layer i, ...)
 interact!(layer i-1, ...)
-prognostic_step!(layer i, ...)
+prognosticstep!(layer i, ...)
 
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
@@ -158,7 +155,7 @@ end
 """
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-@generated function initialcondition!(setup::CryoGridSetup{TStrat}, p) where TStrat
+@generated function initialcondition!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -180,7 +177,7 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
         nstate, nlayer, nprocess = Symbol(n,:state), Symbol(n,:layer), Symbol(n,:process)
         # generated code for layer updates
         @>> quote
-        $nstate = buildstate(state.$n, u_x.$n, du_x.$n, p.$n, 0.0)
+        $nstate = buildstate(state.$n, u_x.$n, du_x.$n, p.$n, tspan[1])
         $nlayer = strat.nodes[$i].layer
         $nprocess = strat.nodes[$i].process
         initialcondition!($nlayer,$nstate)
