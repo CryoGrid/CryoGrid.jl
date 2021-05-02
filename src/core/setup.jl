@@ -57,16 +57,18 @@ condition and necessary callbacks.
 
 TODO: infer jacobian sparsity from stratigraphy definition or via SparsityDetection.jl.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;jac::Symbol=:tridag,kwargs...)
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;jacproto=:tridiag,kwargs...)
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
 	u0,_ = initialcondition!(setup, p, tspan)
-	func = odefunction(Val{jac}(), setup, u0, p, tspan)
+	func = odefunction(jacproto, setup, u0, p, tspan)
 	ODEProblem(func,u0,tspan,p,kwargs...)
 end
 # converts tspan from DateTime to float
 CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup, Dates.datetime2epochms.(tspan)./1000,args...;kwargs...)
 
+odefunction(J::AbstractArray, setup::CryoGridSetup, ::CryoGridState, p, tspan) = ODEFunction(setup, jac_prototype=J)
+odefunction(sym::Symbol, setup::CryoGridSetup, u0::CryoGridState, p, tspan) = odefunction(Val{sym}(), setup, u0, p, tspan)
 odefunction(::Val{:dense}, setup::CryoGridSetup, u0::CryoGridState, p, tspan) = setup
 function odefunction(::Val{:tridiag}, setup::CryoGridSetup, u0::CryoGridState, p, tspan)
     N = length(u0)
