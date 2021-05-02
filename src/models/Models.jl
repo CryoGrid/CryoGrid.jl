@@ -5,18 +5,7 @@ module Models
 
 using ..CryoGrid
 
-const DefaultGrid = Grid(vcat([
-            0:0.02:2...,
-            2.05:0.05:4.0...,
-            4.1:0.1:10...,
-            10.2:0.2:20...,
-            21:1:30...,
-            35:5:50...,
-            60:10:100...,
-            200:100:1000...
-        ]...
-    )
-)
+include("presetgrids.jl")
 
 """
     SoilLayerConfig
@@ -57,7 +46,7 @@ Builds a simple one-layer soil/heat-conduction model with the given grid and con
 but this can be changed via the `freezecurve` parameter. For example, to use the van Genuchten freeze curve, set `freezecurve=SFCC(VanGenuchten())`.
 """
 function SoilHeat(heatvar, upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig;
-    grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
         0.0u"m" => Ground(:soil, Soil{Sand}(soilconfig.soilprofile), Heat{heatvar}(soilconfig.tempprofile, freezecurve=freezecurve)),
@@ -65,7 +54,6 @@ function SoilHeat(heatvar, upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayer
     )
     model = CryoGridSetup(strat,grid)
 end
-SoilHeat(upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve} =
+SoilHeat(upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} =
     SoilHeat(:H, upperbc, soilconfig; grid=grid, freezecurve=freezecurve)
-
 end
