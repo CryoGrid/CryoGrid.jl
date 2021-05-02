@@ -62,7 +62,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
         @. state.H = state.Hₛ + state.Hₗ
         # It is possible for the integrator to violate physical constraints by integrating
         # Hₗ outside of [0,Lθtot]. Here we clamp the values of θl to physically correct values.
-        @. state.θl = clamp(state.Hₗ / L, 0.0, L*state.θw)
+        @. state.θl = clamp(state.Hₗ / L, 0.0, state.θw)
         @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
         @. state.T = state.Hₛ / state.C + 273.15
         # can't use broadcasting for ∇f because it's unary

@@ -23,7 +23,7 @@ struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
     profile::Union{Nothing,TempProfile}
     function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,TempProfile}}
-        @assert var in [:H,(:Hs,:Hl)] "Invalid Heat prognostic variable: $var; must be one of :H,(:Hs,:Hl),:T"
+        @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
         params = HeatParams(;kwargs...)
         new{var,typeof(params)}(params,profile)
     end
