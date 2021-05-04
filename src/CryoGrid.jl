@@ -12,8 +12,8 @@ using StaticArrays
 using ComponentArrays
 using LinearAlgebra
 using ExprTools
-using FastClosures
 using IfElse
+using LoopVectorization
 using RuntimeGeneratedFunctions
 using Reexport
 @reexport using Unitful

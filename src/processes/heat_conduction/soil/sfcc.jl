@@ -55,18 +55,18 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{:H}, state)
     sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
 end
 function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
-    @inbounds @fastmath let L = heat.params.L,
+    let L = heat.params.L,
+        N = length(state.grids.H),
         f = sfcc.f,
         ∇f = sfcc.∇f,
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
-        @. state.H = state.Hₛ + state.Hₗ
-        # It is possible for the integrator to violate physical constraints by integrating
-        # Hₗ outside of [0,Lθtot]. Here we clamp the values of θl to physically correct values.
-        @. state.θl = clamp(state.Hₗ / L, 0.0, state.θw)
-        @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
-        @. state.T = state.Hₛ / state.C + 273.15
-        # can't use broadcasting for ∇f because it's unary
-        for i in 1:length(state.T)
+        @inbounds @fastmath for i in 1:N
+            state.H[i] = state.Hₛ[i] + state.Hₗ[i]
+            # It is possible for the integrator to violate physical constraints by integrating
+            # Hₗ outside of [0,Lθtot]. Here we clamp the result to physically correct values.
+            state.θl[i] = clamp(state.Hₗ[i] / L, 0.0, state.θw[i])
+            state.C[i] = heatcapacity(soil.hcparams, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.T[i] = state.Hₛ[i] / state.C[i] + 273.15
             f_argsᵢ = CryoGrid.selectat(i, identity, f_args)
             state.dθdT[i] = ∇f(f_argsᵢ)
         end
@@ -76,13 +76,12 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{:T}, state)
     @inbounds @fastmath let L = heat.params.L,
         f = sfcc.f,
         ∇f = sfcc.∇f,
-        f_args = tuplejoin((state.T,),params(f,soil,heat,state));
-        @. state.θl = f(f_args...)
-        @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
-        @. state.H = enthalpy(state.T, state.C, L, state.θl)
-        # can't use broadcasting for ∇f because it's unary
+        f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = selectat(i, identity, f_args)
+            state.θl[i] = f(f_argsᵢ...)
+            state.C[i] = heatcapacity(soil.hcparams, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
             state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
         end
     end
@@ -196,7 +195,7 @@ jumping over the solution. This prevents convergence issues that arise due to di
 and non-monotonic behavior in most common soil freeze curves.
 """
 @with_kw struct SFCCNewtonSolver <: SFCCSolver
-    maxiter::Int = 10 # maximum number of iterations
+    maxiter::Int = 50 # maximum number of iterations
     tol::Float64 = 0.01 # absolute tolerance for convergence
     α₀::Float64 = 1.0 # initial step size multiplier
     τ::Float64 = 0.7 # step size decay for backtracking
@@ -269,7 +268,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
                 T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
                 inneritercount = 0
                 # simple backtracking line search to avoid jumping over the solution
-                while abs(T̂res) >= abs(Tres)
+                while sign(T̂res) != sign(Tres)
                     if inneritercount > 100
                         @warn "Backtracking failed; this is probably a bug in the solver. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
                         break
