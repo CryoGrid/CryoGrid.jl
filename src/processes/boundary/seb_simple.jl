@@ -30,8 +30,6 @@ struct SurfaceEnergyBalance{F,TParams} <: BoundaryProcess{Heat}
     end
 end
 
-
-
 BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 
 variables(top::Top, seb::SurfaceEnergyBalance) = (

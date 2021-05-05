@@ -51,20 +51,37 @@ Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
 """
-function (sfcc::SFCC)(soil::Soil, heat::Heat{u"J"}, state)
+function (sfcc::SFCC)(soil::Soil, heat::Heat{:H}, state)
     sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
 end
-function (sfcc::SFCC)(soil::Soil, heat::Heat{u"K"}, state)
+function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
+    let L = heat.params.L,
+        N = length(state.grids.H),
+        f = sfcc.f,
+        ∇f = sfcc.∇f,
+        f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
+        @inbounds @fastmath for i in 1:N
+            state.H[i] = state.Hₛ[i] + state.Hₗ[i]
+            # It is possible for the integrator to violate physical constraints by integrating
+            # Hₗ outside of [0,Lθtot]. Here we clamp the result to physically correct values.
+            state.θl[i] = clamp(state.Hₗ[i] / L, 0.0, state.θw[i])
+            state.C[i] = heatcapacity(soil.hcparams, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.T[i] = state.Hₛ[i] / state.C[i] + 273.15
+            f_argsᵢ = CryoGrid.selectat(i, identity, f_args)
+            state.dθdT[i] = ∇f(f_argsᵢ)
+        end
+    end
+end
+function (sfcc::SFCC)(soil::Soil, heat::Heat{:T}, state)
     @inbounds @fastmath let L = heat.params.L,
         f = sfcc.f,
         ∇f = sfcc.∇f,
-        f_args = tuplejoin((state.T,),params(f,soil,heat,state));
-        @. state.θl = f(f_args...)
-        @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
-        @. state.H = enthalpy(state.T, state.C, L, state.θl)
-        # can't use broadcasting for ∇f because it's unary
+        f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = selectat(i, identity, f_args)
+            state.θl[i] = f(f_argsᵢ...)
+            state.C[i] = heatcapacity(soil.hcparams, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
             state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
         end
     end
@@ -72,13 +89,13 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{u"K"}, state)
 end
 
 """
-    params(f::SFCCFunction, soil::Soil, heat::Heat, state)
+    sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state)
 
 Retrieves a tuple of values corresponding to each parameter declared by SFCCFunction `f` given the
 Soil layer, Heat process, and model state. The order of parameters *must match* the argument order
 of the freeze curve function `f`.
 """
-params(f::SFCCFunction, soil::Soil, heat::Heat, state) = ()
+sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
 variables(f::SFCCFunction) = ()
 variables(s::SFCCSolver) = ()
@@ -98,7 +115,7 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
     g::Float64 = 9.80665 # acceleration due to gravity
 end
 variables(::VanGenuchten) = (Parameter(:α), Parameter(:n), Parameter(:Tₘ))
-params(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
+sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
     state.params.α |> getscalar, 
     state.params.n |> getscalar,
     state.params.Tₘ |> getscalar,
@@ -108,6 +125,7 @@ params(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
 )
 function (f::VanGenuchten)(T,α,n,Tₘ,θtot,θsat,L)
     let θres = f.θres,
+        θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         ψ₀ = 0.0, #(-1/α)*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n),
@@ -130,13 +148,14 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
     θres::Float64 = 0.0 # residual water content
 end
 variables(::McKenzie) = (Parameter(:γ),)
-params(f::McKenzie, soil::Soil, heat::Heat, state) = (
+sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     state.params.γ |> getscalar, 
     state.θw,
     state.θp,
 )
 function (f::McKenzie)(T,γ,θtot,θsat)
     let θres = f.θres,
+        θsat = max(θtot, θsat),
         Tref = 273.15; # reference T in K
         # TODO: perhaps T<=Tref should be T<=Tₘ as in VG curve?
         IfElse.ifelse(T<=Tref, θres + (θsat-θres)*exp(-((T - Tref)/γ)^2), θtot)
@@ -156,7 +175,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     θres::Float64 = 0.0 # residual water content
 end
 variables(::Westermann) = (Parameter(:δ),)
-params(f::Westermann, soil::Soil, heat::Heat, state) = (
+sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     state.params.δ |> getscalar, 
     state.θw,
 )
@@ -178,7 +197,7 @@ jumping over the solution. This prevents convergence issues that arise due to di
 and non-monotonic behavior in most common soil freeze curves.
 """
 @with_kw struct SFCCNewtonSolver <: SFCCSolver
-    maxiter::Int = 10 # maximum number of iterations
+    maxiter::Int = 50 # maximum number of iterations
     tol::Float64 = 0.01 # absolute tolerance for convergence
     α₀::Float64 = 1.0 # initial step size multiplier
     τ::Float64 = 0.7 # step size decay for backtracking
@@ -189,7 +208,7 @@ convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed 
 convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size."
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 # Newton solver implementation
-function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
+function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
     # Helper function for updating θl, C, and the residual.
     function residual(T, Tref, H, θw, θm, θo, L, hcparams, f, f_args)
         args = tuplejoin((T,),f_args)
@@ -201,7 +220,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
     # get f arguments; note that this does create some redundancy in the arguments
     # eventually passed to the `residual` function; this is less than ideal but
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
-    f_args = params(f, soil, heat, state)
+    f_args = sfccparams(f, soil, heat, state)
     # iterate over each cell and solve the conservation law: H = TC + Lθ
     @inbounds @fastmath for i in 1:length(state.T)
         itercount = 0
@@ -251,7 +270,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{u"J"}, state, f, ∇f)
                 T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
                 inneritercount = 0
                 # simple backtracking line search to avoid jumping over the solution
-                while abs(T̂res) >= abs(Tres)
+                while sign(T̂res) != sign(Tres)
                     if inneritercount > 100
                         @warn "Backtracking failed; this is probably a bug in the solver. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
                         break

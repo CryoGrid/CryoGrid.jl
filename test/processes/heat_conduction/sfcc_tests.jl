@@ -24,7 +24,7 @@ testprofile = SoilProfile(
             f = McKenzie()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
             soil = Soil{Sand}(testprofile)
-            heat = Heat{u"J"}(freezecurve=sfcc)
+            heat = Heat{:H}(freezecurve=sfcc)
             L = heat.params.L
             @testset "Left tail" begin
                 # set up single-grid-cell state vars
@@ -94,7 +94,7 @@ testprofile = SoilProfile(
             f = Westermann()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
             soil = Soil{Sand}(testprofile)
-            heat = Heat{u"J"}(freezecurve=sfcc)
+            heat = Heat{:H}(freezecurve=sfcc)
             L = heat.params.L
             @testset "Left tail" begin
                 # set up single-grid-cell state vars
@@ -152,7 +152,7 @@ testprofile = SoilProfile(
             θsat = 0.8
             α = 4.0
             n = 2.0
-            L = Heat{u"J"}().params.L
+            L = Heat{:H}().params.L
             @test isapprox(f(263.15,α,n,273.15,θsat,θsat,L), 0.0, atol=1e-6)
             @test f(273.15,α,n,273.15,θsat,θsat,L) ≈ θsat
             θl = f(273.05,α,n,273.15,θsat,θsat,L)
@@ -167,7 +167,7 @@ testprofile = SoilProfile(
             f = VanGenuchten()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
             soil = Soil{Sand}(testprofile)
-            heat = Heat{u"J"}(freezecurve=sfcc)
+            heat = Heat{:H}(freezecurve=sfcc)
             L = heat.params.L
             @testset "Left tail" begin
                 # set up single-grid-cell state vars
@@ -227,7 +227,7 @@ testprofile = SoilProfile(
         f = McKenzie()
         sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
         soil = Soil{Sand}(testprofile)
-        heat = Heat{u"J"}(freezecurve=sfcc)
+        heat = Heat{:H}(freezecurve=sfcc)
         L = heat.params.L
         θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
         T = [-0.1 + 273.15] # convert to K
@@ -263,7 +263,7 @@ function benchmarksfcc()
     f = VanGenuchten()
     sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, α₀=1.0, τ=0.75, onfail=:error))
     soil = Soil{Sand}(testprofile)
-    heat = Heat{u"J"}(freezecurve=sfcc)
+    heat = Heat{:H}(freezecurve=sfcc)
     L = heat.params.L
     # set up multi-grid-cell state vars
     T = [-15.0 + 273.15 for i in 1:10] # convert to K

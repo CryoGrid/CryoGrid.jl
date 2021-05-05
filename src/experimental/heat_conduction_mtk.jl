@@ -4,110 +4,72 @@
 # Currently does not work because the MOL discretization strategy does not
 # support variables without time derivatives, which is required for this model.
 ########
-module HeatConduction
 
-using DifferentialEquations, ModelingToolkit, DiffEqBase
+using DifferentialEquations
+using DiffEqOperators
+using ModelingToolkit
+using IfElse
 
-export model, thermalConductivity, heatCapacity
+ivars = @parameters t z L θtot θm θo
+dvars = @variables T(..) H(..) Hs(..) Hl(..) θ(..) C(..) k(..)
+Dz = Differential(z)
+Dt = Differential(t)
+heatcap(θ,θtot,θm,θo) = heatcapacity(SoilHCParams(), θtot, θ, θm, θo)
+thermalcond(θ,θtot,θm,θo) = thermalconductivity(SoilTCParams(), θtot, θ, θm, θo)
+# free water freeze curve
+dθdT(T,L,θtot) = IfElse.ifelse(T >= 0.0, IfElse.ifelse(T <= L*θtot, 1e8, 0.0), 0.0)
+@register heatcap(θ,θtot,θm,θo)
+@register thermalcond(θ,θtot,θm,θo)
+@register dθdT(T,L,θtot)
 
-function thermalConductivity(waterIce, water, mineral, organic)
-    ka = 0.025;       #air [Hillel(1982)]
-    kw = 0.57;        #water [Hillel(1982)]
-    ko = 0.25;        #organic [Hillel(1982)]
-    km = 3.8;         #mineral [Hillel(1982)]
-    ki = 2.2;         #ice [Hillel(1982)]
-    ice = waterIce - water;
-    air = 1.0 - waterIce - mineral - organic;
-    (water*kw^0.5 + ice*ki^0.5 + mineral*km^0.5 + organic*ko^0.5 + air*ka^0.5)^2
-end
-
-function heatCapacity(waterIce, water, mineral, organic)
-    cs = 2000; #[J/kgK]  heat capacity solid
-    cl = 2500; #[J/kgK]  heat capacity liquid
-    cm = 1000; #[J/kgK]  heat capacity matrix
-    cp = 1.0;  #[J/kgK]  heat capacity pore space
-
-    cw = 4.2*10^6; #[J/m^3K] heat capacity water
-    co = 2.5*10^6; #[J/m^3K]  heat capacity organic
-    cm = 2*10^6; #[J/m^3K]  heat capacity mineral
-    ca = 0.00125*10^6;#[J/m^3K]  heat capacity pore space
-    ci = 1.9*10^6;#[J/m^3K]  heat capacity ice
-
-    air = 1.0 - waterIce - mineral - organic
-    ice = waterIce - water
-    water*cw + ice*ci + mineral*cm + organic*co + air*ca
-end
-
-function enthalpyInv(H, θ, dHdT)
-    ρ = 1000.; #[kg/m^3]
-    Lsl = 334000.; #[J/kg]
-    L = ρ*Lsl;#[J/m^3]
-    if θ <= 0.0
-        θ = 1e-8
-    end
-    if H > 0.0 && H <= L*θ
-        0.0
-    elseif H > L*θ
-        (H - L*θ) / dHdT
-    elseif H < 0.0
-        H / dHdT
-    end
-end
-
-function model()
-    ivars = @parameters t z
-    dvars = @variables H(..) T(..) k(..) dHdT(..) Wₗ(..) W(..) M(..) O(..)
-    @derivatives Dt'~t
-    @derivatives Dz'~z
-    @register thermalConductivity(waterIce, water, mineral, organic)
-    @register heatCapacity(waterIce, water, mineral, organic)
-    @register enthalpyInv(H,W,dHdT)
-
+function mtk_hc_phase_change_simple(dz = range(0.0,1000.0,length=100))
+    eqs = [
+        θ(t,z) ~ Hl / L,
+        C(t,z) ~ heatcap(θ,θtot,θm,θo),
+        T(t,z) ~ Hs / C,
+        H(t,z) ~ Hs + Hl,
+        k(t,z) ~ thermalcond(θ,θtot,θm,θo),
+        Dt(H) ~ Dz(k(t,z)*Dz(T(t,z))),
+        Dt(Hs) ~ Dt(H(t,z)) / (L/C*dθdT(T,L,θtot) + 1),
+        Dt(Hl) ~ Dt(H) - Dt(Hs),
+    ]
     # Space and time domains
-    domains = [t ∈ IntervalDomain(0.0,1.0),
-               z ∈ IntervalDomain(-5.0,100.0)]
-    eqs  = [
-        W(z) ~ 0.5,
-        Wₗ(z) ~ 0.5,
-        M(z) ~ 0.3,
-        O(z) ~ 0.2,
-        k(z) ~ thermalConductivity(W(z),Wₗ(z),M(z),O(z)),
-        dHdT(z) ~ heatCapacity(W(z),Wₗ(z),M(z),O(z)),
-        T(z,t) ~ enthalpyInv(H(z,t),W(z),dHdT(z)),
-        Dt(H(z,t)) ~ Dz(k(z)*Dz(T(z,t)))
-    ]
-    T₀(z) = -0.1*z
+    domains = [t ∈ IntervalDomain(0.0,24*3600.0),
+               z ∈ IntervalDomain(0.0,1000.0)]
     bcs = [
-        T(z,0) ~ T₀(z),
-        T(-5.0,t) ~ 1.0,
-        T(100,t) ~ 10.0
+        Hs(z,0.0) ~ -2e6,
+        Hs(0.0,t) ~ 2e6,
+        Hs(1000.0,t) ~ 0.05,
+        Hl(z,0.0) ~ 0.0,
+        Hl(0.0,t) ~ 0.0,
+        Hl(1000.0,t) ~ 0.0,
+        # T(z,0) ~ sin(z*π),
+        # T(0.0,t) ~ 10*sin(2π*t),
+        # T(1000.0,t) ~ 10.2
     ]
-    PDESystem(eqs, bcs, domains, ivars, dvars)
+    pdesys = PDESystem(eqs, bcs, domains, ivars, dvars)
+    discretization = MOLFiniteDifference([z=>dz],t)
+    return discretize(pdesys, discretization), pdesys
 end
 
-function model2()
-    W,Wₗ,M,O = 0.5,0.5,0.3,0.2
-    # dHdT(W,Wₗ,M,O) = heatCapacity(W,Wₗ,M,O)
-    # k(W,Wₗ,M,O) = thermalConductivity(W,Wₗ,M,O)
-    # T(H,W,dHdT) = enthalpyInv(H,W,dHdT)
-    ivars = @parameters t z # W Wₗ M O
-    dvars = @variables H(..)
-    @derivatives Dt'~t
-    @derivatives Dz'~z
-    #@register thermalConductivity(waterIce, water, mineral, organic)
-    #@register heatCapacity(waterIce, water, mineral, organic)
-    @register enthalpyInv(H,W,dHdT)
-
+function mtk_hc_simple(dz = range(0.0,1000.0,length=100))
+    @parameters t z
+    @variables T(..) k(..)
+    Dz = Differential(z)
+    Dt = Differential(t)
+    eqs = [
+        Dt(T) ~ Dz(k(t,z)*Dz(T(t,z)))
+    ]
     # Space and time domains
-    domains = [t ∈ IntervalDomain(0.0,1.0),
-               z ∈ IntervalDomain(-5.0,100.0)]
-    eq = Dt(H(z,t)) ~ Dz(thermalConductivity(W,Wₗ,M,O)*Dz(enthalpyInv(H(z,t),W,heatCapacity(W,Wₗ,M,O))))
+    domains = [t ∈ IntervalDomain(0.0,24*3600.0),
+               z ∈ IntervalDomain(0.0,1000.0)]
     bcs = [
-        H(z,0) ~ 1.0,
-        H(-5.0,t) ~ 1.0,
-        H(100,t) ~ 10.0
+        T(0,z) ~ sin(π*z),
+        T(t,0.0) ~ 0.0,
+        T(t,1000.0) ~ 10.2,
+        k(0,z) ~ 1 + 0.5*sin(z)
     ]
-    PDESystem(eq, bcs, domains, ivars, dvars)
-end
-
+    pdesys = PDESystem(eqs, bcs, domains, [t,z], [T,k])
+    discretization = MOLFiniteDifference([z=>dz],t)
+    return discretize(pdesys, discretization), pdesys
 end
