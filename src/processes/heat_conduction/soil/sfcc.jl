@@ -125,6 +125,7 @@ sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
 )
 function (f::VanGenuchten)(T,α,n,Tₘ,θtot,θsat,L)
     let θres = f.θres,
+        θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         ψ₀ = 0.0, #(-1/α)*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n),
@@ -154,6 +155,7 @@ sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
 )
 function (f::McKenzie)(T,γ,θtot,θsat)
     let θres = f.θres,
+        θsat = max(θtot, θsat),
         Tref = 273.15; # reference T in K
         # TODO: perhaps T<=Tref should be T<=Tₘ as in VG curve?
         IfElse.ifelse(T<=Tref, θres + (θsat-θres)*exp(-((T - Tref)/γ)^2), θtot)

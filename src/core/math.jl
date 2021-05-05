@@ -6,7 +6,7 @@ First order finite difference operator.
 function ∇(x::NumVec,Δ::NumVec,∂x::NumVec)
     let x₁ = (@view x[1:end-1]),
         x₂ = (@view x[2:end]);
-        @avx @. ∂x = (x₂ - x₁) / Δ
+        @inbounds @. ∂x = (x₂ - x₁) / Δ
     end
 end
 
@@ -19,7 +19,7 @@ function ∇²(x::NumVec,Δ::NumVec,k::Tk,∂y::NumVec) where {Tk<:Real}
         x₃ = (@view x[3:end]),
         Δ₁ = (@view Δ[1:end-1]),
         Δ₂ = (@view Δ[2:end]);
-        @avx @. ∂y = k*((x₃ - x₂)/Δ₂ - (x₂-x₁)/Δ₁)/Δ₁
+        @inbounds @. ∂y = k*((x₃ - x₂)/Δ₂ - (x₂-x₁)/Δ₁)/Δ₁
     end
 end
 
@@ -34,7 +34,7 @@ function ∇²(x::NumVec,Δx::NumVec,k::NumVec,Δk::NumVec,∂y::NumVec)
         k₂ = (@view k[2:end]),
         Δx₁ = (@view Δx[1:end-1]),
         Δx₂ = (@view Δx[2:end]);
-        @avx @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
+        @inbounds @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
     end
 end
 
