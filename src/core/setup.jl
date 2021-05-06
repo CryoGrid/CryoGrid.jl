@@ -57,6 +57,9 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto)
 end
 
+withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
+withaxes(u::ComponentArray, ::CryoGridSetup) = u
+
 """
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
@@ -79,9 +82,9 @@ odefunction(::Val{:dense}, setup::CryoGridSetup, u0::AbstractArray, p, tspan) = 
 function odefunction(::Val{:tridiag}, setup::CryoGridSetup, u0::AbstractArray, p, tspan)
     N = length(u0)
 	ODEFunction(setup;jac_prototype=Tridiagonal(
-            similar(u0, eltype(p), N-1),
-            similar(u0, eltype(p), N),
-            similar(u0, eltype(p), N-1)
+            similar(u0, eltype(p), N-1) |> Vector,
+            similar(u0, eltype(p), N) |> Vector,
+            similar(u0, eltype(p), N-1) |> Vector
         )
 	)
 end
@@ -98,7 +101,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta})(du,u,p,t) where {TStrat,TGrid,TMeta}
+@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta})(_du,_u,p,t) where {TStrat,TGrid,TMeta}
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -107,7 +110,9 @@ is only executed during compilation and will not appear in the compiled version.
     strat = setup.strat
     cache = setup.cache
     meta = setup.meta
-    du .= zero(eltype(du))
+    _du .= zero(eltype(_du))
+    du = ComponentArray(_du, getaxes(setup.uproto))
+    u = ComponentArray(_u, getaxes(setup.uproto))
     end push!(expr.args)
     # Initialize variables for all layers
     for i in 1:N
@@ -210,7 +215,7 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
         end push!(expr.args)
     end
     @>> quote
-    return u, du
+    return getdata(u), getdata(du)
     end push!(expr.args)
     return expr
 end

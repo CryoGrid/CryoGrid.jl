@@ -33,7 +33,7 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
         vararrays = Dict()
         # build nested arrays w/ flattened views of each variable's state trajectory
         for var in prog_vars
-            arr = ArrayOfSimilarArrays([sol(t)[name][varname(var)] for t in ts]) |> flatview
+            arr = ArrayOfSimilarArrays([withaxes(sol(t), setup)[name][varname(var)] for t in ts]) |> flatview
             vararrays[var] = withdims(var, arr)
         end
         for var in diag_vars
