@@ -293,8 +293,7 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A, chunk_siz
     # get variable names for diagnostic and prognostic
     dvarnames = @>> diag_vars map(varname)
     paramnames = @>> param_vars map(varname)
-    # dstates = (similar(arrayproto, size(diag_grids[d])) for d in dvarnames)
-    params = (similar(arrayproto, size(param_grids[p])) for p in paramnames)
+    params = (copy(p.default_value) for p in param_vars)
     nt_params = NamedTuple{Tuple(paramnames)}(Tuple(params))
     # return prognostic variable component array for top-level composition;
     # return layer state with variable name, grid information, and diagnostic state variables

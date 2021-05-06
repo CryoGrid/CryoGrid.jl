@@ -123,11 +123,11 @@ hline!([1.0], linestyle=:dash, c=:black, label=nothing)
 
 xnames = repeat(["0.02", "0.05", "0.10", "0.20"], outer=length(solvers))
 groupnames = repeat([string(s) for s in solvers], inner=length(grids))
-StatsPlots.groupedbar(xnames, results_freeW_tair.runtime, group=groupnames, 
+StatsPlots.groupedbar(xnames, results_vgfc_seb.runtime, group=groupnames, 
     bar_position=:dodge, ylabel="Run time per simulation year (s)", xlabel="Minimum grid spacing (m)",
     title="Run times, van Genuchten FC, SEB upper bc")
 savefig("solver_benchmark_vgc_seb_runtimes.png")
-StatsPlots.groupedbar(xnames, results_freeW_tair.error[:,:,1], yerror=results_freeW_tair.error[:,:,2], group=groupnames, 
+StatsPlots.groupedbar(xnames, results_vgfc_seb.error[:,:,1], yerror=results_vgfc_seb.error[:,:,2], group=groupnames, 
     bar_position=:dodge, ylims=(0,6e5), ylabel="Error w.r.t reference run (J/m³)", xlabel="Minimum grid spacing (m)",
     title="Error, van Genuchten FC, SEB upper bc", legend=:topleft)
 savefig("solver_benchmark_vgfc_seb_error.png")

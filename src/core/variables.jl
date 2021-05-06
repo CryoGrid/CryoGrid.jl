@@ -9,36 +9,39 @@ end
 struct Shape{D} <: VarDim Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()
 
-# Variable "trait" (prognostic, diagnostic, parameter)
-# Not really a trait since it's only used with one type, Var.
-abstract type VarStyle end
-struct Prognostic <: VarStyle end
-struct Diagnostic <: VarStyle end
-struct Parameter <: VarStyle end
-
-# Variable type
-struct Var{name,T,D,S}
+abstract type Var{name,T,D<:Union{<:VarDim,<:GridSpec}} end
+struct Prognostic{name,T,D} <: Var{name,T,D}
     dim::D
-    Var(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar, style::Type{S}=Diagnostic) where {T,S<:VarStyle} =
-        new{name,T,typeof(dim),S}(dim)
+    Prognostic(name::Symbol, ::Type{T}, dims::Union{<:VarDim,<:GridSpec}) where {T} = new{name, T, typeof(dims)}(dims)
+end
+struct Algebraic{name,T,D} <: Var{name,T,D}
+    dim::D
+    # maybe a mass matrix init function?
+    Algebraic(name::Symbol, ::Type{T}, dims::Union{<:VarDim,<:GridSpec}) where {T} = new{name, T, typeof(dims)}(dims)
+end
+struct Diagnostic{name,T,D} <: Var{name,T,D}
+    dim::D
+    Diagnostic(name::Symbol, ::Type{T}, dims::Union{<:VarDim,<:GridSpec}) where {T} = new{name, T, typeof(dims)}(dims)
+end
+struct Parameter{name,T,D} <: Var{name,T,D}
+    dim::D
+    default_value::T
+    Parameter(name::Symbol, default_value::T) where {T<:AbstractArray} = new{name,T,typeof(Shape(size(default_value)...))}(Shape(size(default_value)...), default_value)
+    Parameter(name::Symbol, default_value::T) where {T<:Real} = Parameter(name, [default_value])
 end
 ==(var1::Var{N1,T1,D1},var2::Var{N2,T2,D2}) where {N1,N2,T1,T2,D1,D2} = (N1==N2) && (T1==T2) && (D1==D2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
 vartype(::Var{name,T}) where {name,T} = T
 vartype(::Type{<:Var{name,T}}) where {name,T} = T
-export Var, varname
+vardims(var::Var{name,T,D}) where {name,T,D} = var.dim
+isprognostic(::T) where {T<:Var} = T <: Prognostic
+isalgebraic(::T) where {T<:Var} = T <: Algebraic
+isdiagnostic(::T) where {T<:Var} = T <: Diagnostic
+isparameter(::T) where {T<:Var} = T <: Parameter
+export Var, Prognostic, Algebraic, Diagnostic, Parameter
 export VarDim, OnGrid, Shape, Scalar
-
-Prognostic(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Prognostic)
-Diagnostic(name::Symbol, typ::Type{T}, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Diagnostic)
-Parameter(name::Symbol, typ::Type{T}=Float64, dim::Union{<:VarDim,<:GridSpec}=Scalar) where T = Var(name,typ,dim,Parameter)
-
-VarStyle(::Type{Var{name,T,D,S}}) where {name,T,D,S} = S()
-isprognostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Prognostic
-isdiagnostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Diagnostic
-isparameter(var::Var{name,T,D,S}) where {name,T,D,S} = S == Parameter
-export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic, isparameter
+export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter
 
 struct VarCache{name, TCache}
     cache::TCache

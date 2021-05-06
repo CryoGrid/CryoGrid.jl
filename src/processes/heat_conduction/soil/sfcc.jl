@@ -114,7 +114,7 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
     θres::Float64 = 0.0 # residual water content
     g::Float64 = 9.80665 # acceleration due to gravity
 end
-variables(::VanGenuchten) = (Parameter(:α), Parameter(:n), Parameter(:Tₘ))
+variables(::VanGenuchten) = (Parameter(:α, 4.0), Parameter(:n, 2.0), Parameter(:Tₘ, 273.15))
 sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
     state.params.α |> getscalar, 
     state.params.n |> getscalar,
@@ -147,7 +147,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 @with_kw struct McKenzie <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::McKenzie) = (Parameter(:γ),)
+variables(::McKenzie) = (Parameter(:γ, 0.184),)
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     state.params.γ |> getscalar, 
     state.θw,
@@ -174,7 +174,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
 @with_kw struct Westermann <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::Westermann) = (Parameter(:δ),)
+variables(::Westermann) = (Parameter(:δ, 0.1),)
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     state.params.δ |> getscalar, 
     state.θw,
@@ -272,7 +272,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
                 # simple backtracking line search to avoid jumping over the solution
                 while sign(T̂res) != sign(Tres)
                     if inneritercount > 100
-                        @warn "Backtracking failed; this is probably a bug in the solver. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
+                        @warn "Backtracking failed; this should not happen. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
                         break
                     end
                     α = α*τ # decrease step size by τ
