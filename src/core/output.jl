@@ -11,41 +11,46 @@ at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.so
 struct CryoGridOutput{TSol,TVars}
     sol::TSol
     vars::TVars
-    CryoGridOutput(sol::TSol, vars::TVars) where
-        {T,N,TSol <: ODESolution{T,N,<:Vector{<:CryoGridState}},TVars<:NamedTuple} =
-        new{TSol,TVars}(sol,vars)
+    CryoGridOutput(sol::TSol, vars::TVars) where {TSol <: ODESolution,TVars<:NamedTuple} = new{TSol,TVars}(sol,vars)
 end
 
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`.
 """
-function CryoGridOutput(sol::TSol) where {T,N,TSol <: ODESolution{T,N,<:Vector{<:CryoGridState}}}
+function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
     setup = sol.prob.f.f # CryoGridSetup
-    state = setup.uproto.state
-    u_ax = map(x -> withaxes(x), sol.u)
-    ts = Dates.epochms2datetime.(sol.t.*1000.0)
+    log = get_log(sol, ts)
+    ts_datetime = Dates.epochms2datetime.(ts*1000.0)
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
-    withdims(var::Var{name,T,OnGrid{Edges}}, arr) where {name,T} = DimArray(arr, (Z(setup.grid),Ti(ts)))
-    withdims(var::Var{name,T,OnGrid{Cells}}, arr) where {name,T} = DimArray(arr, (Z(cells(setup.grid)),Ti(ts)))
-    withdims(var::Var, arr) = DimArray(nestedview(arr), (Ti(ts),))
+    withdims(var::Var{name,T,OnGrid{Edges}}, arr) where {name,T} = DimArray(arr, (Z(setup.grid),Ti(ts_datetime)))
+    withdims(var::Var{name,T,OnGrid{Cells}}, arr) where {name,T} = DimArray(arr, (Z(cells(setup.grid)),Ti(ts_datetime)))
+    withdims(var::Var, arr) = DimArray(nestedview(arr), (Ti(ts_datetime),))
     layerstates = NamedTuple()
-    for layername in keys(state)
-        prog_vars = state[layername][:pvars]
-        diag_vars = state[layername][:dvars]
+    for (i,node) in enumerate(setup.strat.nodes)
+        name = nodename(node) 
+        prog_vars = setup.meta[name][:pvars]
+        diag_vars = setup.meta[name][:dvars]
         vararrays = Dict()
         # build nested arrays w/ flattened views of each variable's state trajectory
         for var in prog_vars
-            arr = ArrayOfSimilarArrays([u[layername][varname(var)] for u in u_ax]) |> flatview
+            arr = ArrayOfSimilarArrays([sol(t)[name][varname(var)] for t in ts]) |> flatview
             vararrays[var] = withdims(var, arr)
         end
         for var in diag_vars
-            arr = ArrayOfSimilarArrays([u.state[layername][varname(var)] for u in sol.u]) |> flatview
+            var_log = log[varname(var)]
+            # Here we handle the case where the same variable is declared in multiple layers;
+            # SimulationLogs returns a matrix where the first axis is each @log call;
+            # NOTE: This will break if the user defines the same variable name with @log, because
+            # we are assuming that the index matches the layer's index in the stratigraphy.
+            # A better solution would be: https://github.com/jonniedie/SimulationLogs.jl/issues/7
+            var_states = length(size(var_log)) > 1 ? var_log[i,:] : var_log
+            arr = ArrayOfSimilarArrays(var_log) |> flatview
             vararrays[var] = withdims(var, arr)
         end
         # construct named tuple and merge with named tuple from previous layers
         varnames = map(var -> varname(var), keys(vararrays) |> Tuple)
         layer_nt = NamedTuple{tuple(varnames...)}(tuple(values(vararrays)...))
-        layerstates = merge(layerstates, NamedTuple{tuple(layername)}((layer_nt,)))
+        layerstates = merge(layerstates, NamedTuple{tuple(name)}((layer_nt,)))
     end
     CryoGridOutput(sol, layerstates)
 end

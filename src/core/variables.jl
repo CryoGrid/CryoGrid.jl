@@ -9,7 +9,8 @@ end
 struct Shape{D} <: VarDim Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()
 
-# Variable trait (prognostic, diagnostic, parameter)
+# Variable "trait" (prognostic, diagnostic, parameter)
+# Not really a trait since it's only used with one type, Var.
 abstract type VarStyle end
 struct Prognostic <: VarStyle end
 struct Diagnostic <: VarStyle end
@@ -39,9 +40,25 @@ isdiagnostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Diagnostic
 isparameter(var::Var{name,T,D,S}) where {name,T,D,S} = S == Parameter
 export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic, isparameter
 
-struct Vars{ProgVars,NT}
-    data::NT
-    Vars(progvars::NTuple{N,Symbol}, data::NamedTuple) where {N} = new{progvars,typeof(data)}(data)
+struct VarCache{TCaches}
+    caches::TCaches
+    function VarCache(vargrids::NamedTuple, arrayproto::AbstractArray)
+        # use dual cache for automatic compatibility with ForwardDiff
+        caches = map(grid -> DiffEqBase.dualcache(similar(arrayproto, length(grid))), vargrids)
+        new{typeof(caches)}(caches)
+    end
 end
-# Passthrough to named tuple
-Base.getproperty(vars::Vars, sym::Symbol) = getproperty(getfield(vars, :data), sym)
+
+function Base.getproperty(cache::VarCache, name::Symbol)
+    if name == :caches
+        getfield(cache, name)
+    else
+        cache.caches[name]
+    end
+end
+Base.hasproperty(cache::VarCache, name::Symbol) = name == :caches || hasproperty(cache.caches, name)
+Base.getindex(cache::VarCache, name::Symbol) = cache.caches[name]
+retrieve(diffcache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = DiffEqBase.get_tmp(diffcache, u)
+retrieve(diffcache, u::AbstractArray{T}) where {T<:ReverseDiff.TrackedReal} = copyto!(similar(u, length(diffcache)), diffcache.du)
+retrieve(diffcache, u::AbstractArray{T}) where {T} = reinterpret(T, diffcache.du)
+retrieve(diffcache) = diffcache.du
