@@ -40,25 +40,20 @@ isdiagnostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Diagnostic
 isparameter(var::Var{name,T,D,S}) where {name,T,D,S} = S == Parameter
 export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic, isparameter
 
-struct VarCache{TCaches}
-    caches::TCaches
-    function VarCache(vargrids::NamedTuple, arrayproto::AbstractArray)
+struct VarCache{name, TCache}
+    cache::TCache
+    function VarCache(name::Symbol, grid::Grid, arrayproto::AbstractArray, chunk_size::Int)
         # use dual cache for automatic compatibility with ForwardDiff
-        caches = map(grid -> DiffEqBase.dualcache(similar(arrayproto, length(grid))), vargrids)
-        new{typeof(caches)}(caches)
+        cache = DiffEqBase.dualcache(similar(arrayproto, length(grid)), Val{chunk_size})
+        new{name,typeof(cache)}(cache)
     end
 end
-
-function Base.getproperty(cache::VarCache, name::Symbol)
-    if name == :caches
-        getfield(cache, name)
-    else
-        cache.caches[name]
-    end
-end
-Base.hasproperty(cache::VarCache, name::Symbol) = name == :caches || hasproperty(cache.caches, name)
-Base.getindex(cache::VarCache, name::Symbol) = cache.caches[name]
-retrieve(diffcache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = DiffEqBase.get_tmp(diffcache, u)
-retrieve(diffcache, u::AbstractArray{T}) where {T<:ReverseDiff.TrackedReal} = copyto!(similar(u, length(diffcache)), diffcache.du)
-retrieve(diffcache, u::AbstractArray{T}) where {T} = reinterpret(T, diffcache.du)
-retrieve(diffcache) = diffcache.du
+# retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = DiffEqBase.get_tmp(varcache.cache, u)
+# for some reason, it's faster to re-allocate a new array of ForwardDiff.Dual than to use a pre-allocated cache...
+# I have literally no idea why.
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ReverseDiff.TrackedReal} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(identity.(u), length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T} = reinterpret(T, varcache.cache.du)
+retrieve(varcache::VarCache) = diffcache.du
+Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")

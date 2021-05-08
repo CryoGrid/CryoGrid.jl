@@ -69,7 +69,8 @@ end
 """
 Evaluates the continuous solution at time `t`.
 """
-(out::CryoGridOutput)(t) = sol(t) |> withaxes
+(out::CryoGridOutput)(t::Real) = withaxes(out.sol(t), out.sol.prob.f.f)
+(out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
     if sym in (:sol,:vars)

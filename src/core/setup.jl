@@ -20,7 +20,7 @@ end
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero) that will determine the array type used for all state vectors.
 """
-function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zeros()) where {A<:AbstractArray}
+function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zeros(), chunk_size=nothing) where {A<:AbstractArray}
     pvar_arrays = OrderedDict()
     param_arrays = OrderedDict()
     layer_metas = OrderedDict()
@@ -32,21 +32,23 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
         # build subgrid using closed interval [lo,hi]
         subgrid = grid[lo..hi]
         # build layer
-        prog_carr, param_carr, cache, meta = buildlayer(node,subgrid,arrayproto)
+        prog_carr, param_carr, meta = buildlayer(node,subgrid,arrayproto,chunk_size)
         pvar_arrays[nodename(node)] = prog_carr
         param_arrays[nodename(node)] = param_carr
         layer_metas[nodename(node)] = meta
-        layer_caches[nodename(node)] = cache
     end
     # construct named tuples containing data for each layer
-    nt_prog = NamedTuple{Tuple(keys(pvar_arrays))}(Tuple(values(pvar_arrays)))
-    nt_params = NamedTuple{Tuple(keys(param_arrays))}(Tuple(values(param_arrays)))
-    nt_meta = NamedTuple{Tuple(keys(layer_metas))}(Tuple(values(layer_metas)))
-    nt_cache = NamedTuple{Tuple(keys(layer_caches))}(Tuple(values(layer_caches)))
+    nodenames = [nodename(node) for node in strat]
+    nt_prog = NamedTuple{Tuple(nodenames)}(Tuple(values(pvar_arrays)))
+    nt_params = NamedTuple{Tuple(nodenames)}(Tuple(values(param_arrays)))
+    nt_meta = NamedTuple{Tuple(nodenames)}(Tuple(values(layer_metas)))
     npvars = (length(meta.pvars) for meta in nt_meta) |> sum
     ndvars = (length(meta.dvars) for meta in nt_meta) |> sum
+    nparams = (length(meta.paramvars) for meta in nt_meta) |> sum
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
+    chunk_size = isnothing(chunk_size) ? nparams : chunk_size
+    nt_cache = NamedTuple{Tuple(nodenames)}(Tuple(buildcaches(strat, nt_meta, arrayproto, chunk_size)))
     # construct prototype of u (prognostic state) array (note that this currently performs a copy)
     uproto = ComponentArray(nt_prog)
     # ditto for parameter array (need a hack here to get an empty ComponentArray...)
@@ -224,7 +226,7 @@ end
 Generates a function from layer state type D which builds a type-stable NamedTuple of
 state variables at runtime.
 """
-@inline @generated function buildstate(cache::VarCache, meta::M, u, du, params, t) where {names,types,M<:NamedTuple{names,types}}
+@inline @generated function buildstate(cache::NamedTuple, meta::M, u, du, params, t) where {names,types,M<:NamedTuple{names,types}}
     # extract variables types from M; we assume the first two parameters in the NamedTuple
     # are the prognostic and diagnostic variable names respeictively. This must be respected by buildlayer.
     # note that types.parameters[1] is Tuple{Var,...} so we call parameters again to get (Var,...)
@@ -252,7 +254,7 @@ end
 """
 Constructs prognostic state vector and state named-tuple for the given node/layer.
 """
-function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<:AbstractArray}
+function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A, chunk_size=nothing) where {A<:AbstractArray}
     layer, process = node.layer, node.process
     layer_vars = variables(layer)
     @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
@@ -296,12 +298,10 @@ function buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<
     nt_params = NamedTuple{Tuple(paramnames)}(Tuple(params))
     # return prognostic variable component array for top-level composition;
     # return layer state with variable name, grid information, and diagnostic state variables
-    # layer_state = NamedTuple{tuple(:pvars,:dvars,:grids,dvarnames...)}(tuple(prog_vars,diag_vars,grids,dstates...))
-    layercache = VarCache(diag_grids, arrayproto)
     layermetadata = NamedTuple{tuple(:pvars,:dvars,:paramvars,:grids)}(tuple(prog_vars,diag_vars,param_vars,grids))
     prog_carr = isempty(prog_vars) ? similar(arrayproto, 0) : ComponentArray(prog_grids)
     param_carr = isempty(param_vars) ? similar(arrayproto, 0) : ComponentArray(nt_params)
-    return prog_carr, param_carr, layercache, layermetadata
+    return prog_carr, param_carr, layermetadata
 end
 
 """
@@ -318,6 +318,23 @@ function buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     names = @>> vars map(var -> varname(var))
     vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
     grids = @>> vars_with_names map(togrid)
+end
+
+"""
+Constructs per-layer variable caches given the Stratigraphy and layer-metadata named tuple.
+"""
+function buildcaches(strat, metadata, arrayproto, chunk_size)
+    map(strat) do node
+        name = nodename(node)
+        dvars = metadata[name].dvars
+        varnames = [varname(var) for var in dvars]
+        caches = map(dvars) do dvar
+            dvarname = varname(dvar)
+            grid = metadata[name].grids[dvarname]
+            VarCache(dvarname, grid, arrayproto, chunk_size)
+        end
+        NamedTuple{Tuple(varnames)}(Tuple(caches))
+    end
 end
 
 export CryoGridSetup, CryoGridProblem, initialcondition!, withaxes
