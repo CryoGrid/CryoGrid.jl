@@ -1,5 +1,5 @@
 """
-    CryoGridOutput{TSol,TVars}
+    CryoGridOutput
 
 Helper type that stores the solution to a CryoGrid `ODEProblem` along with `DimArray` views of all
 state variables. `CryoGridOutput` overrides `Base.getproperty` to allow for direct dot-syntax
@@ -8,10 +8,11 @@ then for a `CryoGridOutput` value `out`, `out.layer.T` returns a `DimArray` with
 depth axes. The `ODESolution` can be accessed via `out.sol`, or for convenience, the continuous solution
 at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`.
 """
-struct CryoGridOutput{TSol,TVars}
-    sol::TSol
-    vars::TVars
-    CryoGridOutput(sol::TSol, vars::TVars) where {TSol <: ODESolution,TVars<:NamedTuple} = new{TSol,TVars}(sol,vars)
+struct CryoGridOutput
+    sol::ODESolution
+    log::SimulationLog
+    vars::NamedTuple
+    CryoGridOutput(sol::ODESolution, log::SimulationLog, vars::NamedTuple) = new(sol, log, vars)
 end
 
 """
@@ -44,7 +45,7 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
             # we are assuming that the index matches the layer's index in the stratigraphy.
             # A better solution would be: https://github.com/jonniedie/SimulationLogs.jl/issues/7
             var_states = length(size(var_log)) > 1 ? var_log[i,:] : var_log
-            arr = ArrayOfSimilarArrays(var_log) |> flatview
+            arr = ArrayOfSimilarArrays(var_states) |> flatview
             vararrays[var] = withdims(var, arr)
         end
         # construct named tuple and merge with named tuple from previous layers
@@ -52,8 +53,9 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
         layer_nt = NamedTuple{tuple(varnames...)}(tuple(values(vararrays)...))
         layerstates = merge(layerstates, NamedTuple{tuple(name)}((layer_nt,)))
     end
-    CryoGridOutput(sol, layerstates)
+    CryoGridOutput(sol, log, layerstates)
 end
+
 
 function Base.show(io::IO, out::CryoGridOutput)
     vars = out.vars
@@ -61,7 +63,7 @@ function Base.show(io::IO, out::CryoGridOutput)
     println(io, "CryoGridOutput with $(length(out.sol.t)) time steps and $(nvars) variables:")
     for (name,vars) in zip(keys(vars),values(vars))
         if length(vars) > 0
-            println("  $name: $(tuple(keys(vars)...))")
+            println(io, "  $name: $(tuple(keys(vars)...))")
         end
     end
 end
@@ -73,7 +75,7 @@ Evaluates the continuous solution at time `t`.
 (out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
-    if sym in (:sol,:vars)
+    if sym in (:sol,:log,:vars)
         getfield(out,sym)
     else
         out.vars[sym]
