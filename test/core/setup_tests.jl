@@ -82,8 +82,8 @@ include("../types.jl")
         setup = CryoGridSetup(strat,grid)
         checkfields()
         @test hasproperty(setup.cache.testground,:a)
-        setup.cache.testground.a.du[1] = 2.0
-        @test setup.cache.testground.a.du[1] == 2.0
+        setup.cache.testground.a.cache.du[1] = 2.0
+        @test setup.cache.testground.a.cache.du[1] == 2.0
         # clean-up method definitions (necessary for re-running test set)
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))

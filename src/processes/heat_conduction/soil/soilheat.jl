@@ -83,8 +83,6 @@ function diagnosticstep!(soil::Soil, heat::Heat, state)
     fc!(soil,heat,state)
     # Update thermal conductivity
     @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
-    @log Hₛ state.T.*state.C
-    @log Hₛ state.θl.*heat.params.L
     # Interpolate thermal conductivity to boundary grid
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
     # TODO: harmonic mean of thermal conductivities (in MATLAB code)

@@ -42,7 +42,7 @@ export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic, isparameter
 
 struct VarCache{name, TCache}
     cache::TCache
-    function VarCache(name::Symbol, grid::Grid, arrayproto::AbstractArray, chunk_size::Int)
+    function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunk_size::Int)
         # use dual cache for automatic compatibility with ForwardDiff
         cache = DiffEqBase.dualcache(similar(arrayproto, length(grid)), Val{chunk_size})
         new{name,typeof(cache)}(cache)
