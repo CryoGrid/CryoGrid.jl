@@ -29,8 +29,8 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
     layerstates = NamedTuple()
     for (i,node) in enumerate(setup.strat.nodes)
         name = nodename(node) 
-        prog_vars = setup.meta[name][:pvars]
-        diag_vars = setup.meta[name][:dvars]
+        prog_vars = setup.meta[name][:progvars]
+        diag_vars = setup.meta[name][:diagvars]
         vararrays = Dict()
         # build nested arrays w/ flattened views of each variable's state trajectory
         for var in prog_vars
