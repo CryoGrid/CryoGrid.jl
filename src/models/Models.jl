@@ -46,7 +46,7 @@ Builds a simple one-layer soil/heat-conduction model with the given grid and con
 but this can be changed via the `freezecurve` parameter. For example, to use the van Genuchten freeze curve, set `freezecurve=SFCC(VanGenuchten())`.
 """
 function SoilHeat(heatvar, upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig;
-    grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
+    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
         0.0u"m" => Ground(:soil, Soil{Sand}(soilconfig.soilprofile), Heat{heatvar}(soilconfig.tempprofile, freezecurve=freezecurve)),

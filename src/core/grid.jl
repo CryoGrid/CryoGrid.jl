@@ -48,8 +48,9 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         new{Edges,Q,G,D}(grid.values,grid.deltas)
 end
 
-Base.show(io::IO, grid::Grid{S}) where S = print(io, "Grid{$S}($(grid[1])..$(grid[end]))")
-Base.show(io::IO, mime::MIME{Symbol("text/plain")}, grid::Grid{S}) where S = print(io, "Grid{$S}($(grid[1])..$(grid[end]))")
+Base.show(io::IO, grid::Grid{S}) where S = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid))")
+Base.show(io::IO, mime::MIME{Symbol("text/plain")}, grid::Grid{S}) where S = show(io, grid)
+Base.show(io::IO, ::Type{<:Grid{S,T}}) where {S,T} = print(io, "Grid{$S,$T,...}")
 
 function subgrid(grid::Grid{S,Q}, interval::Interval{L,R,Q}) where {S,L,R,Q}
     l,r = interval.left,interval.right

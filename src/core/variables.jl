@@ -60,3 +60,6 @@ retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(iden
 retrieve(varcache::VarCache, u::AbstractArray{T}) where {T} = reinterpret(T, varcache.cache.du)
 retrieve(varcache::VarCache) = diffcache.du
 Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
+Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::VarCache{name}) where name = show(io, cache)
+# type piracy to reduce clutter in compiled type names
+Base.show(io::IO, ::Type{<:VarCache{name}}) where name = print(io, "VarCache{$name}")
