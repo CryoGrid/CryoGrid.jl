@@ -1,5 +1,4 @@
 using CryoGrid
-using FastClosures
 using LinearAlgebra
 using Statistics
 using Test

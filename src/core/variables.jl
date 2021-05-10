@@ -9,7 +9,8 @@ end
 struct Shape{D} <: VarDim Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()
 
-# Variable trait (prognostic, diagnostic, parameter)
+# Variable "trait" (prognostic, diagnostic, parameter)
+# Not really a trait since it's only used with one type, Var.
 abstract type VarStyle end
 struct Prognostic <: VarStyle end
 struct Diagnostic <: VarStyle end
@@ -39,9 +40,20 @@ isdiagnostic(var::Var{name,T,D,S}) where {name,T,D,S} = S == Diagnostic
 isparameter(var::Var{name,T,D,S}) where {name,T,D,S} = S == Parameter
 export VarStyle, Prognostic, Diagnostic, isprognostic, isdiagnostic, isparameter
 
-struct Vars{ProgVars,NT}
-    data::NT
-    Vars(progvars::NTuple{N,Symbol}, data::NamedTuple) where {N} = new{progvars,typeof(data)}(data)
+struct VarCache{name, TCache}
+    cache::TCache
+    function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunk_size::Int)
+        # use dual cache for automatic compatibility with ForwardDiff
+        cache = DiffEqBase.dualcache(similar(arrayproto, length(grid)), Val{chunk_size})
+        new{name,typeof(cache)}(cache)
+    end
 end
-# Passthrough to named tuple
-Base.getproperty(vars::Vars, sym::Symbol) = getproperty(getfield(vars, :data), sym)
+# retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = DiffEqBase.get_tmp(varcache.cache, u)
+# for some reason, it's faster to re-allocate a new array of ForwardDiff.Dual than to use a pre-allocated cache...
+# I have literally no idea why.
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ReverseDiff.TrackedReal} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(identity.(u), length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T} = reinterpret(T, varcache.cache.du)
+retrieve(varcache::VarCache) = diffcache.du
+Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")

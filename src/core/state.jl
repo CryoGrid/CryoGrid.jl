@@ -1,7 +1,7 @@
-import ForwardDiff
-
 """
     CryoGridState{T,A,Ax,S} <: DEDataVector{T}
+
+DEPRECATED by advice of the SciML development team (DEDataVector is no longer supported). Replaced by `VarCache`.
 
 Specialized implementation of DEDataVector that holds non-integrated state variables in a (possibly nested) named
 tuple field 'state'. Relevant overrides for AbstractArray and DiffEqBase interface methods are provided to recursively
@@ -23,7 +23,7 @@ end
 
 withaxes(u::CryoGridState) = ComponentArray(u.x, u.ax)
 
-export CryoGridState, withaxes
+# export CryoGridState, withaxes
 
 # type piracy to make CryoGridState types less verbose in errors and console output
 Base.show(io::IO, state::Type{<:CryoGridState{T,A,Ax}}) where {T,A,Ax} = print(io, "CryoGridState{$T,$A,$Ax}")
