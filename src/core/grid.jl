@@ -77,9 +77,6 @@ edges(grid::Grid{Cells}) = Grid(Edges, grid)
 @inline Base.length(grid::Grid) = length(values(grid))
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
 @propagate_inbounds Base.getindex(grid::Grid{S,Q}, interval::Interval{L,R,Q}) where {S,L,R,Q} = subgrid(grid,interval)
-AxisArrays.axistrait(::Type{<:Grid}) = AxisArrays.Dimensional
-AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid, idx) =
-    AxisArrays.axisindexes(AxisArrays.Dimensional,values(ax),idx)
 
 regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line()) =
     regrid!(similar(x,length(newgrid)), x, xgrid, newgrid, interp, bc)

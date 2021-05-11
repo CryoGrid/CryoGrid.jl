@@ -7,7 +7,6 @@ using TimeSeries
 using Dates
 using DataStructures: SortedDict, OrderedDict
 using ArraysOfArrays
-using AxisArrays
 using StaticArrays
 using ComponentArrays
 using LinearAlgebra
@@ -16,15 +15,15 @@ using IfElse
 using LoopVectorization
 using RuntimeGeneratedFunctions
 using Reexport
+import ForwardDiff
+import ReverseDiff
 @reexport using Unitful
 @reexport using IntervalSets
-@reexport using DimensionalData: DimArray, dims, Z, Ti
+@reexport using DimensionalData: DimArray, dims, X, Y, Z, Ti
 @reexport using Parameters
 @reexport using DifferentialEquations
 @reexport using DiffEqBase
 @reexport using SimulationLogs
-import ForwardDiff
-import ReverseDiff
 
 RuntimeGeneratedFunctions.init(CryoGrid)
 

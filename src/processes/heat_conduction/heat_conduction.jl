@@ -15,19 +15,17 @@ end
 """
 Alias and constructor for Profile specific to temperature.
 """
-const TempProfile{D,Q,T} = Profile{D,1,Q,T} where {D,Q,T}
-TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
-    Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
+TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
 
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
-    profile::Union{Nothing,TempProfile}
-    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,TempProfile}}
+    profile::Union{Nothing,<:DimArray{UFloat"K"}}
+    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
         @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
         params = HeatParams(;kwargs...)
         new{var,typeof(params)}(params,profile)
     end
-    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
+    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
         @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
         @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
         params = HeatParams(;kwargs...)
