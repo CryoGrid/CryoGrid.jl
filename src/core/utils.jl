@@ -107,14 +107,6 @@ end
 
 export Profile, interpolateprofile!
 
-# Temporary fix for bug in ExprTools (see issue #14)
-# TODO: Remove when fixed in official package.
-function ExprTools.argument_names(m::Method)
-    slot_syms = ExprTools.slot_names(m)
-    arg_names = slot_syms[2:m.nargs]  # nargs includes 1 for self ref
-    return arg_names
-end
-
 """
     generate_derivative(f, dvar::Symbol)
 
@@ -142,6 +134,24 @@ function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=Cryo
 end
 
 export generate_derivative
+
+"""
+    convert_tspan(tspan::Tuple{DateTime,DateTime})
+    convert_tspan(tspan::Tuple{Float64,Float64})
+
+Convenience method for converting between `Dates.DateTime` and solver time.
+"""
+convert_tspan(tspan::NTuple{2,DateTime}) = Dates.datetime2epochms.(tspan) ./ 1000.0
+convert_tspan(tspan::NTuple{2,Float64}) = Dates.epochms2datetime.(tspan.*1000.0)
+export convert_tspan
+
+# Temporary fix for bug in ExprTools (see issue #14)
+# TODO: Remove when fixed in official package.
+function ExprTools.argument_names(m::Method)
+    slot_syms = ExprTools.slot_names(m)
+    arg_names = slot_syms[2:m.nargs]  # nargs includes 1 for self ref
+    return arg_names
+end
 
 # Helper function for handling arguments to freeze curve function, f;
 # select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.

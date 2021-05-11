@@ -163,4 +163,10 @@ end
 
 export heatconduction!, boundaryflux
 
+# Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
+# Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
+# Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
+const HeatOnlySetup = CryoGridSetup{<:Stratigraphy{<:Tuple{TTop,Vararg{<:Union{<:StratNode{<:SubSurface, <:Processes{<:Tuple{<:Heat}}},TBot}}}}} where {TTop,TBot}
+JacobianStyle(::Type{<:HeatOnlySetup}) = TridiagJac()
+
 include("soil/soilheat.jl")

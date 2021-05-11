@@ -63,35 +63,6 @@ withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(set
 withaxes(u::ComponentArray, ::CryoGridSetup) = u
 
 """
-CryoGrid specialized constructor for ODEProblem that automatically generates the initial
-condition and necessary callbacks.
-
-TODO: infer jacobian sparsity from stratigraphy definition or via SparsityDetection.jl.
-"""
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;jacproto=:tridiag,kwargs...)
-	p = isnothing(p) ? setup.pproto : p
-	# compute initial condition
-	u0,_ = initialcondition!(setup, p, tspan)
-	func = odefunction(jacproto, setup, u0, p, tspan)
-	ODEProblem(func,u0,tspan,p,kwargs...)
-end
-# converts tspan from DateTime to float
-CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup, Dates.datetime2epochms.(tspan)./1000,args...;kwargs...)
-
-odefunction(J::AbstractArray, setup::CryoGridSetup, ::AbstractArray, p, tspan) = ODEFunction(setup, jac_prototype=J)
-odefunction(sym::Symbol, setup::CryoGridSetup, u0::AbstractArray, p, tspan) = odefunction(Val{sym}(), setup, u0, p, tspan)
-odefunction(::Val{:dense}, setup::CryoGridSetup, u0::AbstractArray, p, tspan) = setup
-function odefunction(::Val{:tridiag}, setup::CryoGridSetup, u0::AbstractArray, p, tspan)
-    N = length(u0)
-	ODEFunction(setup;jac_prototype=Tridiagonal(
-            similar(u0, eltype(p), N-1) |> Vector,
-            similar(u0, eltype(p), N) |> Vector,
-            similar(u0, eltype(p), N-1) |> Vector
-        )
-	)
-end
-
-"""
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 < i < N:
