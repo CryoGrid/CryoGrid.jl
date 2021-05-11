@@ -1,3 +1,5 @@
+import Downloads
+
 struct DateNumber <: Real
 	val::Float64
 end
