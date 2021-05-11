@@ -116,9 +116,9 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
 end
 variables(::VanGenuchten) = (Parameter(:α, 4.0), Parameter(:n, 2.0), Parameter(:Tₘ, 273.15))
 sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
-    state.params.α |> getscalar, 
-    state.params.n |> getscalar,
-    state.params.Tₘ |> getscalar,
+    state.α |> getscalar, 
+    state.n |> getscalar,
+    state.Tₘ |> getscalar,
     state.θw,
     state.θp, # θ saturated = porosity
     heat.params.L, # specific latent heat of fusion, L
@@ -149,7 +149,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 end
 variables(::McKenzie) = (Parameter(:γ, 0.184),)
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    state.params.γ |> getscalar, 
+    state.γ |> getscalar, 
     state.θw,
     state.θp,
 )
@@ -176,7 +176,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
 end
 variables(::Westermann) = (Parameter(:δ, 0.1),)
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    state.params.δ |> getscalar, 
+    state.δ |> getscalar, 
     state.θw,
 )
 function (f::Westermann)(T,δ,θtot)

@@ -4,6 +4,8 @@ Specialized problem type for CryoGrid ODEProblems.
 struct CryoGridProblem end
 
 """
+    CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
+
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 """
@@ -29,8 +31,13 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
 	func = odefunction(setup, M, u0, p, tspan; kwargs...)
 	ODEProblem(func,u0,tspan,p,CryoGridProblem(); kwargs...)
 end
-# converts tspan from DateTime to float
+# this version converts tspan from DateTime to float
+"""
+    CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...)
+"""
 CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,convert_tspan(tspan),args...;kwargs...)
+
+export CryoGridProblem
 
 """
 Trait for determining Jacobian sparsity of a CryoGrid ODEProblem.
@@ -42,19 +49,21 @@ struct TridiagJac <: JacobianStyle end
 JacobianStyle(::Type{<:CryoGridSetup}) = DefaultJac()
 
 """
-    odefunction(setup::CryoGridSetup, M, u0, p, tspan)
+    odefunction(setup::CryoGridSetup, M, u0, p, tspan; kwargs...)
 
 Constructs a SciML `ODEFunction` given the model setup, mass matrix M, initial state u0, parameters p, and tspan.
 Can (and should) be overridden by users to provide customized ODEFunction configurations for specific problem setups, e.g:
 ```
 model = CryoGridSetup(strat,grid)
-function CryoGrid.odefunction(setup::typeof(model), M, u0, p, tspan)
+function CryoGrid.odefunction(::DefaultJac, setup::typeof(model), M, u0, p, tspan)
     ...
     # make sure to return an instance of ODEFunction
 end
 ...
 prob = CryoGridProblem(model, tspan, p)
 ```
+
+`JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `CryoGridSetup`s.
 """
 odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
 odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = ODEFunction(setup, mass_matrix=M; kwargs...)
