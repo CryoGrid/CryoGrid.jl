@@ -78,20 +78,9 @@ initialcondition!(::Layer, state) = nothing
 initialcondition!(::Layer, ::Process, state) = nothing
 diagnosticstep!(l::Layer, p::Process, state) = error("no diagnostic step defined for $(typeof(l)) with $(typeof(p))")
 prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined for $(typeof(l)) with $(typeof(p))")
-interact!(l1::Layer, p1::Process, l2::Layer, p2::Process, state1, state2) =
-    error("no interaction defined betweeen $(typeof(l1)) with $(typeof(p1)) and $(typeof(l2)) with $(tyepof(p2))")
-"""
-Declares an interraction to be present between two layer/process pairs. Default rule is that all processes of the
-same family (i.e. same base type name) should interact.
-"""
-interactrule(::Type{<:Layer}, ::Type{P1}, ::Type{<:Layer}, ::Type{P2}) where {P1<:SubSurfaceProcess,P2<:SubSurfaceProcess} =
-    Base.typename(P1).wrapper == Base.typename(P2).wrapper
-interactrule(::Type{L1}, ::Type{P1}, ::Type{L2}, ::Type{<:BoundaryProcess{P2}}) where {L1,L2,P1,P2} =
-    interactrule(L1,P1,L2,P2)
-interactrule(::Type{L1}, ::Type{<:BoundaryProcess{P1}}, ::Type{L2}, ::Type{P2}) where {L1,L2,P1,P2} =
-    interactrule(L1,P1,L2,P2)
+interact!(l1::Layer, p1::Process, l2::Layer, p2::Process, state1, state2) = nothing
 
-export variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!, interactrule
+export variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!
 
 """
 Convenience macro for setting scalar (single-element) arrays/vectors. It turns an expression of the form:
