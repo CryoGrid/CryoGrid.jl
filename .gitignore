@@ -26,8 +26,9 @@ docs/site/
 # environment.
 Manifest.toml
 
-# Results
-RESULT*/
+# Input/output
+input/
+output/
 
 # User test scripts
 user/
