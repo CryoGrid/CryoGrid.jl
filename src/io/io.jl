@@ -15,12 +15,12 @@ end
 
 function fetch(resource::Resource, dir::String)
 	mkpath(dir)
-	filepath = joinpath(dir, resource.name*"."*resource.type)
-        if !isfile(filepath)
-                Downloads.download(resource.url, filepath)
-        else
-                filepath
-        end
+	filepath = joinpath(dir, resource.name * "." * resource.type)
+    if !isfile(filepath)
+        Downloads.download(resource.url, filepath)
+    else
+        filepath
+    end
 end
 
 """
@@ -42,23 +42,19 @@ the structure of the JSON file. Units can (and should) be supplied as additional
 
 `loadforcings("example.json", :Tair=>u"°C", :Ptot=>u"mm")`
 """
-loadforcings(filename::String, units...; spec::Type{T}=JsonSpec{1}) where {T<:InputSpec} = loadforcings(T, filename, units...)
-loadforcings(resource::Resource, units...; spec::Type{T}=JsonSpec{1}) where {T<:InputSpec} = loadforcings(T, fetch(resource, FORCINGS_DIR), units...)
+loadforcings(filename::String, units...; spec::Type{T}=JsonSpec{1}) where {T <: InputSpec} = loadforcings(T, filename, units...)
+loadforcings(resource::Resource, units...; spec::Type{T}=JsonSpec{1}) where {T <: InputSpec} = loadforcings(T, fetch(resource, FORCINGS_DIR), units...)
 function loadforcings(::Type{JsonSpec{1}}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
-        dict = open(filename,"r") do file; JSON3.read(file) end
+        dict = open(filename, "r") do file; JSON3.read(file) end
         # convert JSON3 dict for data field to Julia dict
         data = Dict(dict[:data]...)
         # get timestamps and then remove from dict
         ts = @>> data[:t_span] map(DateNumber) map(todatetime)
         delete!(data, :t_span)
         unitdict = Dict(units...)
-        # Case 1: Map number values to units, if specified
-        tounit(val::Number,name) = val*(haskey(unitdict,name) ? unitdict[name] : unit(0))
-        # Case 2: Map missing values to missing
-        tounit(val::Nothing,name) = missing
-        unitvals = (tounit.(vals,name) for (name,vals) in data)
+        vals_with_units = (haskey(unitdict, name) ? vals*unitdict[name] : vals for (name, vals) in data)
         # construct new named tuple
-        (data=NamedTuple{Tuple(keys(data))}(tuple(unitvals...)), timestamps=Array(ts))
+        (data = NamedTuple{Tuple(keys(data))}(tuple(vals_with_units...)), timestamps = Array(ts))
 end
 
 export loadforcings

@@ -4,7 +4,6 @@ using Base: @propagate_inbounds
 using Lazy: @>>, @>, groupby
 using Interpolations
 using TimeSeries
-using Dates
 using DataStructures: SortedDict, OrderedDict
 using ArraysOfArrays
 using StaticArrays
@@ -17,9 +16,10 @@ using RuntimeGeneratedFunctions
 using Reexport
 import ForwardDiff
 import ReverseDiff
+@reexport using Dates
 @reexport using Unitful
 @reexport using IntervalSets
-@reexport using DimensionalData: DimArray, dims, X, Y, Z, Ti
+@reexport using DimensionalData
 @reexport using Parameters
 @reexport using DifferentialEquations
 @reexport using DiffEqBase
