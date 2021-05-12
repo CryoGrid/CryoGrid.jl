@@ -61,14 +61,18 @@ end
 
 withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
 withaxes(u::ComponentArray, ::CryoGridSetup) = u
-getstate(setup::CryoGridSetup, integrator::SciMLBase.DEIntegrator, layername::Symbol) = _buildstate(
-    setup.cache[layername],
-    setup.meta[layername],
-    withaxes(integrator.u,setup)[layername],
-    withaxes(get_du(integrator),setup)[layername],
-    integrator.p[layername],
-    integrator.t
-)
+function getstate(integrator::SciMLBase.DEIntegrator, layername::Symbol)
+    let setup = integrator.f.f;
+        _buildstate(
+            setup.cache[layername],
+            setup.meta[layername],
+            withaxes(integrator.u,setup)[layername],
+            withaxes(get_du(integrator),setup)[layername],
+            integrator.p[layername],
+            integrator.t
+        )
+    end
+end
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
@@ -284,7 +288,6 @@ function _buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A, chunk_si
     # merge grids
     grids = merge(diag_grids, prog_grids, alg_grids, param_grids)
     # get variable names for diagnostic and prognostic
-    dvarnames = @>> diag_vars map(varname)
     paramnames = @>> param_vars map(varname)
     params = (copy(p.default_value) for p in param_vars)
     # build parameter named tuple
