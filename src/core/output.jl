@@ -23,8 +23,8 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
     log = get_log(sol, ts)
     ts_datetime = Dates.epochms2datetime.(ts*1000.0)
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
-    withdims(var::Var{name,T,OnGrid{Edges}}, arr) where {name,T} = DimArray(arr, (Z(setup.grid),Ti(ts_datetime)))
-    withdims(var::Var{name,T,OnGrid{Cells}}, arr) where {name,T} = DimArray(arr, (Z(cells(setup.grid)),Ti(ts_datetime)))
+    withdims(var::Var{name,T,OnGrid{Edges}}, arr) where {name,T} = DimArray(arr, (Z((setup.grid)u"m"),Ti(ts_datetime)))
+    withdims(var::Var{name,T,OnGrid{Cells}}, arr) where {name,T} = DimArray(arr, (Z(cells(setup.grid)u"m"),Ti(ts_datetime)))
     withdims(var::Var, arr) = DimArray(nestedview(arr), (Ti(ts_datetime),))
     layerstates = NamedTuple()
     for (i,node) in enumerate(setup.strat.nodes)
