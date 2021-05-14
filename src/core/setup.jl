@@ -24,7 +24,6 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     pvar_arrays = OrderedDict()
     param_arrays = OrderedDict()
     layer_metas = OrderedDict()
-    layer_caches = OrderedDict()
     for (i,node) in enumerate(strat)
         # determine subgrid for layer
         lo = strat.boundaries[i] |> dustrip

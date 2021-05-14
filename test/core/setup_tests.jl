@@ -53,7 +53,7 @@ include("../types.jl")
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             Prognostic(:w, Float"kg", OnGrid(Cells)),
         )
-        @test_logs (:warn,r".*declared as both prognostic and diagnostic.*") setup = CryoGridSetup(strat,grid)
+        @test_logs (:warn,r".*declared as both prognostic/algebraic and diagnostic.*") setup = CryoGridSetup(strat,grid)
         checkfields()
         @test hasproperty(setup.uproto.testground,:x)
         @test hasproperty(setup.uproto.testground,:w)

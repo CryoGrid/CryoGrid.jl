@@ -2,9 +2,9 @@ module CryoGrid
 
 using Base: @propagate_inbounds
 using Lazy: @>>, @>, groupby
+using DataStructures: SortedDict, OrderedDict
 using Interpolations
 using TimeSeries
-using DataStructures: SortedDict, OrderedDict
 using ArraysOfArrays
 using StaticArrays
 using ComponentArrays
