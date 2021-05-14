@@ -1,7 +1,7 @@
 """
-Specialized problem type for CryoGrid ODEProblems.
+Specialized problem type for CryoGrid `ODEProblem`s.
 """
-struct CryoGridProblem end
+struct CryoGridODEProblem end
 
 """
     CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
@@ -29,7 +29,7 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
 	func = odefunction(setup, M, u0, p, tspan; kwargs...)
-	ODEProblem(func,u0,tspan,p,CryoGridProblem(); kwargs...)
+	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); kwargs...)
 end
 # this version converts tspan from DateTime to float
 """
