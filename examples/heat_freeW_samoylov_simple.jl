@@ -13,7 +13,7 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,tspan)
 # solve with Crank-Nicolson (Trapezoid) and construct CryoGridOutput from solution
-out = @time solve(prob, Trapezoid(), abstol=1e-4, reltol=1e-4, saveat=6*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Trapezoid(), abstol=1e-4, reltol=1e-4, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);

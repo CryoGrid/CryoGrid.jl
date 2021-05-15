@@ -18,7 +18,7 @@ p.soil.Tₘ .= 273.15 # K
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,tspan,p)
 # solve with forward Euler (fixed 10 minute timestep) and construct CryoGridOutput from solution
-out = @time solve(prob, Euler(), dt=10*60.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Euler(), dt=10*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
