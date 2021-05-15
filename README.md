@@ -7,11 +7,29 @@ Part of the broader research project: [Quantifying and explaining uncertainty in
 
 Author: Brian Groenke (brian.groenke@awi.de)
 
+### Installation
+
+`CryoGrid.jl` can be installed via the Julia package manager:
+
+```
+add https://gitlab.awi.de/sparcs/cryogrid/cryogridjulia
+```
+
+or equivalently in code/REPL:
+
+```julia
+import Pkg
+Pkg.add(["https://gitlab.awi.de/sparcs/cryogrid/cryogridjulia"])
+```
+
 ### Quick start
 
 Single layer heat conduction model with free water freeze curve and air temperature upper boundary condition:
 
 ```julia
+using CryoGrid
+using Plots
+
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
 forcings = loadforcings(Models.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
