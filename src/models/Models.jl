@@ -7,6 +7,16 @@ using ..CryoGrid
 
 include("presetgrids.jl")
 
+Forcings = (
+    Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044 = CryoGrid.Resource("Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044", "json", "https://nextcloud.awi.de/s/F98s5WEo9xMPod7/download"),
+    Samoylov_ERA_MkL3_CCSM4_long_term = CryoGrid.Resource("Samoylov_ERA_MkL3_CCSM4_long_term", "json", "https://nextcloud.awi.de/s/RSqBtp5sPwkCf45/download"),
+)
+
+Parameters = (
+    # Faroux et al. doi:10.1109/IGARSS.2007.4422971
+    EcoCLimMap_ULC_126_72 = CryoGrid.Resource("EcoCLimMap_ULC_126_72", "json", "https://nextcloud.awi.de/s/nWiJr5pBoqFtw7p/download")
+)
+
 """
     SoilLayerConfig
 
@@ -46,11 +56,11 @@ Builds a simple one-layer soil/heat-conduction model with the given grid and con
 but this can be changed via the `freezecurve` parameter. For example, to use the van Genuchten freeze curve, set `freezecurve=SFCC(VanGenuchten())`.
 """
 function SoilHeat(heatvar, upperbc::BoundaryProcess{Heat}, soilconfig::SoilLayerConfig;
-    grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
+    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
         0.0u"m" => Ground(:soil, Soil{Sand}(soilconfig.soilprofile), Heat{heatvar}(soilconfig.tempprofile, freezecurve=freezecurve)),
-        1000.0u"m" => Bottom(GeothermalHeatFlux(0.05u"J/s/m^2"))
+        1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
     model = CryoGridSetup(strat,grid,chunk_size=chunk_size)
 end

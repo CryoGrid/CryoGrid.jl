@@ -18,7 +18,6 @@ end
     ci = 1.9*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity ice
 end
 
-const SoilProfile{D,Q,T} = Profile{D,5,Q,T} where {D,Q,T}
 function SoilProfile(pairs::Pair{<:DistQuantity,NTuple{5,Float64}}...)
     # order: water+ice (total), liquidWater, mineral, organic, porosity
     @assert begin
@@ -31,11 +30,11 @@ end
 Basic Soil layer with interchangeable type T to allow for specificity in dispatch.
 """
 struct Soil{T} <: SubSurface
-    profile::SoilProfile
+    profile::DimArray{Float64}
     tcparams::SoilTCParams
     hcparams::SoilHCParams
     Soil{T}(profile::P, tcparams::SoilTCParams=SoilTCParams(), hcparams=SoilHCParams()) where
-        {T<:SoilType,P<:SoilProfile} = new{T}(profile,tcparams,hcparams)
+        {T<:SoilType,P<:DimArray{Float64}} = new{T}(profile,tcparams,hcparams)
 end
 
 Base.show(io::IO, soil::Soil{T}) where T = print(io, "Soil{$T}($(soil.tcparams),$(soil.hcparams))")

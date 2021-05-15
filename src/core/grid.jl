@@ -26,8 +26,8 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         # fullgrid = fullgrid |> SVector{N,Q}
         # deltas = deltas |> SVector{N-2,Q}
         # manually specify interleaved axes
-        values = ComponentArray(fullgrid,(CAxis{(edges=1:2:N,cells=2:2:N-1)}(),))
-        deltas = ComponentArray(deltas,(CAxis{(edges=1:2:N-2,cells=2:2:N-3)}(),))
+        values = ComponentArray(fullgrid,(Axis{(edges=1:2:N,cells=2:2:N-1)}(),))
+        deltas = ComponentArray(deltas,(Axis{(edges=1:2:N-2,cells=2:2:N-3)}(),))
         new{Edges,Q,typeof(values),typeof(deltas)}(values,deltas)
     end
     Grid(grid::Grid{S,Q,G,D}, interval::ClosedInterval{Int}) where {S<:GridSpec,Q,G,D} = begin
@@ -35,8 +35,8 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         # create new ComponentArrays with adjusted axes; this should be allocation-free
         let values = getdata(grid.values),
             deltas = getdata(grid.deltas),
-            valaxis = CAxis((edges=start:2:stop,cells=start+1:2:stop-1)),
-            delaxis = CAxis((edges=start:2:stop-2,cells=start+1:2:stop-3)),
+            valaxis = Axis((edges=start:2:stop,cells=start+1:2:stop-1)),
+            delaxis = Axis((edges=start:2:stop-2,cells=start+1:2:stop-3)),
             newvalues = ComponentArray(values,(valaxis,)),
             newdeltas = ComponentArray(deltas,(delaxis,));
             new{S,Q,typeof(newvalues),typeof(newdeltas)}(newvalues,newdeltas)
@@ -48,8 +48,9 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         new{Edges,Q,G,D}(grid.values,grid.deltas)
 end
 
-Base.show(io::IO, grid::Grid{S}) where S = print(io, "Grid{$S}($(grid[1])..$(grid[end]))")
-Base.show(io::IO, mime::MIME{Symbol("text/plain")}, grid::Grid{S}) where S = print(io, "Grid{$S}($(grid[1])..$(grid[end]))")
+Base.show(io::IO, grid::Grid{S}) where S = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid))")
+Base.show(io::IO, mime::MIME{Symbol("text/plain")}, grid::Grid{S}) where S = show(io, grid)
+Base.show(io::IO, ::Type{<:Grid{S,T}}) where {S,T} = print(io, "Grid{$S,$T,...}")
 
 function subgrid(grid::Grid{S,Q}, interval::Interval{L,R,Q}) where {S,L,R,Q}
     l,r = interval.left,interval.right
@@ -76,9 +77,6 @@ edges(grid::Grid{Cells}) = Grid(Edges, grid)
 @inline Base.length(grid::Grid) = length(values(grid))
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
 @propagate_inbounds Base.getindex(grid::Grid{S,Q}, interval::Interval{L,R,Q}) where {S,L,R,Q} = subgrid(grid,interval)
-AxisArrays.axistrait(::Type{<:Grid}) = AxisArrays.Dimensional
-AxisArrays.axisindexes(::Type{AxisArrays.Dimensional}, ax::Grid, idx) =
-    AxisArrays.axisindexes(AxisArrays.Dimensional,values(ax),idx)
 
 regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line()) =
     regrid!(similar(x,length(newgrid)), x, xgrid, newgrid, interp, bc)

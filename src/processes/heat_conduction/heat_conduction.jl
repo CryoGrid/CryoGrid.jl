@@ -1,7 +1,5 @@
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
-# Default implementation of variables
-variables(fc::FreezeCurve) = ()
 export FreeWater, FreezeCurve
 
 @with_kw struct HeatParams{T<:FreezeCurve,S} <: Params
@@ -15,19 +13,17 @@ end
 """
 Alias and constructor for Profile specific to temperature.
 """
-const TempProfile{D,Q,T} = Profile{D,1,Q,T} where {D,Q,T}
-TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) =
-    Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
+TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
 
 struct Heat{U,TParams} <: SubSurfaceProcess
     params::TParams
-    profile::Union{Nothing,TempProfile}
-    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,TempProfile}}
+    profile::Union{Nothing,<:DimArray{UFloat"K"}}
+    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
         @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
         params = HeatParams(;kwargs...)
         new{var,typeof(params)}(params,profile)
     end
-    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,TempProfile}}
+    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
         @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
         @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
         params = HeatParams(;kwargs...)
@@ -141,7 +137,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
-            T = (I_t*(H-Lθ) + I_f*H)/C + 273.15
+            (I_t*(H-Lθ) + I_f*H)/C + 273.15
         end
     end
     @inline function freezethaw(H, L, θtot)
@@ -149,7 +145,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_c = (H > 0.0) && (H <= Lθ);
-            liquidfraction = I_c*(H/Lθ) + I_t
+            I_c*(H/Lθ) + I_t
         end
     end
     L = heat.params.L
@@ -157,10 +153,19 @@ total water content (θw), and liquid water content (θl).
     heatcapacity!(layer, heat, state) # update heat capacity, C
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
 end
+
+# Default implementation of variables
+variables(::Soil, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
     error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
 
 export heatconduction!, boundaryflux
+
+# Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
+# Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
+# Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
+const HeatOnlySetup = CryoGridSetup{<:Stratigraphy{<:Tuple{TTop,Vararg{<:Union{<:StratNode{<:SubSurface, <:Processes{<:Tuple{<:Heat}}},TBot}}}}} where {TTop,TBot}
+JacobianStyle(::Type{<:HeatOnlySetup}) = TridiagJac()
 
 include("soil/soilheat.jl")

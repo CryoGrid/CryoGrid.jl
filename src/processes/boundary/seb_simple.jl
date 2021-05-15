@@ -1,4 +1,4 @@
-@with_kw struct SEBParams{} <: Params
+@with_kw struct SEBParams <: Params
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
     ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
@@ -14,19 +14,18 @@
 
     # material properties (assumed to be constant)
     ρₐ::Float"kg/m^3" = 1.293xu"kg/m^3"             # density of air at standard pressure and 0°C [kg/m^3]
-    cₐ::Float"J/(m^3*K)" = 1005.7xu"J/(kg*K)" * ρₐ     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
+    cₐ::Float"J/(m^3*K)" = 1005.7xu"J/(kg*K)" * ρₐ  # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
 struct SurfaceEnergyBalance{F,TParams} <: BoundaryProcess{Heat}
     forcing::F
     sebparams::TParams
-    function SurfaceEnergyBalance(Tair::TimeSeriesForcing, p::TimeSeriesForcing, q::TimeSeriesForcing,
-                                  wind::TimeSeriesForcing, Lin::TimeSeriesForcing,
-                                  Sin::TimeSeriesForcing, z::Float"m",
+    function SurfaceEnergyBalance(Tair::Forcing, p::Forcing, q::Forcing,
+                                  wind::Forcing, Lin::Forcing,
+                                  Sin::Forcing, z::Float"m",
                                   params::SEBParams=SEBParams())
         forcing = (Tair = Tair, p = p, q = q, wind = wind, Lin = Lin, Sin = Sin, z = z);
-        sebparams = params;
-        new{typeof(forcing),typeof(sebparams)}(forcing, sebparams)
+        new{typeof(forcing),typeof(sebparams)}(forcing, params)
     end
 end
 

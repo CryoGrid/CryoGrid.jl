@@ -1,3 +1,14 @@
+# Convenience constants for units
+const Unit{N,D,A} = Unitful.Units{N,D,A}
+const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
+const DistQuantity{T,U} = Quantity{T,Unitful.𝐋,U} where {T,U<:DistUnit}
+const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
+const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
+const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
+const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TempUnit}
+
+export Unit, DistUnit, DistQuantity, TempUnit, TempQuantity
+
 """
 Similar to Unitful.@u_str (i.e. u"kg") but conditional on debug mode being enabled. Otherwise, no unit is applied.
 This should be used to apply units (and thus dimensional analysis checks) to physical quantities at test time but
@@ -58,32 +69,39 @@ export structiterate
 
 export tuplejoin
 
-const DepthAxis{D,Q} = AxisArrays.Axis{:depth,MVector{D,Q}} where {D,Q}
-const ParamAxis{N} = AxisArrays.Axis{:param,MVector{N,Symbol}}
 """
-    Profile{D,N,Q}
+Convenience macro for setting scalar (single-element) arrays/vectors. It turns an expression of the form:
+    `a.b = ...`
+into
+    `a.b[1] = ...`
 
-where D is the "depth" dimension or number of rows/knots defined, N is the number of parameters per row, and
-Q is the type of each depth D (e.g. a quantity of meters). Profile is ultimately just a type-alias for an AxisArray
-with statically defined rows and columns.
+This is primarily intended for code clarity, i.e to clearly discern scalar and non-scalar values.
 """
-const Profile{D,N,Q,T} = AxisArray{T,2,MMatrix{D,N,T},Tuple{DepthAxis{D,Q},ParamAxis{N}}} where {D,N,Q,T}
+macro setscalar(expr)
+    refexpr = expr.args[1]
+    valexpr = expr.args[2]
+    quote
+        $(esc(refexpr))[1] = $(esc(valexpr))
+    end
+end
+
+getscalar(x::Number) = x
+getscalar(a::AbstractArray) = a[1]
+
+export @setscalar, getscalar
+
 """
     Profile(pairs...;names)
 
 Constructs a Profile from the given pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
-Column names for the resulting AxisArray can be set via the names parameter which accepts an NTuple of symbols,
+Column names for the resulting DimArray can be set via the names parameter which accepts an NTuple of symbols,
 where N must match the number of parameters given (i.e. n).
 """
-function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {N,Q,T}
-    D = length(pairs)
+function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {T,N,Q<:DistQuantity}
     depths, vals = zip(pairs...)
     params = hcat(collect.(vals)...)'
-    sparams = MMatrix{D,N}(params...)
-    sdepths = MVector{D}(depths...)
-    # auto-generate column names if not assigned
-    names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : names
-    Profile{D,N,Q,T}(sparams,(DepthAxis{D,Q}(sdepths),ParamAxis{N}(MVector{N}(names...))))
+    names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : collect(names)
+    DimArray(params, (Z(collect(depths)), Y(names)))
 end
 
 """
@@ -92,13 +110,12 @@ end
 Interpolates the given profile to the corresponding variable grids. Assumes state to be indexable via the corresponding
 variable symbol and that the parameter names in state and profile match.
 """
-function interpolateprofile!(profile::Profile, state; interp=Linear())
-    let (depths,names) = AxisArrays.axes(profile),
+function interpolateprofile!(profile::DimArray, state; interp=Linear())
+    let (depths,names) = dims(profile),
         z = ustrip.(depths);
         for p in names
             # in case state is unit-free, reinterpret to match eltype of profile
             pstate = reinterpret(eltype(profile),state[p])
-            pgrid = state.grids[p]
             f = @> interpolate((z,), profile[:,p], Gridded(interp)) extrapolate(Flat())
             pstate .= f.(state.grids[p])   # assume length(grid) == length(state.p)
         end
@@ -107,45 +124,19 @@ end
 
 export Profile, interpolateprofile!
 
-# Temporary fix for bug in ExprTools (see issue #14)
-# TODO: Remove when fixed in official package.
-function ExprTools.argument_names(m::Method)
-    slot_syms = ExprTools.slot_names(m)
-    arg_names = slot_syms[2:m.nargs]  # nargs includes 1 for self ref
-    return arg_names
-end
-
 """
-    generate_derivative(f, dvar::Symbol)
+    convert_tspan(tspan::Tuple{DateTime,DateTime})
+    convert_tspan(tspan::Tuple{Float64,Float64})
 
-Automatically generates an analytical partial derivative of `f` w.r.t `dvar` using ModelingToolkit/Symbolics.jl.
-To avoid symbolic tracing issues, the function should 1) be pure (no side effects or non-mathematical behavior) and 2) avoid
-indeterminate control flow such as if-else or while blocks (technically should work but sometimes doesn't...). Additional
-argument names are extracted automatically from the method signature of `f`. Keyword arg `choosefn` should be a function
-which selects from available methods of `f` (returned by `methods`); defaults to `first`.
+Convenience method for converting between `Dates.DateTime` and solver time.
 """
-function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=CryoGrid)
-    # Parse function parameter names using ExprTools
-    fms = methods(f)
-    symbol(arg::Symbol) = arg
-    symbol(expr::Expr) = expr.args[1]
-    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
-    @assert dvar in argnames "function must have $dvar as an argument"
-    dind = findfirst(s -> s == dvar, argnames)
-    # Convert to MTK symbols
-    argsyms = map(s -> Num(Sym{Real}(s)), argnames)
-    # Generate analytical derivative of f
-    x = argsyms[dind]
-    ∂x = Differential(x)
-    ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
-    ∇f = @RuntimeGeneratedFunction(∇f_expr)
-end
+convert_tspan(tspan::NTuple{2,DateTime}) = Dates.datetime2epochms.(tspan) ./ 1000.0
+convert_tspan(tspan::NTuple{2,Float64}) = Dates.epochms2datetime.(tspan.*1000.0)
+export convert_tspan
 
-export generate_derivative
-
-# Helper function for handling arguments to freeze curve function, f;
+# Helper function for handling mixed vector/scalar arguments to runtime generated functions.
 # select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
-# we use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
+# We use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
 # function f is then applied to each element
 @generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 
