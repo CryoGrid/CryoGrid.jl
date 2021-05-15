@@ -7,10 +7,10 @@ variables(::Soil, heat::Heat{:H}) = (
     Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
     Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
-    variables(freezecurve(heat))...,
+    variables(soil, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (partitioned enthalpy) on soil layer. """
-variables(::Soil, heat::Heat{(:Hₛ,:Hₗ)}) = (
+variables(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Prognostic(:Hₛ, Float"J", OnGrid(Cells)),
     Prognostic(:Hₗ, Float"J", OnGrid(Cells)),
     Diagnostic(:dH, Float"J", OnGrid(Cells)),
@@ -20,10 +20,10 @@ variables(::Soil, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
     Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
-    variables(freezecurve(heat))...,
+    variables(soil, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (temperature) on soil layer. """
-variables(::Soil, heat::Heat{:T}) = (
+variables(soil::Soil, heat::Heat{:T}) = (
     Prognostic(:T, Float"K", OnGrid(Cells)),
     Diagnostic(:H, Float"J", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
@@ -31,7 +31,7 @@ variables(::Soil, heat::Heat{:T}) = (
     Diagnostic(:Ceff, Float"J/(K*m^3)", OnGrid(Cells)),
     Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
-    variables(freezecurve(heat))...,
+    variables(soil, heat, freezecurve(heat))...,
 )
 
 """ Heat capacity for soil layer """

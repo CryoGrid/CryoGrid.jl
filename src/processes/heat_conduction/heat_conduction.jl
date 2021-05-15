@@ -1,7 +1,5 @@
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
-# Default implementation of variables
-variables(fc::FreezeCurve) = ()
 export FreeWater, FreezeCurve
 
 @with_kw struct HeatParams{T<:FreezeCurve,S} <: Params
@@ -139,7 +137,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
-            T = (I_t*(H-Lθ) + I_f*H)/C + 273.15
+            (I_t*(H-Lθ) + I_f*H)/C + 273.15
         end
     end
     @inline function freezethaw(H, L, θtot)
@@ -147,7 +145,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_c = (H > 0.0) && (H <= Lθ);
-            liquidfraction = I_c*(H/Lθ) + I_t
+            I_c*(H/Lθ) + I_t
         end
     end
     L = heat.params.L
@@ -155,6 +153,9 @@ total water content (θw), and liquid water content (θl).
     heatcapacity!(layer, heat, state) # update heat capacity, C
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
 end
+
+# Default implementation of variables
+variables(::Soil, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
     error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
