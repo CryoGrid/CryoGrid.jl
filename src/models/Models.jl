@@ -88,10 +88,10 @@ function spinup(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, p, tol, layerna
     # transpose and dot with cell size to integrate over grid
     tspan_mean = mean(H_sub' * dz)
     tspan_mean_prev = Inf
-    residual = abs.(tspan_mean - tspan_mean_prev)
+    Δ = abs.(tspan_mean - tspan_mean_prev)
     itercount = 1
-    while residual > tol && itercount <= maxiter
-        @info "[Iteration $itercount] tspan mean: $tspan_mean, residual: $residual"
+    while Δ > tol && itercount <= maxiter
+        @info "[Iteration $itercount] tspan mean: $tspan_mean, Δ: $Δ"
         tspan_mean_prev = tspan_mean
         prob = remake(prob, u0=H[:,end])
         sol = solve(prob, solver, dt=dt, saveat=saveat, solve_args...)
@@ -99,13 +99,13 @@ function spinup(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, p, tol, layerna
         H = out.vars[layername].H
         H_sub = H[1:max_ind,:]
         tspan_mean = mean(H_sub' * dz)
-        residual = abs.(tspan_mean - tspan_mean_prev)
+        Δ = abs.(tspan_mean - tspan_mean_prev)
         itercount += 1
     end
     if residual > tol
-        @warn "Energy state did not converge! Stopping after $maxiter iterations; tspan mean: $tspan_mean, residual: $residual"
+        @warn "Energy state did not converge! Stopping after $maxiter iterations; tspan mean: $tspan_mean, Δ: $Δ"
     else
-        @info "Finished after $itercount iterations; tspan mean: $tspan_mean, residual: $residual"
+        @info "Finished after $itercount iterations; tspan mean: $tspan_mean, Δ: $Δ"
     end
     return sol
 end
