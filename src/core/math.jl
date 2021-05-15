@@ -43,4 +43,30 @@ Differentiable implementation of heaviside step function.
 """
 heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
 
-export ∇,∇²,heaviside
+"""
+    generate_derivative(f, dvar::Symbol)
+
+Automatically generates an analytical partial derivative of `f` w.r.t `dvar` using ModelingToolkit/Symbolics.jl.
+To avoid symbolic tracing issues, the function should 1) be pure (no side effects or non-mathematical behavior) and 2) avoid
+indeterminate control flow such as if-else or while blocks (technically should work but sometimes doesn't...). Additional
+argument names are extracted automatically from the method signature of `f`. Keyword arg `choosefn` should be a function
+which selects from available methods of `f` (returned by `methods`); defaults to `first`.
+"""
+function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=CryoGrid)
+    # Parse function parameter names using ExprTools
+    fms = ExprTools.methods(f)
+    symbol(arg::Symbol) = arg
+    symbol(expr::Expr) = expr.args[1]
+    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
+    @assert dvar in argnames "function must have $dvar as an argument"
+    dind = findfirst(s -> s == dvar, argnames)
+    # Convert to MTK symbols
+    argsyms = map(s -> Num(Sym{Real}(s)), argnames)
+    # Generate analytical derivative of f
+    x = argsyms[dind]
+    ∂x = Differential(x)
+    ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
+    ∇f = @RuntimeGeneratedFunction(∇f_expr)
+end
+
+export ∇, ∇², heaviside, generate_derivative

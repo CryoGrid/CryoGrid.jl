@@ -26,8 +26,8 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         # fullgrid = fullgrid |> SVector{N,Q}
         # deltas = deltas |> SVector{N-2,Q}
         # manually specify interleaved axes
-        values = ComponentArray(fullgrid,(CAxis{(edges=1:2:N,cells=2:2:N-1)}(),))
-        deltas = ComponentArray(deltas,(CAxis{(edges=1:2:N-2,cells=2:2:N-3)}(),))
+        values = ComponentArray(fullgrid,(Axis{(edges=1:2:N,cells=2:2:N-1)}(),))
+        deltas = ComponentArray(deltas,(Axis{(edges=1:2:N-2,cells=2:2:N-3)}(),))
         new{Edges,Q,typeof(values),typeof(deltas)}(values,deltas)
     end
     Grid(grid::Grid{S,Q,G,D}, interval::ClosedInterval{Int}) where {S<:GridSpec,Q,G,D} = begin
@@ -35,8 +35,8 @@ struct Grid{S,Q,G,D} <: AbstractArray{Q,1}
         # create new ComponentArrays with adjusted axes; this should be allocation-free
         let values = getdata(grid.values),
             deltas = getdata(grid.deltas),
-            valaxis = CAxis((edges=start:2:stop,cells=start+1:2:stop-1)),
-            delaxis = CAxis((edges=start:2:stop-2,cells=start+1:2:stop-3)),
+            valaxis = Axis((edges=start:2:stop,cells=start+1:2:stop-1)),
+            delaxis = Axis((edges=start:2:stop-2,cells=start+1:2:stop-3)),
             newvalues = ComponentArray(values,(valaxis,)),
             newdeltas = ComponentArray(deltas,(delaxis,));
             new{S,Q,typeof(newvalues),typeof(newdeltas)}(newvalues,newdeltas)
