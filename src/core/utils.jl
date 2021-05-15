@@ -94,7 +94,7 @@ export @setscalar, getscalar
     Profile(pairs...;names)
 
 Constructs a Profile from the given pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
-Column names for the resulting AxisArray can be set via the names parameter which accepts an NTuple of symbols,
+Column names for the resulting DimArray can be set via the names parameter which accepts an NTuple of symbols,
 where N must match the number of parameters given (i.e. n).
 """
 function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {T,N,Q<:DistQuantity}

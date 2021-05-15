@@ -23,7 +23,7 @@ end
 
 withaxes(u::CryoGridState) = ComponentArray(u.x, u.ax)
 
-# export CryoGridState, withaxes
+export CryoGridState, withaxes
 
 # type piracy to make CryoGridState types less verbose in errors and console output
 Base.show(io::IO, state::Type{<:CryoGridState{T,A,Ax}}) where {T,A,Ax} = print(io, "CryoGridState{$T,$A,$Ax}")

@@ -1,12 +1,13 @@
 module CryoGrid
 
+global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
+
 using Base: @propagate_inbounds
 using Lazy: @>>, @>, groupby
 using DataStructures: SortedDict, OrderedDict
-using Interpolations
+using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
 using TimeSeries
 using ArraysOfArrays
-using StaticArrays
 using ComponentArrays
 using LinearAlgebra
 using IfElse
@@ -40,6 +41,9 @@ include("core/core.jl")
 include("layers/layers.jl")
 include("processes/processes.jl")
 include("models/Models.jl")
+
+const CryoGridModels = Models
+export CryoGridModels
 
 # Mandatory model method stubs
 variables(::Layer) = ()

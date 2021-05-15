@@ -1,5 +1,3 @@
-global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
-
 include("utils.jl")
 include("types.jl")
 include("math.jl")

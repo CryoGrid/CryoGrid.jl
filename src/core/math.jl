@@ -67,6 +67,7 @@ function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=Cryo
     ∂x = Differential(x)
     ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
     ∇f = @RuntimeGeneratedFunction(∇f_expr)
+    return ∇f
 end
 
 export ∇, ∇², heaviside, generate_derivative
