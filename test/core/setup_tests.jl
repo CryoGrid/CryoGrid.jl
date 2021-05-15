@@ -73,17 +73,21 @@ include("../types.jl")
             Diagnostic(:w, Float"kg/m", OnGrid(Edges)),
         )
         @test_throws AssertionError setup = CryoGridSetup(strat,grid)
-        # test scalar variables
+        # test scalar variables and parameters
         CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
             Prognostic(:x, Float"J", OnGrid(Cells)),
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             Diagnostic(:a, Float64, Scalar),
+            Parameter(:p, 1.0)
         )
         setup = CryoGridSetup(strat,grid)
         checkfields()
-        @test hasproperty(setup.cache.testground,:a)
+        @test hasproperty(setup.cache.testground, :a)
         setup.cache.testground.a.cache.du[1] = 2.0
         @test setup.cache.testground.a.cache.du[1] == 2.0
+        state = getstate(:testground, setup, setup.uproto, setup.uproto, setup.pproto, 0.0)
+        @test length(state.p) == 1
+        @test state.p[1] == 1.0
         # clean-up method definitions (necessary for re-running test set)
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))

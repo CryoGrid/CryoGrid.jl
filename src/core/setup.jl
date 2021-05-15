@@ -60,7 +60,16 @@ end
 
 withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
 withaxes(u::ComponentArray, ::CryoGridSetup) = u
-function getstate(integrator::SciMLBase.DEIntegrator, layername::Symbol)
+getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, p::ComponentArray, t) =
+    _buildstate(
+        setup.cache[layername],
+        setup.meta[layername],
+        withaxes(u,setup)[layername],
+        withaxes(du,setup)[layername],
+        p[layername],
+        t
+    )
+function getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
     let setup = integrator.f.f;
         _buildstate(
             setup.cache[layername],
