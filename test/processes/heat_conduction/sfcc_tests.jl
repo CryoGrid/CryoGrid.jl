@@ -23,7 +23,7 @@ testprofile = SoilProfile(
             γ = 0.1
             f = McKenzie()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-            soil = Soil{Sand}(testprofile)
+            soil = Soil(testprofile)
             heat = Heat{:H}(freezecurve=sfcc)
             L = heat.params.L
             @testset "Left tail" begin
@@ -90,7 +90,7 @@ testprofile = SoilProfile(
             δ = 0.1
             f = Westermann()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-            soil = Soil{Sand}(testprofile)
+            soil = Soil(testprofile)
             heat = Heat{:H}(freezecurve=sfcc)
             L = heat.params.L
             @testset "Left tail" begin
@@ -160,7 +160,7 @@ testprofile = SoilProfile(
             Tₘ = 273.15
             f = VanGenuchten()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-            soil = Soil{Sand}(testprofile)
+            soil = Soil(testprofile)
             heat = Heat{:H}(freezecurve=sfcc)
             L = heat.params.L
             @testset "Left tail" begin
@@ -217,7 +217,7 @@ testprofile = SoilProfile(
         γ = 0.1
         f = McKenzie()
         sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-        soil = Soil{Sand}(testprofile)
+        soil = Soil(testprofile)
         heat = Heat{:H}(freezecurve=sfcc)
         L = heat.params.L
         θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
@@ -253,7 +253,7 @@ function benchmarksfcc()
     Tₘ = 273.15
     f = VanGenuchten()
     sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, α₀=1.0, τ=0.75, onfail=:error))
-    soil = Soil{Sand}(testprofile)
+    soil = Soil(testprofile)
     heat = Heat{:H}(freezecurve=sfcc)
     L = heat.params.L
     # set up multi-grid-cell state vars

@@ -36,12 +36,12 @@ variables(soil::Soil, heat::Heat{:T}) = (
 
 """ Heat capacity for soil layer """
 function heatcapacity!(soil::Soil, ::Heat, state)
-    @. state.C = heatcapacity(soil.hcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.C = heatcapacity(soil.params, state.θw, state.θl, state.θm, state.θo)
 end
 
 """ Thermal conductivity for soil layer """
 function thermalconductivity!(soil::Soil, ::Heat, state)
-    @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.kc = thermalconductivity(soil.params, state.θw, state.θl, state.θm, state.θo)
 end
 
 """ Initial condition for heat conduction (all state configurations) on soil layer. """
@@ -53,7 +53,7 @@ function initialcondition!(soil::Soil, heat::Heat, state)
 end
 
 """ Initial condition for heat conduction (all state configurations) on soil layer. """
-function initialcondition!(soil::Soil, heat::Heat{U,<:HeatParams{<:SFCC}}, state) where U
+function initialcondition!(soil::Soil, heat::Heat{U,<:SFCC}, state) where U
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
     sfcc = freezecurve(heat)
@@ -63,7 +63,7 @@ function initialcondition!(soil::Soil, heat::Heat{U,<:HeatParams{<:SFCC}}, state
 end
 
 """ Diagonstic step for heat conduction (all state configurations) on soil layer. """
-function initialcondition!(soil::Soil, heat::Heat{(:Hₛ,:Hₗ),<:HeatParams{<:SFCC}}, state)
+function initialcondition!(soil::Soil, heat::Heat{(:Hₛ,:Hₗ),<:SFCC}, state)
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
     sfcc = freezecurve(heat)
@@ -82,7 +82,7 @@ function diagnosticstep!(soil::Soil, heat::Heat, state)
     fc! = freezecurve(heat);
     fc!(soil,heat,state)
     # Update thermal conductivity
-    @. state.kc = thermalconductivity(soil.tcparams, state.θw, state.θl, state.θm, state.θo)
+    @. state.kc = thermalconductivity(soil.params, state.θw, state.θl, state.θm, state.θo)
     # Interpolate thermal conductivity to boundary grid
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
     # TODO: harmonic mean of thermal conductivities (in MATLAB code)

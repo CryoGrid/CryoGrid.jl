@@ -2,11 +2,11 @@ abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
 export FreeWater, FreezeCurve
 
-@with_kw struct HeatParams{T<:FreezeCurve,S} <: Params
+@with_kw struct HeatParams{F<:FreezeCurve,S} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
-    freezecurve::T = FreeWater() # freeze curve, defautls to free water fc
+    freezecurve::F = FreeWater() # freeze curve, defautls to free water fc
     sp::S = nothing
 end
 
@@ -15,23 +15,23 @@ Alias and constructor for Profile specific to temperature.
 """
 TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
 
-struct Heat{U,TParams} <: SubSurfaceProcess
-    params::TParams
+struct Heat{U,F<:FreezeCurve,S} <: SubSurfaceProcess
+    params::HeatParams{F,S}
     profile::Union{Nothing,<:DimArray{UFloat"K"}}
     function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
         @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
         params = HeatParams(;kwargs...)
-        new{var,typeof(params)}(params,profile)
+        new{var,typeof(params.freezecurve),typeof(params.sp)}(params,profile)
     end
     function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
         @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
         @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
         params = HeatParams(;kwargs...)
-        new{:T,typeof(params)}(params,profile)
+        new{:T,typeof(params.freezecurve),typeof(params.sp)}(params,profile)
     end
 end
 
-Base.show(io::IO, h::Heat{U,P}) where {U,P} = print(io, "Heat{$U,$P}($(h.params))")
+Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
 
 export Heat, HeatParams, TempProfile
 
