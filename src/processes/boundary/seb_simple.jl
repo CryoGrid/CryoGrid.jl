@@ -17,15 +17,15 @@
     cₐ::Float"J/(m^3*K)" = 1005.7xu"J/(kg*K)" * ρₐ  # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-struct SurfaceEnergyBalance{F,TParams} <: BoundaryProcess{Heat}
+struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
     forcing::F
-    sebparams::TParams
+    sebparams::SEBParams
     function SurfaceEnergyBalance(Tair::Forcing, p::Forcing, q::Forcing,
                                   wind::Forcing, Lin::Forcing,
                                   Sin::Forcing, z::Float"m",
                                   params::SEBParams=SEBParams())
         forcing = (Tair = Tair, p = p, q = q, wind = wind, Lin = Lin, Sin = Sin, z = z);
-        new{typeof(forcing),typeof(params)}(forcing, params)
+        new{typeof(forcing)}(forcing, params)
     end
 end
 
