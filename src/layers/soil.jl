@@ -48,7 +48,20 @@ variables(soil::Soil) = (
 )
 
 function initialcondition!(soil::Soil, state)
-    interpolateprofile!(soil.profile, state)
+    let profile = soil.profile,
+        (depths,names) = dims(profile),
+        z = ustrip.(depths);
+        for p in names
+            # in case state is unit-free, reinterpret to match eltype of profile
+            pstate = DimArray(similar(state[p], Union{Missing,eltype(profile)}), (Z(state.grids[p]),))
+            pstate .= missing
+            # assign points where profile is defined
+            knots = @view pstate[Z(Near(z))]
+            knots .= profile[Z(:),Y(p)]
+            # forward fill between points
+            state[p] .= Impute.locf(pstate)
+        end
+    end
 end
 
 function thermalconductivity(params::SoilTCParams, totalWater, liquidWater, mineral, organic)

@@ -91,40 +91,6 @@ getscalar(a::AbstractArray) = a[1]
 export @setscalar, getscalar
 
 """
-    Profile(pairs...;names)
-
-Constructs a Profile from the given pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
-Column names for the resulting DimArray can be set via the names parameter which accepts an NTuple of symbols,
-where N must match the number of parameters given (i.e. n).
-"""
-function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {T,N,Q<:DistQuantity}
-    depths, vals = zip(pairs...)
-    params = hcat(collect.(vals)...)'
-    names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : collect(names)
-    DimArray(params, (Z(collect(depths)), Y(names)))
-end
-
-"""
-    interpolateprofile(profile::Profile, state; interp=Linear())
-
-Interpolates the given profile to the corresponding variable grids. Assumes state to be indexable via the corresponding
-variable symbol and that the parameter names in state and profile match.
-"""
-function interpolateprofile!(profile::DimArray, state; interp=Linear())
-    let (depths,names) = dims(profile),
-        z = ustrip.(depths);
-        for p in names
-            # in case state is unit-free, reinterpret to match eltype of profile
-            pstate = reinterpret(eltype(profile),state[p])
-            f = @> interpolate((z,), profile[:,p], Gridded(interp)) extrapolate(Flat())
-            pstate .= f.(state.grids[p])   # assume length(grid) == length(state.p)
-        end
-    end
-end
-
-export Profile, interpolateprofile!
-
-"""
     convert_tspan(tspan::Tuple{DateTime,DateTime})
     convert_tspan(tspan::Tuple{Float64,Float64})
 

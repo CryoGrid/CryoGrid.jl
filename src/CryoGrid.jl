@@ -14,6 +14,7 @@ using IfElse
 using LoopVectorization
 using RuntimeGeneratedFunctions
 using Reexport
+import Impute
 import ExprTools
 import ForwardDiff
 import ReverseDiff
