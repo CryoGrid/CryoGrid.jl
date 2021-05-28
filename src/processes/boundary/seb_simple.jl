@@ -25,7 +25,7 @@ struct SurfaceEnergyBalance{F,TParams} <: BoundaryProcess{Heat}
                                   Sin::Forcing, z::Float"m",
                                   params::SEBParams=SEBParams())
         forcing = (Tair = Tair, p = p, q = q, wind = wind, Lin = Lin, Sin = Sin, z = z);
-        new{typeof(forcing),typeof(sebparams)}(forcing, params)
+        new{typeof(forcing),typeof(params)}(forcing, params)
     end
 end
 

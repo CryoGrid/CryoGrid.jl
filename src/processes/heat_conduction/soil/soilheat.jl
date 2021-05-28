@@ -1,7 +1,7 @@
 include("sfcc.jl")
 
 """ Variable definitions for heat conduction (enthalpy) on soil layer. """
-variables(::Soil, heat::Heat{:H}) = (
+variables(soil::Soil, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"K", OnGrid(Cells)),
     Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
