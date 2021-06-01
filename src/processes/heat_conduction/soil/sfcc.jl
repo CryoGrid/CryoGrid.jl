@@ -65,7 +65,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
             # It is possible for the integrator to violate physical constraints by integrating
             # Hₗ outside of [0,Lθtot]. Here we clamp the result to physically correct values.
             state.θl[i] = clamp(state.Hₗ[i] / L, 0.0, state.θw[i])
-            state.C[i] = heatcapacity(soil.hcparams, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.C[i] = heatcapacity(soil.params, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
             state.T[i] = state.Hₛ[i] / state.C[i] + 273.15
             f_argsᵢ = CryoGrid.selectat(i, identity, f_args)
             state.dθdT[i] = ∇f(f_argsᵢ)
@@ -80,7 +80,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{:T}, state)
         for i in 1:length(state.T)
             f_argsᵢ = selectat(i, identity, f_args)
             state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil.hcparams, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.C[i] = heatcapacity(soil.params, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
             state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
         end
@@ -207,16 +207,16 @@ convergencefailure(sym::Symbol, i, maxiter, res) = convergencefailure(Val{sym}()
 convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size.")
 convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size."
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
+# Helper function for updating θl, C, and the residual.
+function residual(T, Tref, H, θw, θm, θo, L, soilparams, f, f_args)
+    args = tuplejoin((T,),f_args)
+    θl = f(args...)
+    C = heatcapacity(soilparams, θw, θl, θm, θo)
+    Tres = (T-Tref) - (H - θl*L) / C
+    return Tres, θl, C
+end
 # Newton solver implementation
 function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
-    # Helper function for updating θl, C, and the residual.
-    function residual(T, Tref, H, θw, θm, θo, L, hcparams, f, f_args)
-        args = tuplejoin((T,),f_args)
-        θl = f(args...)
-        C = heatcapacity(hcparams, θw, θl, θm, θo)
-        Tres = (T-Tref) - (H - θl*L) / C
-        return Tres, θl, C
-    end
     # get f arguments; note that this does create some redundancy in the arguments
     # eventually passed to the `residual` function; this is less than ideal but
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
@@ -234,22 +234,22 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
             θm = state.θm[i] |> adstrip, # mineral content
             θo = state.θo[i] |> adstrip, # organic content
             L = heat.params.L, # specific latent heat of fusion
-            cw = soil.hcparams.cw, # heat capacity of liquid water
+            cw = soil.params.hc.cw, # heat capacity of liquid water
             α₀ = s.α₀,
             τ = s.τ,
             f_argsᵢ = selectat(i, adstrip, f_args);
             # compute initial guess T by setting θl according to free water scheme
             T = let Lθ = L*θtot;
                 if H < 0
-                    H / heatcapacity(soil.hcparams,θtot,0.0,θm,θo) + Tref
+                    H / heatcapacity(soil.params,θtot,0.0,θm,θo) + Tref
                 elseif H >= 0 && H < Lθ
                     Tref - (1.0 - H/Lθ)*0.1
                 else
-                    (H - Lθ) / heatcapacity(soil.hcparams,θtot,θtot,θm,θo) + Tref
+                    (H - Lθ) / heatcapacity(soil.params,θtot,θtot,θm,θo) + Tref
                 end
             end
             # compute initial residual
-            Tres, θl, C = residual(T, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+            Tres, θl, C = residual(T, Tref, H, θtot, θm, θo, L, soil.params, f, f_argsᵢ)
             while abs(Tres) > s.tol
                 if itercount > s.maxiter
                     convergencefailure(s.onfail, i, s.maxiter, Tres)
@@ -267,7 +267,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
                 T̂ = T - α*Tres
                 # do first residual check outside of loop;
                 # this way, we don't decrease α unless we have to.
-                T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+                T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.params, f, f_argsᵢ)
                 inneritercount = 0
                 # simple backtracking line search to avoid jumping over the solution
                 while sign(T̂res) != sign(Tres)
@@ -277,7 +277,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
                     end
                     α = α*τ # decrease step size by τ
                     T̂ = T - α*Tres # new guess for T
-                    T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.hcparams, f, f_argsᵢ)
+                    T̂res, θl, C = residual(T̂, Tref, H, θtot, θm, θo, L, soil.params, f, f_argsᵢ)
                     inneritercount += 1
                 end
                 T = T̂ # update T
@@ -295,7 +295,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
             end
             let θl = state.θl[i],
                 H = state.H[i];
-                state.C[i] = heatcapacity(soil.hcparams,θtot,θl,θm,θo)
+                state.C[i] = heatcapacity(soil.params,θtot,θl,θm,θo)
                 state.T[i] = (H - L*θl) / state.C[i] + Tref
             end
         end

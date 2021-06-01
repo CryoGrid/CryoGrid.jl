@@ -125,6 +125,20 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::B, ssub, sbot) 
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
     return nothing # ensure no allocation
 end
+"""
+Generic subsurface interaction. Computes flux dH at boundary between subsurface layers.
+"""
+function interact!(::SubSurface, ::Heat, ::SubSurface, ::Heat, s1, s2)
+    # calculate heat flux between cells
+    Qᵢ = @inbounds let k = (2*s1.k[end]*s2.k[1]) / (s1.k[end] + s2.k[1]), # harmonic mean of thermal conductivities
+        δ = s2.grids.T[1] - s1.grids.T[end];
+        k*(s2.T[1] - s1.T[end]) / δ
+    end
+    # add fluxes scaled by grid cell size
+    @inbounds s1.dH[end] += Qᵢ / Δ(s1.grids.k)[end]
+    @inbounds s2.dH[1] += -Qᵢ / Δ(s2.grids.k)[1]
+    return nothing # ensure no allocation
+end
 # Free water freeze curve
 """
 Implementation of "free water" freeze curve for any subsurface layer. Assumes that
