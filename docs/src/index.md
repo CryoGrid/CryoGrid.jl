@@ -5,8 +5,6 @@ package ecosystem.
 
 Part of the broader research project: [Quantifying and explaining uncertainty in permafrost modeling under a warming climate](https://drive.google.com/file/d/1wB_EXtlO_PMXFSzZ-bRV8cg0a0DGDtAB/view?usp=sharing)
 
-Author: Brian Groenke (brian.groenke@awi.de)
-
 ### Installation
 
 `CryoGrid.jl` can be installed via the Julia package manager:
@@ -48,7 +46,7 @@ zs = [1.0,5,10,20,30,50,100,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 ```
-![Ts_output_freew](res/Ts_H_tair_freeW_2010-2011.png)
+![Ts_output_freew](../../res/Ts_H_tair_freeW_2010-2011.png)
 
 Alternatively, we can use a van Genuchten freeze curve:
 
@@ -66,7 +64,7 @@ prob = CryoGridProblem(model,tspan,p)
 out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
 plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 ```
-![Ts_output_vgfc](res/Ts_H_tair_vg_2010-2011.png)
+![Ts_output_vgfc](../../res/Ts_H_tair_vg_2010-2011.png)
 
 Note that `SoilHeat` uses energy as the state variable by default. To use temperature as the state variable instead:
 

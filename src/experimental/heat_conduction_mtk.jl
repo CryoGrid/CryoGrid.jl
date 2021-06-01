@@ -14,8 +14,8 @@ ivars = @parameters t z L θtot θm θo
 dvars = @variables T(..) H(..) Hs(..) Hl(..) θ(..) C(..) k(..)
 Dz = Differential(z)
 Dt = Differential(t)
-heatcap(θ,θtot,θm,θo) = heatcapacity(SoilHCParams(), θtot, θ, θm, θo)
-thermalcond(θ,θtot,θm,θo) = thermalconductivity(SoilTCParams(), θtot, θ, θm, θo)
+heatcap(θ,θtot,θm,θo) = heatcapacity(SoilParams(), θtot, θ, θm, θo)
+thermalcond(θ,θtot,θm,θo) = thermalconductivity(SoilParams(), θtot, θ, θm, θo)
 # free water freeze curve
 dθdT(T,L,θtot) = IfElse.ifelse(T >= 0.0, IfElse.ifelse(T <= L*θtot, 1e8, 0.0), 0.0)
 @register heatcap(θ,θtot,θm,θo)

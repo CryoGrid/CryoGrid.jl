@@ -1,8 +1,19 @@
+"""
+Represents the general type of the soil. Sand, Silt, and Clay are provided by default.
+"""
 abstract type SoilType end
 struct Sand <: SoilType end
 struct Silt <: SoilType end
 struct Clay <: SoilType end
-
+"""
+Represents the composition type, homogenous or heterogeneous.
+"""
+abstract type SoilComposition end
+struct Homogeneous <: SoilComposition end
+struct Heterogeneous <: SoilComposition end
+"""
+Thermal conductivity constants.
+"""
 @with_kw struct SoilTCParams <: Params @deftype Float"W/(m*K)"
     kw = 0.57xu"W/(m*K)" #water [Hillel(1982)]
     ko = 0.25xu"W/(m*K)" #organic [Hillel(1982)]
@@ -10,12 +21,24 @@ struct Clay <: SoilType end
     ka = 0.025xu"W/(m*K)" #air [Hillel(1982)]
     ki = 2.2xu"W/(m*K)" #ice [Hillel(1982)]
 end
+"""
+Heat capacity constants.
+"""
 @with_kw struct SoilHCParams <: Params @deftype Float"J/(K*m^3)"
     cw = 4.2*10^6xu"J/(K*m^3)" #[J/m^3K] heat capacity water
     co = 2.5*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity organic
     cm = 2*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity mineral
     ca = 0.00125*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity pore space
     ci = 1.9*10^6xu"J/(K*m^3)" #[J/m^3K]  heat capacity ice
+end
+"""
+Parameter type for Soil layers, includes thermal conductivity and heat capacity
+constants as well as type/composition.
+"""
+@with_kw struct SoilParams{TType<:SoilType} <: Params
+    tc::SoilTCParams = SoilTCParams()
+    hc::SoilHCParams = SoilHCParams()
+    type::TType = Sand()
 end
 
 function SoilProfile(pairs::Pair{<:DistQuantity,NTuple{5,Float64}}...)
@@ -27,19 +50,30 @@ function SoilProfile(pairs::Pair{<:DistQuantity,NTuple{5,Float64}}...)
 end
 
 """
-Basic Soil layer with interchangeable type T to allow for specificity in dispatch.
+Basic Soil layer.
 """
-struct Soil{T} <: SubSurface
-    profile::DimArray{Float64}
-    tcparams::SoilTCParams
-    hcparams::SoilHCParams
-    Soil{T}(profile::P, tcparams::SoilTCParams=SoilTCParams(), hcparams=SoilHCParams()) where
-        {T<:SoilType,P<:DimArray{Float64}} = new{T}(profile,tcparams,hcparams)
+struct Soil{TType<:SoilType,TComp<:SoilComposition} <: SubSurface
+    profile::DimArray
+    params::SoilParams{TType}
+    function Soil(profile::DimArray; kwargs...)
+        params = SoilParams(kwargs...)
+        shape = size(profile)
+        TComp = length(shape) == 1 || shape[1] == 1 ? Homogeneous : Heterogeneous
+        if TComp == Homogeneous && length(shape) > 1
+            # select depth axis
+            profile = profile[Z(1)]
+        end
+        new{typeof(params.type),TComp}(profile, params)
+    end
 end
 
-Base.show(io::IO, soil::Soil{T}) where T = print(io, "Soil{$T}($(soil.tcparams),$(soil.hcparams))")
+export Soil, SoilProfile, SoilParams
+export SoilType, Sand, Silt, Clay
+export SoilComposition, Homogeneous, Heterogeneous
 
-variables(soil::Soil) = (
+Base.show(io::IO, soil::Soil{T}) where T = print(io, "Soil($(soil.params))")
+
+variables(::Soil{T,<:Heterogeneous}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
     Diagnostic(:θl, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
@@ -47,12 +81,50 @@ variables(soil::Soil) = (
     Diagnostic(:θp, Float64, OnGrid(Cells))
 )
 
-function initialcondition!(soil::Soil, state)
-    interpolateprofile!(soil.profile, state)
+variables(soil::Soil{T,<:Homogeneous}) where T = (
+    Diagnostic(:θw, Float64, OnGrid(Cells)),
+    Diagnostic(:θl, Float64, OnGrid(Cells)),
+    Diagnostic(:θm, Float64, OnGrid(Cells)),
+    Diagnostic(:θo, Float64, OnGrid(Cells)),
+    Diagnostic(:θp, Float64, OnGrid(Cells)),
+    Parameter(:θwᵢ, soil.profile[Y(:θw)]),
+    Parameter(:θmᵢ, soil.profile[Y(:θm)]),
+    Parameter(:θoᵢ, soil.profile[Y(:θo)]),
+    Parameter(:θpᵢ, soil.profile[Y(:θp)])
+)
+
+function initialcondition!(soil::Soil{T,<:Heterogeneous}, state) where T
+    let profile = soil.profile,
+        (depths,names) = dims(profile),
+        z = ustrip.(depths);
+        for p in names
+            # in case state is unit-free, reinterpret to match eltype of profile
+            pstate = DimArray(similar(state[p], Union{Missing,eltype(profile)}), (Z(state.grids[p]),))
+            pstate .= missing
+            # assign points where profile is defined
+            knots = @view pstate[Z(Near(z))]
+            knots .= profile[Z(:),Y(p)]
+            # forward fill between points
+            state[p] .= Impute.locf(pstate)
+        end
+    end
 end
 
-function thermalconductivity(params::SoilTCParams, totalWater, liquidWater, mineral, organic)
-    @unpack kw, ko, km, ka, ki = params
+function initialcondition!(soil::Soil{T,<:Homogeneous}, state) where T
+    let profile = soil.profile,
+        (names,) = dims(profile);
+        for p in names
+            if p == :θl
+                state[p] .= profile[Y(:θl)]
+            else
+                state[p] .= state[Symbol(p,:ᵢ)]
+            end
+        end
+    end
+end
+
+function thermalconductivity(params::SoilParams, totalWater, liquidWater, mineral, organic)
+    @unpack kw,ko,km,ka,ki = params.tc
     let air = 1.0 - totalWater - mineral - organic,
         ice = totalWater - liquidWater,
         water = liquidWater;
@@ -60,8 +132,8 @@ function thermalconductivity(params::SoilTCParams, totalWater, liquidWater, mine
     end
 end
 
-function heatcapacity(params::SoilHCParams, totalWater, liquidWater, mineral, organic)
-    @unpack cw, co, cm, ca, ci = params
+function heatcapacity(params::SoilParams, totalWater, liquidWater, mineral, organic)
+    @unpack cw,co,cm,ca,ci = params.hc
     let air = 1.0 - totalWater - mineral - organic,
         ice = totalWater - liquidWater,
         water = liquidWater;
@@ -69,6 +141,4 @@ function heatcapacity(params::SoilHCParams, totalWater, liquidWater, mineral, or
     end
 end
 
-export Soil, SoilProfile, SoilTCParams, SoilHCParams
-export SoilType, Sand, Silt, Clay
-export thermalconductivity, heatcapacity, initialcondition!, variables
+export thermalconductivity, heatcapacity

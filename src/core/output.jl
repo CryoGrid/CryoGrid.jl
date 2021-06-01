@@ -23,9 +23,9 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
     log = get_log(sol, ts)
     ts_datetime = Dates.epochms2datetime.(ts*1000.0)
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
-    withdims(var::Var{name,T,OnGrid{Edges}}, arr) where {name,T} = DimArray(arr, (Z((setup.grid)u"m"),Ti(ts_datetime)))
-    withdims(var::Var{name,T,OnGrid{Cells}}, arr) where {name,T} = DimArray(arr, (Z(cells(setup.grid)u"m"),Ti(ts_datetime)))
-    withdims(var::Var, arr) = DimArray(nestedview(arr), (Ti(ts_datetime),))
+    withdims(var::Var{name,T,OnGrid{Edges}}, arr, i) where {name,T} = DimArray(arr, (Z(setup.meta[i].grids[varname(var)]u"m"),Ti(ts_datetime)))
+    withdims(var::Var{name,T,OnGrid{Cells}}, arr, i) where {name,T} = DimArray(arr, (Z(setup.meta[i].grids[varname(var)]u"m"),Ti(ts_datetime)))
+    withdims(var::Var, arr, i) = DimArray(nestedview(arr), (Ti(ts_datetime),))
     layerstates = NamedTuple()
     for (i,node) in enumerate(setup.strat.nodes)
         name = nodename(node) 
@@ -35,7 +35,7 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
         # build nested arrays w/ flattened views of each variable's state trajectory
         for var in prog_vars
             arr = ArrayOfSimilarArrays([withaxes(sol(t), setup)[name][varname(var)] for t in ts]) |> flatview
-            vararrays[var] = withdims(var, arr)
+            vararrays[var] = withdims(var, arr, i)
         end
         for var in diag_vars
             var_log = log[varname(var)]
@@ -44,9 +44,11 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
             # NOTE: This will break if the user defines the same variable name with @log, because
             # we are assuming that the index matches the layer's index in the stratigraphy.
             # A better solution would be: https://github.com/jonniedie/SimulationLogs.jl/issues/7
-            var_states = length(size(var_log)) > 1 ? var_log[i,:] : var_log
+            occurrences = [varname(var) ∈ keys(layerstates[layer]) for layer in keys(layerstates)]
+            n = sum([1,occurrences...])
+            var_states = length(size(var_log)) > 1 ? var_log[:,n] : var_log
             arr = ArrayOfSimilarArrays(var_states) |> flatview
-            vararrays[var] = withdims(var, arr)
+            vararrays[var] = withdims(var, arr, i)
         end
         # construct named tuple and merge with named tuple from previous layers
         varnames = map(var -> varname(var), keys(vararrays) |> Tuple)
@@ -64,6 +66,8 @@ function Base.show(io::IO, out::CryoGridOutput)
     for (name,vars) in zip(keys(vars),values(vars))
         if length(vars) > 0
             println(io, "  $name: $(tuple(keys(vars)...))")
+        else
+            println(io, "  $name: none")
         end
     end
 end
