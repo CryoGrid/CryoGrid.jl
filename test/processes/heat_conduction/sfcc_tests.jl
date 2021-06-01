@@ -31,10 +31,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
                 θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,γ,θw,θp)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=γ)
@@ -46,10 +46,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
                 θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.-1.0,
                     θl = f.(T,γ,θw,θp)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=γ)
@@ -61,10 +61,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
                 θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,γ,θw,θp)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=γ)
@@ -98,10 +98,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
                 θl = f.(T,δ,θw) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,δ,θw)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,δ=δ)
@@ -113,10 +113,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
                 θl = f.(T,δ,θw) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.-1,
                     θl = f.(T,δ,θw)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,δ=δ)
@@ -128,10 +128,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
                 θl = f.(T,δ,θw) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,δ,θw)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,δ=δ)
@@ -168,10 +168,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
                 θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,α,n,Tₘ,θw,θp,L)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
@@ -183,10 +183,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
                 θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.-1.0,
                     θl = f.(T,α,n,Tₘ,θw,θp,L)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
@@ -198,10 +198,10 @@ testprofile = SoilProfile(
                 θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
                 θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+                C = heatcapacity.(soil.params,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,α,n,Tₘ,θw,θp,L)
-                    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
@@ -223,7 +223,7 @@ testprofile = SoilProfile(
         θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
         T = [-0.1 + 273.15] # convert to K
         θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
-        C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+        C = heatcapacity.(soil.params,θw,θl,θm,θo)
         H = enthalpy.(T.+0.09,C,L,θl) # compute enthalpy at +1 degree
         # test gradients
         p = ComponentArray(γ=γ)
@@ -260,10 +260,10 @@ function benchmarksfcc()
     T = [-15.0 + 273.15 for i in 1:10] # convert to K
     θw,θl,θm,θo,θp = map(x -> x*ones(length(T)), testprofile[1,:]) # convert to arrays
     θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
-    C = heatcapacity.(soil.hcparams,θw,θl,θm,θo)
+    C = heatcapacity.(soil.params,θw,θl,θm,θo)
     H = let T = T.+14.999,
             θl = f.(T,α,n,Tₘ,θw,θp,L)
-            C = heatcapacity.(soil.hcparams,θw,θl,θm,θo);
+            C = heatcapacity.(soil.params,θw,θl,θm,θo);
         enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
     end
     state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
