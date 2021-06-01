@@ -56,7 +56,7 @@ struct Soil{TType<:SoilType,TComp<:SoilComposition} <: SubSurface
     profile::DimArray
     params::SoilParams{TType}
     function Soil(profile::DimArray; kwargs...)
-        params = SoilParams(kwargs...)
+        params = SoilParams(;kwargs...)
         shape = size(profile)
         TComp = length(shape) == 1 || shape[1] == 1 ? Homogeneous : Heterogeneous
         if TComp == Homogeneous && length(shape) > 1
