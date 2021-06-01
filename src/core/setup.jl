@@ -67,7 +67,8 @@ getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::Abstract
         withaxes(u,setup)[layername],
         withaxes(du,setup)[layername],
         p[layername],
-        t
+        t,
+        setup.strat.boundaries[findfirst(n -> nodename(n) == layername, setup.strat.nodes)]
     )
 function getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
     let setup = integrator.f.f;
@@ -77,7 +78,8 @@ function getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
             withaxes(integrator.u,setup)[layername],
             withaxes(get_du(integrator),setup)[layername],
             integrator.p[layername],
-            integrator.t
+            integrator.t,
+            setup.strat.boundaries[findfirst(n -> nodename(n) == layername, setup.strat.nodes)]
         )
     end
 end
@@ -110,11 +112,13 @@ is only executed during compilation and will not appear in the compiled version.
     # Initialize variables for all layers
     for i in 1:N
         n = nodename(nodetyps[i])
+        nz = Symbol(n,:_z)
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
         @>> quote
-        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, p.$n, t)
+        $nz = strat.boundaries[$i]
+        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, p.$n, t, $nz)
         $nlayer = strat.nodes[$i].layer
         $nprocess = strat.nodes[$i].process
         end push!(expr.args)
@@ -196,11 +200,13 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     # Iterate over layers
     for i in 1:N
         n = nodename(nodetyps[i])
+        nz = Symbol(n,:_z)
         # create variable names
         nstate, nlayer, nprocess = Symbol(n,:state), Symbol(n,:layer), Symbol(n,:process)
         # generated code for layer updates
         @>> quote
-        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, p.$n, tspan[1])
+        $nz = strat.boundaries[$i]
+        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, p.$n, tspan[1], $nz)
         $nlayer = strat.nodes[$i].layer
         $nprocess = strat.nodes[$i].process
         initialcondition!($nlayer,$nstate)
@@ -216,7 +222,7 @@ end
 """
 Generates a function from layer cache and metadata which constructs a type-stable NamedTuple of state variables at runtime.
 """
-@inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, params, t) where {names,types,M<:NamedTuple{names,types}}
+@inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, params, t, z) where {names,types,M<:NamedTuple{names,types}}
     # extract variables types from M; we assume the first two parameters in the NamedTuple
     # are the prognostic and diagnostic variable names respeictively. This must be respected by _buildlayer.
     # note that types.parameters[1] is Tuple{Var,...} so we call parameters again to get (Var,...)
@@ -242,7 +248,7 @@ Generates a function from layer cache and metadata which constructs a type-stabl
     # QuoteNode is used to force names to be interpolated as symbols rather than literals.
     quote
     NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),
-        $(map(QuoteNode,paramnames)...),:grids,:t)}(tuple($(pacc...),$(dpacc...),$(dacc...),$(paramacc...),meta.grids,t))
+        $(map(QuoteNode,paramnames)...),:grids,:t,:z)}(tuple($(pacc...),$(dpacc...),$(dacc...),$(paramacc...),meta.grids,t,z))
     end
 end
 

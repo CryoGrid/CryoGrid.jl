@@ -57,7 +57,12 @@ struct Soil{TType<:SoilType,TComp<:SoilComposition} <: SubSurface
     params::SoilParams{TType}
     function Soil(profile::DimArray; kwargs...)
         params = SoilParams(kwargs...)
-        TComp = size(profile,1) > 1 ? Heterogeneous : Homogeneous
+        shape = size(profile)
+        TComp = length(shape) == 1 || shape[1] == 1 ? Homogeneous : Heterogeneous
+        if TComp == Homogeneous && length(shape) > 1
+            # select depth axis
+            profile = profile[Z(1)]
+        end
         new{typeof(params.type),TComp}(profile, params)
     end
 end
@@ -78,14 +83,14 @@ variables(::Soil{T,<:Heterogeneous}) where T = (
 
 variables(soil::Soil{T,<:Homogeneous}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
-    Parameter(:θwᵢ, soil.profile[Z(1),Y(:θw)]),
     Diagnostic(:θl, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
-    Parameter(:θmᵢ, soil.profile[Z(1),Y(:θm)]),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
-    Parameter(:θoᵢ, soil.profile[Z(1),Y(:θo)]),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
-    Parameter(:θpᵢ, soil.profile[Z(1),Y(:θp)])
+    Parameter(:θwᵢ, soil.profile[Y(:θw)]),
+    Parameter(:θmᵢ, soil.profile[Y(:θm)]),
+    Parameter(:θoᵢ, soil.profile[Y(:θo)]),
+    Parameter(:θpᵢ, soil.profile[Y(:θp)])
 )
 
 function initialcondition!(soil::Soil{T,<:Heterogeneous}, state) where T
@@ -107,10 +112,10 @@ end
 
 function initialcondition!(soil::Soil{T,<:Homogeneous}, state) where T
     let profile = soil.profile,
-        (_,names) = dims(profile);
+        (names,) = dims(profile);
         for p in names
             if p == :θl
-                state[p] .= profile[Z(1),Y(:θl)]
+                state[p] .= profile[Y(:θl)]
             else
                 state[p] .= state[Symbol(p,:ᵢ)]
             end
