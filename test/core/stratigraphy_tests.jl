@@ -85,4 +85,19 @@ include("../types.jl")
         bounds[1] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
         bounds[2] => Bottom(TestBoundary())
     )
+    # Check that out-of-order bounds throw an error
+    @test_throws AssertionError Stratigraphy(
+        bounds[2] => Top(TestBoundary()), (
+            bounds[3] => Ground(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
+            bounds[1] => Ground(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
+        ),
+        bounds[4] => Bottom(TestBoundary())
+    )
+    # Check that duplicated boundaries are allowed
+    bounds = (0.0u"m",0.0u"m",10.0u"m")
+    @test_nowarn strat = Stratigraphy(
+        bounds[1] => Top(TestBoundary()),
+        bounds[2] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
+        bounds[3] => Bottom(TestBoundary())
+    )
 end

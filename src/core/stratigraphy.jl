@@ -32,9 +32,9 @@ struct Stratigraphy{TNodes,TBounds}
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         names = @>> sub map(last) map(nodename)
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
-        dict = SortedDict(top, sub..., bot)
-        boundaries = tuple(keys(dict)...)
-        nodes = tuple(values(dict)...)
+        boundaries = Tuple(map(first, (top, sub..., bot)))
+        @assert issorted(boundaries) "Node boundary locations must be in strictly increasing order."
+        nodes = Tuple(map(last, (top, sub..., bot)))
         new{typeof(nodes),typeof(boundaries)}(boundaries,nodes)
     end
 end
