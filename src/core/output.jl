@@ -38,16 +38,9 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
             vararrays[var] = withdims(var, arr, i)
         end
         for var in diag_vars
-            var_log = log[varname(var)]
-            # Here we handle the case where the same variable is declared in multiple layers;
-            # SimulationLogs returns a matrix where the first axis is each @log call;
-            # NOTE: This will break if the user defines the same variable name with @log, because
-            # we are assuming that the index matches the layer's index in the stratigraphy.
-            # A better solution would be: https://github.com/jonniedie/SimulationLogs.jl/issues/7
-            occurrences = [varname(var) ∈ keys(layerstates[layer]) for layer in keys(layerstates)]
-            n = sum([1,occurrences...])
-            var_states = length(size(var_log)) > 1 ? var_log[:,n] : var_log
-            arr = ArrayOfSimilarArrays(var_states) |> flatview
+            varname_log = Symbol(name,:_,varname(var))
+            var_log = log[varname_log]
+            arr = ArrayOfSimilarArrays(var_log) |> flatview
             vararrays[var] = withdims(var, arr, i)
         end
         # construct named tuple and merge with named tuple from previous layers
