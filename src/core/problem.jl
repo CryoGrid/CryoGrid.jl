@@ -18,11 +18,12 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     for layer in keys(setup.meta)
         progvars = setup.meta[layer][:progvars]
         algvars = setup.meta[layer][:algvars]
+        M_diag_layer = @view M_diag[layer]
         for var in progvars
-            M_diag[layer][varname(var)] .= one(eltype(M_diag))
+            M_diag_layer[varname(var)] .= one(eltype(M_diag))
         end
         for var in algvars
-            M_diag[layer][varname(var)] .= zero(eltype(M_diag))
+            M_diag_layer[varname(var)] .= zero(eltype(M_diag))
         end
     end
     # if no algebraic variables are present, use identity matrix

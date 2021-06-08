@@ -169,8 +169,9 @@ is only executed during compilation and will not appear in the compiled version.
         # iterate over each variable, extract variable name, and log it with SimulationLogs
         for var in vartyps
             nv = varname(var)
+            identifier = Symbol(n,:_,nv)
             @>> quote
-            @log $nv copy($nstate.$nv)
+            @log $identifier copy($nstate.$nv)
             end push!(expr.args)
         end
     end
