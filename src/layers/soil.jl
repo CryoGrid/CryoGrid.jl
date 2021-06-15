@@ -15,10 +15,10 @@ struct ByXicePorSat <: SoilParameterization end
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
 """
 @with_kw struct SoilProperties <: Params @deftype Float64
-    χ; @assert ϕ >= 0.0 && ϕ <= 1.0 # excess ice fraction
-    ϕ; @assert θ >= 0.0 && θ <= 1.0 # natural porosity
-    θ; @assert ω >= 0.0 && ω <= 1.0 # saturation
-    ω; @assert χ >= 0.0 && χ <= 1.0 # organic fraction of solid; mineral fraction is 1-ω
+    χ; @assert ϕ >= 0.0 && ϕ <= 1.0 # natural porosity
+    ϕ; @assert θ >= 0.0 && θ <= 1.0 # saturation
+    θ; @assert ω >= 0.0 && ω <= 1.0 # organic fraction of solid; mineral fraction is 1-ω
+    ω; @assert χ >= 0.0 && χ <= 1.0 # excess ice fraction
 end
 """
 Thermal conductivity constants.
