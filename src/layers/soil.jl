@@ -6,11 +6,20 @@ struct Sand <: SoilType end
 struct Silt <: SoilType end
 struct Clay <: SoilType end
 """
-Represents the composition type, homogenous or heterogeneous.
+Base type for soil parameterizations.
 """
-abstract type SoilComposition end
-struct Homogeneous <: SoilComposition end
-struct Heterogeneous <: SoilComposition end
+abstract type SoilParameterization end
+struct ByComposition <: SoilParameterization end
+struct ByXicePorSat <: SoilParameterization end
+"""
+Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
+"""
+@with_kw struct SoilProperties <: Params @deftype Float64
+    χ; @assert ϕ >= 0.0 && ϕ <= 1.0 # excess ice fraction
+    ϕ; @assert θ >= 0.0 && θ <= 1.0 # natural porosity
+    θ; @assert ω >= 0.0 && ω <= 1.0 # saturation
+    ω; @assert χ >= 0.0 && χ <= 1.0 # organic fraction of solid; mineral fraction is 1-ω
+end
 """
 Thermal conductivity constants.
 """
@@ -35,92 +44,92 @@ end
 Parameter type for Soil layers, includes thermal conductivity and heat capacity
 constants as well as type/composition.
 """
-@with_kw struct SoilParams{TType<:SoilType} <: Params
+@with_kw struct SoilParams{TType<:SoilType,S} <: Params
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     type::TType = Sand()
+    sp::S = nothing # user-defined specialization
 end
-
-function SoilProfile(pairs::Pair{<:DistQuantity,NTuple{5,Float64}}...)
-    # order: water+ice (total), liquidWater, mineral, organic, porosity
-    @assert begin
-        all([(p[2][1] + p[2][3] + p[2][4] ≈ 1.0) || (p[2][5] + p[2][3] + p[2][4] ≈ 1.0) for p in pairs])
-    end "either (waterIce + mineral + organic == 1.0) or (porosity + mineral + organic == 1.0) must hold"
-    Profile(pairs...;names=(:θw,:θl,:θm,:θo,:θp))
-end
-
 """
 Basic Soil layer.
 """
-struct Soil{TType<:SoilType,TComp<:SoilComposition} <: SubSurface
+struct Soil{TType,TPara,S} <: SubSurface
     profile::DimArray
-    params::SoilParams{TType}
-    function Soil(profile::DimArray; kwargs...)
+    params::SoilParams{TType,S}
+    function Soil(profile::DimArray, ::TPara=Nonparametric(); kwargs...) where {P<:SoilParameterization,TPara<:Union{Nonparametric,Parametric{P}}}
         params = SoilParams(;kwargs...)
-        shape = size(profile)
-        TComp = length(shape) == 1 || shape[1] == 1 ? Homogeneous : Heterogeneous
-        if TComp == Homogeneous && length(shape) > 1
-            # select depth axis
-            profile = profile[Z(1)]
-        end
-        new{typeof(params.type),TComp}(profile, params)
+        new{typeof(params.type),TPara,typeof(params.sp)}(profile, params)
     end
 end
 
-export Soil, SoilProfile, SoilParams
-export SoilType, Sand, Silt, Clay
-export SoilComposition, Homogeneous, Heterogeneous
+"""
+Alias/constructor for soil profile.
+"""
+function SoilProfile(vals::Pair{<:DistQuantity,SoilProperties}...)
+    points = [d => tuple(props...) for (d,props) in vals]
+    Profile(points...;names=fieldnames(SoilProperties))
+end
 
-Base.show(io::IO, soil::Soil{T}) where T = print(io, "Soil($(soil.params))")
+export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, ByComposition, ByXicePorSat
 
-variables(::Soil{T,<:Heterogeneous}) where T = (
+# Helper functions for obtaining soil component fractions from soil properties.
+soilcomp(::Val{:θx}, χ, ϕ, θ, ω) = χ
+soilcomp(::Val{:θp}, χ, ϕ, θ, ω) = @. (1-χ)*ϕ*θ
+soilcomp(::Val{:θm}, χ, ϕ, θ, ω) = @. (1-χ)*(1-ϕ)*(1-ω)
+soilcomp(::Val{:θo}, χ, ϕ, θ, ω) = @. (1-χ)*(1-ϕ)*ω
+
+Base.show(io::IO, soil::Soil{T,P}) where {T,P} = print(io, "Soil{$T,$P}($(soil.params))")
+
+variables(::Soil{T,Nonparametric}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
-    Diagnostic(:θl, Float64, OnGrid(Cells)),
-    Diagnostic(:θm, Float64, OnGrid(Cells)),
-    Diagnostic(:θo, Float64, OnGrid(Cells)),
-    Diagnostic(:θp, Float64, OnGrid(Cells))
-)
-
-variables(soil::Soil{T,<:Homogeneous}) where T = (
-    Diagnostic(:θw, Float64, OnGrid(Cells)),
-    Diagnostic(:θl, Float64, OnGrid(Cells)),
-    Diagnostic(:θm, Float64, OnGrid(Cells)),
-    Diagnostic(:θo, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
-    Parameter(:θwᵢ, soil.profile[Y(:θw)]),
-    Parameter(:θmᵢ, soil.profile[Y(:θm)]),
-    Parameter(:θoᵢ, soil.profile[Y(:θo)]),
-    Parameter(:θpᵢ, soil.profile[Y(:θp)])
+    Diagnostic(:θx, Float64, OnGrid(Cells)),
+    Diagnostic(:θl, Float64, OnGrid(Cells)),
+    Diagnostic(:θm, Float64, OnGrid(Cells)),
+    Diagnostic(:θo, Float64, OnGrid(Cells)),
 )
 
-function initialcondition!(soil::Soil{T,<:Heterogeneous}, state) where T
-    let profile = soil.profile,
-        (depths,names) = dims(profile),
-        z = ustrip.(depths);
-        for p in names
-            # in case state is unit-free, reinterpret to match eltype of profile
-            pstate = DimArray(similar(state[p], Union{Missing,eltype(profile)}), (Z(state.grids[p]),))
-            pstate .= missing
-            # assign points where profile is defined
-            knots = @view pstate[Z(Near(z))]
-            knots .= profile[Z(:),Y(p)]
-            # forward fill between points
-            state[p] .= Impute.locf(pstate)
-        end
-    end
-end
+variables(soil::Soil{T,Parametric{ByComposition}}) where T = (
+    Diagnostic(:θw, Float64, OnGrid(Cells)),
+    Diagnostic(:θp, Float64, OnGrid(Cells)),
+    Diagnostic(:θx, Float64, OnGrid(Cells)),
+    Diagnostic(:θl, Float64, OnGrid(Cells)),
+    Diagnostic(:θm, Float64, OnGrid(Cells)),
+    Diagnostic(:θo, Float64, OnGrid(Cells)),
+    # name parameters with _p to avoid namespace conflict
+    Parameter(:θx_p, soilcomp(Val{:θx}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θp_p, soilcomp(Val{:θp}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θm_p, soilcomp(Val{:θm}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θo_p, soilcomp(Val{:θo}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+)
 
-function initialcondition!(soil::Soil{T,<:Homogeneous}, state) where T
-    let profile = soil.profile,
-        (names,) = dims(profile);
-        for p in names
-            if p == :θl
-                state[p] .= profile[Y(:θl)]
-            else
-                state[p] .= state[Symbol(p,:ᵢ)]
-            end
-        end
+variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
+    Diagnostic(:θw, Float64, OnGrid(Cells)),
+    Diagnostic(:θp, Float64, OnGrid(Cells)),
+    Diagnostic(:θx, Float64, OnGrid(Cells)),
+    Diagnostic(:θl, Float64, OnGrid(Cells)),
+    Diagnostic(:θm, Float64, OnGrid(Cells)),
+    Diagnostic(:θo, Float64, OnGrid(Cells)),
+    Parameter(:χ, soil.profile[var=:χ]),
+    Parameter(:ϕ, soil.profile[var=:ϕ]),
+    Parameter(:θ, soil.profile[var=:θ]),
+    Parameter(:ω, soil.profile[var=:ω]),
+)
+
+function initialcondition!(soil::Soil{T,P}, state) where {T,P}
+    # Helper functions for initializing soil composition state based on parameterization mode.
+    fromparams(::Val{var}, soil::Soil{T,Parametric{ByComposition}}, state) where {var,T} = state[Symbol(var,:_p)]
+    fromparams(::Val{var}, soil::Soil{T,Parametric{ByXicePorSat}}, state) where {var,T} = soilcomp(Val{var}(), state.χ, state.ϕ, state.θ, state.ω)
+    fromparams(::Val{var}, soil::Soil{T,Nonparametric}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
+    depths = dims(soil.profile, :depth).val
+    for var in [:θx,:θp,:θm,:θo]
+        arr = DimArray(similar(state[var], Union{Missing,eltype(soil.profile)}), (depth=state.grids[var]u"m",))
+        arr .= missing
+        arr_sub = @view arr[depth=Near(depths)]
+        arr_sub .= fromparams(Val{var}(), soil, state)
+        state[var] .= Impute.locf(arr)
     end
+    @. state.θw = state.θx + state.θp
 end
 
 function thermalconductivity(params::SoilParams, totalWater, liquidWater, mineral, organic)
