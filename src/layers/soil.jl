@@ -121,7 +121,7 @@ function initialcondition!(soil::Soil{T,P}, state) where {T,P}
     fromparams(::Val{var}, soil::Soil{T,Parametric{ByComposition}}, state) where {var,T} = state[Symbol(var,:_p)]
     fromparams(::Val{var}, soil::Soil{T,Parametric{ByXicePorSat}}, state) where {var,T} = soilcomp(Val{var}(), state.χ, state.ϕ, state.θ, state.ω)
     fromparams(::Val{var}, soil::Soil{T,Nonparametric}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
-    depths = dims(soil.profile, :depth).val
+    depths = length(size(soil.profile)) > 1 ? dims(soil.profile, :depth).val : [refdims(soil.profile)[1].val]
     for var in [:θx,:θp,:θm,:θo]
         arr = DimArray(similar(state[var], Union{Missing,eltype(soil.profile)}), (depth=state.grids[var]u"m",))
         arr .= missing
