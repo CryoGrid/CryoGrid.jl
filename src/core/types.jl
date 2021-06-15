@@ -42,8 +42,16 @@ Trait that specifies the "style" or kind of boundary condition.
 abstract type BoundaryStyle end
 struct Dirichlet <: BoundaryStyle end
 struct Neumann <: BoundaryStyle end
-struct Robin <: BoundaryStyle end
 # Default to an error to avoid erroneously labeling a boundary condition.
 BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary condition $T")
 
-export BoundaryStyle, Dirichlet, Neumann, Robin
+export BoundaryStyle, Dirichlet, Neumann
+
+# Parameterizations
+abstract type Parameterization end
+struct Nonparametric <: Parameterization end
+struct Parametric{T}
+    Parametric(::T) where T = new{T}()
+end
+
+export Nonparametric, Parametric
