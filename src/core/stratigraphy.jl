@@ -48,6 +48,18 @@ Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
 Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod(("$b => $n, " for (n,b) in zip(strat.nodes,strat.boundaries))))")
 
-export Stratigraphy
+"""
+Convenience macro for defining stratigraphies with multiple subsurface layers.
+"""
+macro Stratigraphy(args...)
+    @assert length(args) >= 3 "At least three stratigraphy nodes (top, subsurface, bottom) must be provided!"
+    if length(args) == 3
+        :(Stratigraphy($(esc(args[1])), $(esc(args[2])), $(esc(args[3]))))
+    elseif length(args) > 3
+        :(Stratigraphy($(esc(args[1])), tuple($(esc.(args[2:end-1])...)), $(esc(args[end]))))
+    end
+end
+
+export Stratigraphy, @Stratigraphy
 export Top, Bottom, Ground
 export nodename, nodetypes

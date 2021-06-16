@@ -4,9 +4,13 @@ using ForwardDiff
 using ComponentArrays
 
 testprofile = SoilProfile(
-	0.0u"m" => (0.80,0.0,0.05,0.15,0.80),
-	1.0u"m" => (0.80,0.0,0.05,0.15,0.80),
+	0.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.5),
+	1.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.5),
 )
+soilcomps = begin 
+    comps = [CryoGrid.soilcomp(Val{var}(),testprofile[var=:χ],testprofile[var=:ϕ],testprofile[var=:θ],testprofile[var=:ω]) for var in [:θx,:θp,:θm,:θo]]
+    reduce(hcat, [comps[1] .+ comps[2], comps[3], comps[4], comps[2]])
+end
 
 @testset "SFCC" begin
     @testset "McKenzie freeze curve" begin
@@ -28,7 +32,7 @@ testprofile = SoilProfile(
             L = heat.params.L
             @testset "Left tail" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
                 θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -43,7 +47,7 @@ testprofile = SoilProfile(
             end
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
                 θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -58,7 +62,7 @@ testprofile = SoilProfile(
             end
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
                 θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -95,7 +99,7 @@ testprofile = SoilProfile(
             L = heat.params.L
             @testset "Left tail" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
                 θl = f.(T,δ,θw) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -110,7 +114,7 @@ testprofile = SoilProfile(
             end
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
                 θl = f.(T,δ,θw) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -125,7 +129,7 @@ testprofile = SoilProfile(
             end
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
                 θl = f.(T,δ,θw) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -165,7 +169,7 @@ testprofile = SoilProfile(
             L = heat.params.L
             @testset "Left tail" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-5.0 + 273.15] # convert to K
                 θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -180,7 +184,7 @@ testprofile = SoilProfile(
             end
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [5.0 + 273.15] # convert to K
                 θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -195,7 +199,7 @@ testprofile = SoilProfile(
             end
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
-                θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-0.05 + 273.15] # convert to K
                 θl = f.(T,α,n,Tₘ,θw,θp,L) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil.params,θw,θl,θm,θo)
@@ -220,7 +224,7 @@ testprofile = SoilProfile(
         soil = Soil(testprofile)
         heat = Heat{:H}(freezecurve=sfcc)
         L = heat.params.L
-        θw,θl,θm,θo,θp = map(x -> [x], testprofile[1,:]) # convert to arrays
+        θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
         T = [-0.1 + 273.15] # convert to K
         θl = f.(T,γ,θw,θp) # set liquid water content according to freeze curve
         C = heatcapacity.(soil.params,θw,θl,θm,θo)

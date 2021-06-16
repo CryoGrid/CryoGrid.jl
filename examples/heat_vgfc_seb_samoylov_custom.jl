@@ -5,13 +5,13 @@ using Plots
 const gridvals = vcat([0:0.02:2...,2.05:0.05:4.0...,
 	4.1:0.1:10...,10.2:0.2:20...,21:1:30...,
 	35:5:50...,60:10:100...,200:100:1000...]...)
-# soil profile: depth => (total water, liquid water, mineral organic, porosity)
+# soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
-	0.0u"m" => (0.80,0.0,0.05,0.15,0.80),
-	0.1u"m" => (0.80,0.0,0.15,0.05,0.80),
-	0.4u"m" => (0.80,0.0,0.15,0.05,0.55),
-	3.0u"m" => (0.50,0.0,0.50,0.0,0.50),
-	10.0u"m" => (0.30,0.0,0.70,0.0,0.30),
+	0.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+	0.1u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+	0.4u"m" => SoilProperties(χ=0.30,ϕ=0.55,θ=1.0,ω=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+	3.0u"m" => SoilProperties(χ=0.0,ϕ=0.50,θ=1.0,ω=0.0), #(θw=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+	10.0u"m" => SoilProperties(χ=0.0,ϕ=0.30,θ=1.0,ω=0.0), #(θw=0.30,θm=0.70,θo=0.0,ϕ=0.30),
 )
 # mid-winter temperature profile
 tempprofile = TempProfile(
