@@ -107,6 +107,18 @@ export convert_tspan
 @generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 
 """
+Forward fills values in vector `x` and skips any leading missing values.
+"""
+function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
+    local lastval::Union{Missing,E} = missing
+    @inbounds for i in 1:length(x)
+        lastval = ismissing(x[i]) ? lastval : x[i]
+        x[i] = lastval
+    end
+    return skipmissing(x)
+end
+
+"""
 adstrip extracts the underlying numeric value from `x` if `x` is a tracked value from
 an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type, then
 `adstrip` simply returns `x` as-is.

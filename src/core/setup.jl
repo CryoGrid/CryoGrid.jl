@@ -109,6 +109,9 @@ is only executed during compilation and will not appear in the compiled version.
     du = ComponentArray(_du, getaxes(setup.uproto))
     u = ComponentArray(_u, getaxes(setup.uproto))
     end push!(expr.args)
+    if !(p <: ComponentArray)
+        push!(expr.args, :(p = ComponentArray(p, getaxes(setup.pproto))))
+    end
     # Initialize variables for all layers
     for i in 1:N
         n = nodename(nodetyps[i])

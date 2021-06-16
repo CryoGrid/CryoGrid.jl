@@ -127,7 +127,7 @@ function initialcondition!(soil::Soil{T,P}, state) where {T,P}
         arr .= missing
         arr_sub = @view arr[depth=Near(depths)]
         arr_sub .= fromparams(Val{var}(), soil, state)
-        state[var] .= Impute.locf(arr)
+        state[var] .= ffill!(arr)
     end
     @. state.θw = state.θx + state.θp
 end
