@@ -83,6 +83,53 @@ function getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
         )
     end
 end
+"""
+    getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) 
+"""
+getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = getvar(Val{var}(), integrator.f.f, integrator.u)
+"""
+    getvar(var::Symbol, setup::CryoGridSetup, u)
+"""
+getvar(var::Symbol, setup::CryoGridSetup, u) = getvar(Val{var}(), setup, u)
+"""
+    getvar(::Val{var}, setup::CryoGridSetup{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
+
+Generated function that finds all layers containing variable `var::Symbol` and returns an `ArrayPartition` combining
+them into a single contiguous array (allocation free).
+
+e.g: `T = getvar(:T, setup, u)`
+"""
+@generated function getvar(::Val{var}, setup::CryoGridSetup{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
+    expr = Expr(:block)
+    nodetyps = nodetypes(TStrat)
+    _, metavaltype = TMeta.parameters
+    matchedlayers = []
+    push!(expr.args, :(u = ComponentArray(_u, getaxes(setup.uproto))))
+    for (i,node) in enumerate(nodetyps)
+        name = nodename(node)
+        metatype = metavaltype.parameters[i]
+        # extract variable type information from metadata type
+        ptypes, dtypes, atypes, _ = _resolve_vartypes(metatype)
+        prognames = tuplejoin(varname.(ptypes), varname.(atypes))
+        diagnames = varname.(dtypes)
+        if var ∈ prognames
+            identifier = Symbol(name,:_,var)
+            @>> quote
+            $identifier = u.$name.$var
+            end push!(expr.args)
+            push!(matchedlayers, identifier)
+        elseif var ∈ diagnames
+            @>> quote
+            $identifier = retrieve(setup.cache.$name.$var, u)
+            end push!(expr.args)
+            push!(matchedlayers, identifier)
+        end
+    end
+    @>> quote
+    ArrayPartition($(matchedlayers...))
+    end push!(expr.args)
+    return expr
+end
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
@@ -224,9 +271,10 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
 end
 
 """
-Generates a function from layer cache and metadata which constructs a type-stable NamedTuple of state variables at runtime.
+Helper function to extract prognostic, diagnostic, algebraic, and parameter variable type
+information from the `meta` field type signature.
 """
-@inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, params, t, z) where {names,types,M<:NamedTuple{names,types}}
+function _resolve_vartypes(::Type{TMeta}) where {names,types,TMeta<:NamedTuple{names,types}}
     # extract variables types from M; we assume the first two parameters in the NamedTuple
     # are the prognostic and diagnostic variable names respeictively. This must be respected by _buildlayer.
     # note that types.parameters[1] is Tuple{Var,...} so we call parameters again to get (Var,...)
@@ -237,14 +285,20 @@ Generates a function from layer cache and metadata which constructs a type-stabl
     atypes = types.parameters[3].parameters |> Tuple
     # and for parameters, assumed to be at position 4
     paramtypes = types.parameters[4].parameters |> Tuple
+    return ptypes, dtypes, atypes, paramtypes
+end
+
+"""
+Generates a function from layer cache and metadata which constructs a type-stable NamedTuple of state variables at runtime.
+"""
+@inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, params, t, z) where {M<:NamedTuple}
+    ptypes, dtypes, atypes, _ = _vartypes(M)
     # here we join together prognostic and algebraic variables
     pnames = tuplejoin(ptypes .|> varname, atypes .|> varname)
     dnames = dtypes .|> varname
-    paramnames = paramtypes .|> varname
     # generate state variable accessor expressions
     pacc = tuple((:(u.$p) for p in pnames)...,)
     dacc = tuple((:(retrieve(cache.$d,u)) for d in dnames)...,)
-    paramacc = tuple((:(params.$p) for p in paramnames)...,)
     # construct symbols for derivative variables; assumes no existing conflicts
     dpnames = @>> pnames map(n -> Symbol(:d,n))
     dpacc = tuple((:(du.$p) for p in pnames)...,)
@@ -252,7 +306,7 @@ Generates a function from layer cache and metadata which constructs a type-stabl
     # QuoteNode is used to force names to be interpolated as symbols rather than literals.
     quote
     NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),
-        $(map(QuoteNode,paramnames)...),:grids,:t,:z)}(tuple($(pacc...),$(dpacc...),$(dacc...),$(paramacc...),meta.grids,t,z))
+        :params,:grids,:t,:z)}(tuple($(pacc...),$(dpacc...),$(dacc...),params,meta.grids,t,z))
     end
 end
 
@@ -266,8 +320,8 @@ function _buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A, chunk_si
     process_vars = variables(layer, process)
     all_vars = tuple(layer_vars...,process_vars...)
     @debug "Building layer $(nodename(node)) with $(length(all_vars)) variables: $(all_vars)"
-    # check for (permissible) duplicates between variables
-    groups = groupby(var -> varname(var), all_vars)
+    # check for (permissible) duplicates between variables, excluding parameters
+    groups = groupby(var -> varname(var), filter(x -> !isparameter(x), all_vars))
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
         @assert reduce(==, gvars) "Found one or more conflicting definitions of $name in $gvars"
@@ -285,9 +339,9 @@ function _buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A, chunk_si
     if !isempty(diag_prog)
         @warn "Variables $(Tuple(map(varname,diag_prog))) declared as both prognostic/algebraic and diagnostic. In-place modifications outside of callbacks may degrade integration accuracy."
     end
-    # check for re-definition of parameters as prognostic
-    param_prog = filter(v -> v ∈ prog_alg, param_vars)
-    @assert isempty(param_prog) "Prognostic variables $(Tuple(map(varname,param_prog))) cannot also be parameters."
+    # check for parameter duplicates
+    param_dups = [name for (name,group) in groupby(param -> varname(param), param_vars) if length(group) > 1]
+    @assert isempty(param_dups) "Found conflicting definitions of parameters: $(Tuple(param_dups))"
     # check for conflicting definitions of differential vars
     diff_varnames = map(v -> Symbol(:d, varname(v)), prog_alg)
     @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
