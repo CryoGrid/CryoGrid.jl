@@ -4,9 +4,10 @@ include("sfcc.jl")
 variables(soil::Soil, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"K", OnGrid(Cells)),
-    Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
+    Diagnostic(:C, Float"J//K*/m^3", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
+    Diagnostic(:D, Float"J/m^2/W", OnGrid(Cells)),
     variables(soil, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (partitioned enthalpy) on soil layer. """
@@ -16,10 +17,11 @@ variables(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
     Diagnostic(:H, Float"J", OnGrid(Cells)),
     Diagnostic(:T, Float"K", OnGrid(Cells)),
-    Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    Diagnostic(:D, Float"J/m^2/W", OnGrid(Cells)),
     variables(soil, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (temperature) on soil layer. """
@@ -27,10 +29,11 @@ variables(soil::Soil, heat::Heat{:T}) = (
     Prognostic(:T, Float"K", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
-    Diagnostic(:C, Float"J/(K*m^3)", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/(K*m^3)", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/(m*K)", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W/(m*K)", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    Diagnostic(:D, Float"J/m^2/W", OnGrid(Cells)),
     variables(soil, heat, freezecurve(heat))...,
 )
 
@@ -83,6 +86,7 @@ function diagnosticstep!(soil::Soil, heat::Heat, state)
     fc!(soil,heat,state)
     # Update thermal conductivity
     @. state.kc = thermalconductivity(soil.params, state.θw, state.θl, state.θm, state.θo)
+    @. state.D = state.C / state.kc
     # Interpolate thermal conductivity to boundary grid
     regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
     # TODO: harmonic mean of thermal conductivities (in MATLAB code)
