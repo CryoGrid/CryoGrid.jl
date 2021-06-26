@@ -69,6 +69,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
             state.T[i] = state.Hₛ[i] / state.C[i] + 273.15
             f_argsᵢ = CryoGrid.selectat(i, identity, f_args)
             state.dθdT[i] = ∇f(f_argsᵢ)
+            state.Ceff[i] = L*state.dΘdT[i] + state.C[i]
         end
     end
 end
@@ -292,11 +293,13 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
                 # recompute liquid water content with (possibly) tracked variables
                 args = tuplejoin((T,),f_argsᵢ)
                 state.θl[i] = f(args...)
-            end
-            let θl = state.θl[i],
-                H = state.H[i];
-                state.C[i] = heatcapacity(soil.params,θtot,θl,θm,θo)
-                state.T[i] = (H - L*θl) / state.C[i] + Tref
+                dθdT = ∇f(args)
+                let θl = state.θl[i],
+                    H = state.H[i];
+                    state.C[i] = heatcapacity(soil.params,θtot,θl,θm,θo)
+                    state.Ceff[i] = state.C[i] + dθdT
+                    state.T[i] = (H - L*θl) / state.C[i] + Tref
+                end
             end
         end
     end

@@ -16,6 +16,8 @@ struct CryoGridSetup{S,G,M,C,U,P}
         new{S,G,M,C,U,P}(strat,grid,meta,cache,uproto,pproto)
 end
 
+export CryoGridSetup
+
 """
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
@@ -112,8 +114,8 @@ e.g: `T = getvar(:T, setup, u)`
         ptypes, dtypes, atypes, _ = _resolve_vartypes(metatype)
         prognames = tuplejoin(varname.(ptypes), varname.(atypes))
         diagnames = varname.(dtypes)
+        identifier = Symbol(name,:_,var)
         if var ∈ prognames
-            identifier = Symbol(name,:_,var)
             @>> quote
             $identifier = u.$name.$var
             end push!(expr.args)
@@ -130,6 +132,8 @@ e.g: `T = getvar(:T, setup, u)`
     end push!(expr.args)
     return expr
 end
+
+export withaxes, getstate, getvar
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
@@ -292,7 +296,7 @@ end
 Generates a function from layer cache and metadata which constructs a type-stable NamedTuple of state variables at runtime.
 """
 @inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, params, t, z) where {M<:NamedTuple}
-    ptypes, dtypes, atypes, _ = _vartypes(M)
+    ptypes, dtypes, atypes, _ = _resolve_vartypes(M)
     # here we join together prognostic and algebraic variables
     pnames = tuplejoin(ptypes .|> varname, atypes .|> varname)
     dnames = dtypes .|> varname
@@ -404,5 +408,3 @@ function _buildcaches(strat, metadata, arrayproto, chunk_size)
         NamedTuple{Tuple(varnames)}(Tuple(caches))
     end
 end
-
-export CryoGridSetup, initialcondition!, withaxes, getstate

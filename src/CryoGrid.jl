@@ -2,7 +2,7 @@ module CryoGrid
 
 global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
 
-using Base: @propagate_inbounds
+using Base: @propagate_inbounds, Float64
 using Lazy: @>>, @>, groupby
 using DataStructures: SortedDict, OrderedDict
 using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
@@ -40,6 +40,7 @@ include("io/io.jl")
 include("core/core.jl")
 include("layers/layers.jl")
 include("processes/processes.jl")
+include("callbacks/callbacks.jl")
 include("models/Models.jl")
 
 const CryoGridModels = Models
