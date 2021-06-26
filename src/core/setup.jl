@@ -302,7 +302,7 @@ Generates a function from layer cache and metadata which constructs a type-stabl
     dnames = dtypes .|> varname
     # generate state variable accessor expressions
     pacc = tuple((:(u.$p) for p in pnames)...,)
-    dacc = tuple((:(retrieve(cache.$d,u)) for d in dnames)...,)
+    dacc = tuple((:(retrieve(cache.$d,u,t)) for d in dnames)...,)
     # construct symbols for derivative variables; assumes no existing conflicts
     dpnames = @>> pnames map(n -> Symbol(:d,n))
     dpacc = tuple((:(du.$p) for p in pnames)...,)
