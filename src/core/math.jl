@@ -42,6 +42,22 @@ end
 Differentiable implementation of heaviside step function.
 """
 heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
+"""
+Numerically stable logistic function.
+"""
+logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(x)), exp(x) / (1 + exp(x)))
+"""
+Numerically stable logit function.
+"""
+logit(x) = let x = clamp(x, eps(), 1-eps()); log(x) - log(1-x) end
+"""
+Numerically stable softplus function.
+"""
+softplus(x) = log1p(exp(-abs(x))) + max(x,eps())
+"""
+Numerically stable softplus inverse function.
+"""
+softplusinv(x) = let x = clamp(x, eps(), Inf); IfElse.ifelse(x > 34, x, log(exp(x)-1)) end
 
 """
     generate_derivative(f, dvar::Symbol)
@@ -70,4 +86,4 @@ function generate_derivative(f, dvar::Symbol; choosefn=first, contextmodule=Cryo
     return ∇f
 end
 
-export ∇, ∇², heaviside, generate_derivative
+export generate_derivative

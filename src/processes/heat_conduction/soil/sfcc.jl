@@ -175,7 +175,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
 @with_kw struct Westermann <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::Soil, ::Heat, ::Westermann) = (Parameter(:δ, 0.1),)
+variables(::Soil, ::Heat, ::Westermann) = (Parameter(:δ, 0.1, 0..Inf),)
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     state.params.δ |> getscalar, 
     state.θw,

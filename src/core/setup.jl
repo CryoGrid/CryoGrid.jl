@@ -60,6 +60,11 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto)
 end
 
+parameters(setup::CryoGridSetup; unconstrained=false) = parameters(Val{unconstrained}(), setup)
+parameters(::Val{true}, setup::CryoGridSetup) = unconstrain(copy(setup.pproto), setup)
+parameters(::Val{false}, setup::CryoGridSetup) = copy(setup.pproto)
+constrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:apply, p, setup)
+unconstrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:unapply, p, setup)
 withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
 withaxes(u::ComponentArray, ::CryoGridSetup) = u
 getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, p::ComponentArray, t) =
@@ -272,6 +277,21 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     return getdata(u), getdata(du)
     end push!(expr.args)
     return expr
+end
+
+_apply_or_unapply_constraint(::Val{:apply}, p, x) = constrain(p,x)
+_apply_or_unapply_constraint(::Val{:unapply}, p, x) = unconstrain(p,x)
+function _apply_or_unapply_constraints(mode::Symbol, p::ComponentVector, setup::CryoGridSetup)
+    pp = similar(p)
+    for layer in keys(setup.meta)
+        for param in setup.meta[layer].paramvars
+            name = varname(param)
+            p_k = @view p[layer]
+            pp_k = @view pp[layer]
+            pp_k[name] .= _apply_or_unapply_constraint(Val{mode}(), param, (@view p_k[name]))
+        end
+    end
+    return pp
 end
 
 """
