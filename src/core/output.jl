@@ -6,7 +6,9 @@ state variables. `CryoGridOutput` overrides `Base.getproperty` to allow for dire
 access of state variables. For example, if your model has a grid variable named `T` in layer `layer`,
 then for a `CryoGridOutput` value `out`, `out.layer.T` returns a `DimArray` with indexed time and
 depth axes. The `ODESolution` can be accessed via `out.sol`, or for convenience, the continuous solution
-at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`.
+at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`. To access a
+variable shared across multiple layers, use `getvar(name, out)` where `name` is the symbol corresponding
+to the variable name.
 """
 struct CryoGridOutput
     sol::ODESolution
@@ -51,7 +53,32 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
     CryoGridOutput(sol, log, layerstates)
 end
 
+"""
+Evaluates the continuous solution at time `t`.
+"""
+(out::CryoGridOutput)(t::Real) = withaxes(out.sol(t), out.sol.prob.f.f)
+(out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
+"""
+    getvar(var::Symbol, out::CryoGridOutput)
 
+Similar to `getvar(::Symbol, ::CryoGridSetup, ...)` but for `CryoGridOutput`. However, this implementation
+is not type stable and will newly allocate the resulting `DimArray` from concatenating along the depth dimension.
+"""
+function getvar(var::Symbol, out::CryoGridOutput)
+    parts = []
+    for layer in keys(out.vars)
+        for name in keys(out.vars[layer])
+            if name == var
+                push!(parts, out.vars[layer][name])
+            end
+        end
+    end
+    X = reduce(vcat, parts)
+    zs = reduce(vcat, [dims(A,Z).val for A in parts])
+    ts = Dates.epochms2datetime.(out.sol.t.*1000.0)
+    DimArray(X,(Z(zs),Ti(ts)))
+end
+# Overrides from Base
 function Base.show(io::IO, out::CryoGridOutput)
     vars = out.vars
     nvars = sum(map(v -> keys(v) |> length, vars))
@@ -64,13 +91,6 @@ function Base.show(io::IO, out::CryoGridOutput)
         end
     end
 end
-
-"""
-Evaluates the continuous solution at time `t`.
-"""
-(out::CryoGridOutput)(t::Real) = withaxes(out.sol(t), out.sol.prob.f.f)
-(out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
-
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
     if sym in (:sol,:log,:vars)
         getfield(out,sym)
@@ -79,4 +99,4 @@ function Base.getproperty(out::CryoGridOutput, sym::Symbol)
     end
 end
 
-export CryoGridOutput
+export CryoGridOutput, getvar
