@@ -41,7 +41,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=γ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(γ=γ,))
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -56,7 +56,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=γ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(γ=γ,))
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -71,7 +71,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=γ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(γ=γ,))
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -108,7 +108,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,δ=δ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(δ=δ,))
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -123,7 +123,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,δ=δ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(δ=δ,))
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -138,7 +138,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,δ=δ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(δ=δ,))
                 sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -178,7 +178,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(α=α,n=n,Tₘ=Tₘ))
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -193,7 +193,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(α=α,n=n,Tₘ=Tₘ))
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -208,7 +208,7 @@ end
                     C = heatcapacity.(soil.params,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
+                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(α=α,n=n,Tₘ=Tₘ))
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.((T.-273.15).-(H .- L.*θl)./C) .<= tol)
             end
@@ -238,7 +238,7 @@ end
             T_ .= T
             C = similar(C,eltype(p))
             θl = similar(θl,eltype(p))
-            state = (T=T_,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,γ=p.γ)
+            state = (T=T_,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(γ=p.γ,))
             sfcc(soil, heat, state)
             state.T[1]
         end
@@ -270,7 +270,7 @@ function benchmarksfcc()
             C = heatcapacity.(soil.params,θw,θl,θm,θo);
         enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
     end
-    state = (T=T,C=C,H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,α=α,n=n,Tₘ=Tₘ)
+    state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(α=α,n=n,Tₘ=Tₘ))
     # sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
     # @time begin
     #     state.T .= -0.05 + 273.15
