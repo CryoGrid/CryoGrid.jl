@@ -96,11 +96,10 @@ variables(soil::Soil{T,Parametric{ByComposition}}) where T = (
     Diagnostic(:θl, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
-    # name parameters with _p to avoid namespace conflict
-    Parameter(:θx_p, soilcomp(Val{:θx}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
-    Parameter(:θp_p, soilcomp(Val{:θp}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
-    Parameter(:θm_p, soilcomp(Val{:θm}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
-    Parameter(:θo_p, soilcomp(Val{:θo}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θx, soilcomp(Val{:θx}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θp, soilcomp(Val{:θp}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θm, soilcomp(Val{:θm}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
+    Parameter(:θo, soilcomp(Val{:θo}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)])),
 )
 
 variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
@@ -118,8 +117,8 @@ variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
 
 function initialcondition!(soil::Soil{T,P}, state) where {T,P}
     # Helper functions for initializing soil composition state based on parameterization mode.
-    fromparams(::Val{var}, soil::Soil{T,Parametric{ByComposition}}, state) where {var,T} = state[Symbol(var,:_p)]
-    fromparams(::Val{var}, soil::Soil{T,Parametric{ByXicePorSat}}, state) where {var,T} = soilcomp(Val{var}(), state.χ, state.ϕ, state.θ, state.ω)
+    fromparams(::Val{var}, soil::Soil{T,Parametric{ByComposition}}, state) where {var,T} = state.params[var]
+    fromparams(::Val{var}, soil::Soil{T,Parametric{ByXicePorSat}}, state) where {var,T} = soilcomp(Val{var}(), state.params.χ, state.params.ϕ, state.params.θ, state.params.ω)
     fromparams(::Val{var}, soil::Soil{T,Nonparametric}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
     depths = length(size(soil.profile)) > 1 ? dims(soil.profile, :depth).val : [refdims(soil.profile)[1].val]
     for var in [:θx,:θp,:θm,:θo]

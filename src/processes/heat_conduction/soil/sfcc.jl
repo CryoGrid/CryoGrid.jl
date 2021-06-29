@@ -69,6 +69,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
             state.T[i] = state.Hₛ[i] / state.C[i] + 273.15
             f_argsᵢ = CryoGrid.selectat(i, identity, f_args)
             state.dθdT[i] = ∇f(f_argsᵢ)
+            state.Ceff[i] = L*state.dΘdT[i] + state.C[i]
         end
     end
 end
@@ -116,9 +117,9 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
 end
 variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0), Parameter(:n, 2.0), Parameter(:Tₘ, 273.15))
 sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
-    state.α |> getscalar, 
-    state.n |> getscalar,
-    state.Tₘ |> getscalar,
+    state.params.α |> getscalar, 
+    state.params.n |> getscalar,
+    state.params.Tₘ |> getscalar,
     state.θw,
     state.θp, # θ saturated = porosity
     heat.params.L, # specific latent heat of fusion, L
@@ -149,7 +150,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 end
 variables(::Soil, ::Heat, ::McKenzie) = (Parameter(:γ, 0.184),)
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    state.γ |> getscalar, 
+    state.params.γ |> getscalar, 
     state.θw,
     state.θp,
 )
@@ -176,7 +177,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
 end
 variables(::Soil, ::Heat, ::Westermann) = (Parameter(:δ, 0.1),)
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    state.δ |> getscalar, 
+    state.params.δ |> getscalar, 
     state.θw,
 )
 function (f::Westermann)(T,δ,θtot)
@@ -292,11 +293,13 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
                 # recompute liquid water content with (possibly) tracked variables
                 args = tuplejoin((T,),f_argsᵢ)
                 state.θl[i] = f(args...)
-            end
-            let θl = state.θl[i],
-                H = state.H[i];
-                state.C[i] = heatcapacity(soil.params,θtot,θl,θm,θo)
-                state.T[i] = (H - L*θl) / state.C[i] + Tref
+                dθdT = ∇f(args)
+                let θl = state.θl[i],
+                    H = state.H[i];
+                    state.C[i] = heatcapacity(soil.params,θtot,θl,θm,θo)
+                    state.Ceff[i] = state.C[i] + dθdT
+                    state.T[i] = (H - L*θl) / state.C[i] + Tref
+                end
             end
         end
     end

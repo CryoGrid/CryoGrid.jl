@@ -86,8 +86,8 @@ include("../types.jl")
         setup.cache.testground.a.cache.du[1] = 2.0
         @test setup.cache.testground.a.cache.du[1] == 2.0
         state = getstate(:testground, setup, setup.uproto, setup.uproto, setup.pproto, 0.0)
-        @test length(state.p) == 1
-        @test state.p[1] == 1.0
+        @test length(state.params.p) == 1
+        @test state.params.p[1] == 1.0
         # clean-up method definitions (necessary for re-running test set)
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))
