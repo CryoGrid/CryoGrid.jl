@@ -60,9 +60,7 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto)
 end
 
-parameters(setup::CryoGridSetup; unconstrained=false) = parameters(Val{unconstrained}(), setup)
-parameters(::Val{true}, setup::CryoGridSetup) = unconstrain(copy(setup.pproto), setup)
-parameters(::Val{false}, setup::CryoGridSetup) = copy(setup.pproto)
+parameters(setup::CryoGridSetup; unconstrained=false) = unconstrained ? unconstrain(copy(setup.pproto), setup) : copy(setup.pproto)
 constrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:apply, p, setup)
 unconstrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:unapply, p, setup)
 withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
