@@ -6,43 +6,65 @@ struct OnGrid{S} <: VarDim
     f::Function # G -> G' where G is the edge grid
     OnGrid(::Type{S}, f::Function=x->x) where {S<:GridSpec} = new{S}(f)
 end
-struct Shape{D} <: VarDim Shape(dims::Int...) = new{dims}() end
+struct Shape{S} <: VarDim Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()
 
-abstract type Var{name,T,D<:Union{<:VarDim,<:GridSpec}} end
-struct Prognostic{name,T,D} <: Var{name,T,D}
-    dim::D
+abstract type Var{name,T,S<:Union{<:VarDim,<:GridSpec}} end
+struct Prognostic{name,T,S} <: Var{name,T,S}
+    dim::S
     Prognostic(name::Symbol, ::Type{T}, dims::Union{<:VarDim,<:GridSpec}) where {T} = new{name, T, typeof(dims)}(dims)
 end
-struct Algebraic{name,T,D} <: Var{name,T,D}
-    dim::D
+struct Algebraic{name,T,S} <: Var{name,T,S}
+    dim::S
     # maybe a mass matrix init function?
     Algebraic(name::Symbol, ::Type{T}, dims::Union{<:VarDim,<:GridSpec}) where {T} = new{name, T, typeof(dims)}(dims)
 end
-struct Diagnostic{name,T,D} <: Var{name,T,D}
-    dim::D
+struct Diagnostic{name,T,S} <: Var{name,T,S}
+    dim::S
     Diagnostic(name::Symbol, ::Type{T}, dims::Union{<:VarDim,<:GridSpec}) where {T} = new{name, T, typeof(dims)}(dims)
 end
-struct Parameter{name,T,D} <: Var{name,T,D}
-    dim::D
+struct Parameter{name,T,S,D} <: Var{name,T,S}
+    dim::S
     default_value::T
-    Parameter(name::Symbol, default_value::T) where {T<:AbstractArray} = new{name,T,typeof(Shape(size(default_value)...))}(Shape(size(default_value)...), default_value)
-    Parameter(name::Symbol, default_value::T) where {T<:Real} = Parameter(name, [default_value])
+    Parameter(name::Symbol, default_value::T, domain::Interval=-Inf..Inf) where {T<:AbstractArray} = new{name,T,typeof(Shape(size(default_value)...)),domain}(Shape(size(default_value)...), default_value)
+    Parameter(name::Symbol, default_value::T, domain::Interval=-Inf..Inf) where {T<:Real} = Parameter(name, [default_value], domain)
 end
 ==(var1::Var{N1,T1,D1},var2::Var{N2,T2,D2}) where {N1,N2,T1,T2,D1,D2} = (N1==N2) && (T1==T2) && (D1==D2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
 vartype(::Var{name,T}) where {name,T} = T
 vartype(::Type{<:Var{name,T}}) where {name,T} = T
-vardims(var::Var{name,T,D}) where {name,T,D} = var.dim
+vardims(var::Var{name,T,S}) where {name,T,S} = var.dim
 isprognostic(::T) where {T<:Var} = T <: Prognostic
 isalgebraic(::T) where {T<:Var} = T <: Algebraic
 isdiagnostic(::T) where {T<:Var} = T <: Diagnostic
 isparameter(::T) where {T<:Var} = T <: Parameter
+domain(::Parameter{name,T,S,D}) where {name,T,S,D} = D
 export Var, Prognostic, Algebraic, Diagnostic, Parameter
 export VarDim, OnGrid, Shape, Scalar
-export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter
+export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter, domain
 
+# parameter constraints
+constrain(::Parameter{name,T,S,-Inf..Inf}, x) where {name,T,S} = x
+unconstrain(::Parameter{name,T,S,-Inf..Inf}, z) where {name,T,S} = z
+constrain(::Parameter{name,T,S,0..1}, x) where {name,T,S} = logistic.(x)
+function unconstrain(::Parameter{name,T,S,0..1}, z) where {name,T,S}
+    @assert all(z .∈ 0..1) "value $z for parameter $name is outside of the given domain: [0,1]"
+    logit.(z)
+end
+constrain(::Parameter{name,T,S,0..Inf}, x) where {name,T,S} = softplus.(x)
+function unconstrain(::Parameter{name,T,S,0..Inf}, z) where {name,T,S}
+    @assert all(z .∈ 0..1) "value $z for parameter $name is outside of the given domain: [0,∞)"
+    softplusinv.(z)
+end
+
+export constrain, unconstrain
+
+"""
+    VarCache{name, TCache}
+
+Wrapper for `DiffEqBase.DiffCache` that stores state variables in forward-diff compatible cache arrays.
+"""
 struct VarCache{name, TCache}
     cache::TCache
     function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunk_size::Int)

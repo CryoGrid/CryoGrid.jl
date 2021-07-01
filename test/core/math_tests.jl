@@ -1,4 +1,5 @@
-using CryoGrid, Test
+using CryoGrid: ∇, ∇²
+using Test
 
 include("../testutils.jl")
 
