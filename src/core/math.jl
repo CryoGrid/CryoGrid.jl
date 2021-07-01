@@ -45,7 +45,7 @@ heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
 """
 Numerically stable logistic function.
 """
-logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(x)), exp(x) / (1 + exp(x)))
+logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(-x)), exp(x) / (1 + exp(x)))
 """
 Numerically stable logit function.
 """
