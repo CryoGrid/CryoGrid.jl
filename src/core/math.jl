@@ -47,7 +47,9 @@ Numerically stable logistic function.
 """
 logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(-x)), exp(x) / (1 + exp(x)))
 """
-Numerically stable logit function.
+Numerically stable logit function. True domain is (0,1) but inputs are
+clamped to (ϵ,1-ϵ) for numerical convenience, making the effective domain
+(-∞,∞).
 """
 logit(x) = let x = clamp(x, eps(), 1-eps()); log(x) - log(1-x) end
 """
@@ -55,7 +57,9 @@ Numerically stable softplus function.
 """
 softplus(x) = log1p(exp(-abs(x))) + max(x,eps())
 """
-Numerically stable softplus inverse function.
+Numerically stable softplus inverse function. True domain is (0,∞) but inputs are
+clamped to (ϵ,∞) for numerical convenience, making the effective domain
+(-∞,∞).
 """
 softplusinv(x) = let x = clamp(x, eps(), Inf); IfElse.ifelse(x > 34, x, log(exp(x)-1)) end
 
