@@ -115,7 +115,7 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
     θres::Float64 = 0.0 # residual water content
     g::Float64 = 9.80665 # acceleration due to gravity
 end
-variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0), Parameter(:n, 2.0), Parameter(:Tₘ, 273.15))
+variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0, 0..Inf), Parameter(:n, 2.0, 1..Inf), Parameter(:Tₘ, 273.15), 0..Inf)
 sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
     state.params.α |> getscalar, 
     state.params.n |> getscalar,
@@ -148,7 +148,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 @with_kw struct McKenzie <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::Soil, ::Heat, ::McKenzie) = (Parameter(:γ, 0.184),)
+variables(::Soil, ::Heat, ::McKenzie) = (Parameter(:γ, 0.184, 0..Inf),)
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     state.params.γ |> getscalar, 
     state.θw,

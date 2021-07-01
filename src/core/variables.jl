@@ -26,7 +26,8 @@ end
 struct Parameter{name,T,S,D} <: Var{name,T,S}
     dim::S
     default_value::T
-    Parameter(name::Symbol, default_value::T, domain::Interval=-Inf..Inf) where {T<:AbstractArray} = new{name,T,typeof(Shape(size(default_value)...)),domain}(Shape(size(default_value)...), default_value)
+    Parameter(name::Symbol, default_value::T, domain::Interval{L,R,I}=-Inf..Inf) where {L,R,I<:Real,T<:AbstractArray} =
+        new{name,T,typeof(Shape(size(default_value)...)),convert(Interval{L,R,Float64}, domain)}(Shape(size(default_value)...), default_value)
     Parameter(name::Symbol, default_value::T, domain::Interval=-Inf..Inf) where {T<:Real} = Parameter(name, [default_value], domain)
 end
 ==(var1::Var{N1,T1,D1},var2::Var{N2,T2,D2}) where {N1,N2,T1,T2,D1,D2} = (N1==N2) && (T1==T2) && (D1==D2)
@@ -45,18 +46,18 @@ export VarDim, OnGrid, Shape, Scalar
 export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter, domain
 
 # parameter constraints
+function checkdomain(domain::Interval, f::Function, z)
+    @assert all(z .∈ 0..Inf) "value $z for parameter $name is outside of the given domain: $domain"
+    f.(z)
+end
 constrain(::Parameter{name,T,S,-Inf..Inf}, x) where {name,T,S} = x
 unconstrain(::Parameter{name,T,S,-Inf..Inf}, z) where {name,T,S} = z
-constrain(::Parameter{name,T,S,0..1}, x) where {name,T,S} = logistic.(x)
-function unconstrain(::Parameter{name,T,S,0..1}, z) where {name,T,S}
-    @assert all(z .∈ 0..1) "value $z for parameter $name is outside of the given domain: [0,1]"
-    logit.(z)
-end
+constrain(::Parameter{name,T,S,0.0..1.0}, x) where {name,T,S} = logistic.(x)
+unconstrain(::Parameter{name,T,S,0.0..1.0}, z) where {name,T,S} = checkdomain(0.0..1.0, logit, z)
 constrain(::Parameter{name,T,S,0..Inf}, x) where {name,T,S} = softplus.(x)
-function unconstrain(::Parameter{name,T,S,0..Inf}, z) where {name,T,S}
-    @assert all(z .∈ 0..1) "value $z for parameter $name is outside of the given domain: [0,∞)"
-    softplusinv.(z)
-end
+unconstrain(::Parameter{name,T,S,0..Inf}, z) where {name,T,S} = checkdomain(0..Inf, softplusinv, z)
+constrain(::Parameter{name,T,S,1..Inf}, x) where {name,T,S} = (softplus ∘ plusone).(x)
+unconstrain(::Parameter{name,T,S,1..Inf}, z) where {name,T,S} = checkdomian(1..Inf, softplusinv ∘ minusone, z)
 
 export constrain, unconstrain
 

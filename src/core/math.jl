@@ -39,29 +39,43 @@ function ∇²(x::NumVec,Δx::NumVec,k::NumVec,Δk::NumVec,∂y::NumVec)
 end
 
 """
+    heaviside(x)
+
 Differentiable implementation of heaviside step function.
 """
 heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
 """
+    logistic(x)
+
 Numerically stable logistic function.
 """
 logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(-x)), exp(x) / (1 + exp(x)))
 """
+    logit(x)
+
 Numerically stable logit function. True domain is (0,1) but inputs are
 clamped to (ϵ,1-ϵ) for numerical convenience, making the effective domain
 (-∞,∞).
 """
 logit(x) = let x = clamp(x, eps(), 1-eps()); log(x) - log(1-x) end
 """
+    softplus(x)
+
 Numerically stable softplus function.
 """
 softplus(x) = log1p(exp(-abs(x))) + max(x,eps())
 """
+    softplusinv(x)
+
 Numerically stable softplus inverse function. True domain is (0,∞) but inputs are
 clamped to (ϵ,∞) for numerical convenience, making the effective domain
 (-∞,∞).
 """
 softplusinv(x) = let x = clamp(x, eps(), Inf); IfElse.ifelse(x > 34, x, log(exp(x)-1)) end
+# convenience functions to make composition easier, e.g:
+# sqrt ∘ plusone == x -> sqrt(x. + 1.0)
+minusone(x) = x .- one.(x)
+plusone(x) = x .+ one.(x)
 
 """
     generate_derivative(f, dvar::Symbol)
