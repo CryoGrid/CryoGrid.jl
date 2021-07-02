@@ -115,7 +115,7 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
     θres::Float64 = 0.0 # residual water content
     g::Float64 = 9.80665 # acceleration due to gravity
 end
-variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0, 0..Inf), Parameter(:n, 2.0, 1..Inf), Parameter(:Tₘ, 273.15), 0..Inf)
+variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0, 0..Inf), Parameter(:n, 2.0, 1..Inf), Parameter(:Tₘ, 273.15, 0..Inf),)
 sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
     state.params.α |> getscalar, 
     state.params.n |> getscalar,
