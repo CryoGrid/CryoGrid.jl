@@ -6,7 +6,7 @@ function (fn::CryoGridCallbackFunction{<:CFLHeatState})(u,p,t)
         Δx = Δ(fn.setup.grid),
         Ceff = getvar(:Ceff, fn.setup, u), # apparent heat capacity
         kc = getvar(:kc, fn.setup, u); # thermal cond. at grid centers
-        @. Δt = Δx^2 * Ceff / kc
+        @. Δt = adstrip(Δx^2 * Ceff / kc)
         minimum(Δt)
     end
 end
