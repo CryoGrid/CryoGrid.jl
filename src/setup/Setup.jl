@@ -77,8 +77,6 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto)
 end
 
-constrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:apply, p, setup)
-unconstrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:unapply, p, setup)
 withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
 withaxes(u::ComponentArray, ::CryoGridSetup) = u
 getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, p::ComponentArray, t) =
@@ -151,8 +149,20 @@ e.g: `T = getvar(:T, setup, u)`
     end push!(expr.args)
     return expr
 end
+"""
+    constrain(p::ComponentVector, setup::CryoGridSetup)
 
-export constrain, unconstrain, withaxes, getstate, getvar
+Invokes `constrain` on all parameters in `p`. Assumes `p` to be of the same form as `setup.pproto`.
+"""
+Common.constrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:apply, p, setup)
+"""
+    unconstrain(p::ComponentVector, setup::CryoGridSetup)
+
+Invokes `unconstrain` on all parameters in `p`. Assumes `p` to be of the same form as `setup.pproto`.
+"""
+Common.unconstrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:unapply, p, setup)
+
+export withaxes, getstate, getvar
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
