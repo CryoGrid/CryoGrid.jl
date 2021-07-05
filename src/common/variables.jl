@@ -1,4 +1,4 @@
-import Base.==
+using .Math: logistic, logit, softplus, softplusinv, plusone, minusone
 
 # Variable dimensions
 abstract type VarDim end

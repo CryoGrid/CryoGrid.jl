@@ -5,6 +5,8 @@ Common types and functions used by all other CryoGrid.jl modules.
 """
 module Common
 
+import Base.==
+
 using ArraysOfArrays
 using Base: @propagate_inbounds, Float64
 using ComponentArrays
