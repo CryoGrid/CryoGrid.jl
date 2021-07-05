@@ -8,7 +8,7 @@ testprofile = SoilProfile(
 	1.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.5),
 )
 soilcomps = begin 
-    comps = [CryoGrid.soilcomp(Val{var}(),testprofile[var=:χ],testprofile[var=:ϕ],testprofile[var=:θ],testprofile[var=:ω]) for var in [:θx,:θp,:θm,:θo]]
+    comps = [CryoGrid.Layers.soilcomp(Val{var}(),testprofile[var=:χ],testprofile[var=:ϕ],testprofile[var=:θ],testprofile[var=:ω]) for var in [:θx,:θp,:θm,:θo]]
     reduce(hcat, [comps[1] .+ comps[2], comps[3], comps[4], comps[2]])
 end
 
