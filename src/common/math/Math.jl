@@ -154,12 +154,4 @@ end
 
 export ∇
 
-# Temporary fix for bug in ExprTools (see issue #14)
-# TODO: Remove when fixed in official package.
-function ExprTools.argument_names(m::Method)
-    slot_syms = ExprTools.slot_names(m)
-    arg_names = slot_syms[2:m.nargs]  # nargs includes 1 for self ref
-    return arg_names
-end
-
 end
