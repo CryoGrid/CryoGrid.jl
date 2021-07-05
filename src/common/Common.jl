@@ -19,9 +19,10 @@ using TimeSeries
 # Re-exported packages
 @reexport using Dates
 @reexport using DiffEqBase
-@reexport using DifferentialEquations
-@reexport using DimensionalData
+@reexport using DiffEqCallbacks
+@reexport using DimensionalData: DimArray, X, Y, Z, Dim, dims
 @reexport using IntervalSets
+@reexport using OrdinaryDiffEq
 @reexport using Parameters
 @reexport using Unitful
 @reexport using SimulationLogs
