@@ -88,7 +88,15 @@ Can be overriden/extended to specify Jacobian structure for specific `CryoGridSe
 """
 JacobianStyle(::Type{<:CryoGridSetup}) = DefaultJac()
 
-export variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!, BoundaryStyle, JacobianStyle
+export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, BoundaryStyle, JacobianStyle
+
+"""
+    parameters(setup::CryoGridSetup; unconstrained=false)
+
+Helper function to obtain the parameters of a `CryoGridSetup`. If `unconstrained=true`, the parameters will be mapped
+to an unconstrained space first via `unconstrain`. Otherwise, they will be left as their default/initialized values.
+"""
+parameters(setup::CryoGridSetup; unconstrained=false) = unconstrained ? unconstrain(copy(setup.pproto), setup) : copy(setup.pproto)
 
 # Dependent submodules
 include("layers/Layers.jl")
