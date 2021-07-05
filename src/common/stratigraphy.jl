@@ -1,7 +1,7 @@
 struct StratNode{TLayer,TProcess,name}
     layer::TLayer
     process::TProcess
-    StratNode(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:Processes} =
+    StratNode(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:System} =
         new{TLayer,TProcess,name}(layer,process)
 end
 """
@@ -13,9 +13,9 @@ nodename(::Type{<:StratNode{L,P,name}}) where {L,P,name} = name
 Base.show(io::IO, node::StratNode{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
-Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), Processes(boundaries...))
-Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), Processes(boundaries...))
-Ground(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratNode(name, layer, Processes(processes...))
+Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), System(boundaries...))
+Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), System(boundaries...))
+Ground(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratNode(name, layer, System(processes...))
 
 """
     Stratigraphy{TNodes,TBounds}
@@ -61,5 +61,5 @@ macro Stratigraphy(args...)
 end
 
 export Stratigraphy, @Stratigraphy
-export Top, Bottom, Ground
+export Top, Bottom, Ground, StratNode
 export nodename, nodetypes

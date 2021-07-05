@@ -1,3 +1,20 @@
+module Setup
+
+import CryoGrid
+
+using CryoGrid.Common
+
+using ArraysOfArrays
+using ComponentArrays
+using DataStructures: OrderedDict
+using DimensionalData
+using Lazy: @>>, @>, groupby
+using LinearAlgebra
+
+import ForwardDiff
+import ReverseDiff
+import Zygote
+
 """
     CryoGridSetup{S,G,M,C,U,P}
 
@@ -187,7 +204,7 @@ is only executed during compilation and will not appear in the compiled version.
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
         @>> quote
-        diagnosticstep!($nlayer,$nprocess,$nstate)
+        CryoGrid.diagnosticstep!($nlayer,$nprocess,$nstate)
         end push!(expr.args)
     end
     # Interact
@@ -197,7 +214,7 @@ is only executed during compilation and will not appear in the compiled version.
         n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
         n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
         @>> quote
-        interact!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
+        CryoGrid.interact!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)
     end
     # Prognostic step
@@ -207,7 +224,7 @@ is only executed during compilation and will not appear in the compiled version.
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
         @>> quote
-        prognosticstep!($nlayer,$nprocess,$nstate)
+        CryoGrid.prognosticstep!($nlayer,$nprocess,$nstate)
         end push!(expr.args)
     end
     # Log diagnostic variables
@@ -239,9 +256,11 @@ is only executed during compilation and will not appear in the compiled version.
 end
 
 """
+    init!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
+
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-@generated function initialcondition!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
+@generated function init!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -256,19 +275,38 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     meta = setup.meta
     end push!(expr.args)
     # Iterate over layers
-    for i in 1:N
-        n = nodename(nodetyps[i])
-        nz = Symbol(n,:_z)
+    for i in 1:N-1
+        n1,n2 = nodename(nodetyps[i]), nodename(nodetyps[i+1])
         # create variable names
-        nstate, nlayer, nprocess = Symbol(n,:state), Symbol(n,:layer), Symbol(n,:process)
+        n1z = Symbol(n1,:_z)
+        n2z = Symbol(n2,:_z)
+        n1,n2 = nodename(nodetyps[i]), nodename(nodetyps[i+1])
+        n1state, n2state = Symbol(n1,:state), Symbol(n2,:state)
+        n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
+        n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
         # generated code for layer updates
         @>> quote
-        $nz = strat.boundaries[$i]
-        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, p.$n, tspan[1], $nz)
-        $nlayer = strat.nodes[$i].layer
-        $nprocess = strat.nodes[$i].process
-        initialcondition!($nlayer,$nstate)
-        initialcondition!($nlayer,$nprocess,$nstate)
+        $n1z = strat.boundaries[$i]
+        $n2z = strat.boundaries[$(i+1)]
+        $n1state = _buildstate(cache.$n1, meta.$n1, u.$n1, du.$n1, p.$n1, tspan[1], $n1z)
+        $n2state = _buildstate(cache.$n2, meta.$n2, u.$n2, du.$n2, p.$n2, tspan[1], $n2z)
+        $n1layer = strat.nodes[$i].layer
+        $n1process = strat.nodes[$i].process
+        $n2layer = strat.nodes[$(i+1)].layer
+        $n2process = strat.nodes[$(i+1)].process
+        end push!(expr.args)
+        if i == 1
+            # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls
+            @>> quote
+            CryoGrid.initialcondition!($n1layer,$n1state)
+            CryoGrid.initialcondition!($n1layer,$n1process,$n1state)
+            end push!(expr.args)
+        end
+        # invoke initialcondition! for each layer, then for both (similar to interact!)
+        @>> quote
+        CryoGrid.initialcondition!($n2layer,$n2state)
+        CryoGrid.initialcondition!($n2layer,$n2process,$n2state)
+        CryoGrid.initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)
     end
     @>> quote
@@ -337,9 +375,9 @@ Constructs prognostic state vector and state named-tuple for the given node/laye
 """
 function _buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A, chunk_size=nothing) where {A<:AbstractArray}
     layer, process = node.layer, node.process
-    layer_vars = variables(layer)
+    layer_vars = CryoGrid.variables(layer)
     @assert all([isdiagnostic(var) || isparameter(var) for var in layer_vars]) "Layer variables must be diagnostic."
-    process_vars = variables(layer, process)
+    process_vars = CryoGrid.variables(layer, process)
     all_vars = tuple(layer_vars...,process_vars...)
     @debug "Building layer $(nodename(node)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
@@ -425,4 +463,38 @@ function _buildcaches(strat, metadata, arrayproto, chunk_size)
         end
         NamedTuple{Tuple(varnames)}(Tuple(caches))
     end
+end
+
+"""
+    VarCache{name, TCache}
+
+Wrapper for `DiffEqBase.DiffCache` that stores state variables in forward-diff compatible cache arrays.
+"""
+struct VarCache{name, TCache}
+    cache::TCache
+    function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunk_size::Int)
+        # use dual cache for automatic compatibility with ForwardDiff
+        cache = DiffEqBase.dualcache(similar(arrayproto, length(grid)), Val{chunk_size})
+        new{name,typeof(cache)}(cache)
+    end
+end
+# retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = DiffEqBase.get_tmp(varcache.cache, u)
+# for some reason, it's faster to re-allocate a new array of ForwardDiff.Dual than to use a pre-allocated cache...
+# I have literally no idea why.
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ReverseDiff.TrackedReal} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(identity.(u), length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T} = reinterpret(T, varcache.cache.du)
+# this covers the case for Rosenbrock solvers where only t has differentiable type
+retrieve(varcache::VarCache, u::AbstractArray, t::T) where {T<:ForwardDiff.Dual} = retrieve(varcache, similar(u, T))
+retrieve(varcache::VarCache, u::AbstractArray, t) = retrieve(varcache, u)
+retrieve(varcache::VarCache) = diffcache.du
+Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
+Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::VarCache{name}) where name = show(io, cache)
+# type piracy to reduce clutter in compiled type names
+Base.show(io::IO, ::Type{<:VarCache{name}}) where name = print(io, "VarCache{$name}")
+
+include("problem.jl")
+include("output.jl")
+
 end

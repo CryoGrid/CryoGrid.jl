@@ -18,15 +18,15 @@ include("../types.jl")
             if i == 1
                 @test CryoGrid.nodename(node) == :top
                 @test typeof(node.layer) <: Top
-                @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
+                @test typeof(node.process) <: System{Tuple{TestBoundary}}
             elseif i == 2
                 @test CryoGrid.nodename(node) == :testground
                 @test typeof(node.layer) <: TestGroundLayer
-                @test typeof(node.process) <: Processes{Tuple{TestGroundProcess}}
+                @test typeof(node.process) <: System{Tuple{TestGroundProcess}}
             elseif i == 3
                 @test CryoGrid.nodename(node) == :bottom
                 @test typeof(node.layer) <: Bottom
-                @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
+                @test typeof(node.process) <: System{Tuple{TestBoundary}}
             end
         end
     end
@@ -46,19 +46,19 @@ include("../types.jl")
             if i == 1
                 @test CryoGrid.nodename(node) == :top
                 @test typeof(node.layer) <: Top
-                @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
+                @test typeof(node.process) <: System{Tuple{TestBoundary}}
             elseif i == 2
                 @test CryoGrid.nodename(node) == :testground1
                 @test typeof(node.layer) <: TestGroundLayer
-                @test typeof(node.process) <: Processes{Tuple{TestGroundProcess}}
+                @test typeof(node.process) <: System{Tuple{TestGroundProcess}}
             elseif i == 3
                 @test CryoGrid.nodename(node) == :testground2
                 @test typeof(node.layer) <: TestGroundLayer
-                @test typeof(node.process) <: Processes{Tuple{TestGroundProcess}}
+                @test typeof(node.process) <: System{Tuple{TestGroundProcess}}
             elseif i == 4
                 @test CryoGrid.nodename(node) == :bottom
                 @test typeof(node.layer) <: Bottom
-                @test typeof(node.process) <: Processes{Tuple{TestBoundary}}
+                @test typeof(node.process) <: System{Tuple{TestBoundary}}
             end
         end
     end

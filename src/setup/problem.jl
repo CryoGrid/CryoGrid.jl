@@ -12,7 +12,7 @@ condition and necessary callbacks.
 function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
-	u0,_ = initialcondition!(setup, p, tspan)
+	u0,_ = init!(setup, p, tspan)
     # set up default mass matrix
     M_diag = similar(setup.uproto)
     for layer in keys(setup.meta)
@@ -41,15 +41,6 @@ CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs.
 export CryoGridProblem
 
 """
-Trait for determining Jacobian sparsity of a CryoGrid ODEProblem.
-"""
-abstract type JacobianStyle end
-struct DefaultJac <: JacobianStyle end
-struct TridiagJac <: JacobianStyle end
-# struct SparseJac <: JacobianStyle end
-JacobianStyle(::Type{<:CryoGridSetup}) = DefaultJac()
-
-"""
     odefunction(setup::CryoGridSetup, M, u0, p, tspan; kwargs...)
 
 Constructs a SciML `ODEFunction` given the model setup, mass matrix M, initial state u0, parameters p, and tspan.
@@ -66,7 +57,7 @@ prob = CryoGridProblem(model, tspan, p)
 
 `JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `CryoGridSetup`s.
 """
-odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
+odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = odefunction(CryoGrid.JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
 odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = ODEFunction(setup, mass_matrix=M; kwargs...)
 function odefunction(::TridiagJac, setup::CryoGridSetup, M, u0, p, tspan; kwargs...)
     if :jac_prototype in keys(kwargs)

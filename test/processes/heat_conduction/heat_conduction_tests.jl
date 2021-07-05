@@ -13,7 +13,7 @@ include("../../types.jl")
 	ΔT = Δ(xc)
 	Δk = Δ(x)
 	∂H = zeros(length(T₀))u"J/s/m^3"
-	@inferred heatconduction!(T₀,ΔT,k,Δk,∂H)
+	@inferred heatconduction!(∂H,T₀,ΔT,k,Δk)
 	# conditions based on initial temperature gradient
 	@test ∂H[1] < 0.0u"J/s/m^3"
 	@test ∂H[end] > 0.0u"J/s/m^3"
@@ -45,14 +45,14 @@ end
 	@testset "inner edge boundary (positive)" begin
 		T₀ = Vector(sin.(ustrip.(xc).*π).+273.15)u"K"
 		∂H = zeros(length(T₀))u"J/s/m^3"
-		heatconduction!(T₀,ΔT,k,Δk,∂H)
+		heatconduction!(∂H,T₀,ΔT,k,Δk)
 		@test ∂H[1] > 0.0u"J/s/m^3"
 		@test ∂H[end] > 0.0u"J/s/m^3"
 	end
 	@testset "inner edge boundary (negative)" begin
 		T₀ = Vector(-sin.(ustrip.(xc).*π).+273.15)u"K"
 		∂H = zeros(length(T₀))u"J/s/m^3"
-		heatconduction!(T₀,ΔT,k,Δk,∂H)
+		heatconduction!(∂H,T₀,ΔT,k,Δk)
 		@test ∂H[1] < 0.0u"J/s/m^3"
 		@test ∂H[end] < 0.0u"J/s/m^3"
 	end
@@ -73,7 +73,7 @@ end
 		dT = similar(T)u"J/s/m^3"
 		dT .= zero(eltype(dT))
 		T_K = (T)u"K"
-		heatconduction!(T_K,ΔT,k,Δk,dT)
+		heatconduction!(dT,T_K,ΔT,k,Δk)
 		# compute boundary fluxes;
 		# while not correct in general, for this test case we can just re-use state for both layers.
 		state = (T=T_K,k=k,dH=dT,grids=(T=xc,k=x),t=t)

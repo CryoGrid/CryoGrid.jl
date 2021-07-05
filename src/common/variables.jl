@@ -60,32 +60,3 @@ constrain(::Parameter{name,T,S,1..Inf}, x) where {name,T,S} = (plusone ∘ softp
 unconstrain(::Parameter{name,T,S,1..Inf}, z) where {name,T,S} = checkdomain(1..Inf, softplusinv ∘ minusone, z)
 
 export constrain, unconstrain
-
-"""
-    VarCache{name, TCache}
-
-Wrapper for `DiffEqBase.DiffCache` that stores state variables in forward-diff compatible cache arrays.
-"""
-struct VarCache{name, TCache}
-    cache::TCache
-    function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunk_size::Int)
-        # use dual cache for automatic compatibility with ForwardDiff
-        cache = DiffEqBase.dualcache(similar(arrayproto, length(grid)), Val{chunk_size})
-        new{name,typeof(cache)}(cache)
-    end
-end
-# retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = DiffEqBase.get_tmp(varcache.cache, u)
-# for some reason, it's faster to re-allocate a new array of ForwardDiff.Dual than to use a pre-allocated cache...
-# I have literally no idea why.
-retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
-retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:ReverseDiff.TrackedReal} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
-retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(identity.(u), length(varcache.cache.du)), varcache.cache.du)
-retrieve(varcache::VarCache, u::AbstractArray{T}) where {T} = reinterpret(T, varcache.cache.du)
-# this covers the case for Rosenbrock solvers where only t has differentiable type
-retrieve(varcache::VarCache, u::AbstractArray, t::T) where {T<:ForwardDiff.Dual} = retrieve(varcache, similar(u, T))
-retrieve(varcache::VarCache, u::AbstractArray, t) = retrieve(varcache, u)
-retrieve(varcache::VarCache) = diffcache.du
-Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
-Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::VarCache{name}) where name = show(io, cache)
-# type piracy to reduce clutter in compiled type names
-Base.show(io::IO, ::Type{<:VarCache{name}}) where name = print(io, "VarCache{$name}")

@@ -36,15 +36,15 @@ control flow such as if-else or while blocks (technically should work but someti
 Conditional logic can be incorporated via `IfElse.ifelse`. See the documentation for `Symbolics.jl`
 for more information and technical details.
 """
-function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choosefn=first)
-    ∇f = generate_derivative(f, dvar; choosefn=choosefn)
+function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choosefn=first, context_module=CryoGrid.Common.Math)
+    ∇f = ∇(f, dvar; choosefn=choosefn, context_module=context_module)
     # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
     # when applied to runtime generated functions.
     SFCC(f, Base.splat(∇f), s)
 end
 
 # Join the declared state variables of the SFCC function and the solver
-variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, sfcc.f), variables(soil, heat, sfcc.solver))
+CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(CryoGrid.variables(soil, heat, sfcc.f), CryoGrid.variables(soil, heat, sfcc.solver))
 
 """
 Updates state variables according to the specified SFCC function and solver.
@@ -67,7 +67,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{(:Hₛ,:Hₗ)}, state)
             state.θl[i] = clamp(state.Hₗ[i] / L, 0.0, state.θw[i])
             state.C[i] = heatcapacity(soil.params, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
             state.T[i] = state.Hₛ[i] / state.C[i] + 273.15
-            f_argsᵢ = CryoGrid.selectat(i, identity, f_args)
+            f_argsᵢ = Utils.selectat(i, identity, f_args)
             state.dθdT[i] = ∇f(f_argsᵢ)
             state.Ceff[i] = L*state.dΘdT[i] + state.C[i]
         end
@@ -79,7 +79,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{:T}, state)
         ∇f = sfcc.∇f,
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
         for i in 1:length(state.T)
-            f_argsᵢ = selectat(i, identity, f_args)
+            f_argsᵢ = Utils.selectat(i, identity, f_args)
             state.θl[i] = f(f_argsᵢ...)
             state.C[i] = heatcapacity(soil.params, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
@@ -98,8 +98,8 @@ of the freeze curve function `f`.
 """
 sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
-variables(::Soil, ::Heat, f::SFCCFunction) = ()
-variables(::Soil, ::Heat, s::SFCCSolver) = ()
+CryoGrid.variables(::Soil, ::Heat, f::SFCCFunction) = ()
+CryoGrid.variables(::Soil, ::Heat, s::SFCCSolver) = ()
 
 export params
 
@@ -115,7 +115,7 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
     θres::Float64 = 0.0 # residual water content
     g::Float64 = 9.80665 # acceleration due to gravity
 end
-variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0, 0..Inf), Parameter(:n, 2.0, 1..Inf), Parameter(:Tₘ, 273.15, 0..Inf),)
+CryoGrid.variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0, 0..Inf), Parameter(:n, 2.0, 1..Inf), Parameter(:Tₘ, 273.15, 0..Inf),)
 sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
     state.params.α |> getscalar, 
     state.params.n |> getscalar,
@@ -129,9 +129,9 @@ function (f::VanGenuchten)(T,α,n,Tₘ,θtot,θsat,L)
         θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
-        ψ₀ = 0.0, #(-1/α)*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n),
+        ψ₀ = IfElse.ifelse(θtot >= θsat, 0.0, (((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n)),
         Tstar = Tₘ + g*Tₘ/L*ψ₀,
-        ψ(T) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T); # pressure head at T
+        ψ(T) = ψ₀ + L/(g*Tstar)*(T-Tstar)*Math.heaviside(Tstar-T); # pressure head at T
         θres + (θsat - θres)*(1 + (-α*ψ(T))^n)^(-m) # van Genuchten
     end
 end
@@ -148,7 +148,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 @with_kw struct McKenzie <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::Soil, ::Heat, ::McKenzie) = (Parameter(:γ, 0.184, 0..Inf),)
+CryoGrid.variables(::Soil, ::Heat, ::McKenzie) = (Parameter(:γ, 0.184, 0..Inf),)
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     state.params.γ |> getscalar, 
     state.θw,
@@ -175,7 +175,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
 @with_kw struct Westermann <: SFCCFunction
     θres::Float64 = 0.0 # residual water content
 end
-variables(::Soil, ::Heat, ::Westermann) = (Parameter(:δ, 0.1, 0..Inf),)
+CryoGrid.variables(::Soil, ::Heat, ::Westermann) = (Parameter(:δ, 0.1, 0..Inf),)
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     state.params.δ |> getscalar, 
     state.θw,
@@ -238,7 +238,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
             cw = soil.params.hc.cw, # heat capacity of liquid water
             α₀ = s.α₀,
             τ = s.τ,
-            f_argsᵢ = selectat(i, adstrip, f_args);
+            f_argsᵢ = Utils.selectat(i, adstrip, f_args);
             # compute initial guess T by setting θl according to free water scheme
             T = let Lθ = L*θtot;
                 if H < 0
@@ -289,7 +289,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
             # Since we perform the Newton iteration on untracked variables,
             # we need to recompute θl, C, and T here with the tracked variables.
             # Note that this results in one additional freeze curve function evaluation.
-            let f_argsᵢ = selectat(i,identity,f_args);
+            let f_argsᵢ = Utils.selectat(i,identity,f_args);
                 # recompute liquid water content with (possibly) tracked variables
                 args = tuplejoin((T,),f_argsᵢ)
                 state.θl[i] = f(args...)

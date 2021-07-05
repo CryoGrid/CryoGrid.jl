@@ -3,7 +3,7 @@
 """
 abstract type Forcing{T,N} end
 """
-      TimeSeriesForcing{T,A}
+      TimeSeriesForcing{T,A,I}
 """
 struct TimeSeriesForcing{T,A,I} <: Forcing{T,1}
       tarray::TimeArray{T,1,DateTime,A}
@@ -28,7 +28,7 @@ export TimeSeriesForcing, Forcing
 """
 Get interpolated forcing value at t seconds from t0.
 """
-(forcing::TimeSeriesForcing)(t::Real) = forcing.interp(t) # extract interpolation and evaluate
+(forcing::TimeSeriesForcing)(t::Number) = forcing.interp(t) # extract interpolation and evaluate
 (forcing::TimeSeriesForcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
 
 Base.getindex(f::TimeSeriesForcing, i) = forcing.tarray[i]

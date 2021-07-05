@@ -1,3 +1,9 @@
+module Callbacks
+
+using CryoGrid.Common
+using CryoGrid.Processes.HeatConduction: HeatOnlySetup
+using CryoGrid.Setup
+
 """
 CryoGridCallbackFunction{TState,TSetup}(setup, state)
 
@@ -30,3 +36,5 @@ end
 export CryoGridCallbackFunction
 
 include("courant_step.jl")
+
+end

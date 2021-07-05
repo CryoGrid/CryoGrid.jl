@@ -141,7 +141,7 @@ version = "4.0.4"
 
 [[CryoGrid]]
 deps = ["ArraysOfArrays", "BenchmarkTools", "ComponentArrays", "DataStructures", "Dates", "DiffEqBase", "DifferentialEquations", "DimensionalData", "Downloads", "ExprTools", "ForwardDiff", "IfElse", "InteractiveUtils", "Interpolations", "IntervalSets", "JSON3", "Lazy", "LinearAlgebra", "LoopVectorization", "ModelingToolkit", "Parameters", "ProgressMeter", "RecursiveArrayTools", "Reexport", "ReverseDiff", "RuntimeGeneratedFunctions", "Setfield", "SimulationLogs", "Statistics", "Test", "TimeSeries", "Unitful"]
-git-tree-sha1 = "539898b75d2c86b5574c56a2962a5e72b07b6934"
+git-tree-sha1 = "9c27323c74746c2e12fa32865d00e6f2f8588fe8"
 repo-rev = "feature/docs"
 repo-url = ".."
 uuid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
@@ -202,10 +202,10 @@ uuid = "c894b116-72e5-5b58-be3c-e6d8d4ac2b12"
 version = "6.14.2"
 
 [[DiffEqNoiseProcess]]
-deps = ["DiffEqBase", "Distributions", "LinearAlgebra", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "Requires", "ResettableStacks", "StaticArrays", "Statistics"]
-git-tree-sha1 = "3d8842936fdb1d3d95929fcb99645a48d08fd0d7"
+deps = ["DiffEqBase", "Distributions", "LinearAlgebra", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "Requires", "ResettableStacks", "SciMLBase", "StaticArrays", "Statistics"]
+git-tree-sha1 = "d6839a44a268c69ef0ed927b22a6f43c8a4c2e73"
 uuid = "77a26b50-5914-5dd7-bc55-306e6241c503"
-version = "5.8.0"
+version = "5.9.0"
 
 [[DiffEqPhysics]]
 deps = ["DiffEqBase", "DiffEqCallbacks", "ForwardDiff", "LinearAlgebra", "Printf", "Random", "RecipesBase", "RecursiveArrayTools", "Reexport", "StaticArrays"]
@@ -255,9 +255,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[Distributions]]
 deps = ["FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "465bac778ecf06edf09e6b649246f819d5e136dd"
+git-tree-sha1 = "2c8e9b5237eb234e9c2ef0d556c9ed9f0b83d4c0"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.7"
+version = "0.25.8"
 
 [[DocStringExtensions]]
 deps = ["LibGit2", "Markdown", "Pkg", "Test"]
@@ -317,9 +317,9 @@ version = "0.3.2"
 
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
-git-tree-sha1 = "a603e79b71bb3c1efdb58f0ee32286efe2d1a255"
+git-tree-sha1 = "693210145367e7685d8604aee33d9bfb85db8b31"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "0.11.8"
+version = "0.11.9"
 
 [[FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
@@ -782,9 +782,9 @@ version = "0.0.1"
 
 [[SciMLBase]]
 deps = ["ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "RecipesBase", "RecursiveArrayTools", "StaticArrays", "Statistics", "Tables", "TreeViews"]
-git-tree-sha1 = "7d60436171978e9b4f73790ebf436fccd307df51"
+git-tree-sha1 = "9e92c3e8f73f404bf1adec63fe075b73bcec3e1c"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.14.0"
+version = "1.15.0"
 
 [[Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"

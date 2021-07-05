@@ -1,5 +1,11 @@
-using JSON3
+module InputOutput
+
 using DataStructures: DefaultDict
+using Dates
+using Downloads
+using JSON3
+using Lazy: @>>
+using Unitful
 
 include("ioutils.jl")
 
@@ -58,3 +64,5 @@ function loadforcings(::Type{JsonSpec{1}}, filename::String, units::Pair{Symbol,
 end
 
 export loadforcings
+
+end

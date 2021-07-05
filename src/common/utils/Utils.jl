@@ -1,5 +1,18 @@
+"""
+    module Utils
+
+Common utility functions, constants, and macros used throughout the CryoGrid.jl codebase.
+"""
+module Utils
+
+using Dates
+using Unitful
+
+import CryoGrid
+import ForwardDiff
+import ReverseDiff
+
 # Convenience constants for units
-const Unit{N,D,A} = Unitful.Units{N,D,A}
 const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
 const DistQuantity{T,U} = Quantity{T,Unitful.𝐋,U} where {T,U<:DistUnit}
 const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
@@ -7,24 +20,24 @@ const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TempUnit}
 
-export Unit, DistUnit, DistQuantity, TempUnit, TempQuantity
+export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 
 """
 Similar to Unitful.@u_str (i.e. u"kg") but conditional on debug mode being enabled. Otherwise, no unit is applied.
 This should be used to apply units (and thus dimensional analysis checks) to physical quantities at test time but
 not during normal execution to avoid unnecessary overhead.
 """
-macro xu_str(unit) CRYOGRID_DEBUG ? :(@u_str($unit)) : 1 end
+macro xu_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(@u_str($unit)) : 1 end
 """
 Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
 If debug mode is not enabled, plain Float64 is used instead.
 """
-macro Float_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
+macro Float_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
 """
 Similar to @UT_str but produces a Real quantity type for the given unit if and only if debug mode is enabled.
 If debug mode is not enabled, plain Float64 is used instead.
 """
-macro Real_str(unit) CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Real) end
+macro Real_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Real) end
 """
 Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the quantity rather than the instance. NOT conditional
 on debug mode.
@@ -39,10 +52,10 @@ macro UT_str(unit) :(typeof(@u_str($unit))) end
 """
 Debug ustrip. Remove units if and only if debug mode is NOT enabled.
 """
-dustrip(x::Number) = CRYOGRID_DEBUG ? x : ustrip(x)
-dustrip(u::Unitful.Units, x::Number) = CRYOGRID_DEBUG ? x : ustrip(u,x)
+dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
+dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
 
-export @xu_str, @Float_str, @UFloat_str, @UT_str, dustrip
+export @xu_str, @Float_str, @Real_str, @UFloat_str, @UT_str, dustrip
 
 """
 Provides implementation of `Base.iterate` for structs.
@@ -100,14 +113,20 @@ convert_tspan(tspan::NTuple{2,DateTime}) = Dates.datetime2epochms.(tspan) ./ 100
 convert_tspan(tspan::NTuple{2,Float64}) = Dates.epochms2datetime.(tspan.*1000.0)
 export convert_tspan
 
-# Helper function for handling mixed vector/scalar arguments to runtime generated functions.
-# select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
-# We use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
-# function f is then applied to each element
+"""
+    @generated selectat(i::Int, f, args::T) where {T<:Tuple}
+
+Helper function for handling mixed vector/scalar arguments to runtime generated functions.
+select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
+We use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
+function `f` is then applied to each element.
+"""
 @generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 
 """
-Forward fills values in vector `x` and skips any leading missing values.
+    ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
+
+Forward fills missing values in vector `x`.
 """
 function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
     local lastval::Union{Missing,E} = missing
@@ -115,7 +134,7 @@ function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
         lastval = ismissing(x[i]) ? lastval : x[i]
         x[i] = lastval
     end
-    return skipmissing(x)
+    return x
 end
 
 """
@@ -126,3 +145,7 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 adstrip(x::Number) = x
 adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x)
 adstrip(x::ReverseDiff.TrackedReal) = x.value
+
+export adstrip
+
+end

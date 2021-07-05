@@ -24,30 +24,58 @@ export Layer, SubSurface, Top, Bottom, Boundary
 abstract type Process end
 abstract type SubSurfaceProcess <: Process end
 abstract type BoundaryProcess{P<:SubSurfaceProcess} <: Process end
-struct Processes{TProcs} <: Process
+struct System{TProcs} <: Process
     processes::TProcs
-    Processes(processes::Process...) = new{typeof(processes)}(processes)
+    System(processes::Process...) = new{typeof(processes)}(processes)
 end
-Base.show(io::IO, ps::Processes{T}) where T = print(io, "$T")
-@propagate_inbounds @inline Base.getindex(ps::Processes, i) = ps.processes[i]
+"""
+    Coupled{P1,P2}
+
+Represents a coupled pair of processes. Alias for `System{Tuple{P1,P2}}`.
+"""
+const Coupled{P1,P2} = System{Tuple{T1,T2}} where {T1,T2}
+"""
+    Coupled(p1,p2)
+
+Alias for `System(p1,p2)`.
+"""
+Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = System(p1,p2)
+# Base methods
+Base.show(io::IO, ps::System{T}) where T = print(io, "$T")
+@propagate_inbounds @inline Base.getindex(ps::System, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
 
-export Process, SubSurfaceProcess, BoundaryProcess, Processes
+export Process, SubSurfaceProcess, BoundaryProcess, System, Coupled
 
 # Boundary condition trait
 """
+    BoundaryStyle
+
 Trait that specifies the "style" or kind of boundary condition.
 """
 abstract type BoundaryStyle end
 struct Dirichlet <: BoundaryStyle end
 struct Neumann <: BoundaryStyle end
-# Default to an error to avoid erroneously labeling a boundary condition.
-BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary condition $T")
 
 export BoundaryStyle, Dirichlet, Neumann
 
-# Parameterizations
+"""
+    JacobianStyle
+
+Trait for indicating Jacobian sparsity of a CryoGrid ODEProblem.
+"""
+abstract type JacobianStyle end
+struct DefaultJac <: JacobianStyle end
+struct TridiagJac <: JacobianStyle end
+
+export DefaultJac, TridiagJac
+
+"""
+    Parameterization
+
+Base type for representing parameterizations.
+"""
 abstract type Parameterization end
 struct Nonparametric <: Parameterization end
 struct Parametric{T}

@@ -1,14 +1,14 @@
-struct Constant{P,S,T} <: BoundaryProcess{P}
-    value::T
-    Constant{P,S}(value::T) where {P<:SubSurfaceProcess,S<:BoundaryStyle,T} = new{P,S,T}(value)
+struct TemperatureGradient{F} <: BoundaryProcess{Heat}
+    forcing::F
+    TemperatureGradient(forcing::Forcing{Float"°C"}) = new{typeof(forcing)}(forcing)
 end
 
-# Arguments are irrelevant for Constant, so we can just use args...
-(bc::Constant)(args...) = bc.value
+@inline (bc::TemperatureGradient)(t) = bc.forcing(t)
+@inline (bc::TemperatureGradient)(l1,l2,p2,s1,s2) = bc(s1.t)
 
-BoundaryStyle(::Type{<:Constant{P,S}}) where {P,S} = S()
+CryoGrid.BoundaryStyle(::Type{<:TemperatureGradient}) = Dirichlet()
 
-export Constant
+export TemperatureGradient
 
 # Boundary condition type aliases
 const ConstantTemp = Constant{Heat,Dirichlet,Float"K"}

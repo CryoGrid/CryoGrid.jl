@@ -3,19 +3,24 @@ Pre-built CryoGrid configurations for rapid prototyping.
 """
 module Models
 
-using ..CryoGrid
+using CryoGrid
+using CryoGrid.InputOutput: Resource
+using CryoGrid.Layers: Soil, SoilProfile, SoilProperties
+using CryoGrid.Processes.HeatConduction: Heat, FreezeCurve, FreeWater, GeothermalHeatFlux, TempProfile
+using CryoGrid.Setup
+
 using Statistics
 
 include("presetgrids.jl")
 
 Forcings = (
-    Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044 = CryoGrid.Resource("Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044", "json", "https://nextcloud.awi.de/s/F98s5WEo9xMPod7/download"),
-    Samoylov_ERA_MkL3_CCSM4_long_term = CryoGrid.Resource("Samoylov_ERA_MkL3_CCSM4_long_term", "json", "https://nextcloud.awi.de/s/RSqBtp5sPwkCf45/download"),
+    Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044 = Resource("Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044", "json", "https://nextcloud.awi.de/s/F98s5WEo9xMPod7/download"),
+    Samoylov_ERA_MkL3_CCSM4_long_term = Resource("Samoylov_ERA_MkL3_CCSM4_long_term", "json", "https://nextcloud.awi.de/s/RSqBtp5sPwkCf45/download"),
 )
 
 Parameters = (
     # Faroux et al. doi:10.1109/IGARSS.2007.4422971
-    EcoCLimMap_ULC_126_72 = CryoGrid.Resource("EcoCLimMap_ULC_126_72", "json", "https://nextcloud.awi.de/s/nWiJr5pBoqFtw7p/download")
+    EcoCLimMap_ULC_126_72 = Resource("EcoCLimMap_ULC_126_72", "json", "https://nextcloud.awi.de/s/nWiJr5pBoqFtw7p/download")
 )
 
 """

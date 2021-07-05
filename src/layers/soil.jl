@@ -80,7 +80,7 @@ soilcomp(::Val{:θo}, χ, ϕ, θ, ω) = @. (1-χ)*(1-ϕ)*ω
 
 Base.show(io::IO, soil::Soil{T,P}) where {T,P} = print(io, "Soil{$T,$P}($(soil.params))")
 
-variables(::Soil{T,Nonparametric}) where T = (
+CryoGrid.variables(::Soil{T,Nonparametric}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θx, Float64, OnGrid(Cells)),
@@ -89,7 +89,7 @@ variables(::Soil{T,Nonparametric}) where T = (
     Diagnostic(:θo, Float64, OnGrid(Cells)),
 )
 
-variables(soil::Soil{T,Parametric{ByComposition}}) where T = (
+CryoGrid.variables(soil::Soil{T,Parametric{ByComposition}}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θx, Float64, OnGrid(Cells)),
@@ -102,7 +102,7 @@ variables(soil::Soil{T,Parametric{ByComposition}}) where T = (
     Parameter(:θo, soilcomp(Val{:θo}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)]), 0..1),
 )
 
-variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
+CryoGrid.variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θx, Float64, OnGrid(Cells)),
@@ -115,7 +115,7 @@ variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
     Parameter(:ω, soil.profile[var=:ω], 0..1),
 )
 
-function initialcondition!(soil::Soil{T,P}, state) where {T,P}
+function CryoGrid.initialcondition!(soil::Soil{T,P}, state) where {T,P}
     # Helper functions for initializing soil composition state based on parameterization mode.
     fromparams(::Val{var}, soil::Soil{T,Parametric{ByComposition}}, state) where {var,T} = state.params[var]
     fromparams(::Val{var}, soil::Soil{T,Parametric{ByXicePorSat}}, state) where {var,T} = soilcomp(Val{var}(), state.params.χ, state.params.ϕ, state.params.θ, state.params.ω)
@@ -126,27 +126,8 @@ function initialcondition!(soil::Soil{T,P}, state) where {T,P}
         arr .= missing
         arr_sub = @view arr[depth=Near(depths)]
         arr_sub .= fromparams(Val{var}(), soil, state)
-        state[var] .= ffill!(arr)
+        Utils.ffill!(arr)
+        state[var] .= skipmissing(arr)
     end
     @. state.θw = state.θx + state.θp
 end
-
-function thermalconductivity(params::SoilParams, totalWater, liquidWater, mineral, organic)
-    @unpack kw,ko,km,ka,ki = params.tc
-    let air = 1.0 - totalWater - mineral - organic,
-        ice = totalWater - liquidWater,
-        water = liquidWater;
-        (water*kw^0.5 + ice*ki^0.5 + mineral*km^0.5 + organic*ko^0.5 + air*ka^0.5)^2
-    end
-end
-
-function heatcapacity(params::SoilParams, totalWater, liquidWater, mineral, organic)
-    @unpack cw,co,cm,ca,ci = params.hc
-    let air = 1.0 - totalWater - mineral - organic,
-        ice = totalWater - liquidWater,
-        water = liquidWater;
-        water*cw + ice*ci + mineral*cm + organic*co + air*ca
-    end
-end
-
-export thermalconductivity, heatcapacity
