@@ -1,2 +1,5 @@
-## Common
-### Public API
+# Common
+
+```@autodocs
+Modules = [Common]
+```
