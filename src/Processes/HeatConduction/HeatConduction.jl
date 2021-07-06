@@ -13,6 +13,7 @@ using CryoGrid.Utils
 using DimensionalData
 using IfElse
 using Interpolations: Linear, Flat
+using IntervalSets
 using Parameters
 using Unitful
 
