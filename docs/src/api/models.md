@@ -1,5 +1,5 @@
 ```@autodocs
-Modules = [Models]
+Modules = [CryoGrid.Models]
 Private = false
 Order = [:type, :function, :macro]
 ```

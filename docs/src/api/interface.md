@@ -1,7 +1,7 @@
 # Interface
 
 ```@autodocs
-Modules = [Interface]
+Modules = [CryoGrid.Interface]
 Private = false
-Order = [:type, :function, :macro]
+Order = [:type, :constant, :function, :macro]
 ```

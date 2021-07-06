@@ -1,22 +1,43 @@
-# Layer base types
+"""
+Abstract base type for all layers.
+"""
 abstract type Layer end
+"""
+    SubSurface <: Layer
+
+Abstract base type for layers in the stratigraphy, e.g. soil, snow, pond, etc.
+"""
 abstract type SubSurface <: Layer end
+"""
+    Top <: Layer
+
+Generic "top" layer that marks the upper boundary of the subsurface grid.
+"""
 struct Top <: Layer end
+"""
+    Bottom <: Layer
+
+Generic "bottom" layer that marks the lower boundary of the subsurface grid.
+"""
 struct Bottom <: Layer end
+"""
+    Boundary = Union{Top,Bottom}
+
+Alias that refers to the type union over both Top and Bottom layer types.
+"""
 const Boundary = Union{Top,Bottom}
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)
 
 """
-    Process
-
-Abstract base type for dynamical processes, e.g. heat conduction, water infiltration, etc.
+Abstract base type for all dynamical processes.
 """
 abstract type Process end
 """
-    SubSurfaceProcess
+    SubSurfaceProcess <: Process
 
-Abstract base type for subsurface processes, i.e. processes that operate at or below the surface.
+Abstract base type for subsurface processes, i.e. processes that operate at or below the surface,
+such as heat conduction, water infiltration, etc.
 """
 abstract type SubSurfaceProcess <: Process end
 """
@@ -41,7 +62,7 @@ struct System{TProcs} <: Process
     System(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
 end
 """
-    Coupled{P1,P2}
+    Coupled{P1,P2} = System{Tuple{T1,T2}} where {T1,T2}
 
 Represents a coupled pair of explicitly processes. Alias for `System{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on composite processes/systems.
@@ -61,10 +82,16 @@ Base.Broadcast.broadcastable(p::Process) = Ref(p)
 
 # Boundary condition trait
 """
-    BoundaryStyle
-
-Trait that specifies the "style" or kind of boundary condition.
+Trait that specifies the "style" or kind of boundary condition. This can be used to write generic
+implementations of `interact!` that are (relatively) agnostic to specific implementations of
+`BoundaryProcess`. A good example of this can be found in `HeatConduction.boundaryflux`.
 """
 abstract type BoundaryStyle end
+"""
+`BoundaryStyle` instance for Dirichlet boundary conditions.
+"""
 struct Dirichlet <: BoundaryStyle end
+"""
+`BoundaryStyle` instance for Neumann boundary conditions.
+"""
 struct Neumann <: BoundaryStyle end

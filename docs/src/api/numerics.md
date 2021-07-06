@@ -1,7 +1,13 @@
 # Numerics
 
+```@meta
+DocTestSetup = quote
+    using CryoGrid
+end
+```
+
 ```@autodocs
-Modules = [Numerics]
-Private = false
+Modules = [CryoGrid.Numerics]
+Private = true
 Order = [:type, :function, :macro]
 ```

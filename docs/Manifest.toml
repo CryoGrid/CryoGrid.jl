@@ -81,9 +81,9 @@ version = "3.2.3"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "be770c08881f7bb928dfd86d1ba83798f76cf62a"
+git-tree-sha1 = "aec96e79e396dfa7f762c90e3cac8f15ddb43f03"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "0.10.9"
+version = "0.10.10"
 
 [[Combinatorics]]
 git-tree-sha1 = "08c8b6831dc00bfea825826be0bc8336fc369860"
@@ -714,9 +714,9 @@ version = "1.1.1"
 
 [[RecursiveArrayTools]]
 deps = ["ArrayInterface", "ChainRulesCore", "DocStringExtensions", "LinearAlgebra", "RecipesBase", "Requires", "StaticArrays", "Statistics", "ZygoteRules"]
-git-tree-sha1 = "9620e8b5ff92493797900322df9ed62d2a9fd273"
+git-tree-sha1 = "e205e8c50633f96dbc59d4ae760f4e9e4d445fdb"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "2.14.4"
+version = "2.14.5"
 
 [[RecursiveFactorization]]
 deps = ["LinearAlgebra", "LoopVectorization"]
@@ -782,9 +782,9 @@ version = "0.0.1"
 
 [[SciMLBase]]
 deps = ["ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "RecipesBase", "RecursiveArrayTools", "StaticArrays", "Statistics", "Tables", "TreeViews"]
-git-tree-sha1 = "45e6f0bdf4c7fc93e4368f42f52fd32ce12e9cf9"
+git-tree-sha1 = "51a5896c36b6f8636b0d25d53f91607f5cc2dacf"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "1.16.0"
+version = "1.17.0"
 
 [[Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"

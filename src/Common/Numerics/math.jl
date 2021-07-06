@@ -74,13 +74,17 @@ end
 """
     heaviside(x)
 
-Differentiable implementation of heaviside step function.
+Differentiable implementation of heaviside step function, i.e:
+
+``h(x) = \\begin{cases} 1 & x ≥ 0 \\\\ 0 & x < 0 \\end{cases}``
 """
 heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
 """
     logistic(x)
 
 Numerically stable logistic function.
+
+``σ(x) = \\begin{cases} \\frac{1}{1+\\exp(-x)} & x ≥ 0 \\\\ \\frac{\\exp(x)}{1+\\exp(x)} & x < 0 \\end{cases}``
 """
 logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(-x)), exp(x) / (1 + exp(x)))
 """
@@ -95,6 +99,8 @@ logit(x) = let x = clamp(x, eps(), 1-eps()); log(x) - log(1-x) end
     softplus(x)
 
 Numerically stable softplus function.
+
+``s(x) = \\log(1+\\exp(-|x|)) + \\max(x,ϵ)``
 """
 softplus(x) = log1p(exp(-abs(x))) + max(x,eps())
 """
@@ -118,6 +124,22 @@ To avoid symbolic tracing issues, the function should 1) be pure (no side effect
 indeterminate control flow such as if-else or while blocks (technically should work but sometimes doesn't...). Conditional
 logic can be included using `IfElse.ifelse`. Additional argument names are extracted automatically from the method signature
 of `f`. Keyword arg `choosefn` should be a function which selects from available methods of `f` (returned by `methods`); defaults to `first`.
+Note that `∇` uses `RuntimeGeneratedFunction` to produce a fully specialized and compiled Julia function; it may be slow on the first call
+(due to compilation), but should be just as fast as handwriting it on subsequent calls.
+
+Example:
+
+For ``f(x,y) = 2x + xy``, ``\\frac{\\partial f}{\\partial x} = 2 + y``. Using `∇`, we can obtain this automagically:
+
+```jldoctest
+f(x,y) = 2*x + x*y
+∇f_x = ∇(f,:x)
+∇f_x(2.0,3.0)
+
+# output
+
+5.0
+```
 """
 function ∇(f, dvar::Symbol; choosefn=first, context_module=Numerics)
     # Parse function parameter names using ExprTools

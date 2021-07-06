@@ -1,7 +1,7 @@
 # Utilities
 
 ```@autodocs
-Modules = [Utilities]
+Modules = [CryoGrid.Utils]
 Private = false
 Order = [:type, :function, :macro]
 ```

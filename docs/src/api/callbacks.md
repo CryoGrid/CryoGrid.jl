@@ -1,7 +1,7 @@
 # Callbacks
 
 ```@autodocs
-Modules = [Callbacks]
+Modules = [CryoGrid.Callbacks]
 Private = false
 Order = [:type, :function, :macro]
 ```

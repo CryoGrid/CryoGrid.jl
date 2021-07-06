@@ -1,7 +1,7 @@
 # Forcings
 
 ```@autodocs
-Modules = [Forcings]
+Modules = [CryoGrid.Forcings]
 Private = false
 Order = [:type, :function, :macro]
 ```
