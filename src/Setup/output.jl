@@ -23,7 +23,7 @@ Constructs a `CryoGridOutput` from the given `ODESolution`.
 function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
     setup = sol.prob.f.f # CryoGridSetup
     log = get_log(sol, ts)
-    ts_datetime = Dates.epochms2datetime.(ts*1000.0)
+    ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(var::Var{name,T,OnGrid{Edges}}, arr, i) where {name,T} = DimArray(arr, (Z(setup.meta[i].grids[varname(var)]u"m"),Ti(ts_datetime)))
     withdims(var::Var{name,T,OnGrid{Cells}}, arr, i) where {name,T} = DimArray(arr, (Z(setup.meta[i].grids[varname(var)]u"m"),Ti(ts_datetime)))
