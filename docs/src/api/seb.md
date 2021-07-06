@@ -1,7 +1,7 @@
-# Heat conduction
+# Surface Energy Balance
 
 ```@autodocs
-Modules = [HeatConduction]
+Modules = [SEB]
 Private = false
 Order = [:type, :function, :macro]
 ```

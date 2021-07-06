@@ -1,5 +1,0 @@
-# Common
-
-```@autodocs
-Modules = [Common]
-```

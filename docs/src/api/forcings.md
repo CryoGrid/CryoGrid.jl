@@ -1,7 +1,7 @@
-# Heat conduction
+# Forcings
 
 ```@autodocs
-Modules = [HeatConduction]
+Modules = [Forcings]
 Private = false
 Order = [:type, :function, :macro]
 ```
