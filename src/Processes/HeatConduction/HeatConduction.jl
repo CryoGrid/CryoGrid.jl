@@ -56,10 +56,10 @@ export Heat, HeatParams, TempProfile
 
 freezecurve(heat::Heat) = heat.params.freezecurve
 enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
-heatcapacity(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
-thermalconductivity(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
+heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
+thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 
-export freezecurve, enthalpy, heatcapacity, thermalconductivity
+export freezecurve, enthalpy, heatcapacity!, thermalconductivity!
 
 """
     heatconduction!(∂H,T,ΔT,k,Δk)
