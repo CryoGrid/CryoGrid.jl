@@ -28,6 +28,7 @@ include("Callbacks/Callbacks.jl")
 
 # Re-exported packages
 @reexport using Dates: Dates, DateTime
+@reexport using DiffEqBase: solve, init, ODEProblem
 @reexport using DimensionalData: DimArray, X, Y, Z, Dim, dims
 @reexport using IntervalSets
 @reexport using Unitful
