@@ -17,9 +17,13 @@ using IntervalSets
 using Parameters
 using Unitful
 
+export Heat, HeatParams, TempProfile
+export FreeWater, FreezeCurve, freezecurve
+export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
+export heatconduction!, boundaryflux
+
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
-export FreeWater, FreezeCurve
 
 @with_kw struct HeatParams{F<:FreezeCurve,S} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
@@ -52,14 +56,10 @@ end
 
 Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
 
-export Heat, HeatParams, TempProfile
-
 freezecurve(heat::Heat) = heat.params.freezecurve
 enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
-
-export freezecurve, enthalpy, heatcapacity!, thermalconductivity!
 
 """
     heatconduction!(∂H,T,ΔT,k,Δk)
@@ -192,8 +192,6 @@ variables(::Soil, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
     error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
-
-export heatconduction!, boundaryflux
 
 include("soil/soilheat.jl")
 include("heat_bc.jl")
