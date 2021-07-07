@@ -1,6 +1,6 @@
 ## Quick start
 
-Single layer heat conduction model with free water freeze curve and air temperature upper boundary condition:
+After [installing](installation.md) `CryoGrid.jl`, you can get started right away with a simple soil heat model. The [`Models`](@ref) module (aliased `CryoGridModels`) provides pre-specified models that can be obtained with a single function call. It is also possible to modify the soil and initial temperature profiles via `SoilLayerConfig`; here `SamoylovDefault` is used.
 
 ```julia
 using CryoGrid
