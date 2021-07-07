@@ -24,7 +24,7 @@ using Unitful
 using RecursiveArrayTools
 using Reexport
 
-@reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
+@reexport using DiffEqBase
 @reexport using OrdinaryDiffEq
 @reexport using SimulationLogs
 
