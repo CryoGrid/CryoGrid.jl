@@ -2,59 +2,44 @@ module CryoGrid
 
 global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
 
-using Base: @propagate_inbounds, Float64
-using Lazy: @>>, @>, groupby
-using DataStructures: SortedDict, OrderedDict
-using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
-using TimeSeries
-using ArraysOfArrays
-using ComponentArrays
-using LinearAlgebra
-using IfElse
-using LoopVectorization
-using RuntimeGeneratedFunctions
 using Reexport
-import ExprTools
-import ForwardDiff
-import ReverseDiff
-@reexport using Dates
-@reexport using Unitful
+
+# Submodules
+include("Common/Interface/Interface.jl")
+include("Common/Utils/Utils.jl")
+include("Common/Numerics/Numerics.jl")
+include("Common/Forcings/Forcings.jl")
+include("IO/InputOutput.jl")
+include("Layers/Layers.jl")
+include("Processes/Processes.jl")
+include("Setup/Setup.jl")
+include("Callbacks/Callbacks.jl")
+
+# Re-export submodules
+@reexport using .Interface
+@reexport using .Utils
+@reexport using .Numerics
+@reexport using .Forcings
+@reexport using .InputOutput: loadforcings, InputSpec, JsonSpec
+@reexport using .Layers
+@reexport using .Processes
+@reexport using .Setup
+@reexport using .Callbacks
+
+# Re-exported packages
+@reexport using Dates: Dates, DateTime
+@reexport using DimensionalData: DimArray, X, Y, Z, Dim, dims
 @reexport using IntervalSets
-@reexport using DimensionalData
-@reexport using Parameters
-@reexport using DifferentialEquations
-@reexport using DiffEqBase
-@reexport using SimulationLogs
+@reexport using Unitful
 
-RuntimeGeneratedFunctions.init(CryoGrid)
+# Import parameters function into top-level scope;
+# We do not export it in order to avoid naming conflicts with other packages.
+import .Setup: parameters
 
-# Temporary fix for bug in ExprTools (see issue #14)
-# TODO: Remove when fixed in official package.
-function ExprTools.argument_names(m::Method)
-    slot_syms = ExprTools.slot_names(m)
-    arg_names = slot_syms[2:m.nargs]  # nargs includes 1 for self ref
-    return arg_names
-end
-
-include("io/io.jl")
-include("core/core.jl")
-include("layers/layers.jl")
-include("processes/processes.jl")
-include("callbacks/callbacks.jl")
-include("models/Models.jl")
+# Include Models submodule last to allow dependence on other submodules.
+include("Models/Models.jl")
 
 const CryoGridModels = Models
 export CryoGridModels
-
-# Mandatory model method stubs
-variables(::Layer) = ()
-variables(::Layer, ::Process) = ()
-initialcondition!(::Layer, state) = nothing
-initialcondition!(::Layer, ::Process, state) = nothing
-diagnosticstep!(l::Layer, p::Process, state) = error("no diagnostic step defined for $(typeof(l)) with $(typeof(p))")
-prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined for $(typeof(l)) with $(typeof(p))")
-interact!(l1::Layer, p1::Process, l2::Layer, p2::Process, state1, state2) = nothing
-
-export variables, parameters, initialcondition!, diagnosticstep!, prognosticstep!, interact!
 
 end # module
