@@ -46,4 +46,4 @@ makedocs(modules=modules,
                 "Contributing" => "contributing.md",
 ])
 
-deploydocs(repo="github.com/CryoGrid/CryoGrid.jl.git")
+deploydocs(repo="github.com/CryoGrid/CryoGrid.jl.git", push_preview=true)
