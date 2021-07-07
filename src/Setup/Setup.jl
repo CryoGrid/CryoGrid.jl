@@ -16,6 +16,7 @@ using ArraysOfArrays
 using ComponentArrays
 using DataStructures: OrderedDict
 using Dates
+using DiffEqBase: ODEProblem, SciMLBase
 using DimensionalData
 using IntervalSets
 using Lazy: @>>, @>, groupby
@@ -24,7 +25,6 @@ using Unitful
 using RecursiveArrayTools
 using Reexport
 
-@reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
 @reexport using OrdinaryDiffEq
 @reexport using SimulationLogs
 
