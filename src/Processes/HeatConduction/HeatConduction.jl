@@ -105,7 +105,7 @@ variables(layer::SubSurface, heat::Heat{:H}) = (
     # add freeze curve variables (if any are present)
     variables(layer, heat, freezecurve(heat))...,
 )
-""" Variable definitions for heat conduction (partitioned enthalpy) on soil layer. """
+""" Variable definitions for heat conduction (partitioned enthalpy) on any subsurface layer. """
 variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Prognostic(:Hₛ, Float"J/m^3", OnGrid(Cells)),
     Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
@@ -121,7 +121,7 @@ variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
     variables(layer, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (temperature) on any subsurface layer. """
-variables(::SubSurface, heat::Heat{:T}) = (
+variables(layer::SubSurface, heat::Heat{:T}) = (
     Prognostic(:T, Float"K", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
@@ -132,21 +132,21 @@ variables(::SubSurface, heat::Heat{:T}) = (
     # add freeze curve variables (if any are present)
     variables(layer, heat, freezecurve(heat))...,
 )
-""" Initial condition for heat conduction (all state configurations) on subsurface layer. """
+""" Initial condition for heat conduction (all state configurations) on any subsurface layer. """
 function initialcondition!(layer::SubSurface, heat::Heat, state)
     interpolateprofile!(heat.profile, state)
     L = heat.params.L
     heatcapacity!(layer, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
-""" Diagonstic step for heat conduction (all state configurations) on subsurface layer. """
+""" Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
 function diagnosticstep!(layer::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
     # Evaluate the freeze curve (updates T, C, and θl)
     fc! = freezecurve(heat);
-    fc!(soil,heat,state)
+    fc!(layer,heat,state)
     # Update thermal conductivity
     thermalconductivity!(layer, heat, state)
     # Interpolate thermal conductivity to boundary grid
