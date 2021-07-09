@@ -4,6 +4,7 @@ import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, progno
 
 using ..HeatConduction
 using CryoGrid.Interface
+using CryoGrid.Numerics
 using CryoGrid.Utils
 
 export Source, SourceTerm
@@ -41,7 +42,7 @@ via `sp::S`.
 struct Source{P,T,S} <: SubSurfaceProcess
     term::T
     sp::S
-    Source(::Type{P}, term::T, sp::S=nothing) where {P<:SubSurfaceProcess,T<:SourceTerm,S} = new{P,S}(term,sp)
+    Source(::Type{P}, term::T, sp::S=nothing) where {P<:SubSurfaceProcess,T<:SourceTerm,S} = new{P,T,S}(term,sp)
 end
 
 variables(::SubSurface, ::Source{P,Constant{name}}) where {P,name} = (
@@ -52,18 +53,19 @@ variables(::SubSurface, ::Source{P,Periodic{a,f,s}}) where {P,a,f,s} = (
     Parameter(f, 1.0),
     Parameter(s, 0.0),
 )
-(p::Periodic)(a,f,s,t) = a*sin(2π*f*t + s) + p.center
+(p::Periodic)(a,f,s,c,t) = a*sin(2π*f*t + s) + c
 # Heat sources
 function prognosticstep!(::SubSurface, ::Source{<:Heat,Constant{name}}, state) where {name}
     @inbounds @. state.dH += state.params[name]xu"W/m^3"
 end
 function prognosticstep!(::SubSurface, src::Source{<:Heat,Periodic{a,f,s}}, state) where {a,f,s}
     let p = src.term,
-        t = (state.t)xu"s",
+        t = state.t,
+        c = (p.center)xu"W/m^3",
         a = state.params[a]xu"W/m^3",
         f = state.params[f]xu"Hz",
         s = state.params[s];
-        @inbounds @. state.dH += p(a,f,s,t)
+        @inbounds @. state.dH += p(a,f,s,c,t)
     end
 end
 
