@@ -94,6 +94,101 @@ function heatconduction!(∂H,T,ΔT,k,Δk)
     end
     return nothing
 end
+""" Variable definitions for heat conduction (enthalpy) on any subsurface layer. """
+variables(layer::SubSurface, heat::Heat{:H}) = (
+    Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
+    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:C, Float"J//K*/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
+    # add freeze curve variables (if any are present)
+    variables(layer, heat, freezecurve(heat))...,
+)
+""" Variable definitions for heat conduction (partitioned enthalpy) on soil layer. """
+variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
+    Prognostic(:Hₛ, Float"J/m^3", OnGrid(Cells)),
+    Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
+    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
+    Diagnostic(:H, Float"J", OnGrid(Cells)),
+    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    # add freeze curve variables (if any are present)
+    variables(layer, heat, freezecurve(heat))...,
+)
+""" Variable definitions for heat conduction (temperature) on any subsurface layer. """
+variables(::SubSurface, heat::Heat{:T}) = (
+    Prognostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
+    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    # add freeze curve variables (if any are present)
+    variables(layer, heat, freezecurve(heat))...,
+)
+""" Initial condition for heat conduction (all state configurations) on subsurface layer. """
+function initialcondition!(layer::SubSurface, heat::Heat, state)
+    interpolateprofile!(heat.profile, state)
+    L = heat.params.L
+    heatcapacity!(layer, heat, state)
+    @. state.H = enthalpy(state.T, state.C, L, state.θl)
+end
+""" Diagonstic step for heat conduction (all state configurations) on subsurface layer. """
+function diagnosticstep!(layer::SubSurface, heat::Heat, state)
+    # Reset energy flux to zero; this is redundant when H is the prognostic variable
+    # but necessary when it is not.
+    @. state.dH = zero(eltype(state.dH))
+    # Evaluate the freeze curve (updates T, C, and θl)
+    fc! = freezecurve(heat);
+    fc!(soil,heat,state)
+    # Update thermal conductivity
+    thermalconductivity!(layer, heat, state)
+    # Interpolate thermal conductivity to boundary grid
+    regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
+    # TODO: harmonic mean of thermal conductivities (in MATLAB code)
+    # for i=2:N-1
+    #     kn(i,1) = (dxp(i,1)/(2*dxn(i))*kp(i,1).^-1 + dxp(i-1,1)/(2*dxn(i))*kp(i-1).^-1).^-1;
+    #     ks(i,1) = (dxp(i,1)/(2*dxs(i))*kp(i,1).^-1 + dxp(i+1,1)/(2*dxs(i))*kp(i+1).^-1).^-1;
+    # end
+    return nothing # ensure no allocation
+end
+""" Prognostic step for heat conduction (enthalpy) on subsurface layer. """
+function prognosticstep!(::SubSurface, ::Heat{:H}, state)
+    Δk = Δ(state.grids.k) # cell sizes
+    ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
+    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+end
+""" Prognostic step for heat conduction (partitioned enthalpy) on subsurface layer."""
+function prognosticstep!(::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}, state)
+    Δk = Δ(state.grids.k) # cell sizes
+    ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
+    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    let L = heat.params.L;
+        @. state.dHₛ = state.dH / (L/state.C*state.dθdT + 1)
+        # This could also be expressed via a mass matrix with 1
+        # in the upper right block diagonal. But this is easier.
+        @. state.dHₗ = state.dH - state.dHₛ
+    end
+end
+""" Prognostic step for heat conduction (temperature) on subsurface layer. """
+function prognosticstep!(::SubSurface, ::Heat{:T}, state)
+    Δk = Δ(state.grids.k) # cell sizes
+    ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
+    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    # Compute temperature flux by dividing by C_eff;
+    # C_eff should be computed by the freeze curve.
+    @inbounds @. state.dT = state.dH / state.Ceff
+    return nothing
+end
 """
     boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{Heat}}
 
@@ -187,8 +282,8 @@ total water content (θw), and liquid water content (θl).
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
 end
 
-# Default implementation of variables
-variables(::Soil, ::Heat, ::FreezeCurve) = ()
+# Default implementation of `variables` for freeze curve
+variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
     error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
