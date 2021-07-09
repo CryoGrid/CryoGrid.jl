@@ -28,8 +28,8 @@ struct FreeWater <: FreezeCurve end
 @with_kw struct HeatParams{F<:FreezeCurve,S} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
-    L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
-    freezecurve::F = FreeWater() # freeze curve, defautls to free water fc
+    L::Float"J/m^3" = ρ*Lsl             #[J/m^3] (specific latent heat of fusion)
+    freezecurve::F = FreeWater()        # freeze curve, defautls to free water fc
     sp::S = nothing
 end
 
@@ -57,7 +57,7 @@ end
 Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
+enthalpy(T::Number"K", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = (T-273.15xu"K")*C + L*θ
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 
@@ -98,7 +98,7 @@ end
 variables(layer::SubSurface, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"K", OnGrid(Cells)),
-    Diagnostic(:C, Float"J//K*/m^3", OnGrid(Cells)),
+    Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
@@ -265,7 +265,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
-            (I_t*(H-Lθ) + I_f*H)/C + 273.15
+            (I_t*(H-Lθ) + I_f*H)/C + 273.15xu"K"
         end
     end
     @inline function freezethaw(H, L, θtot)
