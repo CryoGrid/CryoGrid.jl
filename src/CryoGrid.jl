@@ -1,6 +1,10 @@
 module CryoGrid
 
 global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
+function debug(debug::Bool)
+    @warn "Enabling/disabling debug mode after the module has been loaded will not update existing types and may cause errors."
+    global CRYOGRID_DEBUG = debug
+end
 
 using Reexport
 

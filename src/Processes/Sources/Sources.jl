@@ -28,9 +28,9 @@ Parametric source term with `name` that is periodic through time and constant th
 `a`, `f`, and `s` are the parameter names for amplitude, frequency, and phase shift respecitvely,
 each of which will be prefixed by `name`.
 """
-struct Periodic{a,f,s} <: SourceTerm
-    center::Float64
-    Periodic(name::Symbol=:S, center::Float64=0.0) = new{Symbol(name,:_amp),Symbol(name,:_freq),Symbol(name,:_shift)}(center)
+struct Periodic{T,a,f,s} <: SourceTerm
+    center::T
+    Periodic(name::Symbol=:S, center::T=0.0) where T = new{T,Symbol(name,:_amp),Symbol(name,:_freq),Symbol(name,:_shift)}(center)
 end
 """
     Source{P,T,S} <: SubSurfaceProcess
@@ -48,24 +48,24 @@ end
 variables(::SubSurface, ::Source{P,Constant{name}}) where {P,name} = (
     Parameter(name, 0.0),
 )
-variables(::SubSurface, ::Source{P,Periodic{a,f,s}}) where {P,a,f,s} = (
+variables(::SubSurface, ::Source{P,Periodic{T,a,f,s}}) where {P,T,a,f,s} = (
     Parameter(a, 1.0),
     Parameter(f, 1.0),
     Parameter(s, 0.0),
 )
-(p::Periodic)(a,f,s,c,t) = a*sin(2π*f*t + s) + c
+(p::Periodic)(a,f,t₀,c,t) = a*sin(2π*f*t - t₀) + c
 # Heat sources
 function prognosticstep!(::SubSurface, ::Source{<:Heat,Constant{name}}, state) where {name}
-    @inbounds @. state.dH += state.params[name]xu"W/m^3"
+    @inbounds @. state.dH += state.params[name]
 end
-function prognosticstep!(::SubSurface, src::Source{<:Heat,Periodic{a,f,s}}, state) where {a,f,s}
+function prognosticstep!(::SubSurface, src::Source{<:Heat,Periodic{T,a,f,s}}, state) where {T,a,f,s}
     let p = src.term,
         t = state.t,
-        c = (p.center)xu"W/m^3",
-        a = state.params[a]xu"W/m^3",
-        f = state.params[f]xu"Hz",
-        s = state.params[s];
-        @inbounds @. state.dH += p(a,f,s,c,t)
+        c = p.center
+        A = state.params[a]
+        ω = state.params[f]
+        t₀ = state.params[s];
+        @inbounds @. state.dH += p(A,ω,t₀,c,t)
     end
 end
 
