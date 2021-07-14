@@ -4,7 +4,6 @@ using InteractiveUtils: @which
 
 include("../types.jl")
 
-
 @testset "3-layer" begin
     grid = Grid(Vector(0.0:10.0:1000.0))
     strat = Stratigraphy(

@@ -10,10 +10,15 @@ If debug mode is not enabled, plain Float64 is used instead.
 """
 macro Float_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
 """
-Similar to @UT_str but produces a Real quantity type for the given unit if and only if debug mode is enabled.
-If debug mode is not enabled, plain Float64 is used instead.
+Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
+If debug mode is not enabled, plain Real is used instead.
 """
 macro Real_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Real) end
+"""
+Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
+If debug mode is not enabled, plain Number is used instead.
+"""
+macro Number_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Number) end
 """
 Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the quantity rather than the instance. NOT conditional
 on debug mode.
@@ -40,5 +45,3 @@ macro setscalar(expr)
         $(esc(refexpr))[1] = $(esc(valexpr))
     end
 end
-
-export @xu_str, @Float_str, @Real_str, @UFloat_str, @UT_str, @setscalar

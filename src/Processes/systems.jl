@@ -1,13 +1,3 @@
-module Systems
-
-import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
-
-using CryoGrid.Interface
-using CryoGrid.Layers: Layer
-using CryoGrid.Utils
-
-using Lazy: @>>
-
 # Default empty implementations of diagnostic_step! and prognostic_step! for boundary layers
 diagnosticstep!(::Top, ::System, state) = nothing
 prognosticstep!(::Top, ::System, state) = nothing
@@ -92,6 +82,4 @@ Default implementation of `initialcondition!` for multi-process types. Calls eac
         end push!(expr.args)
     end
     return expr
-end
-
 end

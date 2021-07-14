@@ -1,22 +1,24 @@
 module Processes
 
-import CryoGrid.Interface: BoundaryStyle
+import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
 
 using CryoGrid.Interface
 using CryoGrid.Layers
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using Lazy: @>>
 using Reexport
 using Unitful
 
 include("boundaries.jl")
-include("Systems/Systems.jl")
+include("systems.jl")
 include("HeatConduction/HeatConduction.jl")
 include("SEB/SEB.jl")
+include("Sources/Sources.jl")
 
 @reexport using .HeatConduction
 @reexport using .SEB
-@reexport using .Systems
+@reexport using .Sources
 
 end

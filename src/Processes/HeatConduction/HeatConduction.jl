@@ -28,8 +28,8 @@ struct FreeWater <: FreezeCurve end
 @with_kw struct HeatParams{F<:FreezeCurve,S} <: Params
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
-    L::Float"J/m^3" = (ρ*Lsl)xu"J/m^3" #[J/m^3] (specific latent heat of fusion)
-    freezecurve::F = FreeWater() # freeze curve, defautls to free water fc
+    L::Float"J/m^3" = ρ*Lsl             #[J/m^3] (specific latent heat of fusion)
+    freezecurve::F = FreeWater()        # freeze curve, defautls to free water fc
     sp::S = nothing
 end
 
@@ -57,7 +57,7 @@ end
 Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-enthalpy(T::Real"K", C::Real"J/K/m^3", L::Real"J/m^3", θ::Real) = (T-273.15)*C + L*θ
+enthalpy(T::Number"K", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = (T-273.15xu"K")*C + L*θ
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 
@@ -92,6 +92,101 @@ function heatconduction!(∂H,T,ΔT,k,Δk)
         a=Δk[end];
         -k*(T₂-T₁)/δ/a
     end
+    return nothing
+end
+""" Variable definitions for heat conduction (enthalpy) on any subsurface layer. """
+variables(layer::SubSurface, heat::Heat{:H}) = (
+    Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
+    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
+    # add freeze curve variables (if any are present)
+    variables(layer, heat, freezecurve(heat))...,
+)
+""" Variable definitions for heat conduction (partitioned enthalpy) on any subsurface layer. """
+variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
+    Prognostic(:Hₛ, Float"J/m^3", OnGrid(Cells)),
+    Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
+    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
+    Diagnostic(:H, Float"J", OnGrid(Cells)),
+    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    # add freeze curve variables (if any are present)
+    variables(layer, heat, freezecurve(heat))...,
+)
+""" Variable definitions for heat conduction (temperature) on any subsurface layer. """
+variables(layer::SubSurface, heat::Heat{:T}) = (
+    Prognostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
+    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
+    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    # add freeze curve variables (if any are present)
+    variables(layer, heat, freezecurve(heat))...,
+)
+""" Initial condition for heat conduction (all state configurations) on any subsurface layer. """
+function initialcondition!(layer::SubSurface, heat::Heat, state)
+    interpolateprofile!(heat.profile, state)
+    L = heat.params.L
+    heatcapacity!(layer, heat, state)
+    @. state.H = enthalpy(state.T, state.C, L, state.θl)
+end
+""" Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
+function diagnosticstep!(layer::SubSurface, heat::Heat, state)
+    # Reset energy flux to zero; this is redundant when H is the prognostic variable
+    # but necessary when it is not.
+    @. state.dH = zero(eltype(state.dH))
+    # Evaluate the freeze curve (updates T, C, and θl)
+    fc! = freezecurve(heat);
+    fc!(layer,heat,state)
+    # Update thermal conductivity
+    thermalconductivity!(layer, heat, state)
+    # Interpolate thermal conductivity to boundary grid
+    regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
+    # TODO: harmonic mean of thermal conductivities (in MATLAB code)
+    # for i=2:N-1
+    #     kn(i,1) = (dxp(i,1)/(2*dxn(i))*kp(i,1).^-1 + dxp(i-1,1)/(2*dxn(i))*kp(i-1).^-1).^-1;
+    #     ks(i,1) = (dxp(i,1)/(2*dxs(i))*kp(i,1).^-1 + dxp(i+1,1)/(2*dxs(i))*kp(i+1).^-1).^-1;
+    # end
+    return nothing # ensure no allocation
+end
+""" Prognostic step for heat conduction (enthalpy) on subsurface layer. """
+function prognosticstep!(::SubSurface, ::Heat{:H}, state)
+    Δk = Δ(state.grids.k) # cell sizes
+    ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
+    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+end
+""" Prognostic step for heat conduction (partitioned enthalpy) on subsurface layer."""
+function prognosticstep!(::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}, state)
+    Δk = Δ(state.grids.k) # cell sizes
+    ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
+    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    let L = heat.params.L;
+        @. state.dHₛ = state.dH / (L/state.C*state.dθdT + 1)
+        # This could also be expressed via a mass matrix with 1
+        # in the upper right block diagonal. But this is easier.
+        @. state.dHₗ = state.dH - state.dHₛ
+    end
+end
+""" Prognostic step for heat conduction (temperature) on subsurface layer. """
+function prognosticstep!(::SubSurface, ::Heat{:T}, state)
+    Δk = Δ(state.grids.k) # cell sizes
+    ΔT = Δ(state.grids.T)
+    # Diffusion on non-boundary cells
+    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    # Compute temperature flux by dividing by C_eff;
+    # C_eff should be computed by the freeze curve.
+    @inbounds @. state.dT = state.dH / state.Ceff
     return nothing
 end
 """
@@ -170,7 +265,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
-            (I_t*(H-Lθ) + I_f*H)/C + 273.15
+            (I_t*(H-Lθ) + I_f*H)/C + 273.15xu"K"
         end
     end
     @inline function freezethaw(H, L, θtot)
@@ -187,8 +282,8 @@ total water content (θw), and liquid water content (θl).
     @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
 end
 
-# Default implementation of variables
-variables(::Soil, ::Heat, ::FreezeCurve) = ()
+# Default implementation of `variables` for freeze curve
+variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
     error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")

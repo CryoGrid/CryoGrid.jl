@@ -1,6 +1,6 @@
 using CryoGrid
 using Test
 
-include("common/runtests.jl")
-include("setup/runtests.jl")
-include("processes/runtests.jl")
+include("Common/runtests.jl")
+include("Setup/runtests.jl")
+include("Processes/runtests.jl")
