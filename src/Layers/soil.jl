@@ -109,10 +109,10 @@ variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
     Diagnostic(:θl, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
-    Parameter(:χ, soil.profile[var=:χ], 0..1),
-    Parameter(:ϕ, soil.profile[var=:ϕ], 0..1),
-    Parameter(:θ, soil.profile[var=:θ], 0..1),
-    Parameter(:ω, soil.profile[var=:ω], 0..1),
+    Parameter(:χ, collect(soil.profile[var=:χ]), 0..1),
+    Parameter(:ϕ, collect(soil.profile[var=:ϕ]), 0..1),
+    Parameter(:θ, collect(soil.profile[var=:θ]), 0..1),
+    Parameter(:ω, collect(soil.profile[var=:ω]), 0..1),
 )
 
 function initialcondition!(soil::Soil{T,P}, state) where {T,P}
