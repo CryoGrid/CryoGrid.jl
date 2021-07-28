@@ -50,8 +50,6 @@ p.soil.n .= 2.0
 p.soil.Tₘ .= 273.15 # K
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,tspan,p)
-# OPTIONAL: solve for short time period to "warm up" (i.e. let Julia compile everything)
-solve(remake(prob, tspan=(prob.tspan[1],prob.tspan[1]+60.0)), Euler(), dt=10.0);
 # solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=2*60.0, callback=CFLStepLimiter(model), saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

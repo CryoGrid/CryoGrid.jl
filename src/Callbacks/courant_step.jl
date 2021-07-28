@@ -9,7 +9,7 @@ function (fn::CryoGridCallbackFunction{<:CFLHeatState{<:AbstractArray}})(u,p,t)
         kc = getvar(:kc, fn.setup, u); # thermal cond. at grid centers
         @. Δt = adstrip(Δx^2 * Ceff / kc)
         Δt_min = minimum(Δt)
-        IfElse.ifelse(isfinite(Δt_min), Δt_min, fn.default_dt)
+        IfElse.ifelse(isfinite(Δt_min), Δt_min, fn.state.default_dt)
     end
 end
 function (fn::CryoGridCallbackFunction{<:CFLHeatState{Nothing}})(u,p,t)
@@ -18,7 +18,7 @@ function (fn::CryoGridCallbackFunction{<:CFLHeatState{Nothing}})(u,p,t)
         kc = getvar(:kc, fn.setup, u); # thermal cond. at grid centers
         Δt = adstrip(Δx^2 * Ceff / kc)
         Δt_min = minimum(Δt)
-        IfElse.ifelse(isfinite(Δt_min), Δt_min, fn.default_dt)
+        IfElse.ifelse(isfinite(Δt_min), Δt_min, fn.state.default_dt)
     end
 end
 function CFLStepLimiter(setup::HeatOnlySetup; courant_number=1//2, default_dt=60.0, iip=true)

@@ -7,6 +7,7 @@ using CryoGrid.Setup: CryoGridSetup, HeatOnlySetup, getvar
 using CryoGrid.Utils: adstrip
 
 using DiffEqCallbacks
+using IfElse
 
 """
 CryoGridCallbackFunction{TState,TSetup}(setup, state)
