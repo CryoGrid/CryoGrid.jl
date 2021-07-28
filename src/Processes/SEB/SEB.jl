@@ -31,7 +31,7 @@ import CryoGrid.Interface: BoundaryStyle, initialcondition!, variables
     cₐ::Float"J/(m^3*K)" = 1005.7xu"J/(kg*K)" * ρₐ  # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
+struct SurfaceEnergyBalance{F} <: BoundaryProcess
     forcing::F
     sebparams::SEBParams
     function SurfaceEnergyBalance(

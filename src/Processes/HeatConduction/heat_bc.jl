@@ -1,4 +1,4 @@
-struct TemperatureGradient{F} <: BoundaryProcess{Heat}
+struct TemperatureGradient{F,P} <: BoundaryProcess
     forcing::F
     TemperatureGradient(forcing::Forcing{Float"°C"}) = new{typeof(forcing)}(forcing)
 end

@@ -11,8 +11,8 @@ using Lazy: @>>
 using Reexport
 using Unitful
 
-include("boundaries.jl")
 include("systems.jl")
+include("Boundaries/Boundaries.jl")
 include("HeatConduction/HeatConduction.jl")
 include("SEB/SEB.jl")
 include("Sources/Sources.jl")

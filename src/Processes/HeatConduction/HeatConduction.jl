@@ -190,22 +190,22 @@ function prognosticstep!(::SubSurface, ::Heat{:T}, state)
     return nothing
 end
 """
-    boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{Heat}}
+    boundaryflux(boundary::Boundary, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbound, ssub)
 
 Computes the flux dH/dt at the given boundary. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic
 implementations by boundary condition type.
 """
-boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{<:Heat}} =
+boundaryflux(boundary::Boundary, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbound, ssub) =
     boundaryflux(BoundaryStyle(B), boundary, bc, sub, h, sbound, ssub)
-boundaryflux(::Neumann, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}} =
+boundaryflux(::Neumann, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub) =
     @inbounds let a = Δ(ssub.grids.k)[1]
         bc(top,sub,h,stop,ssub)/a
     end
-boundaryflux(::Neumann, bot::Bottom, bc::B, sub::SubSurface, h::Heat, sbot, ssub) where {B<:BoundaryProcess{<:Heat}} =
+boundaryflux(::Neumann, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub) =
     @inbounds let a = Δ(ssub.grids.k)[end]
         bc(bot,sub,h,sbot,ssub)/a
     end
-function boundaryflux(::Dirichlet, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+function boundaryflux(::Dirichlet, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tupper=bc(top,sub,h,stop,ssub),
         Tsub=ssub.T[1],
@@ -215,7 +215,7 @@ function boundaryflux(::Dirichlet, top::Top, bc::B, sub::SubSurface, h::Heat, st
         -k*(Tsub-Tupper)/δ/a
     end
 end
-function boundaryflux(::Dirichlet, bot::Bottom, bc::B, sub::SubSurface, h::Heat, sbot, ssub) where {B<:BoundaryProcess{<:Heat}}
+function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tlower=bc(bot,sub,h,sbot,ssub),
         Tsub=ssub.T[end],
@@ -228,14 +228,14 @@ end
 """
 Generic top interaction. Computes flux dH at top cell.
 """
-function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub)
     @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
     return nothing # ensure no allocation
 end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
-function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
+function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess, ssub, sbot)
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
     return nothing # ensure no allocation
 end
