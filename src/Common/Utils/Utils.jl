@@ -58,19 +58,6 @@ Base.iterate(p::Params, state) = structiterate(p,state)
 
 export Params
 
-"""
-    Parameterization
-
-Base type for representing parameterizations.
-"""
-abstract type Parameterization end
-struct Nonparametric <: Parameterization end
-struct Parametric{T}
-    Parametric(::T) where T = new{T}()
-end
-
-export Nonparametric, Parametric
-
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)

@@ -10,6 +10,7 @@ using Base: @propagate_inbounds
 export Layer, SubSurface, Top, Bottom, Boundary
 export Process, SubSurfaceProcess, BoundaryProcess, System, Coupled
 export BoundaryStyle, Dirichlet, Neumann
+export AbstractParameterization, Parameterization
 export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
 
 include("types.jl")
