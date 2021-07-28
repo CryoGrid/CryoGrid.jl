@@ -8,9 +8,8 @@ struct Clay <: SoilType end
 """
 Base type for soil parameterizations.
 """
-abstract type SoilParameterization end
-struct ByComposition <: SoilParameterization end
-struct ByXicePorSat <: SoilParameterization end
+abstract type SoilParameterization <: AbstractParameterization end
+struct BySoilProperties <: SoilParameterization end
 """
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
 """
@@ -44,10 +43,11 @@ end
 Parameter type for Soil layers, includes thermal conductivity and heat capacity
 constants as well as type/composition.
 """
-@with_kw struct SoilParams{TType<:SoilType,S} <: Params
+@with_kw struct SoilParams{TType<:SoilType,TPara<:Parameterization,S} <: Params
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     type::TType = Sand()
+    para::TPara = nothing
     sp::S = nothing # user-defined specialization
 end
 """
@@ -55,13 +55,12 @@ Basic Soil layer.
 """
 struct Soil{TType,TPara,S} <: SubSurface
     profile::DimArray
-    params::SoilParams{TType,S}
-    function Soil(profile::DimArray, ::TPara=Nonparametric(); kwargs...) where {P<:SoilParameterization,TPara<:Union{Nonparametric,Parametric{P}}}
+    params::SoilParams{TType,TPara,S}
+    function Soil(profile::DimArray; kwargs...)
         params = SoilParams(;kwargs...)
-        new{typeof(params.type),TPara,typeof(params.sp)}(profile, params)
+        new{typeof(params.type),typeof(params.para),typeof(params.sp)}(profile, params)
     end
 end
-
 """
 Alias/constructor for soil profile.
 """
@@ -70,7 +69,7 @@ function SoilProfile(vals::Pair{<:DistQuantity,SoilProperties}...)
     Profile(points...;names=fieldnames(SoilProperties))
 end
 
-export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, ByComposition, ByXicePorSat
+export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, SoilParameterization, BySoilProperties
 
 # Helper functions for obtaining soil component fractions from soil properties.
 soilcomp(::Val{:θx}, χ, ϕ, θ, ω) = χ
@@ -80,7 +79,7 @@ soilcomp(::Val{:θo}, χ, ϕ, θ, ω) = @. (1-χ)*(1-ϕ)*ω
 
 Base.show(io::IO, soil::Soil{T,P}) where {T,P} = print(io, "Soil{$T,$P}($(soil.params))")
 
-variables(::Soil{T,Nonparametric}) where T = (
+variables(::Soil{T,Nothing}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θx, Float64, OnGrid(Cells)),
@@ -89,43 +88,29 @@ variables(::Soil{T,Nonparametric}) where T = (
     Diagnostic(:θo, Float64, OnGrid(Cells)),
 )
 
-variables(soil::Soil{T,Parametric{ByComposition}}) where T = (
+variables(soil::Soil{T,BySoilProperties}) where T = (
     Diagnostic(:θw, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θx, Float64, OnGrid(Cells)),
     Diagnostic(:θl, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
-    Parameter(:θx, soilcomp(Val{:θx}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)]), 0..1),
-    Parameter(:θp, soilcomp(Val{:θp}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)]), 0..1),
-    Parameter(:θm, soilcomp(Val{:θm}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)]), 0..1),
-    Parameter(:θo, soilcomp(Val{:θo}(), soil.profile[Y(:χ)], soil.profile[Y(:ϕ)], soil.profile[Y(:θ)], soil.profile[Y(:ω)]), 0..1),
-)
-
-variables(soil::Soil{T,Parametric{ByXicePorSat}}) where T = (
-    Diagnostic(:θw, Float64, OnGrid(Cells)),
-    Diagnostic(:θp, Float64, OnGrid(Cells)),
-    Diagnostic(:θx, Float64, OnGrid(Cells)),
-    Diagnostic(:θl, Float64, OnGrid(Cells)),
-    Diagnostic(:θm, Float64, OnGrid(Cells)),
-    Diagnostic(:θo, Float64, OnGrid(Cells)),
-    Parameter(:χ, soil.profile[var=:χ], 0..1),
-    Parameter(:ϕ, soil.profile[var=:ϕ], 0..1),
-    Parameter(:θ, soil.profile[var=:θ], 0..1),
-    Parameter(:ω, soil.profile[var=:ω], 0..1),
+    Parameter(:χ, collect(soil.profile[var=:χ]), 0..1),
+    Parameter(:ϕ, collect(soil.profile[var=:ϕ]), 0..1),
+    Parameter(:θ, collect(soil.profile[var=:θ]), 0..1),
+    Parameter(:ω, collect(soil.profile[var=:ω]), 0..1),
 )
 
 function initialcondition!(soil::Soil{T,P}, state) where {T,P}
     # Helper functions for initializing soil composition state based on parameterization mode.
-    fromparams(::Val{var}, soil::Soil{T,Parametric{ByComposition}}, state) where {var,T} = state.params[var]
-    fromparams(::Val{var}, soil::Soil{T,Parametric{ByXicePorSat}}, state) where {var,T} = soilcomp(Val{var}(), state.params.χ, state.params.ϕ, state.params.θ, state.params.ω)
-    fromparams(::Val{var}, soil::Soil{T,Nonparametric}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
+    getproperties(::Val{var}, soil::Soil{T,BySoilProperties}, state) where {var,T} = soilcomp(Val{var}(), state.params.χ, state.params.ϕ, state.params.θ, state.params.ω)
+    getproperties(::Val{var}, soil::Soil{T,Nothing}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
     depths = length(size(soil.profile)) > 1 ? dims(soil.profile, :depth).val : [refdims(soil.profile)[1].val]
     for var in [:θx,:θp,:θm,:θo]
         arr = DimArray(similar(state[var], Union{Missing,eltype(state[var])}), (depth=state.grids[var]u"m",))
         arr .= missing
         arr_sub = @view arr[depth=Near(depths)]
-        arr_sub .= fromparams(Val{var}(), soil, state)
+        arr_sub .= getproperties(Val{var}(), soil, state)
         Utils.ffill!(arr)
         state[var] .= skipmissing(arr)
     end

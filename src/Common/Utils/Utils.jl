@@ -58,19 +58,6 @@ Base.iterate(p::Params, state) = structiterate(p,state)
 
 export Params
 
-"""
-    Parameterization
-
-Base type for representing parameterizations.
-"""
-abstract type Parameterization end
-struct Nonparametric <: Parameterization end
-struct Parametric{T}
-    Parametric(::T) where T = new{T}()
-end
-
-export Nonparametric, Parametric
-
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
@@ -138,7 +125,7 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 `adstrip` simply returns `x` as-is.
 """
 adstrip(x::Number) = x
-adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x)
+adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
 adstrip(x::ReverseDiff.TrackedReal) = x.value
 
 end

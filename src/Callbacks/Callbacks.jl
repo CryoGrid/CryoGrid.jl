@@ -3,7 +3,7 @@ module Callbacks
 import CryoGrid
 
 using CryoGrid.Numerics
-using CryoGrid.Setup: CryoGridSetup, HeatOnlySetup
+using CryoGrid.Setup: CryoGridSetup, HeatOnlySetup, getvar
 
 using DiffEqCallbacks
 
