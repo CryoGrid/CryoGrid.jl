@@ -2,7 +2,7 @@ struct CFLHeatState{A}
     Δt::A
     default_dt::Float64
 end
-function (fn::CryoGridCallbackFunction{CFLHeatState{<:AbstractArray}})(u,p,t)
+function (fn::CryoGridCallbackFunction{<:CFLHeatState{<:AbstractArray}})(u,p,t)
     let Δt = fn.state.Δt,
         Δx = Δ(fn.setup.grid),
         Ceff = getvar(:Ceff, fn.setup, u), # apparent heat capacity
@@ -12,7 +12,7 @@ function (fn::CryoGridCallbackFunction{CFLHeatState{<:AbstractArray}})(u,p,t)
         IfElse.ifelse(isfinite(Δt_min), Δt_min, fn.default_dt)
     end
 end
-function (fn::CryoGridCallbackFunction{CFLHeatState{Nothing}})(u,p,t)
+function (fn::CryoGridCallbackFunction{<:CFLHeatState{Nothing}})(u,p,t)
     let Δx = Δ(fn.setup.grid),
         Ceff = getvar(:Ceff, fn.setup, u), # apparent heat capacity
         kc = getvar(:kc, fn.setup, u); # thermal cond. at grid centers
