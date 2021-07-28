@@ -138,7 +138,7 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 `adstrip` simply returns `x` as-is.
 """
 adstrip(x::Number) = x
-adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x)
+adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
 adstrip(x::ReverseDiff.TrackedReal) = x.value
 
 end
