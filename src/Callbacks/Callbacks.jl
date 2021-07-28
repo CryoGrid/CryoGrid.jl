@@ -4,7 +4,7 @@ import CryoGrid
 
 using CryoGrid.Numerics
 using CryoGrid.Setup: CryoGridSetup, HeatOnlySetup, getvar
-using CryoGrid.Utils
+using CryoGrid.Utils: adstrip
 
 using DiffEqCallbacks
 
