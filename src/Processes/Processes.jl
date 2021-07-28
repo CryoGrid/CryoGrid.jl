@@ -17,6 +17,7 @@ include("HeatConduction/HeatConduction.jl")
 include("SEB/SEB.jl")
 include("Sources/Sources.jl")
 
+@reexport using .Boundaries
 @reexport using .HeatConduction
 @reexport using .SEB
 @reexport using .Sources

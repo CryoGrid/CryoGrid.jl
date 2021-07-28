@@ -3,6 +3,7 @@ module HeatConduction
 import CryoGrid.Interface: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
 using ..Processes
+using ..Processes.Boundaries
 using CryoGrid.Forcings
 using CryoGrid.Interface
 using CryoGrid.Numerics
@@ -19,6 +20,7 @@ using Unitful
 
 export Heat, HeatParams, TempProfile
 export FreeWater, FreezeCurve, freezecurve
+export ConstantTemp, GeothermalHeatFlux, NFactor, TemperatureGradient
 export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 export heatconduction!, boundaryflux
 
@@ -196,7 +198,7 @@ Computes the flux dH/dt at the given boundary. Calls boundaryflux(BoundaryStyle(
 implementations by boundary condition type.
 """
 boundaryflux(boundary::Boundary, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbound, ssub) =
-    boundaryflux(BoundaryStyle(B), boundary, bc, sub, h, sbound, ssub)
+    boundaryflux(BoundaryStyle(bc), boundary, bc, sub, h, sbound, ssub)
 boundaryflux(::Neumann, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub) =
     @inbounds let a = Δ(ssub.grids.k)[1]
         bc(top,sub,h,stop,ssub)/a

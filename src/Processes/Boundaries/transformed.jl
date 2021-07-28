@@ -1,3 +1,0 @@
-struct TransformedBoundaryProcess <: BoundaryProcess
-
-end
