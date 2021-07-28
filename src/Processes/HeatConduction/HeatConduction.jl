@@ -38,17 +38,17 @@ end
 """
 Alias and constructor for Profile specific to temperature.
 """
-TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
+TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"°C",T),) for (d,T) in pairs]...;names=(:T,))
 
 struct Heat{U,F<:FreezeCurve,S} <: SubSurfaceProcess
     params::HeatParams{F,S}
-    profile::Union{Nothing,<:DimArray{UFloat"K"}}
-    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
+    profile::Union{Nothing,<:DimArray{UFloat"°C"}}
+    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"°C"}}}
         @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
         params = HeatParams(;kwargs...)
         new{var,typeof(params.freezecurve),typeof(params.sp)}(params,profile)
     end
-    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
+    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"°C"}}}
         @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
         @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
         params = HeatParams(;kwargs...)
@@ -59,7 +59,7 @@ end
 Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-enthalpy(T::Number"K", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = (T-273.15xu"K")*C + L*θ
+enthalpy(T::Number"°C", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = T*C + L*θ
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 
@@ -99,7 +99,7 @@ end
 """ Variable definitions for heat conduction (enthalpy) on any subsurface layer. """
 variables(layer::SubSurface, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
@@ -113,7 +113,7 @@ variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
     Diagnostic(:H, Float"J", OnGrid(Cells)),
-    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
@@ -124,7 +124,7 @@ variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
 )
 """ Variable definitions for heat conduction (temperature) on any subsurface layer. """
 variables(layer::SubSurface, heat::Heat{:T}) = (
-    Prognostic(:T, Float"K", OnGrid(Cells)),
+    Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
@@ -267,7 +267,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
-            (I_t*(H-Lθ) + I_f*H)/C + 273.15xu"K"
+            (I_t*(H-Lθ) + I_f*H)/C
         end
     end
     @inline function freezethaw(H, L, θtot)

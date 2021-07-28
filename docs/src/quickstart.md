@@ -9,8 +9,8 @@ using Plots
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
 forcings = loadforcings(CryoGridModels.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# use air temperature (converted to Kelvin) as upper boundary forcing
-tair = TimeSeriesForcing(ustrip.(u"K", forcings.data.Tair), forcings.timestamps, :Tair);
+# use air temperature as upper boundary forcing
+tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
 model = CryoGridModels.SoilHeat(TemperatureGradient(tair), CryoGridModels.SamoylovDefault)
 # define time span (1 year)
@@ -34,7 +34,7 @@ model = CryoGridModels.SoilHeat(TemperatureGradient(tair), SamoylovDefault, free
 p = copy(model.pproto)
 p.soil.α .= 4.0
 p.soil.n .= 2.0
-p.soil.Tₘ .= 273.15
+p.soil.Tₘ .= 0.0
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 prob = CryoGridProblem(model,tspan,p)
 # stiff solvers don't work well with van Genuchten due to the ill-conditioned Jacobian;

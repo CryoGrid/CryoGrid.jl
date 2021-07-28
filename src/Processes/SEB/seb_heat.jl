@@ -66,27 +66,27 @@ end
 """
 Density of air at given tempeature and pressure
 """
-density_air(seb::SurfaceEnergyBalance,T::Real"K",p::Real"Pa") = p / (T * seb.sebparams.Rₐ);
+density_air(seb::SurfaceEnergyBalance,T::Real"°C",p::Real"Pa") = p / (T * seb.sebparams.Rₐ);
 
 """
 Saturation pressure of water/ice according to the empirical August-Roche-Magnus formula
 Note: T is passed [K] and converted to [°C]
 """
-estar(T::Real"K") = ( (T > 0) ? 611.2 * exp(17.62 * (T - 273.15) / (243.12 + (T - 273.15)))# Eq. (B3) in Westermann et al. (2016)
-: 611.2 * exp(22.46 * (T - 273.15) / (272.62 + (T - 273.15))) ;
+estar(T::Real"°C") = ( (T > 0) ? 611.2 * exp(17.62 * T / (243.12 + T))# Eq. (B3) in Westermann et al. (2016)
+: 611.2 * exp(22.46 * T / (272.62 + T)) ;
 )
 
 """
 Latent heat of evaporation/condensation of water in [J/kg]
 according to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-L_lg(T::Real"K") = 1000 * (2500.8 - 2.36 * (T - 273.15) + 0.0016 * (T - 273.15)^2 - 0.00006 * (T - 273.15)^3);
+L_lg(T::Real"°C") = 1000 * (2500.8 - 2.36 * T + 0.0016 * T^2 - 0.00006 * T^3);
 
 """
 Latent heat of sublimation/resublimation of water in [J/kg]
 accodring to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-L_sg(T::Real"K") = 1000 * (2834.1 - 0.29 * (T - 273.15) - 0.004 * (T - 273.15)^2);
+L_sg(T::Real"°C") = 1000 * (2834.1 - 0.29 * T - 0.004 * T^2);
 
 """
 Friction velocity according to Monin-Obukhov theory
@@ -170,13 +170,13 @@ function Q_E(seb::SurfaceEnergyBalance, stop, ssoil)
 
         q₀ = γ * estar(T₀) / p                                                        # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
         rₐᵂ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(z / Lstar, z₀ / Lstar))            # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
-        L = (T₀ <= 273.15) ? Lsg : Llg                                                # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
+        L = (T₀ <= 0.0) ? Lsg : Llg                                                # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
 
         # calculate Q_E
         res = (qₕ > q₀) ? -ρₐ * L * (qₕ - q₀) / (rₐᵂ)  :                              # Eq. (5) in Westermann et al. (2016) # condensation / deposition (no aerodynamics resistance)
                         -ρₐ * L * (qₕ - q₀) / (rₐᵂ + rₛ) ;                            # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
 
-        res = (T₀ <= 273.15) ? 0 : res ;                                              # for now: set sublimation and deposition to zero.
+        res = (T₀ <= 0.0) ? 0 : res ;                                              # for now: set sublimation and deposition to zero.
     end
 end
 

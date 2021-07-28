@@ -53,7 +53,7 @@ end
 filename = "./input/FORCING_JSONfiles/samoylov_ERA_obs_fitted_1979_2014_spinup_extended2044.json"
 forcings = loadforcings(filename);
 # use air temperature as upper boundary forcing
-tair = TemperatureGradient(TimeSeriesForcing(ustrip.(u"K", (forcings.data.Tair)u"°C"), forcings.timestamps, :Tair))
+tair = TemperatureGradient(TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair))
 solvers = [Euler, DP5, ROCK2, ROCK4, Trapezoid, ROS3P]
 grids = [Models.DefaultGrid_2cm, Models.DefaultGrid_5cm, Models.DefaultGrid_10cm, Models.DefaultGrid_20cm]
 dts = [2*60.0, 10*60.0, 30*60.0, 3600.0]
@@ -78,7 +78,7 @@ StatsPlots.groupedbar(xnames, results_freeW_tair.error[:,:,1], yerror=results_fr
 savefig("solver_benchmark_freeW_tair_error.png")
 
 # Test 2: Energy + SEB upper bc + free water freeze curve
-Tair = TimeSeriesForcing(ustrip.(forcings.data.Tair.+273.15), forcings.timestamps, :Tair);
+Tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 pr   = TimeSeriesForcing(ustrip.(forcings.data.pressure), forcings.timestamps, :p);
 q    = TimeSeriesForcing(ustrip.(forcings.data.q), forcings.timestamps, :q);
 wind = TimeSeriesForcing(ustrip.(forcings.data.wind), forcings.timestamps, :wind);
@@ -112,7 +112,7 @@ savefig("solver_benchmark_freeW_seb_error.png")
 
 # Test 3: Energy + SEB upper bc + van Genuchten freeze curve
 solvers = [Euler]
-p = [4.0, 2.0, 273.15]
+p = [4.0, 2.0, 0.0]
 results_vgfc_seb = run_solver_benchmark(solvers, grids, dts, tspan, seb, params=p, adaptive=false, freezecurve=SFCC(VanGenuchten()))
 serialize("solver_benchmark_vgfc_seb.ser", results_vgfc_seb)
 

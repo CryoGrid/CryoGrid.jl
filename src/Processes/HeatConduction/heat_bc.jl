@@ -28,8 +28,8 @@ variables(::Top, bc::NFactor{nf,nt}) where {nf,nt} = (Parameter(nf, bc.factor, 0
 BoundaryStyle(::Type{<:NFactor}) = Dirichlet()
 
 # Boundary condition type aliases
-const ConstantTemp = Constant{Dirichlet,Float"K"}
-ConstantTemp(value::UFloat"K") = Constant{Dirichlet}(dustrip(value))
-ConstantTemp(value::UFloat"°C") = Constant{Dirichlet}(dustrip(u"K",value))
+const ConstantTemp = Constant{Dirichlet,Float"°C"}
+ConstantTemp(value::UFloat"K") = Constant{Dirichlet}(dustrip(u"°C", value))
+ConstantTemp(value::UFloat"°C") = Constant{Dirichlet}(dustrip(value))
 const GeothermalHeatFlux = Constant{Neumann,Float"J/s/m^2"}
 GeothermalHeatFlux(value::UFloat"J/s/m^2"=0.053xu"J/s/m^2") = Constant{Neumann}(dustrip(value))
