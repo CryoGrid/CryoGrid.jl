@@ -23,7 +23,6 @@ Base.show(io::IO, forcing::TimeSeriesForcing{T}) where T = print(io, "TimeSeries
 Get interpolated forcing value at t seconds from t0.
 """
 (forcing::TimeSeriesForcing)(t::Number) = forcing.interp(t) # extract interpolation and evaluate
-(forcing::TimeSeriesForcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
 
 Base.getindex(f::TimeSeriesForcing, i) = forcing.tarray[i]
 function Base.getindex(f::TimeSeriesForcing{T,A,I}, range::StepRange{DateTime,TStep}) where {T,A,I,TStep}

@@ -41,6 +41,6 @@ function initialcondition!(soil::Soil, heat::Heat{(:Hₛ,:Hₗ),<:SFCC}, state)
     sfcc = freezecurve(heat)
     state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
     @. state.C = heatcapacity(soil.params, state.θw, state.θl, state.θm, state.θo)
-    @. state.Hₛ = (state.T - 273.15)*state.C
+    @. state.Hₛ = state.T*state.C
     @. state.Hₗ = state.θl*L
 end

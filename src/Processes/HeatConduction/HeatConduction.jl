@@ -1,8 +1,10 @@
 module HeatConduction
 
+using Unitful: Temperature
 import CryoGrid.Interface: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
 using ..Processes
+using ..Processes.Boundaries
 using CryoGrid.Forcings
 using CryoGrid.Interface
 using CryoGrid.Numerics
@@ -19,6 +21,7 @@ using Unitful
 
 export Heat, HeatParams, TempProfile
 export FreeWater, FreezeCurve, freezecurve
+export ConstantTemp, GeothermalHeatFlux, NFactor, TemperatureGradient
 export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 export heatconduction!, boundaryflux
 
@@ -36,17 +39,17 @@ end
 """
 Alias and constructor for Profile specific to temperature.
 """
-TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"K",T),) for (d,T) in pairs]...;names=(:T,))
+TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"°C",T),) for (d,T) in pairs]...;names=(:T,))
 
 struct Heat{U,F<:FreezeCurve,S} <: SubSurfaceProcess
     params::HeatParams{F,S}
-    profile::Union{Nothing,<:DimArray{UFloat"K"}}
-    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
+    profile::Union{Nothing,<:DimArray{UFloat"°C"}}
+    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"°C"}}}
         @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
         params = HeatParams(;kwargs...)
         new{var,typeof(params.freezecurve),typeof(params.sp)}(params,profile)
     end
-    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"K"}}}
+    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"°C"}}}
         @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
         @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
         params = HeatParams(;kwargs...)
@@ -57,7 +60,7 @@ end
 Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
 
 freezecurve(heat::Heat) = heat.params.freezecurve
-enthalpy(T::Number"K", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = (T-273.15xu"K")*C + L*θ
+enthalpy(T::Number"°C", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = T*C + L*θ
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 
@@ -97,7 +100,7 @@ end
 """ Variable definitions for heat conduction (enthalpy) on any subsurface layer. """
 variables(layer::SubSurface, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
@@ -111,7 +114,7 @@ variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
     Diagnostic(:H, Float"J", OnGrid(Cells)),
-    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
@@ -122,7 +125,7 @@ variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
 )
 """ Variable definitions for heat conduction (temperature) on any subsurface layer. """
 variables(layer::SubSurface, heat::Heat{:T}) = (
-    Prognostic(:T, Float"K", OnGrid(Cells)),
+    Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
@@ -190,22 +193,22 @@ function prognosticstep!(::SubSurface, ::Heat{:T}, state)
     return nothing
 end
 """
-    boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{Heat}}
+    boundaryflux(boundary::Boundary, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbound, ssub)
 
 Computes the flux dH/dt at the given boundary. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic
 implementations by boundary condition type.
 """
-boundaryflux(boundary::Boundary, bc::B, sub::SubSurface, h::Heat, sbound, ssub) where {B<:BoundaryProcess{<:Heat}} =
-    boundaryflux(BoundaryStyle(B), boundary, bc, sub, h, sbound, ssub)
-boundaryflux(::Neumann, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}} =
+boundaryflux(boundary::Boundary, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbound, ssub) =
+    boundaryflux(BoundaryStyle(bc), boundary, bc, sub, h, sbound, ssub)
+boundaryflux(::Neumann, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub) =
     @inbounds let a = Δ(ssub.grids.k)[1]
         bc(top,sub,h,stop,ssub)/a
     end
-boundaryflux(::Neumann, bot::Bottom, bc::B, sub::SubSurface, h::Heat, sbot, ssub) where {B<:BoundaryProcess{<:Heat}} =
+boundaryflux(::Neumann, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub) =
     @inbounds let a = Δ(ssub.grids.k)[end]
         bc(bot,sub,h,sbot,ssub)/a
     end
-function boundaryflux(::Dirichlet, top::Top, bc::B, sub::SubSurface, h::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+function boundaryflux(::Dirichlet, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tupper=bc(top,sub,h,stop,ssub),
         Tsub=ssub.T[1],
@@ -215,7 +218,7 @@ function boundaryflux(::Dirichlet, top::Top, bc::B, sub::SubSurface, h::Heat, st
         -k*(Tsub-Tupper)/δ/a
     end
 end
-function boundaryflux(::Dirichlet, bot::Bottom, bc::B, sub::SubSurface, h::Heat, sbot, ssub) where {B<:BoundaryProcess{<:Heat}}
+function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tlower=bc(bot,sub,h,sbot,ssub),
         Tsub=ssub.T[end],
@@ -228,14 +231,14 @@ end
 """
 Generic top interaction. Computes flux dH at top cell.
 """
-function interact!(top::Top, bc::B, sub::SubSurface, heat::Heat, stop, ssub) where {B<:BoundaryProcess{<:Heat}}
+function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub)
     @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
     return nothing # ensure no allocation
 end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
-function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::B, ssub, sbot) where {B<:BoundaryProcess{<:Heat}}
+function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess, ssub, sbot)
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
     return nothing # ensure no allocation
 end
@@ -265,7 +268,7 @@ total water content (θw), and liquid water content (θl).
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
-            (I_t*(H-Lθ) + I_f*H)/C + 273.15xu"K"
+            (I_t*(H-Lθ) + I_f*H)/C
         end
     end
     @inline function freezethaw(H, L, θtot)

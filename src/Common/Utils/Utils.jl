@@ -64,18 +64,6 @@ export Params
 
 export tuplejoin
 
-"""
-Debug ustrip. Remove units if and only if debug mode is NOT enabled.
-"""
-dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
-dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
-
-export dustrip
-
-duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u,x)
-
-export duconvert
-
 getscalar(x::Number) = x
 getscalar(a::AbstractArray) = a[1]
 
@@ -127,5 +115,17 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 adstrip(x::Number) = x
 adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
 adstrip(x::ReverseDiff.TrackedReal) = x.value
+
+"""
+Debug ustrip. Remove units if and only if debug mode is NOT enabled.
+"""
+dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
+dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
+
+export dustrip
+
+duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u,x)
+
+export duconvert
 
 end

@@ -24,8 +24,7 @@ tempprofile = TempProfile(
     1000.0u"m" => 10.2u"°C",
 )
 forcings = loadforcings(CryoGridModels.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# convert Tair to Kelvin
-Tair = TimeSeriesForcing(ustrip.(u"K", forcings.data.Tair), forcings.timestamps, :Tair);
+Tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # assume other forcings don't (yet) have units
 pr   = TimeSeriesForcing(forcings.data.pressure, forcings.timestamps, :p);
 q    = TimeSeriesForcing(forcings.data.q, forcings.timestamps, :q);
@@ -47,7 +46,7 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = copy(model.pproto)
 p.soil.α .= 4.0
 p.soil.n .= 2.0
-p.soil.Tₘ .= 273.15 # K
+p.soil.Tₘ .= 0.0 # K
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,tspan,p)
 # solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution
@@ -56,4 +55,4 @@ out = @time solve(prob, Euler(), dt=2*60.0, callback=CFLStepLimiter(model), save
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
 plot(out.soil.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.soil.T[Z(zs)] .- 273.15, color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+plot(out.soil.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)

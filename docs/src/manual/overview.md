@@ -46,7 +46,7 @@ Notice that, in the example above, it is types such as `Soil`, `Heat`, `SFCC`, e
 """ Variable definitions for heat conduction (enthalpy) on soil layer. """
 variables(soil::Soil, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:T, Float"K", OnGrid(Cells)),
+    Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K*/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),

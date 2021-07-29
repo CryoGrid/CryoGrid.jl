@@ -1,3 +1,4 @@
+using Base: NamedTuple
 using CryoGrid
 using Test
 

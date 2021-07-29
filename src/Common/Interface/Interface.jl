@@ -78,6 +78,7 @@ BoundaryStyle(::Type{BP}) = Dirichlet()
 
 where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
-BoundaryStyle(::Type{T}) where {T<:BoundaryProcess} = error("No style specified for boundary process $T")
+BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
+BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
 
 end
