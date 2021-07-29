@@ -73,12 +73,12 @@ end
 		sub = TestGroundLayer()
 		heat = Heat{:H}()
 		# standard zero threshold
-		f(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.0)), (t=t,))
-		Tres = f.(Dates.datetime2epochms.(ts)./1000.0)
+		f1(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.0)), (t=t,))
+		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
 		# test with non-zero threshold
-		f(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.5)), (t=t,))
-		Tres = f.(Dates.datetime2epochms.(ts)./1000.0)
+		f2(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.5)), (t=t,))
+		Tres = f2.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.25,-0.25,-0.5,0.05])
 	end
 end
