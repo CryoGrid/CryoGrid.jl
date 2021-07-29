@@ -119,8 +119,8 @@ function interpolateprofile!(profile::DimArray, state; interp=Linear())
     let (depths,names) = dims(profile),
         z = ustrip.(depths);
         for p in names
-            f = extrapolate(interpolate((z,), profile[:,p], Gridded(interp)), Flat())
-            state[p] .= f.(state.grids[p]) .|> dustrip   # assume length(grid) == length(state.p)
+            f = extrapolate(interpolate((z,), ustrip.(profile[:,p]), Gridded(interp)), Flat())
+            state[p] .= f.(state.grids[p])   # assume length(grid) == length(state.p)
         end
     end
 end
