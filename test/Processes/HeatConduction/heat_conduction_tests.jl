@@ -1,4 +1,5 @@
 using CryoGrid
+using Dates
 using LinearAlgebra
 using Statistics
 using Test
@@ -6,55 +7,79 @@ using Test
 include("../../types.jl")
 
 @testset "Sanity checks" begin
-	x = Grid(exp.(0.0:0.01:1.0)u"m")
-	xc = cells(x)
-	T₀ = (1.0./(ustrip.(xc).+0.01))u"°C"
-	k = collect(LinRange(0.5,5.0,length(x)))u"W/m/K"
-	ΔT = Δ(xc)
-	Δk = Δ(x)
-	∂H = zeros(length(T₀))u"J/s/m^3"
-	@inferred heatconduction!(∂H,T₀,ΔT,k,Δk)
-	# conditions based on initial temperature gradient
-	@test ∂H[1] < 0.0u"J/s/m^3"
-	@test ∂H[end] > 0.0u"J/s/m^3"
-	@test sum(∂H) <= 0.0u"J/s/m^3"
-end
-@testset "Bounday conditions" begin
-	x = Grid(Vector(0.0:0.01:1.0)u"m")
-	xc = cells(x)
-	k = collect(LinRange(0.5,1.0,length(x)))u"W/m/K"
-	ΔT = Δ(xc)
-	Δk = Δ(x)
-	sub = TestGroundLayer()
-	heat = Heat{:H}()
-	bc = Constant{Dirichlet}(0.0u"°C")
-	@testset "top: +, bot: -" begin
-		T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
+	@testset "Generic" begin
+		x = Grid(exp.(0.0:0.01:1.0)u"m")
+		xc = cells(x)
+		T₀ = (1.0./(ustrip.(xc).+0.01))u"°C"
+		k = collect(LinRange(0.5,5.0,length(x)))u"W/m/K"
+		ΔT = Δ(xc)
+		Δk = Δ(x)
 		∂H = zeros(length(T₀))u"J/s/m^3"
-		state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-		@test boundaryflux(Top(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
-		@test boundaryflux(Bottom(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
-	end
-	@testset "top: -, bot: +" begin
-		T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
-		∂H = zeros(length(T₀))u"J/s/m^3"
-		state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-		@test boundaryflux(Top(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
-		@test boundaryflux(Bottom(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
-	end
-	@testset "inner edge boundary (positive)" begin
-		T₀ = Vector(sin.(ustrip.(xc).*π))u"°C"
-		∂H = zeros(length(T₀))u"J/s/m^3"
-		heatconduction!(∂H,T₀,ΔT,k,Δk)
-		@test ∂H[1] > 0.0u"J/s/m^3"
-		@test ∂H[end] > 0.0u"J/s/m^3"
-	end
-	@testset "inner edge boundary (negative)" begin
-		T₀ = Vector(-sin.(ustrip.(xc).*π))u"°C"
-		∂H = zeros(length(T₀))u"J/s/m^3"
-		heatconduction!(∂H,T₀,ΔT,k,Δk)
+		@inferred heatconduction!(∂H,T₀,ΔT,k,Δk)
+		# conditions based on initial temperature gradient
 		@test ∂H[1] < 0.0u"J/s/m^3"
-		@test ∂H[end] < 0.0u"J/s/m^3"
+		@test ∂H[end] > 0.0u"J/s/m^3"
+		@test sum(∂H) <= 0.0u"J/s/m^3"
+	end
+	# check boundary fluxes
+	@testset "Boundary fluxes" begin
+		x = Grid(Vector(0.0:0.01:1.0)u"m")
+		xc = cells(x)
+		k = collect(LinRange(0.5,1.0,length(x)))u"W/m/K"
+		ΔT = Δ(xc)
+		Δk = Δ(x)
+		sub = TestGroundLayer()
+		heat = Heat{:H}()
+		bc = Constant{Dirichlet}(0.0u"°C")
+		@testset "top: +, bot: -" begin
+			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
+			∂H = zeros(length(T₀))u"J/s/m^3"
+			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			@test boundaryflux(Top(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
+			@test boundaryflux(Bottom(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
+		end
+		@testset "top: -, bot: +" begin
+			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
+			∂H = zeros(length(T₀))u"J/s/m^3"
+			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			@test boundaryflux(Top(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
+			@test boundaryflux(Bottom(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
+		end
+		@testset "inner edge boundary (positive)" begin
+			T₀ = Vector(sin.(ustrip.(xc).*π))u"°C"
+			∂H = zeros(length(T₀))u"J/s/m^3"
+			heatconduction!(∂H,T₀,ΔT,k,Δk)
+			@test ∂H[1] > 0.0u"J/s/m^3"
+			@test ∂H[end] > 0.0u"J/s/m^3"
+		end
+		@testset "inner edge boundary (negative)" begin
+			T₀ = Vector(-sin.(ustrip.(xc).*π))u"°C"
+			∂H = zeros(length(T₀))u"J/s/m^3"
+			heatconduction!(∂H,T₀,ΔT,k,Δk)
+			@test ∂H[1] < 0.0u"J/s/m^3"
+			@test ∂H[end] < 0.0u"J/s/m^3"
+		end
+	end
+end
+@testset "Boundary conditions" begin
+	@testset "n-factors" begin
+		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
+		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1], ts, :Tair)
+		nfactor = NFactor(TemperatureGradient(forcing), 0.5, 0.0, :n)
+		vars = variables(Top(), nfactor)
+		@test length(vars) == 2
+		@test getscalar(vars[1].default_value) == 0.5
+		@test getscalar(vars[2].default_value) == 0.0
+		sub = TestGroundLayer()
+		heat = Heat{:H}()
+		# standard zero threshold
+		f(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.0)), (t=t,))
+		Tres = f.(Dates.datetime2epochms.(ts)./1000.0)
+		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
+		# test with non-zero threshold
+		f(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.5)), (t=t,))
+		Tres = f.(Dates.datetime2epochms.(ts)./1000.0)
+		@test all(Tres .≈ [1.0,0.25,-0.25,-0.5,0.05])
 	end
 end
 @testset "Fourier solution" begin
