@@ -1,5 +1,6 @@
 module HeatConduction
 
+using Unitful: Temperature
 import CryoGrid.Interface: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
 using ..Processes
