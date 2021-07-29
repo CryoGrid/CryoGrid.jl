@@ -1,5 +1,7 @@
 # CryoGrid.jl
 
+[![][docs-dev-img]][https://cryogrid.github.io/CryoGrid.jl/dev/]
+
 Julia implementation of the CryoGrid land surface model using `DifferentialEquations.jl` and the [SciML](https://github.com/SciML)
 package ecosystem.
 
