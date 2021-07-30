@@ -6,6 +6,7 @@ import Zygote
 
 import CryoGrid.Interface: Top, Bottom
 
+using CryoGrid.InputOutput
 using CryoGrid.Interface
 using CryoGrid.Layers
 using CryoGrid.Numerics
@@ -27,6 +28,8 @@ using Reexport
 @reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
 @reexport using OrdinaryDiffEq
 @reexport using SimulationLogs
+
+export CryoGridSetup, CryoGridOutput, withaxes, getstate, getvar
 
 include("stratigraphy.jl")
 include("setup.jl")

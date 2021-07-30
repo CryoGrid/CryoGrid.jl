@@ -98,5 +98,3 @@ function Base.getproperty(out::CryoGridOutput, sym::Symbol)
         out.vars[sym]
     end
 end
-
-export CryoGridOutput, getvar
