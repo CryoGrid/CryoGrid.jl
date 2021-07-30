@@ -16,8 +16,6 @@ struct CryoGridSetup{S,G,M,C,U,P}
         new{S,G,M,C,U,P}(strat,grid,meta,cache,uproto,pproto)
 end
 
-export CryoGridSetup
-
 """
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
@@ -167,8 +165,6 @@ Numerics.constrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply
 Invokes `unconstrain` on all parameters in `p`. Assumes `p` to be of the same form as `setup.pproto`.
 """
 Numerics.unconstrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:unapply, p, setup)
-
-export withaxes, getstate, getvar
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
