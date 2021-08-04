@@ -106,7 +106,7 @@ function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Sym
     depths, vals = zip(pairs...)
     params = hcat(collect.(vals)...)'
     names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : collect(names)
-    DimArray(params, (depth=collect(depths), var=names))
+    DimArray(params, (Z(collect(depths)), Dim{:var}(names)))
 end
 
 """

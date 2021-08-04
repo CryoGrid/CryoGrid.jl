@@ -107,9 +107,9 @@ function initialcondition!(soil::Soil{T,P}, state) where {T,P}
     getproperties(::Val{var}, soil::Soil{T,Nothing}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
     depths = length(size(soil.profile)) > 1 ? dims(soil.profile, :depth).val : [refdims(soil.profile)[1].val]
     for var in [:θx,:θp,:θm,:θo]
-        arr = DimArray(similar(state[var], Union{Missing,eltype(state[var])}), (depth=state.grids[var]u"m",))
+        arr = DimArray(similar(state[var], Union{Missing,eltype(state[var])}), (Z(state.grids[var]u"m",)))
         arr .= missing
-        arr_sub = @view arr[depth=Near(depths)]
+        arr_sub = @view arr[Z(Near(depths))]
         arr_sub .= getproperties(Val{var}(), soil, state)
         Utils.ffill!(arr)
         state[var] .= skipmissing(arr)

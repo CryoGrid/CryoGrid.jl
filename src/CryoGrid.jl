@@ -19,7 +19,7 @@ include("Processes/Processes.jl")
 include("Setup/Setup.jl")
 include("Callbacks/Callbacks.jl")
 
-# Re-export submodules
+# Re-exported submodules
 @reexport using .Interface
 @reexport using .Utils
 @reexport using .Numerics
@@ -32,7 +32,7 @@ include("Callbacks/Callbacks.jl")
 
 # Re-exported packages
 @reexport using Dates: Dates, DateTime
-@reexport using DimensionalData: DimArray, X, Y, Z, Dim, dims
+@reexport using DimensionalData: DimArray, Z, Dim, dims
 @reexport using IntervalSets
 @reexport using Unitful
 

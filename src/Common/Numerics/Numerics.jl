@@ -6,7 +6,7 @@ import ExprTools
 using CryoGrid.Utils
 
 using Base: @inbounds, @propagate_inbounds
-using DimensionalData: DimArray, dims
+using DimensionalData: DimArray, Dim, dims, Z
 using IfElse
 using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
 using IntervalSets
