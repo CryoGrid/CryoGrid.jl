@@ -55,10 +55,10 @@ plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="T
 ```
 ![Ts_output_freew](res/Ts_H_tair_freeW_2010-2011.png)
 
-Alternatively, we can use a van Genuchten freeze curve:
+Alternatively, we can use a Dall'Amico freeze curve:
 
 ```julia
-model = CryoGridModels.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(VanGenuchten()))
+model = CryoGridModels.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
 # Set-up parameters
 p = copy(model.pproto)
 p.soil.α .= 4.0
@@ -66,7 +66,7 @@ p.soil.n .= 2.0
 p.soil.Tₘ .= 0.0
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 prob = CryoGridProblem(model,tspan,p)
-# stiff solvers don't work well with van Genuchten due to the ill-conditioned Jacobian;
+# stiff solvers don't work well with Dall'Amico due to the ill-conditioned Jacobian;
 # We can just forward Euler instead.
 out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
 plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)

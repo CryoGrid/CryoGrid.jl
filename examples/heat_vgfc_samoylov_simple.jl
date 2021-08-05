@@ -7,7 +7,7 @@ tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
 grid = CryoGridModels.DefaultGrid_5cm
 model = CryoGridModels.SoilHeat(:H, TemperatureGradient(tair), CryoGridModels.SamoylovDefault;
-    grid=grid, freezecurve=SFCC(VanGenuchten()))
+    grid=grid, freezecurve=SFCC(DallAmico()))
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = copy(model.pproto)

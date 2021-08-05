@@ -110,24 +110,24 @@ StatsPlots.groupedbar(xnames, results_freeW_seb.error[:,:,1], yerror=results_fre
     title="Error, free water FC, SEB upper bc", legend=:topleft)
 savefig("solver_benchmark_freeW_seb_error.png")
 
-# Test 3: Energy + SEB upper bc + van Genuchten freeze curve
+# Test 3: Energy + SEB upper bc + Dall'Amico freeze curve
 solvers = [Euler]
 p = [4.0, 2.0, 0.0]
-results_vgfc_seb = run_solver_benchmark(solvers, grids, dts, tspan, seb, params=p, adaptive=false, freezecurve=SFCC(VanGenuchten()))
+results_vgfc_seb = run_solver_benchmark(solvers, grids, dts, tspan, seb, params=p, adaptive=false, freezecurve=SFCC(DallAmico()))
 serialize("solver_benchmark_vgfc_seb.ser", results_vgfc_seb)
 
 results_vgfc_seb = deserialize("solver_benchmark_vgfc_seb.ser")
 plot([2, 5, 10, 20], results_vgfc_seb.runtime, labels="Euler", xlabel="Minimum grid spacing (cm)",
-    ylabel="Run time per simulation year (s)", title="Integrator run times w/ van Genuchten FC + SEB bc", dpi=150)
+    ylabel="Run time per simulation year (s)", title="Integrator run times w/ Dall'Amico FC + SEB bc", dpi=150)
 hline!([1.0], linestyle=:dash, c=:black, label=nothing)
 
 xnames = repeat(["0.02", "0.05", "0.10", "0.20"], outer=length(solvers))
 groupnames = repeat([string(s) for s in solvers], inner=length(grids))
 StatsPlots.groupedbar(xnames, results_vgfc_seb.runtime, group=groupnames, 
     bar_position=:dodge, ylabel="Run time per simulation year (s)", xlabel="Minimum grid spacing (m)",
-    title="Run times, van Genuchten FC, SEB upper bc")
+    title="Run times, Dall'Amico FC, SEB upper bc")
 savefig("solver_benchmark_vgc_seb_runtimes.png")
 StatsPlots.groupedbar(xnames, results_vgfc_seb.error[:,:,1], yerror=results_vgfc_seb.error[:,:,2], group=groupnames, 
     bar_position=:dodge, ylims=(0,6e5), ylabel="Error w.r.t reference run (J/m³)", xlabel="Minimum grid spacing (m)",
-    title="Error, van Genuchten FC, SEB upper bc", legend=:topleft)
+    title="Error, Dall'Amico FC, SEB upper bc", legend=:topleft)
 savefig("solver_benchmark_vgfc_seb_error.png")

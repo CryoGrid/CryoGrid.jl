@@ -5,6 +5,7 @@ import CryoGrid.Interface: BoundaryStyle, diagnosticstep!, prognosticstep!, inte
 
 using ..Processes
 using ..Processes.Boundaries
+using ..Processes.Water: VanGenuchten
 using CryoGrid.Forcings
 using CryoGrid.Interface
 using CryoGrid.Numerics
@@ -22,6 +23,7 @@ using Unitful
 export Heat, HeatParams, TempProfile
 export FreeWater, FreezeCurve, freezecurve
 export ConstantTemp, GeothermalHeatFlux, NFactor, TemperatureGradient
+export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
 export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 export heatconduction!, boundaryflux
 

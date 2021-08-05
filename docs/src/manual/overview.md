@@ -8,7 +8,7 @@ At the highest level, a model in `CryoGrid.jl` is defined by a [`Grid`](@ref) an
 # see examples/heat_vgfc_seb_saoylov_custom.jl for more details
 strat = Stratigraphy(
     -2.0u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
-    0.0u"m" => Ground(:soil, Soil(soilprofile), Heat{:H}(tempprofile, freezecurve=SFCC(VanGenuchten()))),
+    0.0u"m" => Ground(:soil, Soil(soilprofile), Heat{:H}(tempprofile, freezecurve=SFCC(DallAmico()))),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Models.DefaultGrid_5cm
