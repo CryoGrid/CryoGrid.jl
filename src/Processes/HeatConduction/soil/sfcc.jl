@@ -26,8 +26,6 @@ struct SFCC{F,∇F,S} <: FreezeCurve
     SFCC(f::F,∇f::∇F,s::S) where {F<:SFCCFunction,∇F<:Function,S<:SFCCSolver} = new{F,∇F,S}(f,∇f,s)
 end
 
-export SFCC
-
 """
     SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver())
 
@@ -103,44 +101,41 @@ sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state) = ()
 variables(::Soil, ::Heat, f::SFCCFunction) = ()
 variables(::Soil, ::Heat, s::SFCCSolver) = ()
 
-export params
-
 """
-    VanGenuchten <: SFCCFunction
-
-van Genuchten MT, 1980. A closed-form equation for predicting the hydraulic conductivity of unsaturated soils.
-    Soil Science Society of America Journal, 44(5): 892–898. DOI: 10.2136/sssaj 1980.03615995004400050002x.
+    DallAmico <: SFCCFunction
 
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
-@with_kw struct VanGenuchten <: SFCCFunction
-    θres::Float64 = 0.0 # residual water content
-    g::Float64 = 9.80665 # acceleration due to gravity
+@with_kw struct DallAmico <: SFCCFunction
+    swrc::VanGenuchten = VanGenuchten()
 end
-variables(::Soil, ::Heat, ::VanGenuchten) = (Parameter(:α, 4.0, 0..Inf), Parameter(:n, 2.0, 1..Inf), Parameter(:Tₘ, 0.0, 0..Inf),)
-sfccparams(f::VanGenuchten, soil::Soil, heat::Heat, state) = (
+variables(::Soil, ::Heat, ::DallAmico) = (
+    Parameter(:α, 4.0, 0..Inf),
+    Parameter(:n, 2.0, 1..Inf),
+    Parameter(:Tₘ, 0.0, 0..Inf),
+    Parameter(:θres, 0.0, 0..1),
+)
+sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
+    state.params.Tₘ |> getscalar,
+    state.params.θres |> getscalar,
+    state.θp, # θ saturated = porosity
+    state.θw,
+    heat.params.L, # specific latent heat of fusion, L
     state.params.α |> getscalar, 
     state.params.n |> getscalar,
-    state.params.Tₘ |> getscalar,
-    state.θw,
-    state.θp, # θ saturated = porosity
-    heat.params.L, # specific latent heat of fusion, L
 )
-function (f::VanGenuchten)(T,α,n,Tₘ,θtot,θsat,L)
-    let θres = f.θres,
-        θsat = max(θtot, θsat),
-        g = f.g,
+function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
+    let θsat = max(θtot, θsat),
+        g = 9.80665, # acceleration due to gravity
         m = 1-1/n,
         ψ₀ = IfElse.ifelse(θtot >= θsat, 0.0, (((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n)),
         T = T + 273.15,
         Tₘ = Tₘ + 273.15,
         Tstar = Tₘ + g*Tₘ/L*ψ₀,
         ψ(T) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T); # pressure head at T
-        θres + (θsat - θres)*(1 + (-α*ψ(T))^n)^(-m) # van Genuchten
+        f.swrc(ψ(T),θres,θsat,α,n)
     end
 end
-
-export VanGenuchten
 
 """
     McKenzie <: SFCCFunction
@@ -149,24 +144,24 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
     numerical simulations, benchmarks, and application to freezing in peat bogs. Advances in Water Resources,
     30(4): 966–983. DOI: 10.1016/j.advwatres.2006.08.008.
 """
-@with_kw struct McKenzie <: SFCCFunction
-    θres::Float64 = 0.0 # residual water content
-end
-variables(::Soil, ::Heat, ::McKenzie) = (Parameter(:γ, 0.184, 0..Inf),)
-sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    state.params.γ |> getscalar, 
-    state.θw,
-    state.θp,
+struct McKenzie <: SFCCFunction end
+variables(::Soil, ::Heat, ::McKenzie) = (
+    Parameter(:γ, 0.184, 0..Inf),
+    Parameter(:Tₘ, 0.0, 0..Inf),
+    Parameter(:θres, 0.0, 0..1),
 )
-function (f::McKenzie)(T,γ,θtot,θsat)
-    let θres = f.θres,
-        θsat = max(θtot, θsat);
-        # TODO: perhaps T<=0.0 should be T<=Tₘ as in VG curve?
-        IfElse.ifelse(T<=0.0, θres + (θsat-θres)*exp(-(T/γ)^2), θtot)
+sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
+    state.params.Tₘ |> getscalar,
+    state.params.θres |> getscalar,
+    state.θp,
+    state.θw,
+    state.params.γ |> getscalar,
+)
+function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
+    let θsat = max(θtot, θsat);
+        IfElse.ifelse(T<=Tₘ, θres + (θsat-θres)*exp(-(T/γ)^2), θtot)
     end
 end
-
-export McKenzie
 
 """
     Westermann <: SFCCFunction
@@ -175,22 +170,24 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     wintertime rain events on the thermal regime of permafrost, The Cryosphere, 5, 945–959,
     https://doi.org/10.5194/tc-5-945-2011, 2011. 
 """
-@with_kw struct Westermann <: SFCCFunction
-    θres::Float64 = 0.0 # residual water content
-end
-variables(::Soil, ::Heat, ::Westermann) = (Parameter(:δ, 0.1, 0..Inf),)
-sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    state.params.δ |> getscalar, 
-    state.θw,
+struct Westermann <: SFCCFunction end
+variables(::Soil, ::Heat, ::Westermann) = (
+    Parameter(:Tₘ, 0.0, 0..Inf),
+    Parameter(:θres, 0.0, 0..1),
+    Parameter(:δ, 0.1, 0..Inf),
 )
-function (f::Westermann)(T,δ,θtot)
-    let θres = f.θres;
-        # TODO: perhaps T<=0.0 should be T<=Tₘ as in VG curve?
-        IfElse.ifelse(T<=0.0, θres - (θtot-θres)*(δ/(T-δ)), θtot)
+sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
+    state.params.Tₘ |> getscalar,
+    state.params.θres |> getscalar,
+    state.θp,
+    state.θw,
+    state.params.δ |> getscalar,
+)
+function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
+    let θsat = max(θtot, θsat);
+        IfElse.ifelse(T<=Tₘ, θres - (θsat-θres)*(δ/(T-δ)), θtot)
     end
 end
-
-export Westermann
 
 """
 Specialized implementation of Newton's method with backtracking line search for resolving
@@ -306,5 +303,3 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{:H}, state, f, ∇f)
     end
     nothing
 end
-
-export SFCCNewtonSolver

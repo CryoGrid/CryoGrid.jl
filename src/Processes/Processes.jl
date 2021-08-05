@@ -13,6 +13,7 @@ using Unitful
 
 include("systems.jl")
 include("Boundaries/Boundaries.jl")
+include("Water/Water.jl")
 include("HeatConduction/HeatConduction.jl")
 include("SEB/SEB.jl")
 include("Sources/Sources.jl")
