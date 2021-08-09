@@ -65,19 +65,20 @@ end
 	@testset "n-factors" begin
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
 		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1], ts, :Tair)
-		nfactor = NFactor(TemperatureGradient(forcing), 0.5, 0.0, :n)
+		nfactor = NFactor(TemperatureGradient(forcing), 0.5, 1.0, 0.0, :n)
 		vars = variables(Top(), nfactor)
-		@test length(vars) == 2
+		@test length(vars) == 3
 		@test getscalar(vars[1].default_value) == 0.5
-		@test getscalar(vars[2].default_value) == 0.0
+		@test getscalar(vars[2].default_value) == 1.0
+		@test getscalar(vars[3].default_value) == 0.0
 		sub = TestGroundLayer()
 		heat = Heat{:H}()
 		# standard zero threshold
-		f1(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.0)), (t=t,))
+		f1(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor1=0.5, n_factor2=1.0, n_thresh=0.0)), (t=t,))
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
 		# test with non-zero threshold
-		f2(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor=0.5, n_thresh=0.5)), (t=t,))
+		f2(t) = nfactor(Top(),sub,heat,(t=t, params=(n_factor1=0.5, n_factor2=1.0, n_thresh=0.5)), (t=t,))
 		Tres = f2.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.25,-0.25,-0.5,0.05])
 	end
