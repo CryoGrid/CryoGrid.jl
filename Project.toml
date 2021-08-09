@@ -1,7 +1,7 @@
 name = "CryoGrid"
 uuid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
 authors = ["Brian Groenke <brian.groenke@awi.de>", "Moritz Langer <moritz.langer@awi.de>"]
-version = "0.2.3"
+version = "0.2.4"
 
 [deps]
 ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
