@@ -39,9 +39,6 @@ isalgebraic(::T) where {T<:Var} = T <: Algebraic
 isdiagnostic(::T) where {T<:Var} = T <: Diagnostic
 isparameter(::T) where {T<:Var} = T <: Parameter
 domain(::Parameter{name,T,S,D}) where {name,T,S,D} = D
-export Var, Prognostic, Algebraic, Diagnostic, Parameter
-export VarDim, OnGrid, Shape, Scalar
-export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter, domain
 
 # parameter constraints
 function checkdomain(domain::Interval, f::Function, z)
@@ -56,5 +53,3 @@ constrain(::Parameter{name,T,S,0..Inf}, x) where {name,T,S} = softplus.(x)
 unconstrain(::Parameter{name,T,S,0..Inf}, z) where {name,T,S} = checkdomain(0..Inf, softplusinv, z)
 constrain(::Parameter{name,T,S,1..Inf}, x) where {name,T,S} = (plusone ∘ softplus).(x)
 unconstrain(::Parameter{name,T,S,1..Inf}, z) where {name,T,S} = checkdomain(1..Inf, softplusinv ∘ minusone, z)
-
-export constrain, unconstrain
