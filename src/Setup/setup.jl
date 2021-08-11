@@ -498,7 +498,9 @@ struct VarCache{name, TCache}
     cache::TCache
     function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunk_size::Int)
         # use dual cache for automatic compatibility with ForwardDiff
-        cache = DiffEqBase.dualcache(similar(arrayproto, length(grid)), Val{chunk_size})
+        A = similar(arrayproto, length(grid))
+        A .= zero(eltype(A))
+        cache = DiffEqBase.dualcache(A, Val{chunk_size})
         new{name,typeof(cache)}(cache)
     end
 end
