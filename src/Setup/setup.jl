@@ -1,26 +1,26 @@
 """
-    CryoGridSetup{S,G,M,C,U,P}
+    CryoGridSetup{S,G,M,O,C,U,P}
 
 Defines the full specification of a CryoGrid model; i.e. stratigraphy, grids, variables, and diagnostic state. `uproto`
 field is an uninitialized, prototype `ComponentArray` that holds the axis information for the prognostic state vector.
 """
-struct CryoGridSetup{S,G,M,C,U,P}
+struct CryoGridSetup{S,G,M,O,C,U,P}
     strat::S    # stratigraphy
     grid::G     # grid
     meta::M     # metadata (variable info and grids per layer)
     cache::C    # variable caches (per layer)
     uproto::U   # prototype prognostic state ComponentArray for integrator
     pproto::P   # prototype p ComponentArray for integrator (tracked parameters)
-    CryoGridSetup(strat::S,grid::G,meta::M,cache::C,uproto::U,pproto::P) where {S<:Stratigraphy,G<:Grid{Edges},
+    CryoGridSetup(strat::S,grid::G,meta::M,cache::C,uproto::U,pproto::P;observed::Vector{Symbol}=Symbol[]) where {S<:Stratigraphy,G<:Grid{Edges},
         M<:NamedTuple, C<:NamedTuple, U<:AbstractArray,P<:AbstractArray} =
-        new{S,G,M,C,U,P}(strat,grid,meta,cache,uproto,pproto)
+        new{S,G,M,tuple(observed...),C,U,P}(strat,grid,meta,cache,uproto,pproto)
 end
 
 """
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
-function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zeros(), chunk_size=nothing) where {A<:AbstractArray}
+function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zeros(), chunk_size=nothing, observed::Vector{Symbol}=Symbol[]) where {A<:AbstractArray}
     pvar_arrays = OrderedDict()
     param_arrays = OrderedDict()
     layer_metas = OrderedDict()
@@ -55,7 +55,7 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
         ComponentArray(similar(arrayproto,0),(Axis{NamedTuple{Tuple(keys(nt_params))}(Tuple(map(a->1:0,nt_params)))}(),))
     # reconstruct with given array type
     uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
-    CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto)
+    CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto; observed=observed)
 end
 
 """
@@ -178,7 +178,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta})(_du,_u,p,t) where {TStrat,TGrid,TMeta}
+@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta,TObs})(_du,_u,p,t) where {TStrat,TGrid,TMeta,TObs}
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -257,6 +257,19 @@ is only executed during compilation and will not appear in the compiled version.
             identifier = Symbol(n,:_,nv)
             @>> quote
             @log $identifier copy($nstate.$nv)
+            end push!(expr.args)
+        end
+    end
+    # Observables
+    for i in 1:N
+        n = nodename(nodetyps[i])
+        nstate = Symbol(n,:state)
+        nlayer = Symbol(n,:layer)
+        nprocess = Symbol(n,:process)
+        for name in TObs
+            nameval = Val{name}()
+            @>> quote
+                observe($nameval,$nlayer,$nprocess,$nstate)
             end push!(expr.args)
         end
     end

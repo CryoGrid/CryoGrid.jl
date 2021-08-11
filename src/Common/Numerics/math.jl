@@ -25,21 +25,19 @@ function lineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δ::AbstractV
     end
 end
 
-"""
-    nonlineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector, Δk::AbstractArray)
 
-Second order Laplacian with non-linear diffusion function, k.
-"""
-function nonlineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector, Δk::AbstractArray)
-    @inbounds let x₁ = (@view x[1:end-2]),
-        x₂ = (@view x[2:end-1]),
-        x₃ = (@view x[3:end]),
-        k₁ = (@view k[1:end-1]),
-        k₂ = (@view k[2:end]),
-        Δx₁ = (@view Δx[1:end-1]),
-        Δx₂ = (@view Δx[2:end]);
-        @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
-    end
+@propagate_inbounds _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂) = @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δx₂
+@propagate_inbounds function _nonlineardiffusion!(
+    ∂y::AbstractVector{Float64},
+    x₁::AbstractVector{Float64},
+    x₂::AbstractVector{Float64},
+    x₃::AbstractVector{Float64},
+    k₁::AbstractVector{Float64},
+    k₂::AbstractVector{Float64},
+    Δx₁::AbstractVector{Float64},
+    Δx₂::AbstractVector{Float64}
+)
+    @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δx₂
 end
 
 """
@@ -51,15 +49,9 @@ end
         Δk::AbstractVector{Float64}
     )
 
-Second order Laplacian with non-linear diffusion function, k. Accelerated using `LoopVectorization.@turbo` for `Float64` vectors.
+Second order Laplacian with non-linear diffusion operator, `k`. Accelerated using `LoopVectorization.@turbo` for `Float64` vectors.
 """
-function nonlineardiffusion!(
-    ∂y::AbstractVector{Float64},
-    x::AbstractVector{Float64}, 
-    Δx::AbstractVector{Float64},
-    k::AbstractVector{Float64},
-    Δk::AbstractVector{Float64}
-)
+function nonlineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector, Δk::AbstractVector)
     @inbounds let x₁ = (@view x[1:end-2]),
         x₂ = (@view x[2:end-1]),
         x₃ = (@view x[3:end]),
@@ -67,7 +59,28 @@ function nonlineardiffusion!(
         k₂ = (@view k[2:end]),
         Δx₁ = (@view Δx[1:end-1]),
         Δx₂ = (@view Δx[2:end]);
-        @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
+        _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂)
+    end
+end
+
+"""
+    harmonicmean(x₁, x₂, w₁, w₂)
+
+Simple weighted harmonic mean of two values, x₁ and x₂.
+"""
+harmonicmean(x₁, x₂, w₁, w₂) = (w₁ + w₂) / (w₁*x₁^-1 + w₂*x₂^-1)
+"""
+    harmonicmean!(h::AbstractVector, x::AbstractVector, w::AbstractVector)
+
+Vectorized harmonic mean of elements in `x` with weights `w`. Output is stored in `h`,
+which should have size `length(x)-1`.
+"""
+function harmonicmean!(h::AbstractVector, x::AbstractVector, w::AbstractVector)
+    @inbounds let x₁ = (@view x[1:end-1]),
+        x₂ = (@view x[2:end]),
+        w₁ = (@view w[1:end-1]),
+        w₂ = (@view w[2:end]);
+        @. h = harmonicmean(x₁,x₂,w₁,w₂)
     end
 end
 
@@ -158,5 +171,3 @@ function ∇(f, dvar::Symbol; choosefn=first, context_module=Numerics)
     ∇f = @RuntimeGeneratedFunction(context_module, ∇f_expr)
     return ∇f
 end
-
-export ∇

@@ -17,6 +17,12 @@ using Unitful
 using Symbolics
 using SymbolicUtils
 
+export ∇
+export Var, Prognostic, Algebraic, Diagnostic, Parameter
+export VarDim, OnGrid, Shape, Scalar
+export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter, domain
+export constrain, unconstrain
+
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("math.jl")

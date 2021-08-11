@@ -9,7 +9,7 @@ using ..Processes.Water: VanGenuchten
 using CryoGrid.Forcings
 using CryoGrid.Interface
 using CryoGrid.Numerics
-using CryoGrid.Numerics: nonlineardiffusion!
+using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean
 using CryoGrid.Layers: Soil, SoilParams
 using CryoGrid.Utils
 
@@ -154,13 +154,11 @@ function diagnosticstep!(layer::SubSurface, heat::Heat, state)
     fc!(layer,heat,state)
     # Update thermal conductivity
     thermalconductivity!(layer, heat, state)
-    # Interpolate thermal conductivity to boundary grid
-    regrid!(state.k, state.kc, state.grids.kc, state.grids.k, Linear(), Flat())
-    # TODO: harmonic mean of thermal conductivities (in MATLAB code)
-    # for i=2:N-1
-    #     kn(i,1) = (dxp(i,1)/(2*dxn(i))*kp(i,1).^-1 + dxp(i-1,1)/(2*dxn(i))*kp(i-1).^-1).^-1;
-    #     ks(i,1) = (dxp(i,1)/(2*dxs(i))*kp(i,1).^-1 + dxp(i+1,1)/(2*dxs(i))*kp(i+1).^-1).^-1;
-    # end
+    # Harmonic mean of conductivities
+    @inbounds let k = (@view state.k[2:end-1]),
+        Δk = Δ(state.grids.k);
+        harmonicmean!(k, state.kc, Δk)
+    end
     return nothing # ensure no allocation
 end
 """ Prognostic step for heat conduction (enthalpy) on subsurface layer. """
@@ -203,21 +201,21 @@ implementations by boundary condition type.
 boundaryflux(boundary::Boundary, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbound, ssub) =
     boundaryflux(BoundaryStyle(bc), boundary, bc, sub, h, sbound, ssub)
 boundaryflux(::Neumann, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub) =
-    @inbounds let a = Δ(ssub.grids.k)[1]
-        bc(top,sub,h,stop,ssub)/a
+    @inbounds let δ₀ = Δ(ssub.grids.k)[1]
+        bc(top,sub,h,stop,ssub)/δ₀
     end
 boundaryflux(::Neumann, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub) =
-    @inbounds let a = Δ(ssub.grids.k)[end]
-        bc(bot,sub,h,sbot,ssub)/a
+    @inbounds let δ₀ = Δ(ssub.grids.k)[end]
+        bc(bot,sub,h,sbot,ssub)/δ₀
     end
 function boundaryflux(::Dirichlet, top::Top, bc::BoundaryProcess, sub::SubSurface, h::Heat, stop, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tupper=bc(top,sub,h,stop,ssub),
         Tsub=ssub.T[1],
         k=ssub.k[1],
-        a=Δk[1],
-        δ=(Δk[1]/2); # distance to surface
-        -k*(Tsub-Tupper)/δ/a
+        δ=Δk[1],
+        δ₀=(Δk[1]/2); # distance to boundary
+        -k*(Tsub-Tupper)/δ/δ₀
     end
 end
 function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub)
@@ -225,15 +223,19 @@ function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSur
     @inbounds let Tlower=bc(bot,sub,h,sbot,ssub),
         Tsub=ssub.T[end],
         k=ssub.k[end],
-        a=Δk[end],
-        δ=(Δk[end]/2); # distance to surface
-        -k*(Tsub-Tlower)/δ/a
+        δ=Δk[1],
+        δ₀=(Δk[1]/2); # distance to boundary
+        -k*(Tsub-Tlower)/δ/δ₀
     end
 end
 """
 Generic top interaction. Computes flux dH at top cell.
 """
 function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub)
+    # thermal conductivity at boundary
+    # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
+    @inbounds ssub.k[1] = ssub.k[2]
+    # boundary flux
     @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
     return nothing # ensure no allocation
 end
@@ -241,6 +243,10 @@ end
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
 function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess, ssub, sbot)
+    # thermal conductivity at boundary
+    # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
+    @inbounds ssub.k[end] = ssub.k[end-1]
+    # boundary flux
     @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
     return nothing # ensure no allocation
 end
@@ -248,8 +254,18 @@ end
 Generic subsurface interaction. Computes flux dH at boundary between subsurface layers.
 """
 function interact!(::SubSurface, ::Heat, ::SubSurface, ::Heat, s1, s2)
+    # thermal conductivity between cells
+    @inbounds let k₁ = s1.kc[end],
+        k₂ = s2.kc[1],
+        Δ₁ = Δ(s1.grids.k)[end],
+        Δ₂ = Δ(s2.grids.k)[1];
+        k = harmonicmean(k₁, k₂, Δ₁, Δ₂);
+        s1.k[end] = s2.k[1] = k
+    end
     # calculate heat flux between cells
-    Qᵢ = @inbounds let k = (2*s1.k[end]*s2.k[1]) / (s1.k[end] + s2.k[1]), # harmonic mean of thermal conductivities
+    Qᵢ = @inbounds let k₁ = s1.k[end],
+        k₂ = s2.k[1],
+        k = k₁ = k₂,
         δ = s2.grids.T[1] - s1.grids.T[end];
         k*(s2.T[1] - s1.T[end]) / δ
     end
