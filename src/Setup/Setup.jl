@@ -13,7 +13,6 @@ using CryoGrid.Numerics
 using CryoGrid.Processes
 using CryoGrid.Utils
 
-using ArraysOfArrays
 using ComponentArrays
 using DataStructures: OrderedDict
 using Dates

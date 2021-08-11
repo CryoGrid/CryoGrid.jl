@@ -4,7 +4,6 @@ authors = ["Brian Groenke <brian.groenke@awi.de>", "Moritz Langer <moritz.langer
 version = "0.2.5"
 
 [deps]
-ArraysOfArrays = "65a8f2f4-9b39-5baf-92e2-a9cc46fdf018"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
