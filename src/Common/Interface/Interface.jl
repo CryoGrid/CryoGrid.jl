@@ -11,7 +11,7 @@ export Layer, SubSurface, Top, Bottom, Boundary
 export Process, SubSurfaceProcess, BoundaryProcess, System, Coupled
 export BoundaryStyle, Dirichlet, Neumann
 export AbstractParameterization, Parameterization
-export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
+export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, observe
 
 include("types.jl")
 
@@ -67,6 +67,26 @@ prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined
 Defines a boundary interaction between two processes on adjacent layers.
 """
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+"""
+    observe(::Val{name}, ::Layer, ::Process, state1)
+
+Called at the end of each step. Can be used by the user to add additional observables via `@log` without affecting the
+model implementation. As such, this function should **not** be used in implementations, but only by users and code which
+monitors/consumes CryoGrid model outputs.
+
+Example:
+```julia
+observe(::Val{:meanT}, ::SubSurface, ::Heat, state) = @log meanT = mean(state.T)
+# build model
+...
+setup = CryoGridSetup(stratigraphy, grid, observed=[:meanT])
+# solve
+...
+# retrieve results
+@show out.log.meanT # will be a DimArray of meanT at each timestep.
+```
+"""
+observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
 """
     BoundaryStyle(::Type{T})
 

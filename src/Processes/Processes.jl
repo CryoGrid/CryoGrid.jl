@@ -1,6 +1,6 @@
 module Processes
 
-import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
+import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, observe
 
 using CryoGrid.Interface
 using CryoGrid.Layers
