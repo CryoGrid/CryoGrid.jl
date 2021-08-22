@@ -85,7 +85,6 @@ end
 		tchange = Dates.datetime2epochms(ts[end-1])./1000
 		f2(t) = tgrad(Top(),sub,heat,(t=t, params=(nfw1=0.5, nfw2=0.2, nfs1=1.0, nfs2=0.9, nftc=tchange)), (t=t,))
 		Tres = f2.(Dates.datetime2epochms.(ts)./1000)
-		println(Tres)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.2,0.09])
 	end
 end
