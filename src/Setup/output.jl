@@ -19,7 +19,7 @@ end
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`.
 """
-function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
+function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: SciMLBase.AbstractODESolution}
     setup = sol.prob.f.f # CryoGridSetup
     log = get_log(sol, ts)
     ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))

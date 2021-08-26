@@ -79,7 +79,7 @@ odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSet
 function odefunction(::TridiagJac, setup::CryoGridSetup, M, u0, p, tspan; kwargs...)
     if :jac_prototype in keys(kwargs)
         @warn "using user specified jac_prorotype instead of tridiagonal"
-        ODEFunction(setup, mass_matrix=M, kwargs...)
+        ODEFunction(setup, mass_matrix=M; kwargs...)
     else
         N = length(u0)
         J = Tridiagonal(
