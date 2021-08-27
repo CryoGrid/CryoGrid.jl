@@ -1,8 +1,8 @@
 module Boundaries
 
-import CryoGrid.Interface: BoundaryStyle, variables
+import CryoGrid: BoundaryProcess, BoundaryStyle, Dirichlet, Neumann, Top
+import CryoGrid: variables
 
-using CryoGrid.Interface
 using CryoGrid.Numerics
 using CryoGrid.Utils
 

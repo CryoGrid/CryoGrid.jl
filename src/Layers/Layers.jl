@@ -1,8 +1,8 @@
 module Layers
 
-import CryoGrid.Interface: SubSurface, initialcondition!, variables
+import CryoGrid: SubSurface
+import CryoGrid: initialcondition!, variables
 
-using CryoGrid.Interface
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
@@ -10,6 +10,8 @@ using DimensionalData
 using IntervalSets
 using Parameters
 using Unitful
+
+export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, SoilParameterization, BySoilProperties
 
 include("soil.jl")
 

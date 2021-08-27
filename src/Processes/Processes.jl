@@ -1,8 +1,8 @@
 module Processes
 
-import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, observe
+import CryoGrid: Process, System, Coupled, Layer, Top, Bottom, SubSurface
+import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, observe
 
-using CryoGrid.Interface
 using CryoGrid.Layers
 using CryoGrid.Numerics
 using CryoGrid.Utils

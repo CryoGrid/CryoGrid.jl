@@ -8,7 +8,7 @@ struct Clay <: SoilType end
 """
 Base type for soil parameterizations.
 """
-abstract type SoilParameterization <: AbstractParameterization end
+abstract type SoilParameterization end
 struct BySoilProperties <: SoilParameterization end
 """
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
@@ -43,7 +43,7 @@ end
 Parameter type for Soil layers, includes thermal conductivity and heat capacity
 constants as well as type/composition.
 """
-@with_kw struct SoilParams{TType<:SoilType,TPara<:Parameterization,S} <: Params
+@with_kw struct SoilParams{TType<:SoilType,TPara<:Union{Nothing,SoilParameterization},S} <: Params
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     type::TType = Sand()
@@ -68,8 +68,6 @@ function SoilProfile(vals::Pair{<:DistQuantity,SoilProperties}...)
     points = [d => tuple(props...) for (d,props) in vals]
     Profile(points...;names=fieldnames(SoilProperties))
 end
-
-export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, SoilParameterization, BySoilProperties
 
 # Helper functions for obtaining soil component fractions from soil properties.
 soilcomp(::Val{:θx}, χ, ϕ, θ, ω) = χ

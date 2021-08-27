@@ -1,21 +1,4 @@
 """
-    Interface
-
-Defines common types and functions used by all (or most) modules.
-"""
-module Interface
-
-using Base: @propagate_inbounds
-
-export Layer, SubSurface, Top, Bottom, Boundary
-export Process, SubSurfaceProcess, BoundaryProcess, System, Coupled
-export BoundaryStyle, Dirichlet, Neumann
-export AbstractParameterization, Parameterization
-export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, observe
-
-include("types.jl")
-
-"""
     variables(::Layer)
 
 Defines variables for a given Layer type. Implementations should return a `Tuple` of `CryoGrid.Common.Var`s.
@@ -100,5 +83,3 @@ where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
 BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
 BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
-
-end

@@ -4,10 +4,10 @@ import ForwardDiff
 import ReverseDiff
 import Zygote
 
-import CryoGrid.Interface: Top, Bottom
+import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, System
+import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
 using CryoGrid.InputOutput
-using CryoGrid.Interface
 using CryoGrid.Layers
 using CryoGrid.Numerics
 using CryoGrid.Processes

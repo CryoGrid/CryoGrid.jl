@@ -6,10 +6,20 @@ function debug(debug::Bool)
     global CRYOGRID_DEBUG = debug
 end
 
+using Base: @propagate_inbounds
 using Reexport
 
+export Layer, SubSurface, Top, Bottom, Boundary
+export Process, SubSurfaceProcess, BoundaryProcess, System, Coupled
+export BoundaryStyle, Dirichlet, Neumann
+export AbstractParameterization, Parameterization
+export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, observe
+
+# Common types and methods
+include("Common/types.jl")
+include("Common/methods.jl")
+
 # Submodules
-include("Common/Interface/Interface.jl")
 include("Common/Utils/Utils.jl")
 include("Common/Numerics/Numerics.jl")
 include("Common/Forcings/Forcings.jl")
@@ -21,7 +31,6 @@ include("Diagnostics/Diagnostics.jl")
 include("Callbacks/Callbacks.jl")
 
 # Re-exported submodules
-@reexport using .Interface
 @reexport using .Utils
 @reexport using .Numerics
 @reexport using .Forcings
@@ -29,7 +38,7 @@ include("Callbacks/Callbacks.jl")
 @reexport using .Layers
 @reexport using .Processes
 @reexport using .Setup
-@reexport using .Analysis
+@reexport using .Diagnostics
 @reexport using .Callbacks
 
 # Re-exported packages
@@ -44,8 +53,5 @@ import .Setup: parameters
 
 # Include Models submodule last to allow dependence on other submodules.
 include("Models/Models.jl")
-
-const CryoGridModels = Models
-export CryoGridModels
 
 end # module

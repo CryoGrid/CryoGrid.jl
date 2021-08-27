@@ -1,7 +1,7 @@
-# Interface
+# Top level methods and types
 
 ```@autodocs
-Modules = [CryoGrid.Interface]
+Modules = [CryoGrid]
 Private = false
 Order = [:type, :constant, :function, :macro]
 ```

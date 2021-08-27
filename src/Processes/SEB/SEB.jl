@@ -3,14 +3,14 @@ module SEB
 using ..HeatConduction: Heat
 using ..Processes
 using CryoGrid.Forcings
-using CryoGrid.Interface
 using CryoGrid.Layers: Soil
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using Parameters
 
-import CryoGrid.Interface: BoundaryStyle, initialcondition!, variables
+import CryoGrid: BoundaryProcess, BoundaryStyle, Neumann, Top
+import CryoGrid: initialcondition!, variables
 
 @with_kw struct SEBParams <: Params
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
