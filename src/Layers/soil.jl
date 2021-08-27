@@ -105,7 +105,7 @@ function initialcondition!(soil::Soil{T,P}, state) where {T,P}
     # Helper functions for initializing soil composition state based on parameterization mode.
     getproperties(::Val{var}, soil::Soil{T,BySoilProperties}, state) where {var,T} = soilcomp(Val{var}(), state.params.χ, state.params.ϕ, state.params.θ, state.params.ω)
     getproperties(::Val{var}, soil::Soil{T,Nothing}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
-    depths = length(size(soil.profile)) > 1 ? dims(soil.profile, :depth).val : [refdims(soil.profile)[1].val]
+    depths = length(size(soil.profile)) > 1 ? dims(soil.profile, Z).val : [refdims(soil.profile)[1].val]
     for var in [:θx,:θp,:θm,:θo]
         arr = DimArray(similar(state[var], Union{Missing,eltype(state[var])}), (Z(state.grids[var]u"m",)))
         arr .= missing

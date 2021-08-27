@@ -17,7 +17,7 @@ include("IO/InputOutput.jl")
 include("Layers/Layers.jl")
 include("Processes/Processes.jl")
 include("Setup/Setup.jl")
-include("Analysis/Analysis.jl")
+include("Diagnostics/Diagnostics.jl")
 include("Callbacks/Callbacks.jl")
 
 # Re-exported submodules
