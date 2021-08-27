@@ -5,7 +5,7 @@ using InteractiveUtils: @which
 include("../types.jl")
 
 @testset "3-layer" begin
-    grid = Grid(Vector(0.0:10.0:1000.0))
+    grid = Grid(Vector(0.0:10.0:1000.0)u"m")
     strat = Stratigraphy(
         -1.0u"m" => Top(TestBoundary()),
         0.0u"m" => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
@@ -92,7 +92,7 @@ include("../types.jl")
     Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))
 end
 @testset "4-layer" begin
-    grid = Grid(Vector(0.0:10.0:1000.0))
+    grid = Grid(Vector(0.0:10.0:1000.0)u"m")
     strat = Stratigraphy(
         -1.0u"m" => Top(TestBoundary()), (
             0.0u"m" => Ground(:testground1, TestGroundLayer(), TestGroundProcess()),
@@ -127,7 +127,7 @@ end
     Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))
 end
 @testset "Helper functions" begin
-    grid = Grid(Vector(0.0:10.0:1000.0))
+    grid = Grid(Vector(0.0:10.0:1000.0)u"m")
     strat = Stratigraphy(
         -1.0u"m" => Top(TestBoundary()), (
             0.0u"m" => Ground(:testground1, TestGroundLayer(), TestGroundProcess()),

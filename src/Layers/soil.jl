@@ -8,7 +8,7 @@ struct Clay <: SoilType end
 """
 Base type for soil parameterizations.
 """
-abstract type SoilParameterization <: AbstractParameterization end
+abstract type SoilParameterization end
 struct BySoilProperties <: SoilParameterization end
 """
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
@@ -43,7 +43,7 @@ end
 Parameter type for Soil layers, includes thermal conductivity and heat capacity
 constants as well as type/composition.
 """
-@with_kw struct SoilParams{TType<:SoilType,TPara<:Parameterization,S} <: Params
+@with_kw struct SoilParams{TType<:SoilType,TPara<:Union{Nothing,SoilParameterization},S} <: Params
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     type::TType = Sand()
@@ -68,8 +68,6 @@ function SoilProfile(vals::Pair{<:DistQuantity,SoilProperties}...)
     points = [d => tuple(props...) for (d,props) in vals]
     Profile(points...;names=fieldnames(SoilProperties))
 end
-
-export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, SoilParameterization, BySoilProperties
 
 # Helper functions for obtaining soil component fractions from soil properties.
 soilcomp(::Val{:θx}, χ, ϕ, θ, ω) = χ
@@ -105,11 +103,11 @@ function initialcondition!(soil::Soil{T,P}, state) where {T,P}
     # Helper functions for initializing soil composition state based on parameterization mode.
     getproperties(::Val{var}, soil::Soil{T,BySoilProperties}, state) where {var,T} = soilcomp(Val{var}(), state.params.χ, state.params.ϕ, state.params.θ, state.params.ω)
     getproperties(::Val{var}, soil::Soil{T,Nothing}, state) where {var,T} = soilcomp(Val{var}(), soil.profile[var=:χ], soil.profile[var=:ϕ], soil.profile[var=:θ], soil.profile[var=:ω])
-    depths = length(size(soil.profile)) > 1 ? dims(soil.profile, :depth).val : [refdims(soil.profile)[1].val]
+    depths = length(size(soil.profile)) > 1 ? dims(soil.profile, Z).val : [refdims(soil.profile)[1].val]
     for var in [:θx,:θp,:θm,:θo]
-        arr = DimArray(similar(state[var], Union{Missing,eltype(state[var])}), (depth=state.grids[var]u"m",))
+        arr = DimArray(similar(state[var], Union{Missing,eltype(state[var])}), (Z(state.grids[var]u"m",)))
         arr .= missing
-        arr_sub = @view arr[depth=Near(depths)]
+        arr_sub = @view arr[Z(Near(depths))]
         arr_sub .= getproperties(Val{var}(), soil, state)
         Utils.ffill!(arr)
         state[var] .= skipmissing(arr)

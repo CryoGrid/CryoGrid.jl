@@ -19,14 +19,14 @@ end
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`.
 """
-function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: ODESolution}
+function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: SciMLBase.AbstractODESolution}
     setup = sol.prob.f.f # CryoGridSetup
     log = get_log(sol, ts)
     ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
-    withdims(var::Var{name,T,OnGrid{Edges}}, arr, i) where {name,T} = DimArray(arr, (Z(round.(setup.meta[i].grids[varname(var)], digits=5)u"m"),Ti(ts_datetime)))
-    withdims(var::Var{name,T,OnGrid{Cells}}, arr, i) where {name,T} = DimArray(arr, (Z(round.(setup.meta[i].grids[varname(var)], digits=5)u"m"),Ti(ts_datetime)))
-    withdims(var::Var, arr, i) = DimArray(arr, (Ti(ts_datetime),))
+    withdims(var::Var{name,T,OnGrid{Edges}}, arr, i) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(setup.meta[i].grids[varname(var)], digits=5)u"m"),Ti(ts_datetime)))
+    withdims(var::Var{name,T,OnGrid{Cells}}, arr, i) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(setup.meta[i].grids[varname(var)], digits=5)u"m"),Ti(ts_datetime)))
+    withdims(var::Var{name,T}, arr, i) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts_datetime),))
     layerstates = NamedTuple()
     logvarnames = Set(keys(log))
     for (i,node) in enumerate(setup.strat.nodes)

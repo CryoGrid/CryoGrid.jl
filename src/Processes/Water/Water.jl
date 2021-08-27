@@ -1,9 +1,8 @@
 module Water
 
-import CryoGrid.Interface: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
+import CryoGrid: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
 using ..Processes
-using CryoGrid.Interface
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!
 

@@ -1,13 +1,13 @@
 module HeatConduction
 
 using Unitful: Temperature
-import CryoGrid.Interface: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
+import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Boundary
+import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
 using ..Processes
 using ..Processes.Boundaries
 using ..Processes.Water: VanGenuchten
 using CryoGrid.Forcings
-using CryoGrid.Interface
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean
 using CryoGrid.Layers: Soil, SoilParams

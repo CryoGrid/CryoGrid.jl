@@ -93,11 +93,3 @@ struct Dirichlet <: BoundaryStyle end
 `BoundaryStyle` instance for Neumann boundary conditions.
 """
 struct Neumann <: BoundaryStyle end
-
-"""
-    AbstractParameterization
-
-Base type for representing parameterizations.
-"""
-abstract type AbstractParameterization end
-const Parameterization = Union{Nothing,<:AbstractParameterization}

@@ -29,8 +29,8 @@ makedocs(modules=modules,
                 ],
                 "Library" => [
                        "Index" => "api/index.md",
-                       "Common" => [
-                              "Interface" => "api/interface.md",
+                       "Method interface" => "api/toplevel.md",
+                       "Core" => [
                               "Numerics" => "api/numerics.md",
                               "Forcings" => "api/forcings.md",
                               "Utilities" => "api/utils.md",

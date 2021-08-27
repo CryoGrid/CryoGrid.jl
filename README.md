@@ -37,11 +37,11 @@ using Plots
 
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
-forcings = loadforcings(CryoGridModels.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
+forcings = loadforcings(CryoGrid.Models.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
 # use air temperature as upper boundary forcing
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGridModels.SoilHeat(TemperatureGradient(tair), CryoGridModels.SamoylovDefault)
+model = CryoGrid.Models.SoilHeat(TemperatureGradient(tair), CryoGrid.Models.SamoylovDefault)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # CryoGrid front-end for ODEProblem
@@ -58,7 +58,7 @@ plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="T
 Alternatively, we can use a Dall'Amico freeze curve:
 
 ```julia
-model = CryoGridModels.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
+model = CryoGrid.Models.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
 # Set-up parameters
 p = copy(model.pproto)
 p.soil.α .= 4.0
@@ -79,5 +79,5 @@ Note that `SoilHeat` uses energy as the state variable by default. To use temper
 # Note that this will work with any freeze curve, here we use Westermann (2011).
 # :T is the variable name for temperature, :H represents enthalpy/energy.
 # This is used in the specification of the Heat process type.
-model = CryoGridModels.SoilHeat(:T, TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
+model = CryoGrid.Models.SoilHeat(:T, TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
 ```

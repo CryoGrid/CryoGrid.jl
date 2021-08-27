@@ -8,7 +8,7 @@ const DefaultGrid_2cm = Grid(vcat([
             60:10:100...,
             200:100:1000...
         ]...
-    )
+    )u"m"
 )
 const DefaultGrid_5cm = Grid(vcat([
             0.0:0.05:4.0...,
@@ -19,7 +19,7 @@ const DefaultGrid_5cm = Grid(vcat([
             60:10:100...,
             200:100:1000...
         ]...
-    )
+    )u"m"
 )
 const DefaultGrid_10cm = Grid(vcat([
             0.0:0.1:10...,
@@ -29,7 +29,7 @@ const DefaultGrid_10cm = Grid(vcat([
             60:10:100...,
             200:100:1000...
         ]...
-    )
+    )u"m"
 )
 const DefaultGrid_20cm = Grid(vcat([
             0.0:0.2:20...,
@@ -38,7 +38,7 @@ const DefaultGrid_20cm = Grid(vcat([
             60:10:100...,
             200:100:1000...
         ]...
-    )
+    )u"m"
 )
 const DefaultGrid_1m = Grid(vcat([
             0.0:1:30...,
@@ -46,5 +46,5 @@ const DefaultGrid_1m = Grid(vcat([
             60:10:100...,
             200:100:1000...
         ]...
-    )
+    )u"m"
 )

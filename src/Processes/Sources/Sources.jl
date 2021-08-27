@@ -1,9 +1,9 @@
 module Sources
 
-import CryoGrid.Interface: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
+import CryoGrid: SubSurfaceProcess, SubSurface
+import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
 
 using ..HeatConduction
-using CryoGrid.Interface
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
