@@ -15,6 +15,9 @@ import ReverseDiff
 include("macros.jl")
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar
+export dustrip, duconvert
+export structiterate, getscalar, tuplejoin, convert_tspan
+export Params
 
 # Convenience constants for units
 const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
@@ -25,6 +28,21 @@ const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TempUnit}
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+
+"""
+    applyunit(u::Unitful.Units, x::Number)
+
+Conditionally applies unit `u` to `x` if and only if `x` is a unit-free quantity.
+If `x` is a unitful quantity, asserts that the unit matches `u`.
+"""
+function applyunit(u::Unitful.Units, x::Number)
+    if typeof(unit(x)) <: Unitful.FreeUnits{(), NoDims, nothing}
+       return  x*u
+    else
+        @assert unit(x) == u "quantity $x has units incompatible with $u"
+        return x
+    end
+end
 
 """
 Provides implementation of `Base.iterate` for structs.
@@ -43,8 +61,6 @@ function structiterate(obj, state)
     isnothing(nextitr) ? nothing : (nextitr[1],(gen,nextitr[2]))
 end
 
-export structiterate
-
 """
 Base type for composite parameter types. Permits iteration of struct fields.
 """
@@ -56,18 +72,12 @@ Base.length(p::Params) = fieldcount(typeof(p))
 Base.iterate(p::Params) = structiterate(p)
 Base.iterate(p::Params, state) = structiterate(p,state)
 
-export Params
-
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
 
-export tuplejoin
-
 getscalar(x::Number) = x
 getscalar(a::AbstractArray) = a[1]
-
-export getscalar
 
 """
     convert_tspan(tspan::Tuple{DateTime,DateTime})
@@ -77,7 +87,6 @@ Convenience method for converting between `Dates.DateTime` and solver time.
 """
 convert_tspan(tspan::NTuple{2,DateTime}) = Dates.datetime2epochms.(tspan) ./ 1000.0
 convert_tspan(tspan::NTuple{2,Float64}) = Dates.epochms2datetime.(tspan.*1000.0)
-export convert_tspan
 
 """
     @generated selectat(i::Int, f, args::T) where {T<:Tuple}
@@ -120,12 +129,10 @@ adstrip(x::ReverseDiff.TrackedReal) = x.value
 Debug ustrip. Remove units if and only if debug mode is NOT enabled.
 """
 dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
+dustrip(x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, x)
 dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
-
-export dustrip
+dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, uconvert.(u, x))
 
 duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u,x)
-
-export duconvert
 
 end

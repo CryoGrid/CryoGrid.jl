@@ -4,7 +4,7 @@ using Plots
 # Custom grid (though actually pretty much the same as CryoGrid.Models.DefaultGrid_2cm)
 const gridvals = vcat([0:0.02:2...,2.05:0.05:4.0...,
 	4.1:0.1:10...,10.2:0.2:20...,21:1:30...,
-	35:5:50...,60:10:100...,200:100:1000...]...)
+	35:5:50...,60:10:100...,200:100:1000...]...)u"m"
 # soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
 	0.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),

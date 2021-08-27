@@ -17,11 +17,13 @@ using Unitful
 using Symbolics
 using SymbolicUtils
 
-export ∇
+export Grid, GridSpec, Edges, Cells, cells, edges, indexmap, subgrid, Δ, volume, area, regrid, regrid!
+export Profile, interpolateprofile!
 export Var, Prognostic, Algebraic, Diagnostic, Parameter
 export VarDim, OnGrid, Shape, Scalar
 export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter, domain
 export constrain, unconstrain
+export ∇
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 

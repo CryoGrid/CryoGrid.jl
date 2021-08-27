@@ -20,14 +20,14 @@ end
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
-function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zeros(), chunk_size=nothing, observed::Vector{Symbol}=Symbol[]) where {A<:AbstractArray}
+function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}; arrayproto::AbstractArray=zeros(), chunk_size=nothing, observed::Vector{Symbol}=Symbol[])
     pvar_arrays = OrderedDict()
     param_arrays = OrderedDict()
     layer_metas = OrderedDict()
     for (i,node) in enumerate(strat)
         # determine subgrid for layer
-        lo = strat.boundaries[i] |> dustrip
-        hi = (i < length(strat) ? strat.boundaries[i+1] : grid[end]) |> dustrip
+        lo = strat.boundaries[i]
+        hi = (i < length(strat) ? strat.boundaries[i+1] : grid[end])
         # build subgrid using closed interval [lo,hi]
         subgrid = grid[lo..hi]
         # build layer
@@ -57,6 +57,8 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges}; arrayproto::A=zer
     uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
     CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto; observed=observed)
 end
+CryoGridSetup(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = CryoGridSetup(strat, edges(grid); kwargs...)
+CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. use `Grid((x)u\"m\")` where `x` are your grid points.")
 
 """
     parameters(setup::CryoGridSetup; unconstrained=false)
@@ -463,8 +465,8 @@ function _buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     if isempty(vars)
         return NamedTuple()
     end
-    togrid(var::Var{name,T,OnGrid{Edges}}) where {name,T} = var.dim.f(grid)
-    togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = var.dim.f(cells(grid))
+    togrid(var::Var{name,T,OnGrid{Edges}}) where {name,T} = grid |> var.dim.f |> dustrip |> Grid
+    togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = grid |> cells |> var.dim.f |> dustrip |> Grid
     togrid(var::Var{name,T,Shape{dims}}) where {name,T,dims} = reshape(1:prod(dims),dims...)
     togrid(var::Var{name,T,typeof(Scalar)}) where {name,T} = 1:1
     names = @>> vars map(var -> varname(var))

@@ -2,13 +2,11 @@ abstract type GridSpec end
 struct Edges <: GridSpec end
 struct Cells <: GridSpec end
 
-export GridSpec, Edges, Cells
-
 abstract type Geometry end
 struct UnitVolume <: Geometry end
 
 """
-    struct Grid{S,G,A,Q} <: AbstractVector{Q}
+    struct Grid{S,G,Q,A} <: DenseVector{Q}
 
 Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridSpec`,
 either `Edges` or `Cells` (always edges upon initial construction). The grid representation can be
@@ -16,11 +14,11 @@ converted (allocation free) between grid edges and cells via the `cells` and `ed
 represents the geometry/volume on which the vertical 1D discretization is applied. `A` is the underlying
 array type, and `Q` is the numerical type (e.g. `Float64` or a `Unitful.Quantity`).
 """
-struct Grid{S,G,A,Q} <: AbstractVector{Q}
+struct Grid{S,G,Q,A} <: DenseVector{Q}
     geometry::G
     values::NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}}
     deltas::NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}}
-    function Grid(vals::TArray, geometry::G=UnitVolume()) where {G<:Geometry,Q<:Number,TArray<:AbstractArray{Q,1}}
+    function Grid(vals::AbstractVector{Q}, geometry::G=UnitVolume()) where {G<:Geometry,Q<:Number}
         @assert issorted(vals) "grid values should be in ascending order"
         nedges = length(vals)
         ncells = nedges - 1 
@@ -31,35 +29,35 @@ struct Grid{S,G,A,Q} <: AbstractVector{Q}
         # midpoints should always be the same as distance between boundaries...
         Δedges = edges[2:end] .- edges[1:end-1]
         Δcells = cells[2:end] .- cells[1:end-1]
-        new{Edges,G,typeof(edges),Q}(geometry,
+        new{Edges,G,Q,typeof(edges)}(geometry,
             (edges=view(edges,1:1:nedges),cells=view(cells,1:1:ncells)),
             (edges=view(Δedges,1:1:nedges-1),cells=view(Δcells,1:1:ncells-1)),
         )
     end
-    function Grid(grid::Grid{Edges,G,A,Q}, interval::ClosedInterval{Int}) where {G,A,Q}
+    function Grid(grid::Grid{Edges,G,Q,A}, interval::ClosedInterval{Int}) where {G,Q,A}
         start, stop = interval.left, interval.right
         edges = @view grid.values.edges[start:stop]
         cells = @view grid.values.cells[start:stop-1]
         Δedges = @view grid.deltas.edges[start:stop-1]
         Δcells = @view grid.deltas.cells[start:stop-2]
-        new{Edges,G,A,Q}(grid.geometry, (edges=edges,cells=cells), (edges=Δedges,cells=Δcells))
+        new{Edges,G,Q,A}(grid.geometry, (edges=edges,cells=cells), (edges=Δedges,cells=Δcells))
     end
-    function Grid(grid::Grid{Cells,G,A,Q}, interval::ClosedInterval{Int}) where {G,A,Q}
+    function Grid(grid::Grid{Cells,G,Q,A}, interval::ClosedInterval{Int}) where {G,Q,A}
         start, stop = interval.left, interval.right
         edges = @view grid.values.edges[start:stop+1]
         cells = @view grid.values.cells[start:stop]
         Δedges = @view grid.deltas.edges[start:stop]
         Δcells = @view grid.deltas.cells[start:stop-1]
-        new{Cells,G,A,Q}(grid.geometry, (edges=edges,cells=cells), (edges=Δedges,cells=Δcells))
+        new{Cells,G,Q,A}(grid.geometry, (edges=edges,cells=cells), (edges=Δedges,cells=Δcells))
     end
-    Grid(::Type{Cells}, grid::Grid{Edges,G,A,Q}) where {G,A,Q} = new{Cells,G,A,Q}(grid.geometry,grid.values,grid.deltas)
-    Grid(::Type{Edges}, grid::Grid{Cells,G,A,Q}) where {G,A,Q} = new{Edges,G,A,Q}(grid.geometry,grid.values,grid.deltas)
+    Grid(::Type{Cells}, grid::Grid{Edges,G,Q,A}) where {G,Q,A} = new{Cells,G,Q,A}(grid.geometry,grid.values,grid.deltas)
+    Grid(::Type{Edges}, grid::Grid{Cells,G,Q,A}) where {G,Q,A} = new{Edges,G,Q,A}(grid.geometry,grid.values,grid.deltas)
 end
 
 Base.show(io::IO, grid::Grid{S,G}) where {S,G} = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
 Base.show(io::IO, ::MIME{Symbol("text/plain")}, grid::Grid) = show(io, grid)
 
-function subgrid(grid::Grid{S,G,A,Q}, interval::Interval{L,R,Q}) where {S,G,A,Q,L,R}
+function subgrid(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
     l,r = interval.left,interval.right
     vals = values(grid)
     # Determine indices which lie in the given interval
@@ -69,6 +67,8 @@ function subgrid(grid::Grid{S,G,A,Q}, interval::Interval{L,R,Q}) where {S,G,A,Q,
     # Map back to full grid indices
     Grid(grid,l_ind..r_ind)
 end
+@inline volume(grid::Grid{Cells,UnitVolume}) = Δ(edges(grid)).*oneunit(eltype(grid))^2
+@inline area(grid::Grid{Edges,UnitVolume}) = oneunit(eltype(grid))^2
 @inline Δ(grid::Grid{Edges}) = grid.deltas.edges
 @inline Δ(grid::Grid{Cells}) = grid.deltas.cells
 @inline cells(grid::Grid{Edges}) = Grid(Cells, grid)
@@ -82,7 +82,7 @@ end
 @inline Base.size(grid::Grid) = size(values(grid))
 @inline Base.length(grid::Grid) = length(values(grid))
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
-@propagate_inbounds Base.getindex(grid::Grid{S,G,A,Q}, interval::Interval{L,R,Q}) where {S,G,A,Q,L,R} = subgrid(grid,interval)
+@propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = subgrid(grid,interval)
 Base.setindex!(grid::Grid, args...) = error("setindex! is not allowed for Grid types")
 
 regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line()) =
@@ -92,8 +92,6 @@ function regrid!(out::AbstractVector, x::AbstractVector, xgrid::Grid, newgrid::G
         out .= f.(newgrid)
     end
 end
-
-export Grid, cells, edges, indexmap, subgrid, Δ, regrid, regrid!
 
 """
     Profile(pairs...;names)
@@ -124,5 +122,3 @@ function interpolateprofile!(profile::DimArray, state; interp=Linear())
         end
     end
 end
-
-export Profile, interpolateprofile!
