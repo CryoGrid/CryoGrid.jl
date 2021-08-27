@@ -40,7 +40,7 @@ julia> out.soil.T
 
 ## Defining model behavior
 
-Notice that, in the example above, it is types such as `Soil`, `Heat`, `SFCC`, etc. that specify which components the model should use. These components are defined by adding method dispatches to the functions defined in the [`Interface`](@ref) module. State variables are declared via the [`variables`](@ref) method, e.g:
+Notice that, in the example above, it is types such as `Soil`, `Heat`, `SFCC`, etc. that specify which components the model should use. These components are defined by adding method dispatches to the [core model API](@ref toplevel) methods. State variables are declared via the [`variables`](@ref) method, e.g:
 
 ```julia
 """ Variable definitions for heat conduction (enthalpy) on soil layer. """

@@ -1,4 +1,4 @@
-# Top level methods and types
+# [Top level methods and types](@id toplevel)
 
 ```@autodocs
 Modules = [CryoGrid]
