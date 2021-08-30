@@ -2,7 +2,7 @@
 abstract type VarDim end
 struct OnGrid{S} <: VarDim
     f::Function # G -> G' where G is the edge grid
-    OnGrid(::Type{S}, f::Function=x->x) where {S<:GridSpec} = new{S}(f)
+    OnGrid(::Type{S}, f::Function=identity) where {S<:GridSpec} = new{S}(f)
 end
 struct Shape{S} <: VarDim Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()

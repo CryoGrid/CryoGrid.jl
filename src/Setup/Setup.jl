@@ -16,6 +16,7 @@ using CryoGrid.Utils
 using ComponentArrays
 using DataStructures: OrderedDict
 using Dates
+using DiffEqCallbacks
 using DimensionalData
 using IntervalSets
 using Lazy: @>>, @>, groupby

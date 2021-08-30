@@ -9,10 +9,22 @@ struct CryoGridODEProblem end
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing; saveat=3600.0, save_everystep=false, callback=nothing, kwargs...)
+    # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
+    # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
+    expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
+    expandtstep(tstep::AbstractVector) = tstep
 	p = isnothing(p) ? setup.pproto : p
 	# compute initial condition
-	u0,_ = init!(setup, p, tspan)
+	u0, du0 = init!(setup, p, tspan)
+    # set up saving callback
+    stateproto = getstates(setup, du0, u0, p, tspan[1], Val{:diagnostic}())
+    savevals = SavedValues(Float64, typeof(stateproto))
+    savefunc = (u,t,integrator) -> deepcopy(getstates(setup, get_du(integrator), u, integrator.p, t, Val{:diagnostic}()))
+    savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_everystep=save_everystep)
+    callbacks = isnothing(callback) ? savingcallback : CallbackSet(savingcallback, callback)
+    # note that this implicitly discards any existing saved values in the model setup's state history
+    setup.hist.vals = savevals
     # set up default mass matrix
     M_diag = similar(setup.uproto)
     for layer in keys(setup.meta)
@@ -30,7 +42,7 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
 	func = odefunction(setup, M, u0, p, tspan; kwargs...)
-	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); kwargs...)
+	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); callback=callbacks, kwargs...)
 end
 # this version converts tspan from DateTime to float
 """
