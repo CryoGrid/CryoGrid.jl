@@ -2,7 +2,6 @@ module Setup
 
 import ForwardDiff
 import ReverseDiff
-import Zygote
 
 import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, System
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
