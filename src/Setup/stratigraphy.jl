@@ -18,11 +18,11 @@ Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), System(bou
 Ground(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratNode(name, layer, System(processes...))
 
 """
-    Stratigraphy{TNodes,TBounds}
+    Stratigraphy{N,TNodes,TBounds}
 
 Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to 1 or more subsurface layers.
 """
-struct Stratigraphy{TNodes,TBounds}
+struct Stratigraphy{N,TNodes,TBounds}
     boundaries::TBounds
     nodes::TNodes
     Stratigraphy(top::Pair{Q,<:StratNode{Top}}, sub::Pair{Q,<:StratNode{<:SubSurface}},
@@ -35,10 +35,10 @@ struct Stratigraphy{TNodes,TBounds}
         boundaries = map(first, (top, sub..., bot)) |> Tuple
         @assert issorted(boundaries) "Node boundary locations must be in strictly increasing order."
         nodes = map(last, (top, sub..., bot)) |> Tuple
-        new{typeof(nodes),typeof(boundaries)}(boundaries,nodes)
+        new{length(nodes),typeof(nodes),typeof(boundaries)}(boundaries,nodes)
     end
 end
-nodetypes(::Type{<:Stratigraphy{TNodes}}) where {TNodes} = Tuple(TNodes.parameters)
+nodetypes(::Type{<:Stratigraphy{N,TNodes}}) where {N,TNodes} = Tuple(TNodes.parameters)
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(strat.nodes)
 Base.length(strat::Stratigraphy) = length(strat.nodes)
