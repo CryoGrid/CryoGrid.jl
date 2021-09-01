@@ -3,7 +3,7 @@ module Setup
 import ForwardDiff
 import ReverseDiff
 
-import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, System
+import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CompositeProcess
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
 using CryoGrid.InputOutput

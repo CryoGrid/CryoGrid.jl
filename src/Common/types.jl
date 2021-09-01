@@ -49,32 +49,32 @@ but may include its own diagnostic (or even prognostic) variables, if necessary.
 """
 abstract type BoundaryProcess <: Process end
 """
-    System{TProcs} <: Process
+    CompositeProcess{TProcs} <: Process
 
 Represents a explicitly or implicitly coupled system of processes. `TProcs` is always a `Tuple`
 of other processes.
 """
-struct System{TProcs} <: Process
+struct CompositeProcess{TProcs} <: Process
     processes::TProcs
-    System(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
-    System(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
+    CompositeProcess(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
+    CompositeProcess(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
 end
 """
-    Coupled{P1,P2} = System{Tuple{T1,T2}} where {T1,T2}
+    Coupled{P1,P2} = CompositeProcess{Tuple{T1,T2}} where {T1,T2}
 
-Represents a coupled pair of explicitly processes. Alias for `System{Tuple{P1,P2}}`.
+Represents a coupled pair of explicitly processes. Alias for `CompositeProcess{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on composite processes/systems.
 """
-const Coupled{P1,P2} = System{Tuple{T1,T2}} where {T1,T2}
+const Coupled{P1,P2} = CompositeProcess{Tuple{T1,T2}} where {T1,T2}
 """
     Coupled(p1,p2)
 
-Alias for `System(p1,p2)`.
+Alias for `CompositeProcess(p1,p2)`.
 """
-Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = System(p1,p2)
+Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CompositeProcess(p1,p2)
 # Base methods
-Base.show(io::IO, ps::System{T}) where T = print(io, "$T")
-@propagate_inbounds @inline Base.getindex(ps::System, i) = ps.processes[i]
+Base.show(io::IO, ps::CompositeProcess{T}) where T = print(io, "$T")
+@propagate_inbounds @inline Base.getindex(ps::CompositeProcess, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
 

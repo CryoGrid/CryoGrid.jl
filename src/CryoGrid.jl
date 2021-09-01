@@ -10,7 +10,7 @@ using Base: @propagate_inbounds
 using Reexport
 
 export Layer, SubSurface, Top, Bottom, Boundary
-export Process, SubSurfaceProcess, BoundaryProcess, System, Coupled
+export Process, SubSurfaceProcess, BoundaryProcess, CompositeProcess, Coupled
 export BoundaryStyle, Dirichlet, Neumann
 export AbstractParameterization, Parameterization
 export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, observe

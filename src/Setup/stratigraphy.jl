@@ -1,7 +1,7 @@
 struct StratNode{TLayer,TProcess,name}
     layer::TLayer
     process::TProcess
-    StratNode(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:System} =
+    StratNode(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:CompositeProcess} =
         new{TLayer,TProcess,name}(layer,process)
 end
 """
@@ -13,9 +13,9 @@ nodename(::Type{<:StratNode{L,P,name}}) where {L,P,name} = name
 Base.show(io::IO, node::StratNode{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
-Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), System(boundaries...))
-Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), System(boundaries...))
-Ground(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratNode(name, layer, System(processes...))
+Top(boundaries::BoundaryProcess...) = StratNode(:top, Top(), CompositeProcess(boundaries...))
+Bottom(boundaries::BoundaryProcess...) = StratNode(:bottom, Bottom(), CompositeProcess(boundaries...))
+Ground(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratNode(name, layer, CompositeProcess(processes...))
 
 """
     Stratigraphy{N,TNodes,TBounds}
