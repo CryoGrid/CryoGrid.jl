@@ -53,6 +53,6 @@ BoundaryStyle(::Type{<:Periodic{S}}) where {S} = S()
 const Bias{name,T} = Constant{Dirichlet,T,name} where {name,T}
 Bias(;value::T=0.0, name::Symbol=:bias) where T = Constant{Dirichlet}(value, name)
 
-include("composite.jl")
+include("composed.jl")
 
 end
