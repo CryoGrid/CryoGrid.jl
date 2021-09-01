@@ -213,9 +213,6 @@ Note for developers: All sections of code wrapped in quote..end blocks are gener
 is only executed during compilation and will not appear in the compiled version.
 """
 @generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv})(_du,_u,p,t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv}
-    _du .= zero(eltype(_du))
-    du = ComponentArray(_du, getaxes(setup.uproto))
-    u = ComponentArray(_u, getaxes(setup.uproto))
     nodetyps = nodetypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -224,7 +221,9 @@ is only executed during compilation and will not appear in the compiled version.
     strat = setup.strat
     cache = setup.cache
     meta = setup.meta
-
+    _du .= zero(eltype(_du))
+    du = ComponentArray(_du, getaxes(setup.uproto))
+    u = ComponentArray(_u, getaxes(setup.uproto))
     end push!(expr.args)
     if !(p <: ComponentArray)
         push!(expr.args, :(p = ComponentArray(p, getaxes(setup.pproto))))
@@ -523,18 +522,18 @@ function _buildcaches(strat, metadata, arrayproto, chunksize)
 end
 
 """
-    VarCache{name,N,TCache}
+    VarCache{name,N,A,Adual}
 
 Wrapper for `DiffEqBase.DiffCache` that stores state variables in forward-diff compatible cache arrays.
 """
-struct VarCache{name,N,TCache}
-    cache::TCache
+struct VarCache{name,N,A,Adual}
+    cache::PreallocationTools.DiffCache{A,Adual}
     function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunksize::Int)
         # use dual cache for automatic compatibility with ForwardDiff
         A = similar(arrayproto, length(grid))
         A .= zero(eltype(A))
-        cache = DiffEqBase.dualcache(A, Val{chunksize})
-        new{name,chunksize,typeof(cache)}(cache)
+        cache = PreallocationTools.dualcache(A, Val{chunksize})
+        new{name,chunksize,typeof(cache.du),typeof(cache.dual_du)}(cache)
     end
 end
 Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")

@@ -20,6 +20,7 @@ using DimensionalData
 using IntervalSets
 using Lazy: @>>, @>, groupby
 using LinearAlgebra
+using PreallocationTools
 using Unitful
 using RecursiveArrayTools
 using Reexport
