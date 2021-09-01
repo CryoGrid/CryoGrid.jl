@@ -28,6 +28,9 @@ struct Parameter{name,T,S,D} <: Var{name,T,S}
         new{name,T,typeof(Shape(size(default_value)...)),convert(Interval{L,R,Float64}, domain)}(Shape(size(default_value)...), default_value)
     Parameter(name::Symbol, default_value::T, domain::Interval=-Inf..Inf) where {T<:Real} = Parameter(name, [default_value], domain)
 end
+ConstructionBase.constructorof(::Type{Prognostic{name,T,S}}) where {name,T,S} = s -> Prognostic(name, T, s)
+ConstructionBase.constructorof(::Type{Diagnostic{name,T,S}}) where {name,T,S} = s -> Diagnostic(name, T, s)
+ConstructionBase.constructorof(::Type{Algebraic{name,T,S}}) where {name,T,S} = s -> Algebraic(name, T, s)
 ==(var1::Var{N1,T1,D1},var2::Var{N2,T2,D2}) where {N1,N2,T1,T2,D1,D2} = (N1==N2) && (T1==T2) && (D1==D2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name

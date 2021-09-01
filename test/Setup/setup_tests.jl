@@ -7,9 +7,9 @@ include("../types.jl")
 @testset "3-layer" begin
     grid = Grid(Vector(0.0:10.0:1000.0)u"m")
     strat = Stratigraphy(
-        -1.0u"m" => Top(TestBoundary()),
-        0.0u"m" => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
-        1000.0u"m" => Bottom(TestBoundary())
+        -1.0u"m" => top(TestBoundary()),
+        0.0u"m" => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
+        1000.0u"m" => bottom(TestBoundary())
     )
     function checkfields()
         # for each non-error test case, we need to check that all layers are present in uproto and state
@@ -94,9 +94,9 @@ end
 @testset "4-layer" begin
     grid = Grid(Vector(0.0:10.0:1000.0)u"m")
     strat = Stratigraphy(
-        -1.0u"m" => Top(TestBoundary()), (
-            0.0u"m" => Ground(:testground1, TestGroundLayer(), TestGroundProcess()),
-            100.0u"m" => Ground(:testground2, TestGroundLayer(), TestGroundProcess()),
+        -1.0u"m" => top(TestBoundary()), (
+            0.0u"m" => subsurface(:testground1, TestGroundLayer(), TestGroundProcess()),
+            100.0u"m" => subsurface(:testground2, TestGroundLayer(), TestGroundProcess()),
         ),
         1000.0u"m" => Bottom(TestBoundary())
     )
@@ -129,9 +129,9 @@ end
 @testset "Helper functions" begin
     grid = Grid(Vector(0.0:10.0:1000.0)u"m")
     strat = Stratigraphy(
-        -1.0u"m" => Top(TestBoundary()), (
-            0.0u"m" => Ground(:testground1, TestGroundLayer(), TestGroundProcess()),
-            100.0u"m" => Ground(:testground2, TestGroundLayer(), TestGroundProcess()),
+        -1.0u"m" => top(TestBoundary()), (
+            0.0u"m" => subsurface(:testground1, TestGroundLayer(), TestGroundProcess()),
+            100.0u"m" => bottom(:testground2, TestGroundLayer(), TestGroundProcess()),
         ),
         1000.0u"m" => Bottom(TestBoundary())
     )

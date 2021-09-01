@@ -34,10 +34,10 @@ Sin  = TimeSeriesForcing(forcings.data.Sin, forcings.timestamps, :Sin);
 z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 strat = Stratigraphy(
-    -2.0u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
+    -2.0u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
     # Note: You can change Heat{:H} to Heat{:T} to use temperature as the prognostic state variable.
-    0.0u"m" => Ground(:soil, Soil(soilprofile), Heat{:H}(tempprofile, freezecurve=SFCC(DallAmico()))),
-    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
+    0.0u"m" => subsurface(:soil, Soil(soilprofile), Heat{:H}(tempprofile, freezecurve=SFCC(DallAmico()))),
+    1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = Grid(gridvals);
 model = CryoGridSetup(strat,grid);

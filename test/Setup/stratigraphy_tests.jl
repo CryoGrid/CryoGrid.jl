@@ -7,9 +7,9 @@ include("../types.jl")
     @testset "3-layer" begin
         bounds = (-1.0u"m",0.0u"m",10.0u"m")
         strat = Stratigraphy(
-            bounds[1] => Top(TestBoundary()),
-            bounds[2] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
-            bounds[3] => Bottom(TestBoundary())
+            bounds[1] => top(TestBoundary()),
+            bounds[2] => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
+            bounds[3] => bottom(TestBoundary())
         )
         # Check boundaries
         @test all([bounds[i] == b for (i,b) in enumerate(bounds)])
@@ -33,11 +33,11 @@ include("../types.jl")
     @testset "4-layer" begin
         bounds = (-1.0u"m",0.0u"m",10.0u"m",100.0u"m")
         strat = Stratigraphy(
-            bounds[1] => Top(TestBoundary()),(
-                bounds[2] => Ground(:testground1, TestGroundLayer(), TestGroundProcess()),
-                bounds[3] => Ground(:testground2, TestGroundLayer(), TestGroundProcess())
+            bounds[1] => top(TestBoundary()),(
+                bounds[2] => subsurface(:testground1, TestGroundLayer(), TestGroundProcess()),
+                bounds[3] => subsurface(:testground2, TestGroundLayer(), TestGroundProcess())
             ),
-            bounds[4] => Bottom(TestBoundary())
+            bounds[4] => bottom(TestBoundary())
         )
         # Check boundaries
         @test all([bounds[i] == b for (i,b) in enumerate(bounds)])
@@ -65,39 +65,39 @@ include("../types.jl")
     bounds = (-1.0u"m",0.0u"m",10.0u"m",100.0u"m")
     # Check that duplicated layer names throws an error
     @test_throws AssertionError Stratigraphy(
-        bounds[1] => Top(TestBoundary()), (
-            bounds[2] => Ground(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
-            bounds[3] => Ground(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
+        bounds[1] => top(TestBoundary()), (
+            bounds[2] => subsurface(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
+            bounds[3] => subsurface(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
         ),
-        bounds[4] => Bottom(TestBoundary())
+        bounds[4] => bottom(TestBoundary())
     )
     # Check that mis-specified stratigraphies throw method errors
     @test_throws MethodError Stratigraphy(
-        bounds[1] => Bottom(TestBoundary()),
-        bounds[2] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
-        bounds[3] => Top(TestBoundary())
+        bounds[1] => bottom(TestBoundary()),
+        bounds[2] => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
+        bounds[3] => top(TestBoundary())
     )
     @test_throws MethodError Stratigraphy(
-        bounds[1] => Top(TestBoundary()),
-        bounds[2] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
+        bounds[1] => top(TestBoundary()),
+        bounds[2] => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
     )
     @test_throws MethodError Stratigraphy(
-        bounds[1] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
-        bounds[2] => Bottom(TestBoundary())
+        bounds[1] => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
+        bounds[2] => bottom(TestBoundary())
     )
     # Check that out-of-order bounds throw an error
     @test_throws AssertionError Stratigraphy(
-        bounds[2] => Top(TestBoundary()), (
-            bounds[3] => Ground(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
-            bounds[1] => Ground(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
+        bounds[2] => top(TestBoundary()), (
+            bounds[3] => subsurface(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
+            bounds[1] => subsurface(:duplicatedname, TestGroundLayer(), TestGroundProcess()),
         ),
-        bounds[4] => Bottom(TestBoundary())
+        bounds[4] => bottom(TestBoundary())
     )
     # Check that duplicated boundaries are allowed
     bounds = (0.0u"m",0.0u"m",10.0u"m")
     @test_nowarn strat = Stratigraphy(
-        bounds[1] => Top(TestBoundary()),
-        bounds[2] => Ground(:testground, TestGroundLayer(), TestGroundProcess()),
-        bounds[3] => Bottom(TestBoundary())
+        bounds[1] => top(TestBoundary()),
+        bounds[2] => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
+        bounds[3] => bottom(TestBoundary())
     )
 end

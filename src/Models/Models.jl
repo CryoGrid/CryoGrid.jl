@@ -60,9 +60,9 @@ but this can be changed via the `freezecurve` parameter. For example, to use the
 function SoilHeat(heatvar, upperbc::BoundaryProcess, soilconfig::SoilLayerConfig;
     grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
-        -2.0u"m" => Top(upperbc),
-        0.0u"m" => Ground(:soil, Soil(soilconfig.soilprofile), Heat{heatvar}(soilconfig.tempprofile, freezecurve=freezecurve)),
-        1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
+        -2.0u"m" => top(upperbc),
+        0.0u"m" => subsurface(:soil, Soil(soilconfig.soilprofile), Heat{heatvar}(soilconfig.tempprofile, freezecurve=freezecurve)),
+        1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
     CryoGridSetup(strat,grid,chunk_size=chunk_size)
 end

@@ -46,22 +46,22 @@ function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry
         subgrid = grid[lo..hi]
         # build layer
         prog_carr, param_carr, meta = _buildlayer(node,subgrid,arrayproto)
-        pvar_arrays[nodename(node)] = prog_carr
-        param_arrays[nodename(node)] = param_carr
-        layer_metas[nodename(node)] = meta
+        pvar_arrays[componentname(node)] = prog_carr
+        param_arrays[componentname(node)] = param_carr
+        layer_metas[componentname(node)] = meta
     end
     # construct named tuples containing data for each layer
-    nodenames = [nodename(node) for node in strat]
-    nt_prog = NamedTuple{Tuple(nodenames)}(Tuple(values(pvar_arrays)))
-    nt_params = NamedTuple{Tuple(nodenames)}(Tuple(values(param_arrays)))
-    nt_meta = NamedTuple{Tuple(nodenames)}(Tuple(values(layer_metas)))
+    componentnames = [componentname(node) for node in strat]
+    nt_prog = NamedTuple{Tuple(componentnames)}(Tuple(values(pvar_arrays)))
+    nt_params = NamedTuple{Tuple(componentnames)}(Tuple(values(param_arrays)))
+    nt_meta = NamedTuple{Tuple(componentnames)}(Tuple(values(layer_metas)))
     npvars = (length(meta.progvars) for meta in nt_meta) |> sum
     ndvars = (length(meta.diagvars) for meta in nt_meta) |> sum
     nparams = (length(meta.paramvars) for meta in nt_meta) |> sum
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     chunksize = isnothing(chunksize) ? nparams : chunksize
-    nt_cache = NamedTuple{Tuple(nodenames)}(Tuple(_buildcaches(strat, nt_meta, arrayproto, chunksize)))
+    nt_cache = NamedTuple{Tuple(componentnames)}(Tuple(_buildcaches(strat, nt_meta, arrayproto, chunksize)))
     # construct prototype of u (prognostic state) array (note that this currently performs a copy)
     uproto = ComponentArray(nt_prog)
     # ditto for parameter array (need a hack here to get an empty ComponentArray...)
@@ -121,7 +121,7 @@ getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::Abstract
         withaxes(du,setup)[layername],
         p[layername],
         t,
-        setup.strat.boundaries[findfirst(n -> nodename(n) == layername, setup.strat.nodes)]
+        setup.strat.boundaries[findfirst(n -> componentname(n) == layername, setup.strat.nodes)]
     )
 """
     getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
@@ -137,7 +137,7 @@ function getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
             withaxes(get_du(integrator),setup)[layername],
             integrator.p[layername],
             integrator.t,
-            setup.strat.boundaries[findfirst(n -> nodename(n) == layername, setup.strat.nodes)]
+            setup.strat.boundaries[findfirst(n -> componentname(n) == layername, setup.strat.nodes)]
         )
     end
 end
@@ -159,11 +159,11 @@ e.g: `T = getvar(:T, setup, u)`
 """
 @generated function getvar(::Val{var}, setup::CryoGridSetup{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
     expr = Expr(:block)
-    nodetyps = nodetypes(TStrat)
+    nodetyps = copmonenttypes(TStrat)
     matchedlayers = []
     push!(expr.args, :(u = ComponentArray(_u, getaxes(setup.uproto))))
     for (i,node) in enumerate(nodetyps)
-        name = nodename(node)
+        name = componentname(node)
         metatype = TMeta.parameters[i]
         # extract variable type information from metadata type
         ptypes, dtypes, atypes, _ = _resolve_vartypes(metatype)
@@ -213,7 +213,7 @@ Note for developers: All sections of code wrapped in quote..end blocks are gener
 is only executed during compilation and will not appear in the compiled version.
 """
 @generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv})(_du,_u,p,t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv}
-    nodetyps = nodetypes(TStrat)
+    nodetyps = copmonenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
@@ -230,7 +230,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Initialize variables for all layers
     for i in 1:N
-        n = nodename(nodetyps[i])
+        n = componentname(nodetyps[i])
         nz = Symbol(n,:_z)
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
@@ -244,7 +244,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Diagnostic step
     for i in 1:N
-        n = nodename(nodetyps[i])
+        n = componentname(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
@@ -254,7 +254,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Interact
     for i in 1:N-1
-        n1,n2 = nodename(nodetyps[i]), nodename(nodetyps[i+1])
+        n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
         n1state, n2state = Symbol(n1,:state), Symbol(n2,:state)
         n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
         n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
@@ -264,7 +264,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Prognostic step
     for i in 1:N
-        n = nodename(nodetyps[i])
+        n = componentname(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
@@ -274,7 +274,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Write-back diagnostic variables to cache
     for i in 1:N
-        n = nodename(nodetyps[i])
+        n = componentname(nodetyps[i])
         nstate = Symbol(n,:state)
         # We have to really drill down into the TMeta named tuple type to extract the variable names...
         # TMeta is a Tuple{values...} sooo...
@@ -294,7 +294,7 @@ is only executed during compilation and will not appear in the compiled version.
     end
     # Observables
     for i in 1:N
-        n = nodename(nodetyps[i])
+        n = componentname(nodetyps[i])
         nstate = Symbol(n,:state)
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
@@ -317,7 +317,7 @@ end
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
 @generated function init!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
-    nodetyps = nodetypes(TStrat)
+    nodetyps = copmonenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
@@ -332,11 +332,11 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     end push!(expr.args)
     # Iterate over layers
     for i in 1:N-1
-        n1,n2 = nodename(nodetyps[i]), nodename(nodetyps[i+1])
+        n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
         # create variable names
         n1z = Symbol(n1,:_z)
         n2z = Symbol(n2,:_z)
-        n1,n2 = nodename(nodetyps[i]), nodename(nodetyps[i+1])
+        n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
         n1state, n2state = Symbol(n1,:state), Symbol(n2,:state)
         n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
         n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
@@ -429,13 +429,13 @@ end
 """
 Constructs prognostic state vector and state named-tuple for the given node/layer.
 """
-function _buildlayer(node::StratNode, grid::Grid{Edges}, arrayproto::A) where {A<:AbstractArray}
+function _buildlayer(node::StratComponent, grid::Grid{Edges}, arrayproto::A) where {A<:AbstractArray}
     layer, process = node.layer, node.process
     layer_vars = variables(layer)
     @assert all([isdiagnostic(var) || isparameter(var) for var in layer_vars]) "Layer variables must be diagnostic."
     process_vars = variables(layer, process)
     all_vars = tuple(layer_vars...,process_vars...)
-    @debug "Building layer $(nodename(node)) with $(length(all_vars)) variables: $(all_vars)"
+    @debug "Building layer $(componentname(node)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
     groups = groupby(var -> varname(var), filter(x -> !isparameter(x), all_vars))
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
@@ -509,7 +509,7 @@ Constructs per-layer variable caches given the Stratigraphy and layer-metadata n
 """
 function _buildcaches(strat, metadata, arrayproto, chunksize)
     map(strat) do node
-        name = nodename(node)
+        name = componentname(node)
         dvars = metadata[name].diagvars
         varnames = [varname(var) for var in dvars]
         caches = map(dvars) do dvar

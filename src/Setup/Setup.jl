@@ -13,6 +13,7 @@ using CryoGrid.Processes
 using CryoGrid.Utils
 
 using ComponentArrays
+using ConstructionBase
 using DataStructures: OrderedDict
 using Dates
 using DiffEqCallbacks
