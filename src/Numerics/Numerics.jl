@@ -15,15 +15,15 @@ using LinearAlgebra
 using LoopVectorization
 using RuntimeGeneratedFunctions
 using Unitful
+using StructTypes
 using Symbolics
 using SymbolicUtils
 
-export Grid, GridSpec, Edges, Cells, cells, edges, indexmap, subgrid, Δ, volume, area, regrid, regrid!
-export Profile, interpolateprofile!
-export Var, Prognostic, Algebraic, Diagnostic, Parameter
+export Grid, GridSpec, Edges, Cells, cells, edges, indexmap, subgrid, Δ, volume, area
+export Profile, profile2array, interpolateprofile!
+export Var, Prognostic, Algebraic, Diagnostic
 export VarDim, OnGrid, Shape, Scalar
-export varname, vartype, isprognostic, isalgebraic, isdiagnostic, isparameter, domain
-export constrain, unconstrain
+export varname, vartype, isprognostic, isalgebraic, isdiagnostic
 export ∇
 
 RuntimeGeneratedFunctions.init(@__MODULE__)

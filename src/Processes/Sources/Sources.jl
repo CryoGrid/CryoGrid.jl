@@ -45,14 +45,6 @@ struct Source{P,T,S} <: SubSurfaceProcess
     Source(::Type{P}, term::T, sp::S=nothing) where {P<:SubSurfaceProcess,T<:SourceTerm,S} = new{P,T,S}(term,sp)
 end
 
-variables(::SubSurface, ::Source{P,Constant{name}}) where {P,name} = (
-    Parameter(name, 0.0),
-)
-variables(::SubSurface, ::Source{P,Periodic{T,a,f,s}}) where {P,T,a,f,s} = (
-    Parameter(a, 1.0),
-    Parameter(f, 1.0),
-    Parameter(s, 0.0),
-)
 (p::Periodic)(a,f,t₀,c,t) = a*sin(2π*f*t - t₀) + c
 # Heat sources
 function prognosticstep!(::SubSurface, ::Source{<:Heat,Constant{name}}, state) where {name}

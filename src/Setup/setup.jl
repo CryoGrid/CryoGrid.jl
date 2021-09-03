@@ -4,31 +4,32 @@ mutable struct StateHistory
 end
 
 """
-    CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv}
+    CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
 
 Defines the full specification of a CryoGrid model; i.e. stratigraphy, grids, variables, and diagnostic state. `uproto`
 field is an uninitialized, prototype `ComponentArray` that holds the axis information for the prognostic state vector.
 """
-struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv}
-    strat::TStrat    # stratigraphy
+struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
+    strat::TStrat   # stratigraphy
     grid::TGrid     # grid
-    meta::NamedTuple{names,TMeta}    # metadata (variable info and grids per layer)
-    cache::NamedTuple{names,TCache}    # variable caches (per layer)
-    hist::StateHistory
-    uproto::ComponentVector{T,A,uax}   # prototype prognostic state ComponentArray for integrator
-    pproto::ComponentVector{T,A,pax}   # prototype p ComponentArray for integrator (tracked parameters)
+    meta::NamedTuple{names,TMeta} # metadata (variable info and grids per layer)
+    cache::NamedTuple{names,TCache} # variable caches (per layer)
+    hist::StateHistory # mutable "history" type for state tracking
+    uproto::ComponentVector{T,A,uax} # prototype prognostic state ComponentArray for integrator
     function CryoGridSetup(
         strat::TStrat,
         grid::TGrid,
         meta::NamedTuple{names,TMeta},
         cache::NamedTuple{names,TCache},
+        hist::StateHistory,
         uproto::ComponentVector{T,A,uax},
-        pproto::ComponentVector{T,A,pax};
         observed::Vector{Symbol}=Symbol[]) where
-        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TMeta<:Tuple,TCache<:Tuple,T<:Number,A<:AbstractVector{T},uax,pax,names}
-        new{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,tuple(observed...)}(strat,grid,meta,cache,StateHistory(),uproto,pproto)
+        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TMeta<:Tuple,TCache<:Tuple,T<:Number,A<:AbstractVector{T},uax,names}
+        new{TStrat,TGrid,TMeta,TCache,T,A,uax,names,tuple(observed...)}(strat,grid,meta,cache,hist,uproto)
     end
 end
+ConstructionBase.constructorof(::Type{CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv} =
+    (strat, grid, meta, cache, hist, uproto) -> CryoGridSetup(strat,grid,meta,cache,hist,uproto,collect(obsv))
 
 """
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
@@ -36,51 +37,53 @@ Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` 
 """
 function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}; arrayproto::AbstractArray=zeros(), observed::Vector{Symbol}=Symbol[], chunksize=nothing)
     pvar_arrays = OrderedDict()
-    param_arrays = OrderedDict()
     layer_metas = OrderedDict()
+    nodes = OrderedDict()
     for (i,node) in enumerate(strat)
+        name = componentname(node)
         # determine subgrid for layer
-        lo = strat.boundaries[i]
-        hi = (i < length(strat) ? strat.boundaries[i+1] : grid[end])
+        lo = strat.boundaries[i].val
+        hi = (i < length(strat) ? strat.boundaries[i+1].val : grid[end])
         # build subgrid using closed interval [lo,hi]
         subgrid = grid[lo..hi]
         # build layer
-        prog_carr, param_carr, meta = _buildlayer(node,subgrid,arrayproto)
-        pvar_arrays[componentname(node)] = prog_carr
-        param_arrays[componentname(node)] = param_carr
-        layer_metas[componentname(node)] = meta
+        prog_carr, meta = _buildlayer(node,subgrid,arrayproto)
+        pvar_arrays[name] = prog_carr
+        layer_metas[name] = meta
+        params = ModelParameters.params(node)
+        if length(params) > 0
+            # create sub-model and add layer name to all parameters
+            submodel = Model(node)
+            submodel[:layer] = repeat([name], length(params))
+            nodes[name] = parent(submodel)
+        else
+            nodes[name] = node
+        end
     end
+    # rebuild stratigraphy with updated parameters
+    strat = Stratigraphy(strat.boundaries, Tuple(values(nodes)))
     # construct named tuples containing data for each layer
     componentnames = [componentname(node) for node in strat]
     nt_prog = NamedTuple{Tuple(componentnames)}(Tuple(values(pvar_arrays)))
-    nt_params = NamedTuple{Tuple(componentnames)}(Tuple(values(param_arrays)))
     nt_meta = NamedTuple{Tuple(componentnames)}(Tuple(values(layer_metas)))
     npvars = (length(meta.progvars) for meta in nt_meta) |> sum
     ndvars = (length(meta.diagvars) for meta in nt_meta) |> sum
-    nparams = (length(meta.paramvars) for meta in nt_meta) |> sum
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
-    chunksize = isnothing(chunksize) ? nparams : chunksize
     nt_cache = NamedTuple{Tuple(componentnames)}(Tuple(_buildcaches(strat, nt_meta, arrayproto, chunksize)))
     # construct prototype of u (prognostic state) array (note that this currently performs a copy)
     uproto = ComponentArray(nt_prog)
-    # ditto for parameter array (need a hack here to get an empty ComponentArray...)
-    pproto = sum(map(length, nt_params)) > 0 ? ComponentArray(nt_params) :
-        ComponentArray(similar(arrayproto,0),(Axis{NamedTuple{Tuple(keys(nt_params))}(Tuple(map(a->1:0,nt_params)))}(),))
     # reconstruct with given array type
     uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
-    CryoGridSetup(strat,grid,nt_meta,nt_cache,uproto,pproto; observed=observed)
+    CryoGridSetup(strat,grid,nt_meta,nt_cache,StateHistory(),uproto,observed)
 end
 CryoGridSetup(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = CryoGridSetup(strat, edges(grid); kwargs...)
 CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 
-"""
-    parameters(setup::CryoGridSetup; unconstrained=false)
+# mark only stratigraphy field as flattenable
+Flatten.flattenable(::Type{<:CryoGridSetup}, ::Type{Val{:strat}}) = true
+Flatten.flattenable(::Type{<:CryoGridSetup}, ::Type{Val{name}}) where name = false
 
-Helper function to obtain the parameters of a `CryoGridSetup`. If `unconstrained=true`, the parameters will be mapped
-to an unconstrained space first via `unconstrain`. Otherwise, they will be left as their default/initialized values.
-"""
-parameters(setup::CryoGridSetup; unconstrained=false) = unconstrained ? unconstrain(copy(setup.pproto), setup) : copy(setup.pproto)
 """
     withaxes(u::AbstractArray, ::CryoGridSetup)
 
@@ -89,17 +92,17 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
 withaxes(u::ComponentArray, ::CryoGridSetup) = u
-@generated function getstates(setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names}, du::AbstractArray, u::AbstractArray, p::ComponentArray, t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names}
-    stategetters = Tuple((:(getstate($(QuoteNode(name)), setup, du, u, p, t)) for name in names))
+@generated function getstates(setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
+    stategetters = Tuple((:(getstate($(QuoteNode(name)), setup, du, u, t)) for name in names))
     return :(NamedTuple{names}(tuple($(stategetters...))))
 end
-@generated function getstates(setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names}, du::AbstractArray, u::AbstractArray, p::ComponentArray, t, ::Val{:diagnostic}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names}
+@generated function getstates(setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t, ::Val{:diagnostic}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
     function diagnosticvarnames(::Type{M}) where {M}
-        pvars, dvars, avars, _ = _resolve_vartypes(M)
+        pvars, dvars, avars = _resolve_vartypes(M)
         # get diagnostic variables and derivatives
         return tuple(QuoteNode.(varname.(dvars))..., map(s -> QuoteNode(Symbol(:d,s)), varname.(pvars))..., map(s -> QuoteNode(Symbol(:d,s)), varname.(avars))...)
     end
-    stategetters = map(name -> :(getstate($(QuoteNode(name)), setup, du, u, p, t)), names)
+    stategetters = map(name -> :(getstate($(QuoteNode(name)), setup, du, u, t)), names)
     varnames = map(T -> :(tuple($(diagnosticvarnames(T)...))), TMeta.parameters)
     expr = Expr(:block)
     for (vars,state,name) in zip(varnames,stategetters,names)
@@ -109,19 +112,18 @@ end
     return expr
 end
 """
-    getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, p::ComponentArray, t)
+    getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, t)
 
 Builds the state named tuple for `layername` given `setup` and state arrays.
 """
-getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, p::ComponentArray, t) =
+getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, t) =
     _buildstate(
         setup.cache[layername],
         setup.meta[layername],
         withaxes(u,setup)[layername],
         withaxes(du,setup)[layername],
-        p[layername],
         t,
-        setup.strat.boundaries[findfirst(n -> componentname(n) == layername, setup.strat.nodes)]
+        setup.strat.boundaries[findfirst(n -> componentname(n) == layername, setup.strat.components)]
     )
 """
     getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
@@ -135,9 +137,8 @@ function getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
             setup.meta[layername],
             withaxes(integrator.u,setup)[layername],
             withaxes(get_du(integrator),setup)[layername],
-            integrator.p[layername],
             integrator.t,
-            setup.strat.boundaries[findfirst(n -> componentname(n) == layername, setup.strat.nodes)]
+            setup.strat.boundaries[findfirst(n -> componentname(n) == layername, setup.strat.components)]
         )
     end
 end
@@ -166,7 +167,7 @@ e.g: `T = getvar(:T, setup, u)`
         name = componentname(node)
         metatype = TMeta.parameters[i]
         # extract variable type information from metadata type
-        ptypes, dtypes, atypes, _ = _resolve_vartypes(metatype)
+        ptypes, dtypes, atypes = _resolve_vartypes(metatype)
         prognames = tuplejoin(varname.(ptypes), varname.(atypes))
         diagnames = varname.(dtypes)
         identifier = Symbol(name,:_,var)
@@ -187,18 +188,6 @@ e.g: `T = getvar(:T, setup, u)`
     end push!(expr.args)
     return expr
 end
-"""
-    constrain(p::ComponentVector, setup::CryoGridSetup)
-
-Invokes `constrain` on all parameters in `p`. Assumes `p` to be of the same form as `setup.pproto`.
-"""
-Numerics.constrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:apply, p, setup)
-"""
-    unconstrain(p::ComponentVector, setup::CryoGridSetup)
-
-Invokes `unconstrain` on all parameters in `p`. Assumes `p` to be of the same form as `setup.pproto`.
-"""
-Numerics.unconstrain(p::ComponentVector, setup::CryoGridSetup) = _apply_or_unapply_constraints(:unapply, p, setup)
 
 """
 Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
@@ -212,7 +201,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv})(_du,_u,p,t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,pax,names,obsv}
+@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv})(_du,_u,p,t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
     nodetyps = copmonenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -225,9 +214,6 @@ is only executed during compilation and will not appear in the compiled version.
     du = ComponentArray(_du, getaxes(setup.uproto))
     u = ComponentArray(_u, getaxes(setup.uproto))
     end push!(expr.args)
-    if !(p <: ComponentArray)
-        push!(expr.args, :(p = ComponentArray(p, getaxes(setup.pproto))))
-    end
     # Initialize variables for all layers
     for i in 1:N
         n = componentname(nodetyps[i])
@@ -237,9 +223,9 @@ is only executed during compilation and will not appear in the compiled version.
         nprocess = Symbol(n,:process)
         @>> quote
         $nz = strat.boundaries[$i]
-        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, p.$n, t, $nz)
-        $nlayer = strat.nodes[$i].layer
-        $nprocess = strat.nodes[$i].process
+        $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, t, $nz)
+        $nlayer = strat.components[$i].layer
+        $nprocess = strat.components[$i].process
         end push!(expr.args)
     end
     # Diagnostic step
@@ -316,14 +302,14 @@ end
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-@generated function init!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
+@generated function init!(setup::CryoGridSetup{TStrat}, tspan) where TStrat
     nodetyps = copmonenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
     @>> quote
-    u = similar(setup.uproto, eltype(p))
-    du = similar(setup.uproto, eltype(p))
+    u = similar(setup.uproto)
+    du = similar(setup.uproto)
     end push!(expr.args) # add to expression block
     @>> quote
     strat = setup.strat
@@ -344,12 +330,12 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
         @>> quote
         $n1z = strat.boundaries[$i]
         $n2z = strat.boundaries[$(i+1)]
-        $n1state = _buildstate(cache.$n1, meta.$n1, u.$n1, du.$n1, p.$n1, tspan[1], $n1z)
-        $n2state = _buildstate(cache.$n2, meta.$n2, u.$n2, du.$n2, p.$n2, tspan[1], $n2z)
-        $n1layer = strat.nodes[$i].layer
-        $n1process = strat.nodes[$i].process
-        $n2layer = strat.nodes[$(i+1)].layer
-        $n2process = strat.nodes[$(i+1)].process
+        $n1state = _buildstate(cache.$n1, meta.$n1, u.$n1, du.$n1, tspan[1], $n1z)
+        $n2state = _buildstate(cache.$n2, meta.$n2, u.$n2, du.$n2, tspan[1], $n2z)
+        $n1layer = strat.components[$i].layer
+        $n1process = strat.components[$i].process
+        $n2layer = strat.components[$(i+1)].layer
+        $n2process = strat.components[$(i+1)].process
         end push!(expr.args)
         if i == 1
             # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls
@@ -371,21 +357,6 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     return expr
 end
 
-_apply_or_unapply_constraint(::Val{:apply}, p, x) = constrain(p,x)
-_apply_or_unapply_constraint(::Val{:unapply}, p, x) = unconstrain(p,x)
-function _apply_or_unapply_constraints(mode::Symbol, p::ComponentVector, setup::CryoGridSetup)
-    pp = similar(p)
-    for layer in keys(setup.meta)
-        for param in setup.meta[layer].paramvars
-            name = varname(param)
-            p_k = @view p[layer]
-            pp_k = @view pp[layer]
-            pp_k[name] .= _apply_or_unapply_constraint(Val{mode}(), param, (@view p_k[name]))
-        end
-    end
-    return pp
-end
-
 """
 Helper function to extract prognostic, diagnostic, algebraic, and parameter variable type
 information from the `meta` field type signature.
@@ -399,16 +370,14 @@ function _resolve_vartypes(::Type{M}) where {names,types,M <: NamedTuple{names,t
     dtypes = types.parameters[2].parameters |> Tuple
     # and for algebraic, assumed to be at position 3
     atypes = types.parameters[3].parameters |> Tuple
-    # and for parameters, assumed to be at position 4
-    paramtypes = types.parameters[4].parameters |> Tuple
-    return ptypes, dtypes, atypes, paramtypes
+    return ptypes, dtypes, atypes
 end
 
 """
 Generates a function from layer cache and metadata which constructs a type-stable NamedTuple of state variables at runtime.
 """
-@inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, params, t, z) where {M <: NamedTuple}
-    ptypes, dtypes, atypes, _ = _resolve_vartypes(M)
+@inline @generated function _buildstate(cache::NamedTuple, meta::M, u, du, t, z) where {M <: NamedTuple}
+    ptypes, dtypes, atypes = _resolve_vartypes(M)
     # here we join together prognostic and algebraic variables
     pnames = tuplejoin(ptypes .|> varname, atypes .|> varname)
     dnames = dtypes .|> varname
@@ -422,7 +391,7 @@ Generates a function from layer cache and metadata which constructs a type-stabl
     # QuoteNode is used to force names to be interpolated as symbols rather than literals.
     quote
     NamedTuple{tuple($(map(QuoteNode,pnames)...),$(map(QuoteNode,dpnames)...),$(map(QuoteNode,dnames)...),
-        :params,:grids,:t,:z)}(tuple($(pacc...),$(dpacc...),$(dacc...),params,meta.grids,t,z))
+        :grids,:t,:z)}(tuple($(pacc...),$(dpacc...),$(dacc...),meta.grids,t,z))
     end
 end
 
@@ -437,7 +406,7 @@ function _buildlayer(node::StratComponent, grid::Grid{Edges}, arrayproto::A) whe
     all_vars = tuple(layer_vars...,process_vars...)
     @debug "Building layer $(componentname(node)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
-    groups = groupby(var -> varname(var), filter(x -> !isparameter(x), all_vars))
+    groups = groupby(var -> varname(var), all_vars)
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
         @assert reduce(==, gvars) "Found one or more conflicting definitions of $name in $gvars"
@@ -445,7 +414,6 @@ function _buildlayer(node::StratComponent, grid::Grid{Edges}, arrayproto::A) whe
     diag_vars = filter(isdiagnostic, all_vars)
     prog_vars = filter(isprognostic, all_vars)
     alg_vars = filter(isalgebraic, all_vars)
-    param_vars = filter(isparameter, all_vars)
     # check for duplicated algebraic/prognostic vars
     prog_alg_duplicated = prog_vars ∩ alg_vars
     @assert isempty(prog_alg_duplicated) "Variables $(prog_alg_duplicated) cannot be both prognostic and algebraic."
@@ -455,9 +423,6 @@ function _buildlayer(node::StratComponent, grid::Grid{Edges}, arrayproto::A) whe
     if !isempty(diag_prog)
         @warn "Variables $(Tuple(map(varname,diag_prog))) declared as both prognostic/algebraic and diagnostic. In-place modifications outside of callbacks may degrade integration accuracy."
     end
-    # check for parameter duplicates
-    param_dups = [name for (name,group) in groupby(param -> varname(param), param_vars) if length(group) > 1]
-    @assert isempty(param_dups) "Found conflicting definitions of parameters: $(Tuple(param_dups))"
     # check for conflicting definitions of differential vars
     diff_varnames = map(v -> Symbol(:d, varname(v)), prog_alg)
     @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
@@ -472,20 +437,14 @@ function _buildlayer(node::StratComponent, grid::Grid{Edges}, arrayproto::A) whe
     diag_grids = _buildgrids(diag_vars, grid, arrayproto)
     prog_grids = _buildgrids(prog_vars, grid, arrayproto)
     alg_grids = _buildgrids(alg_vars, grid, arrayproto)
-    param_grids = _buildgrids(param_vars, grid, arrayproto)
     # merge grids
-    grids = merge(diag_grids, prog_grids, alg_grids, param_grids)
+    grids = merge(diag_grids, prog_grids, alg_grids)
     # get variable names for diagnostic and prognostic
-    paramnames = @>> param_vars map(varname)
-    params = (copy(p.default_value) for p in param_vars)
-    # build parameter named tuple
-    nt_params = NamedTuple{Tuple(paramnames)}(Tuple(params))
     # build metadata named tuple
-    layermetadata = NamedTuple{tuple(:progvars,:diagvars,:algvars,:paramvars,:grids)}(tuple(prog_vars,diag_vars,alg_vars,param_vars,grids))
+    layermetadata = NamedTuple{tuple(:progvars,:diagvars,:algvars,:grids)}(tuple(prog_vars,diag_vars,alg_vars,grids))
     # build component arrays for prognostic/algebraic variables and parameters
     prog_carr = isempty(prog_alg) ? similar(arrayproto, 0) : ComponentArray(merge(prog_grids, alg_grids))
-    param_carr = isempty(param_vars) ? similar(arrayproto, 0) : ComponentArray(nt_params)
-    return prog_carr, param_carr, layermetadata
+    return prog_carr, layermetadata
 end
 
 """
@@ -499,15 +458,16 @@ function _buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
     togrid(var::Var{name,T,OnGrid{Cells}}) where {name,T} = grid |> cells |> var.dim.f |> dustrip |> Grid
     togrid(var::Var{name,T,Shape{dims}}) where {name,T,dims} = reshape(1:prod(dims),dims...)
     togrid(var::Var{name,T,typeof(Scalar)}) where {name,T} = 1:1
-    names = @>> vars map(var -> varname(var))
+    names = map(var -> varname(var), vars)
     vars_with_names = NamedTuple{tuple(names...)}(tuple(vars...))
-    grids = @>> vars_with_names map(togrid)
+    grids = map(togrid, vars_with_names)
 end
 
 """
 Constructs per-layer variable caches given the Stratigraphy and layer-metadata named tuple.
 """
-function _buildcaches(strat, metadata, arrayproto, chunksize)
+function _buildcaches(strat, metadata, arrayproto, chunksize=nothing)
+    chunksize = isnothing(chunksize) ? ForwardDiff.DEFAULT_CHUNK_THRESHOLD : chunksize
     map(strat) do node
         name = componentname(node)
         dvars = metadata[name].diagvars

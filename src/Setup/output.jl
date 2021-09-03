@@ -11,9 +11,10 @@ variable shared across multiple layers, use `getvar(name, out)` where `name` is 
 to the variable name.
 """
 struct CryoGridOutput
+    ts::Vector{DateTime}
     sol::ODESolution
     vars::NamedTuple
-    CryoGridOutput(sol::ODESolution, vars::NamedTuple) = new(sol, vars)
+    CryoGridOutput(ts::Vector{DateTime}, sol::ODESolution, vars::NamedTuple) = new(ts, sol, vars)
 end
 
 """
@@ -28,7 +29,7 @@ function CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.AbstractODESolution}
     ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
     savedstate = setup.hist.vals.saveval
     layerstates = NamedTuple()
-    for (i,node) in enumerate(setup.strat.nodes)
+    for (i,node) in enumerate(setup.strat.components)
         name = componentname(node) 
         prog_vars = setup.meta[name][:progvars]
         diag_vars = setup.meta[name][:diagvars]
@@ -71,7 +72,7 @@ function CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.AbstractODESolution}
     #     nt = NamedTuple{tuple(keys(uservars)...)}(tuple(values(uservars)...))
     #     layerstates = merge(layerstates, (user=nt,))
     # end
-    CryoGridOutput(sol, layerstates)
+    CryoGridOutput(ts_datetime, sol, layerstates)
 end
 
 """
@@ -96,7 +97,7 @@ function getvar(var::Symbol, out::CryoGridOutput)
     end
     X = reduce(vcat, parts)
     zs = reduce(vcat, [dims(A,Z).val for A in parts])
-    ts = Dates.epochms2datetime.(out.sol.t.*1000.0)
+    ts = getfield(out,:ts)
     DimArray(X,(Z(zs),Ti(ts)))
 end
 # Overrides from Base

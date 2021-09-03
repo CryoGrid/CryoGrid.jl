@@ -1,6 +1,6 @@
 module Processes
 
-import CryoGrid: Process, CompositeProcess, Coupled, Layer, Top, Bottom, SubSurface
+import CryoGrid: Process, CompoundProcess, Coupled, Layer, Top, Bottom, SubSurface
 import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, observe
 
 using CryoGrid.Layers
@@ -11,7 +11,7 @@ using Lazy: @>>
 using Reexport
 using Unitful
 
-include("composite.jl")
+include("compound.jl")
 include("Boundaries/Boundaries.jl")
 include("Water/Water.jl")
 include("HeatConduction/HeatConduction.jl")

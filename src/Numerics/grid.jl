@@ -5,6 +5,8 @@ struct Cells <: GridSpec end
 abstract type Geometry end
 struct UnitVolume <: Geometry end
 
+const GridValues{Q,A} = NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}} where {Q,A<:AbstractArray}
+
 """
     struct Grid{S,G,Q,A} <: DenseVector{Q}
 
@@ -16,8 +18,9 @@ array type, and `Q` is the numerical type (e.g. `Float64` or a `Unitful.Quantity
 """
 struct Grid{S,G,Q,A} <: DenseVector{Q}
     geometry::G
-    values::NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}}
-    deltas::NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}}
+    values::GridValues{Q,A}
+    deltas::GridValues{Q,A}
+    Grid(::Type{S}, values::GridValues{Q,A}, deltas::GridValues{Q,A}, geom::G) where {S<:GridSpec,Q,A,G<:Geometry} = new{S,G,Q,A}(geom,values,deltas)
     function Grid(vals::AbstractVector{Q}, geometry::G=UnitVolume()) where {G<:Geometry,Q<:Number}
         @assert issorted(vals) "grid values should be in ascending order"
         nedges = length(vals)
@@ -53,7 +56,7 @@ struct Grid{S,G,Q,A} <: DenseVector{Q}
     Grid(::Type{Cells}, grid::Grid{Edges,G,Q,A}) where {G,Q,A} = new{Cells,G,Q,A}(grid.geometry,grid.values,grid.deltas)
     Grid(::Type{Edges}, grid::Grid{Cells,G,Q,A}) where {G,Q,A} = new{Edges,G,Q,A}(grid.geometry,grid.values,grid.deltas)
 end
-
+ConstructionBase.constructorof(::Type{Grid{S,G,Q,A}}) where {S,G,Q,A} = (geom,values,deltas) -> Grid(S,values,deltas,geom)
 Base.show(io::IO, grid::Grid{S,G}) where {S,G} = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
 Base.show(io::IO, ::MIME{Symbol("text/plain")}, grid::Grid) = show(io, grid)
 
@@ -85,39 +88,46 @@ end
 @propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = subgrid(grid,interval)
 Base.setindex!(grid::Grid, args...) = error("setindex! is not allowed for Grid types")
 
-regrid(x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line()) =
-    regrid!(similar(x,length(newgrid)), x, xgrid, newgrid, interp, bc)
-function regrid!(out::AbstractVector, x::AbstractVector, xgrid::Grid, newgrid::Grid, interp=Linear(), bc=Line())
-    let f = extrapolate(interpolate((xgrid,), x, Gridded(interp)), bc)
-        out .= f.(newgrid)
-    end
+struct Profile{N,D<:DistQuantity,M,E}
+    values::NTuple{N,Pair{D,NTuple{M,E}}}
+end
+Base.iterate(profile::Profile) = Base.iterate(profile.values)
+Base.iterate(profile::Profile, state) = Base.iterate(profile.values, state)
+StructTypes.StructType(::Type{<:Profile}) = StructTypes.CustomStruct()
+StructTypes.lower(profile::Profile) = [(depth=StructTypes.lower(row[1]), value=StructTypes.lower.(row[2])) for row in profile.values]
+StructTypes.lowertype(::Type{<:Profile{N,D,M,E}}) where {N,D,M,E} = Vector{NamedTuple{(:depth,:value),Tuple{StructTypes.lowertype(D),Vector{StructTypes.lowertype(E)}}}}
+function StructTypes.construct(::Type{<:Profile{N,D,M,E}}, values::Vector) where {N,D,M,E}
+    depths = [StructTypes.construct(D, row["depth"]) for row in values]
+    values = [StructTypes.construct.(E, Tuple(row["value"])) for row in values]
+    sortinds = sortperm(depths)
+    return Profile(collect(map((d,v) -> d => v, depths[sortinds], values[sortinds])))
 end
 
 """
-    Profile(pairs...;names)
+    profile2array(profile::Profile{N,D,M,E};names) where {N,D,M,E}
 
-Constructs a Profile from the given pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
+Constructs a DimArray from the given Profile, i.e. pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
 Column names for the resulting DimArray can be set via the names parameter which accepts an NTuple of symbols,
 where N must match the number of parameters given (i.e. n).
 """
-function Profile(pairs::Pair{Q,NTuple{N,T}}...;names::Union{Nothing,NTuple{N,Symbol}}=nothing) where {T,N,Q<:DistQuantity}
-    depths, vals = zip(pairs...)
+function profile2array(profile::Profile{N,D,M,E};names::Union{Nothing,NTuple{M,Symbol}}=nothing) where {N,D,M,E}
+    depths, vals = zip(profile.values...)
     params = hcat(collect.(vals)...)'
     names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : collect(names)
     DimArray(params, (Z(collect(depths)), Dim{:var}(names)))
 end
 
 """
-    interpolateprofile(profile::Profile, state; interp=Linear())
+    interpolateprofile!(profilearr::DimArray, state; interp=Linear(), extrap=Flat())
 
 Interpolates the given profile to the corresponding variable grids. Assumes state to be indexable via the corresponding
 variable symbol and that the parameter names in state and profile match.
 """
-function interpolateprofile!(profile::DimArray, state; interp=Linear())
-    let (depths,names) = dims(profile),
+function interpolateprofile!(profilearr::DimArray, state; interp=Linear(), extrap=Flat())
+    let (depths,names) = dims(profilearr),
         z = ustrip.(depths);
         for p in names
-            f = extrapolate(interpolate((z,), ustrip.(profile[:,p]), Gridded(interp)), Flat())
+            f = extrapolate(interpolate((z,), ustrip.(profilearr[:,p]), Gridded(interp)), extrap)
             state[p] .= f.(state.grids[p])   # assume length(grid) == length(state.p)
         end
     end

@@ -1,7 +1,7 @@
 struct StratComponent{TLayer,TProcess,name}
     layer::TLayer
     process::TProcess
-    StratComponent(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:CompositeProcess} =
+    StratComponent(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:CompoundProcess} =
         new{TLayer,TProcess,name}(layer,process)
 end
 ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcess,name}}) where {TLayer,TProcess,name} = (layer,process) -> StratComponent(name, layer, process)
@@ -14,32 +14,33 @@ componentname(::Type{<:StratComponent{L,P,name}}) where {L,P,name} = name
 Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
-top(boundaries::BoundaryProcess...) = StratComponent(:top, Top(), CompositeProcess(boundaries...))
-bottom(boundaries::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CompositeProcess(boundaries...))
-subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CompositeProcess(processes...))
+top(boundaries::BoundaryProcess...) = StratComponent(:top, Top(), CompoundProcess(boundaries...))
+bottom(boundaries::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CompoundProcess(boundaries...))
+subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CompoundProcess(processes...))
 
 """
-    Stratigraphy{N,TComps,TBounds}
+    Stratigraphy{N,TComponents,TBounds}
 
 Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to 1 or more subsurface layers.
 """
-struct Stratigraphy{N,TComps,TBounds}
+struct Stratigraphy{N,TComponents,TBounds}
     boundaries::TBounds
-    components::TComps
+    components::TComponents
+    Stratigraphy(boundaries::NTuple{N,B}, components::NTuple{N,StratComponent}) where {N,B} = new{N,typeof(components),typeof(boundaries)}(boundaries, components)
     Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Pair{Q,<:StratComponent{<:SubSurface}},
-        bot::Pair{Q,<:StratComponent{Bottom}}) where Q = Stratigraphy(top,(sub,),bot)
+        bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = Stratigraphy(top,(sub,),bot)
     Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Tuple{Vararg{Pair{Q,<:StratComponent{<:SubSurface}}}},
-        bot::Pair{Q,<:StratComponent{Bottom}}) where Q = begin
+        bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = begin
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         names = @>> sub map(last) map(componentname)
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
-        boundaries = map(first, (top, sub..., bot)) |> Tuple
-        @assert issorted(boundaries) "Stratigraphy boundary locations must be in strictly increasing order."
+        boundaries = map(pair -> Param(first(pair), units=unit(Q)), (top, sub..., bot)) |> Tuple
+        @assert issorted(boundaries, by=p -> p.val) "Stratigraphy boundary locations must be in strictly increasing order."
         components = map(last, (top, sub..., bot)) |> Tuple
         new{length(components),typeof(components),typeof(boundaries)}(boundaries,components)
     end
 end
-copmonenttypes(::Type{<:Stratigraphy{N,TComps}}) where {N,TComps} = Tuple(TComps.parameters)
+copmonenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(strat.components)
 Base.length(strat::Stratigraphy) = length(strat.components)

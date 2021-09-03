@@ -10,19 +10,18 @@ using Base: @propagate_inbounds
 using Reexport
 
 export Layer, SubSurface, Top, Bottom, Boundary
-export Process, SubSurfaceProcess, BoundaryProcess, CompositeProcess, Coupled
+export Process, SubSurfaceProcess, BoundaryProcess, CompoundProcess, Coupled
 export BoundaryStyle, Dirichlet, Neumann
 export AbstractParameterization, Parameterization
 export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, observe
 
 # Common types and methods
-include("Common/types.jl")
-include("Common/methods.jl")
+include("types.jl")
+include("methods.jl")
 
 # Submodules
-include("Common/Utils/Utils.jl")
-include("Common/Numerics/Numerics.jl")
-include("Common/Forcings/Forcings.jl")
+include("Utils/Utils.jl")
+include("Numerics/Numerics.jl")
 include("IO/InputOutput.jl")
 include("Layers/Layers.jl")
 include("Processes/Processes.jl")
@@ -33,8 +32,7 @@ include("Callbacks/Callbacks.jl")
 # Re-exported submodules
 @reexport using .Utils
 @reexport using .Numerics
-@reexport using .Forcings
-@reexport using .InputOutput: loadforcings, InputSpec, JsonSpec
+@reexport using .InputOutput
 @reexport using .Layers
 @reexport using .Processes
 @reexport using .Setup
@@ -49,7 +47,7 @@ include("Callbacks/Callbacks.jl")
 
 # Import parameters function into top-level scope;
 # We do not export it in order to avoid naming conflicts with other packages.
-import .Setup: parameters
+# import .Setup: parameters
 
 # Include Models submodule last to allow dependence on other submodules.
 include("Models/Models.jl")

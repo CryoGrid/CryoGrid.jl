@@ -3,7 +3,7 @@ module Setup
 import ForwardDiff
 import ReverseDiff
 
-import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CompositeProcess
+import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CompoundProcess
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
 using CryoGrid.InputOutput
@@ -26,7 +26,10 @@ using Unitful
 using RecursiveArrayTools
 using Reexport
 
+import Flatten
+
 @reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
+@reexport using ModelParameters
 @reexport using OrdinaryDiffEq
 @reexport using SimulationLogs
 

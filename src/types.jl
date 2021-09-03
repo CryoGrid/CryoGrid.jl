@@ -49,32 +49,33 @@ but may include its own diagnostic (or even prognostic) variables, if necessary.
 """
 abstract type BoundaryProcess <: Process end
 """
-    CompositeProcess{TProcs} <: Process
+    CompoundProcess{TProcs} <: Process
 
-Represents a explicitly or implicitly coupled system of processes. `TProcs` is always a `Tuple`
+Represents an explicitly or implicitly coupled system of processes. `TProcs` is always a `Tuple`
 of other processes.
 """
-struct CompositeProcess{TProcs} <: Process
+struct CompoundProcess{TProcs} <: Process
     processes::TProcs
-    CompositeProcess(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
-    CompositeProcess(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
+    CompoundProcess(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
+    CompoundProcess(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
+    CompoundProcess(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
 end
 """
-    Coupled{P1,P2} = CompositeProcess{Tuple{T1,T2}} where {T1,T2}
+    Coupled{P1,P2} = CompoundProcess{Tuple{T1,T2}} where {T1,T2}
 
-Represents a coupled pair of explicitly processes. Alias for `CompositeProcess{Tuple{P1,P2}}`.
-`Coupled` provides a simple mechanism for defining new behaviors on composite processes/systems.
+Represents an explicitly coupled pair processes. Alias for `CompoundProcess{Tuple{P1,P2}}`.
+`Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
-const Coupled{P1,P2} = CompositeProcess{Tuple{T1,T2}} where {T1,T2}
+const Coupled{P1,P2} = CompoundProcess{Tuple{T1,T2}} where {T1,T2}
 """
     Coupled(p1,p2)
 
-Alias for `CompositeProcess(p1,p2)`.
+Alias for `CompoundProcess(p1,p2)`.
 """
-Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CompositeProcess(p1,p2)
+Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CompoundProcess(p1,p2)
 # Base methods
-Base.show(io::IO, ps::CompositeProcess{T}) where T = print(io, "$T")
-@propagate_inbounds @inline Base.getindex(ps::CompositeProcess, i) = ps.processes[i]
+Base.show(io::IO, ps::CompoundProcess{T}) where T = print(io, "$T")
+@propagate_inbounds @inline Base.getindex(ps::CompoundProcess, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
 

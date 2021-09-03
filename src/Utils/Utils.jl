@@ -6,6 +6,7 @@ Common utility functions, constants, and macros used throughout the CryoGrid.jl 
 module Utils
 
 using Dates
+using StructTypes
 using Unitful
 
 import CryoGrid
@@ -15,6 +16,7 @@ import ReverseDiff
 include("macros.jl")
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar
+export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export dustrip, duconvert
 export structiterate, getscalar, tuplejoin, convert_tspan
 export Params
@@ -27,7 +29,10 @@ const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TempUnit}
 
-export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+StructTypes.StructType(::Type{<:Quantity}) = StructTypes.CustomStruct()
+StructTypes.lower(value::Quantity) = string(value)
+StructTypes.lowertype(value::Type{<:Quantity}) = String
+StructTypes.construct(::Type{Q}, value::String) where {Q<:Quantity} = uconvert(Q, uparse(replace(value, " " => "")))
 
 """
     applyunit(u::Unitful.Units, x::Number)

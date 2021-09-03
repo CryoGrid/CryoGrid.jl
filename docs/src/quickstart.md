@@ -8,7 +8,7 @@ using Plots
 
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
-forcings = loadforcings(CryoGrid.Models.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
+forcings = loadforcings(CryoGrid.ForcingData.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
 # use air temperature as upper boundary forcing
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
