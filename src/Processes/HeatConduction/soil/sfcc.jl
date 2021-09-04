@@ -173,10 +173,10 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     wintertime rain events on the thermal regime of permafrost, The Cryosphere, 5, 945–959,
     https://doi.org/10.5194/tc-5-945-2011, 2011. 
 """
-@with_kw struct Westermann{T,Θ,Γ} <: SFCCFunction
+@with_kw struct Westermann{T,Θ,Δ} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, units=u"1", bounds=(0,1))
-    γ::Γ = Param(0.1, units=u"1", bounds=(eps(),Inf))
+    δ::Δ = Param(0.1, units=u"1", bounds=(eps(),Inf))
 end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
@@ -305,3 +305,11 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
     end
     nothing
 end
+
+# Generate analytical derivatives during precompilation
+∂DallAmico∂T = ∇(DallAmico(), :T)
+∂McKenzie∂T = ∇(McKenzie(), :T)
+∂Westermann∂T = ∇(Westermann(), :T)
+SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂DallAmico∂T, solver)
+SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂McKenzie∂T, solver)
+SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂Westermann∂T, solver)

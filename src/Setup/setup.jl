@@ -35,7 +35,12 @@ ConstructionBase.constructorof(::Type{CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
-function CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}; arrayproto::AbstractArray=zeros(), observed::Vector{Symbol}=Symbol[], chunksize=nothing)
+function CryoGridSetup(
+    @nospecialize(strat::Stratigraphy),
+    @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity});
+    arrayproto::AbstractArray=zeros(),
+    observed::Vector{Symbol}=Symbol[],
+    chunksize=nothing)
     pvar_arrays = OrderedDict()
     layer_metas = OrderedDict()
     nodes = OrderedDict()
@@ -398,7 +403,7 @@ end
 """
 Constructs prognostic state vector and state named-tuple for the given node/layer.
 """
-function _buildlayer(node::StratComponent, grid::Grid{Edges}, arrayproto::A) where {A<:AbstractArray}
+function _buildlayer(@nospecialize(node::StratComponent), @nospecialize(grid::Grid{Edges}), arrayproto::A) where {A<:AbstractArray}
     layer, process = node.layer, node.process
     layer_vars = variables(layer)
     @assert all([isdiagnostic(var) || isparameter(var) for var in layer_vars]) "Layer variables must be diagnostic."
@@ -450,7 +455,7 @@ end
 """
 Constructs grid tuples for the given variables.
 """
-function _buildgrids(vars, grid::Grid{Edges}, arrayproto::A) where {A}
+function _buildgrids(@nospecialize(vars), @nospecialize(grid::Grid{Edges}), arrayproto::A) where {A}
     if isempty(vars)
         return NamedTuple()
     end
@@ -466,7 +471,7 @@ end
 """
 Constructs per-layer variable caches given the Stratigraphy and layer-metadata named tuple.
 """
-function _buildcaches(strat, metadata, arrayproto, chunksize=nothing)
+function _buildcaches(@nospecialize(strat::Stratigraphy), @nospecialize(metadata::NamedTuple), arrayproto::AbstractArray, chunksize=nothing)
     chunksize = isnothing(chunksize) ? ForwardDiff.DEFAULT_CHUNK_THRESHOLD : chunksize
     map(strat) do node
         name = componentname(node)
@@ -482,26 +487,25 @@ function _buildcaches(strat, metadata, arrayproto, chunksize=nothing)
 end
 
 """
-    VarCache{name,N,A,Adual}
+    VarCache{N,A,Adual}
 
 Wrapper for `DiffEqBase.DiffCache` that stores state variables in forward-diff compatible cache arrays.
 """
-struct VarCache{name,N,A,Adual}
+struct VarCache{N,A,Adual}
+    name::Symbol
     cache::PreallocationTools.DiffCache{A,Adual}
     function VarCache(name::Symbol, grid::AbstractArray, arrayproto::AbstractArray, chunksize::Int)
         # use dual cache for automatic compatibility with ForwardDiff
         A = similar(arrayproto, length(grid))
         A .= zero(eltype(A))
         cache = PreallocationTools.dualcache(A, Val{chunksize})
-        new{name,chunksize,typeof(cache.du),typeof(cache.dual_du)}(cache)
+        new{chunksize,typeof(cache.du),typeof(cache.dual_du)}(name, cache)
     end
 end
-Base.show(io::IO, cache::VarCache{name}) where name = print(io, "VarCache{$name} of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
-Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::VarCache{name}) where name = show(io, cache)
-# type piracy to reduce clutter in compiled type names
-Base.show(io::IO, ::Type{<:VarCache{name}}) where name = print(io, "VarCache{$name}")
+Base.show(io::IO, cache::VarCache) = print(io, "VarCache $(cache.name) of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
+Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::VarCache) = show(io, cache)
 # use pre-cached array if chunk size matches
-retrieve(varcache::VarCache{name,N}, u::AbstractArray{T}) where {name,tag,U,N,T<:ForwardDiff.Dual{tag,U,N}} = DiffEqBase.get_tmp(varcache.cache, u)
+retrieve(varcache::VarCache{N}, u::AbstractArray{T}) where {tag,U,N,T<:ForwardDiff.Dual{tag,U,N}} = DiffEqBase.get_tmp(varcache.cache, u)
 # otherwise just make a new copy with compatible type
 retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:Union{<:ForwardDiff.Dual,<:ReverseDiff.TrackedReal}} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
 retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(identity.(u), length(varcache.cache.du)), varcache.cache.du)

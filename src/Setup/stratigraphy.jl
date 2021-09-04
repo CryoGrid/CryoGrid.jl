@@ -29,10 +29,13 @@ struct Stratigraphy{N,TComponents,TBounds}
     Stratigraphy(boundaries::NTuple{N,B}, components::NTuple{N,StratComponent}) where {N,B} = new{N,typeof(components),typeof(boundaries)}(boundaries, components)
     Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Pair{Q,<:StratComponent{<:SubSurface}},
         bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = Stratigraphy(top,(sub,),bot)
-    Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Tuple{Vararg{Pair{Q,<:StratComponent{<:SubSurface}}}},
-        bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = begin
+    function Stratigraphy(
+        @nospecialize(top::Pair{Q,<:StratComponent{Top}}),
+        @nospecialize(sub::Tuple{Vararg{Pair{Q,<:StratComponent{<:SubSurface}}}}),
+        @nospecialize(bot::Pair{Q,<:StratComponent{Bottom}})
+    ) where {Q<:DistQuantity}
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
-        names = @>> sub map(last) map(componentname)
+        names = map(componentname, map(last, sub))
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
         boundaries = map(pair -> Param(first(pair), units=unit(Q)), (top, sub..., bot)) |> Tuple
         @assert issorted(boundaries, by=p -> p.val) "Stratigraphy boundary locations must be in strictly increasing order."

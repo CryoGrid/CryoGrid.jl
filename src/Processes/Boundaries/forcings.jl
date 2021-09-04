@@ -38,7 +38,7 @@ struct TimeSeriesForcing{T,A,I} <: Forcing{T,1}
       interp::I
       function TimeSeriesForcing(values::A, timestamps::AbstractArray{DateTime,1}, name::Symbol; interp=Linear()) where
             {T,A<:AbstractArray{T,1}}
-            tarray = TimeArray(timestamps,values,[name])
+            tarray = TimeArray(Vector(timestamps),Vector(values),[name])
             TimeSeriesForcing(tarray; interp=interp)
       end
       function TimeSeriesForcing(tarray::TimeArray{T,N,D,A}; interp=Linear()) where {T,N,D,A}
