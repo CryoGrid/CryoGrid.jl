@@ -11,7 +11,7 @@ strat = Stratigraphy(
     0.0u"m" => subsurface(:soil, Soil(soilprofile), Heat{:H}(tempprofile, freezecurve=SFCC(DallAmico()))),
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
-grid = CryoGrid.Models.DefaultGrid_5cm
+grid = CryoGrid.Presets.DefaultGrid_5cm
 model = CryoGridSetup(strat,grid);
 ```
 
