@@ -13,20 +13,20 @@ include("../types.jl")
         )
         # Check boundaries
         @test all([bounds[i] == b for (i,b) in enumerate(bounds)])
-        # Check iteration and node types
-        for (i,node) in enumerate(strat)
+        # Check iteration and component types
+        for (i,component) in enumerate(strat)
             if i == 1
-                @test CryoGrid.nodename(node) == :top
-                @test typeof(node.layer) <: Top
-                @test typeof(node.process) <: System{Tuple{TestBoundary}}
+                @test CryoGrid.componentname(component) == :top
+                @test typeof(component.layer) <: Top
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
             elseif i == 2
-                @test CryoGrid.nodename(node) == :testground
-                @test typeof(node.layer) <: TestGroundLayer
-                @test typeof(node.process) <: System{Tuple{TestGroundProcess}}
+                @test CryoGrid.componentname(component) == :testground
+                @test typeof(component.layer) <: TestGroundLayer
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestGroundProcess}}
             elseif i == 3
-                @test CryoGrid.nodename(node) == :bottom
-                @test typeof(node.layer) <: Bottom
-                @test typeof(node.process) <: System{Tuple{TestBoundary}}
+                @test CryoGrid.componentname(component) == :bottom
+                @test typeof(component.layer) <: Bottom
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
             end
         end
     end
@@ -41,24 +41,24 @@ include("../types.jl")
         )
         # Check boundaries
         @test all([bounds[i] == b for (i,b) in enumerate(bounds)])
-        # Check iteration and node types
-        for (i,node) in enumerate(strat)
+        # Check iteration and component types
+        for (i,component) in enumerate(strat)
             if i == 1
-                @test CryoGrid.nodename(node) == :top
-                @test typeof(node.layer) <: Top
-                @test typeof(node.process) <: System{Tuple{TestBoundary}}
+                @test CryoGrid.componentname(component) == :top
+                @test typeof(component.layer) <: Top
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
             elseif i == 2
-                @test CryoGrid.nodename(node) == :testground1
-                @test typeof(node.layer) <: TestGroundLayer
-                @test typeof(node.process) <: System{Tuple{TestGroundProcess}}
+                @test CryoGrid.componentname(component) == :testground1
+                @test typeof(component.layer) <: TestGroundLayer
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestGroundProcess}}
             elseif i == 3
-                @test CryoGrid.nodename(node) == :testground2
-                @test typeof(node.layer) <: TestGroundLayer
-                @test typeof(node.process) <: System{Tuple{TestGroundProcess}}
+                @test CryoGrid.componentname(component) == :testground2
+                @test typeof(component.layer) <: TestGroundLayer
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestGroundProcess}}
             elseif i == 4
-                @test CryoGrid.nodename(node) == :bottom
-                @test typeof(node.layer) <: Bottom
-                @test typeof(node.process) <: System{Tuple{TestBoundary}}
+                @test CryoGrid.componentname(component) == :bottom
+                @test typeof(component.layer) <: Bottom
+                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
             end
         end
     end

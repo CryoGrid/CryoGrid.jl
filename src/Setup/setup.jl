@@ -406,7 +406,7 @@ Constructs prognostic state vector and state named-tuple for the given node/laye
 function _buildlayer(@nospecialize(node::StratComponent), @nospecialize(grid::Grid{Edges}), arrayproto::A) where {A<:AbstractArray}
     layer, process = node.layer, node.process
     layer_vars = variables(layer)
-    @assert all([isdiagnostic(var) || isparameter(var) for var in layer_vars]) "Layer variables must be diagnostic."
+    @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
     process_vars = variables(layer, process)
     all_vars = tuple(layer_vars...,process_vars...)
     @debug "Building layer $(componentname(node)) with $(length(all_vars)) variables: $(all_vars)"

@@ -43,12 +43,8 @@ grid = Grid(gridvals);
 model = CryoGridSetup(strat,grid);
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = copy(model.pproto)
-p.soil.α .= 4.0
-p.soil.n .= 2.0
-p.soil.Tₘ .= 0.0 # K
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,tspan,p)
+prob = CryoGridProblem(model,tspan)
 # solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=2*60.0, callback=CFLStepLimiter(model), saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

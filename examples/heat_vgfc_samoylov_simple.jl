@@ -10,12 +10,8 @@ model = CryoGrid.Models.SoilHeat(:H, TemperatureGradient(tair), CryoGrid.Models.
     grid=grid, freezecurve=SFCC(DallAmico()))
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = copy(model.pproto)
-p.soil.α .= 4.0
-p.soil.n .= 2.0
-p.soil.Tₘ .= 0.0
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,tspan,p)
+prob = CryoGridProblem(model,tspan)
 # solve with forward Euler (fixed 10 minute timestep) and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=10*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

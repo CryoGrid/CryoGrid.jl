@@ -120,13 +120,13 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
     swrc::VanGenuchten = VanGenuchten()
 end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
-    f.Tₘ.val,
-    f.θres.val,
+    f.Tₘ |> stripparams |> dustrip,
+    f.θres |> stripparams |> dustrip,
     θp(soil.comp), # θ saturated = porosity
     θw(soil.comp),
     heat.L, # specific latent heat of fusion, L
-    f.α.val,
-    f.n.val,
+    f.α |> stripparams |> dustrip,
+    f.n |> stripparams |> dustrip,
 )
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
     let θsat = max(θtot, θsat),
@@ -154,11 +154,11 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
     γ::Γ = Param(0.1, units=u"1", bounds=(eps(),Inf))
 end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
+    f.Tₘ |> stripparams |> dustrip,
+    f.θres |> stripparams |> dustrip,
     θp(soil.comp), # θ saturated = porosity
     θw(soil.comp),
-    f.γ,
+    f.γ |> stripparams |> dustrip,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
     let θsat = max(θtot, θsat);
@@ -179,11 +179,11 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     δ::Δ = Param(0.1, units=u"1", bounds=(eps(),Inf))
 end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
+    f.Tₘ |> stripparams |> dustrip,
+    f.θres |> stripparams |> dustrip,
     θp(soil.comp), # θ saturated = porosity
     θw(soil.comp),
-    f.δ,
+    f.δ |> stripparams |> dustrip,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
     let θsat = max(θtot, θsat);
@@ -310,6 +310,6 @@ end
 ∂DallAmico∂T = ∇(DallAmico(), :T)
 ∂McKenzie∂T = ∇(McKenzie(), :T)
 ∂Westermann∂T = ∇(Westermann(), :T)
-SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂DallAmico∂T, solver)
-SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂McKenzie∂T, solver)
-SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂Westermann∂T, solver)
+SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂DallAmico∂T), solver)
+SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂McKenzie∂T), solver)
+SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂Westermann∂T), solver)

@@ -7,6 +7,11 @@ using ..HeatConduction
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using ConstructionBase
+using Parameters
+using ModelParameters
+using Unitful
+
 export Source, SourceTerm
 
 """
@@ -14,23 +19,23 @@ Abstract base type for source terms which define a `Source` process.
 """
 abstract type SourceTerm end
 """
-    Constant{name} <: SourceTerm
+    Constant <: SourceTerm
 
-Parametric source term with `name` that is constant through time and space.
+Parametric source term that is constant through time and space.
 """
-struct Constant{name} <: SourceTerm
-    Constant(name::Symbol=:S₀) = new{name}()
+@with_kw struct Constant{S} <: SourceTerm
+    S₀::S = Param(0.0)
 end
 """
-    Periodic{a,f,s} <: SourceTerm
+    Periodic <: SourceTerm
 
-Parametric source term with `name` that is periodic through time and constant through space.
-`a`, `f`, and `s` are the parameter names for amplitude, frequency, and phase shift respecitvely,
-each of which will be prefixed by `name`.
+Parametric source term that is periodic through time and constant through space.
 """
-struct Periodic{T,a,f,s} <: SourceTerm
-    center::T
-    Periodic(name::Symbol=:S, center::T=0.0) where T = new{T,Symbol(name,:_amp),Symbol(name,:_freq),Symbol(name,:_shift)}(center)
+@with_kw struct Periodic{A,F,S,L} <: SourceTerm
+    amp::A = Param(1.0)
+    freq::F = Param(1.0/(3600*24))
+    shift::S = Param(0.0)
+    level::L = Param(0.0)
 end
 """
     Source{P,T,S} <: SubSurfaceProcess
@@ -44,21 +49,11 @@ struct Source{P,T,S} <: SubSurfaceProcess
     sp::S
     Source(::Type{P}, term::T, sp::S=nothing) where {P<:SubSurfaceProcess,T<:SourceTerm,S} = new{P,T,S}(term,sp)
 end
+ConstructionBase.constructorof(::Type{<:Source{P}}) where {P} = (term, sp) -> Source(P, term, sp)
 
-(p::Periodic)(a,f,t₀,c,t) = a*sin(2π*f*t - t₀) + c
+(p::Periodic)(t) = p.amp*sin(2π*p.freq*t - p.shift) + p.level
 # Heat sources
-function prognosticstep!(::SubSurface, ::Source{<:Heat,Constant{name}}, state) where {name}
-    @inbounds @. state.dH += state.params[name]
-end
-function prognosticstep!(::SubSurface, src::Source{<:Heat,Periodic{T,a,f,s}}, state) where {T,a,f,s}
-    let p = src.term,
-        t = state.t,
-        c = p.center
-        A = state.params[a]
-        ω = state.params[f]
-        t₀ = state.params[s];
-        @inbounds @. state.dH += p(A,ω,t₀,c,t)
-    end
-end
+prognosticstep!(::SubSurface, s::Source{<:Heat,<:Constant}, state) = @inbounds @. state.dH += s.term.S₀
+prognosticstep!(::SubSurface, src::Source{<:Heat,<:Periodic}, state) = @inbounds @. state.dH += src.term(state.t)
 
 end
