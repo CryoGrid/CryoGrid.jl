@@ -7,7 +7,7 @@ using CryoGrid.Utils
 
 using Base: @inbounds, @propagate_inbounds
 using ConstructionBase
-using DimensionalData: DimArray, Dim, dims, Z
+using DimensionalData: DimArray, Dim, At, dims, Z
 using IfElse
 using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
 using IntervalSets
