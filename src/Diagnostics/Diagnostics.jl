@@ -1,6 +1,7 @@
 module Diagnostics
 
 using CryoGrid.Numerics
+using CryoGrid.Setup
 using CryoGrid.Utils
 
 using DimensionalData
@@ -8,9 +9,11 @@ using Statistics
 using TimeSeries
 using Unitful
 
+export zero_annual_amplitude, permafrosttable, permafrostbase, thawdepth, active_layer_thickness, mean_annual_ground_temperature
+
 include("spinup.jl")
+
 export spinup
-export zero_annual_amplitude, permafrosttable, permafrostbase, thawdepth, active_layer_thickness, mean_annual_ground_temperature, integrate
 
 _check_arr_dims(T::AbstractDimArray) = @assert hasdim(T, Z) && hasdim(T, Ti) "Tay must have depth (Z) and time (Ti) dimensions"
 """

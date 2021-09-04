@@ -45,10 +45,6 @@ include("Callbacks/Callbacks.jl")
 @reexport using IntervalSets
 @reexport using Unitful
 
-# Import parameters function into top-level scope;
-# We do not export it in order to avoid naming conflicts with other packages.
-# import .Setup: parameters
-
 # Include Presets submodule last to allow dependence on other submodules.
 include("Presets/Presets.jl")
 
