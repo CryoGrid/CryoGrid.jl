@@ -113,20 +113,20 @@ variables(::Soil, ::Heat, s::SFCCSolver) = ()
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
 @with_kw struct DallAmico{T,Θ,A,N} <: SFCCFunction
-    Tₘ::T = Param(0.0, units=u"°C")
-    θres::Θ = Param(0.0, units=u"1", bounds=(0,1))
-    α::A = Param(4.0, units=u"1", bounds=(eps(),Inf))
-    n::N = Param(2.0, units=u"1", bounds=(1,Inf))
+    Tₘ::T = Param(0.0)
+    θres::Θ = Param(0.0, bounds=(0,1))
+    α::A = Param(4.0, bounds=(eps(),Inf))
+    n::N = Param(2.0, bounds=(1,Inf))
     swrc::VanGenuchten = VanGenuchten()
 end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
-    f.Tₘ |> stripparams |> dustrip,
-    f.θres |> stripparams |> dustrip,
+    f.Tₘ,
+    f.θres,
     θp(soil.comp), # θ saturated = porosity
     θw(soil.comp),
     heat.L, # specific latent heat of fusion, L
-    f.α |> stripparams |> dustrip,
-    f.n |> stripparams |> dustrip,
+    f.α,
+    f.n,
 )
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
     let θsat = max(θtot, θsat),
@@ -149,16 +149,16 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
     30(4): 966–983. DOI: 10.1016/j.advwatres.2006.08.008.
 """
 @with_kw struct McKenzie{T,Θ,Γ} <: SFCCFunction
-    Tₘ::T = Param(0.0, units=u"°C")
-    θres::Θ = Param(0.0, units=u"1", bounds=(0,1))
-    γ::Γ = Param(0.1, units=u"1", bounds=(eps(),Inf))
+    Tₘ::T = Param(0.0)
+    θres::Θ = Param(0.0, bounds=(0,1))
+    γ::Γ = Param(0.1, bounds=(eps(),Inf))
 end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    f.Tₘ |> stripparams |> dustrip,
-    f.θres |> stripparams |> dustrip,
+    f.Tₘ,
+    f.θres,
     θp(soil.comp), # θ saturated = porosity
     θw(soil.comp),
-    f.γ |> stripparams |> dustrip,
+    f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
     let θsat = max(θtot, θsat);
@@ -174,16 +174,16 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     https://doi.org/10.5194/tc-5-945-2011, 2011. 
 """
 @with_kw struct Westermann{T,Θ,Δ} <: SFCCFunction
-    Tₘ::T = Param(0.0, units=u"°C")
-    θres::Θ = Param(0.0, units=u"1", bounds=(0,1))
-    δ::Δ = Param(0.1, units=u"1", bounds=(eps(),Inf))
+    Tₘ::T = Param(0.0)
+    θres::Θ = Param(0.0, bounds=(0,1))
+    δ::Δ = Param(0.1, bounds=(eps(),Inf))
 end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    f.Tₘ |> stripparams |> dustrip,
-    f.θres |> stripparams |> dustrip,
+    f.Tₘ,
+    f.θres,
     θp(soil.comp), # θ saturated = porosity
     θw(soil.comp),
-    f.δ |> stripparams |> dustrip,
+    f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
     let θsat = max(θtot, θsat);
@@ -307,9 +307,9 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
 end
 
 # Generate analytical derivatives during precompilation
-∂DallAmico∂T = ∇(DallAmico(), :T)
-∂McKenzie∂T = ∇(McKenzie(), :T)
-∂Westermann∂T = ∇(Westermann(), :T)
+const ∂DallAmico∂T = ∇(DallAmico(), :T)
+const ∂McKenzie∂T = ∇(McKenzie(), :T)
+const ∂Westermann∂T = ∇(Westermann(), :T)
 SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂DallAmico∂T), solver)
 SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂McKenzie∂T), solver)
 SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂Westermann∂T), solver)
