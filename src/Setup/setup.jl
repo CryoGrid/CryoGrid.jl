@@ -29,7 +29,7 @@ struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
     end
 end
 ConstructionBase.constructorof(::Type{CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv} =
-    (strat, grid, meta, cache, hist, uproto) -> CryoGridSetup(strat,grid,meta,cache,hist,uproto,collect(obsv))
+    (strat, grid, meta, cache, hist, uproto) -> CryoGridSetup(strat,grid,meta,cache,hist,uproto,length(obsv) > 0 ? collect(obsv) : Symbol[])
 
 """
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
@@ -307,7 +307,7 @@ end
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-@generated function init!(setup::CryoGridSetup{TStrat}, tspan) where TStrat
+@generated function init!(setup::CryoGridSetup{TStrat}, tspan, p) where TStrat
     nodetyps = copmonenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)

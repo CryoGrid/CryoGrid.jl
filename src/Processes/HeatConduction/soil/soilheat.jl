@@ -1,3 +1,4 @@
+totalwater(soil::Soil, heat::Heat, state) = θw(soil.comp)
 function heatcapacity(soil::Soil, totalwater, liquidwater, mineral, organic)
     @unpack cw,co,cm,ca,ci = soil.hc
     let air = 1.0 - totalwater - mineral - organic,

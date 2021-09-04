@@ -57,6 +57,7 @@ Heat(::Val{:T}; kwargs...) = Heat(sp=Temperature(); kwargs...)
 
 freezecurve(heat::Heat) = heat.freezecurve
 enthalpy(T::Number"°C", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = T*C + L*θ
+totalwater(layer::SubSurface, heat::Heat, state) = state.θw
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 """
@@ -294,10 +295,13 @@ total water content (θw), and liquid water content (θl).
             I_c*(H/Lθ) + I_t
         end
     end
-    L = heat.L
-    @. state.θl = freezethaw(state.H, L, state.θw)*state.θw
-    heatcapacity!(layer, heat, state) # update heat capacity, C
-    @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
+    let L = heat.L,
+        θw = totalwater(layer, heat, state);
+        @. state.θl = freezethaw(state.H, L, θw)*θw
+        heatcapacity!(layer, heat, state) # update heat capacity, C
+        @. state.T = enthalpyinv(state.H, state.C, L, θw)
+    end
+    return nothing
 end
 
 # Default implementation of `variables` for freeze curve
