@@ -14,8 +14,10 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
+    model = Model(setup)
+    p = isnothing(p) ? dustrip.(collect(model[:val])) : p
 	# compute initial condition
-	u0, du0 = init!(setup, tspan)
+	u0, du0 = init!(setup, tspan, p)
     # set up saving callback
     stateproto = getstates(setup, du0, u0, tspan[1], Val{:diagnostic}())
     savevals = SavedValues(Float64, typeof(stateproto))
@@ -41,7 +43,7 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
 	func = odefunction(setup, M, u0, p, tspan; kwargs...)
-	ODEProblem(func,u0,tspan,[],CryoGridODEProblem(); callback=callbacks, kwargs...)
+	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); callback=callbacks, kwargs...)
 end
 # this version converts tspan from DateTime to float
 """
