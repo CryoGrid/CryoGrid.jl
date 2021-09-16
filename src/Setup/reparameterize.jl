@@ -70,6 +70,17 @@ end
 end
 
 # Transform implementations
-struct LinearTrend <: ParamTransform end
-parameters(::LinearTrend) = (slope = Param(0.0), intercept = Param(0.0))
-transform(p, state, ::LinearTrend) = p.slope*state.t + p.intercept
+@with_kw struct LinearTrend <: ParamTransform
+    slope::Float64 = 0.0
+    intercept::Float64 = 0.0
+    tstart::Float64 = 0.0
+    tstop::Float64 = Inf; @assert tstop > tstart
+end
+parameters(trend::LinearTrend) = (slope = Param(trend.slope), intercept = Param(trend.intercept))
+function transform(p, state, trend::LinearTrend)
+    let t = min(state.t - trend.tstart, trend.tstop),
+        β = p.slope,
+        α = p.intercept;
+        IfElse.ifelse(t > 0, β*t + α, α)
+    end
+end
