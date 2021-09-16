@@ -329,8 +329,8 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     expr = Expr(:block)
     # Declare variables
     @>> quote
-    u = similar(setup.uproto)
-    du = similar(setup.uproto)
+    u = similar(setup.uproto, eltype(p))
+    du = similar(setup.uproto, eltype(p))
     end push!(expr.args) # add to expression block
     @>> quote
     strat = setup.strat
