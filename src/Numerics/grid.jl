@@ -90,9 +90,11 @@ Base.setindex!(grid::Grid, args...) = error("setindex! is not allowed for Grid t
 
 struct Profile{N,D<:DistQuantity,T}
     values::NTuple{N,Pair{D,T}}
+    Profile(values::NTuple{N,Pair{D,T}}) where {N,D,T} = new{N,D,T}(values)
     Profile(values::Pair{D,T}...) where {D,T} = new{length(values),D,T}(values)
 end
 Flatten.flattenable(::Type{<:Profile}, ::Type{Val{:values}}) = false
+Base.length(::Profile{N}) where N = N
 Base.iterate(profile::Profile) = iterate(profile.values)
 Base.iterate(profile::Profile, state) = iterate(profile.values, state)
 StructTypes.StructType(::Type{<:Profile}) = StructTypes.CustomStruct()

@@ -32,7 +32,7 @@ abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
 
 TemperatureProfile(pairs::Pair{<:DistQuantity,<:TempQuantity}...) =
-    Profile(map(p -> uconvert(u"m", p[1]) => (uconvert(u"°C", p[2]),),pairs)...)
+    Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]),pairs)...)
 
 DEFAULT_TEMP_PROFILE = TemperatureProfile(0.0u"m" => -1.0u"°C", 1000.0u"m" => -1.0u"°C") # uniform -1 degrees C
 
@@ -51,9 +51,9 @@ struct Temperature <: HeatVariable end
 end
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Union{Symbol,Tuple{Vararg{Symbol}}}; kwargs...) = Heat(Val{var}(); kwargs...)
-Heat(::Val{:H}; kwargs...) = Heat(sp=Enthalpy(); kwargs...)
-Heat(::Val{(:Hₛ,:Hₗ)}; kwargs...) = Heat(sp=PartitionedEnthalpy(); kwargs...)
-Heat(::Val{:T}; kwargs...) = Heat(sp=Temperature(); kwargs...)
+Heat(::Val{:H}; kwargs...) = Heat(;sp=Enthalpy(), kwargs...)
+Heat(::Val{(:Hₛ,:Hₗ)}; kwargs...) = Heat(;sp=PartitionedEnthalpy(), kwargs...)
+Heat(::Val{:T}; kwargs...) = Heat(;sp=Temperature(), kwargs...)
 
 freezecurve(heat::Heat) = heat.freezecurve
 enthalpy(T::Number"°C", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = T*C + L*θ
