@@ -43,7 +43,7 @@ struct Stratigraphy{N,TComponents,TBounds}
         new{length(components),typeof(components),typeof(boundaries)}(boundaries,components)
     end
 end
-copmonenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
+componenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(strat.components)
 Base.length(strat::Stratigraphy) = length(strat.components)

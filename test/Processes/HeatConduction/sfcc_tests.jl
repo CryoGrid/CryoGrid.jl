@@ -220,7 +220,7 @@ using ComponentArrays
             C = similar(C,eltype(p))
             θl = similar(θl,eltype(p))
             state = (T=T_,C=C,Ceff=similar(C),H=H,θl=θl)
-            SFCC(McKenzie(γ=Param(p)))(soil, heat, state)
+            SFCC(McKenzie(γ=Param(p.γ[1])))(soil, heat, state)
             state.T[1]
         end
         p = ComponentArray(γ=[γ])

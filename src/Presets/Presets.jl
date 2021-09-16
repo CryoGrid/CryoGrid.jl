@@ -29,7 +29,6 @@ struct SoilLayerConfig{TSoilProfile,TTempProfile}
 end
 
 const SamoylovDefault = SoilLayerConfig(
-    # soil profile: depth => (total water, liquid water, mineral organic, porosity)
     (
         0.0u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
         0.1u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),

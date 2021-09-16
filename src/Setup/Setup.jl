@@ -25,6 +25,7 @@ using PreallocationTools
 using Unitful
 using RecursiveArrayTools
 using Reexport
+using Setfield
 
 import Flatten
 
@@ -34,9 +35,11 @@ import Flatten
 @reexport using SimulationLogs
 
 export CryoGridSetup, CryoGridOutput, withaxes, getstate, getvar
+export reparameterize, LinearTrend
 
 include("stratigraphy.jl")
 include("setup.jl")
+include("reparameterize.jl")
 include("problem.jl")
 include("output.jl")
 

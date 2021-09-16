@@ -6,6 +6,7 @@ Common utility functions, constants, and macros used throughout the CryoGrid.jl 
 module Utils
 
 using Dates
+using ModelParameters
 using StructTypes
 using Unitful
 
@@ -129,6 +130,7 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 adstrip(x::Number) = x
 adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
 adstrip(x::ReverseDiff.TrackedReal) = x.value
+adstrip(x::Param{T}) where {T<:ForwardDiff.Dual} = Param(NamedTuple{Tuple(keys(x))}((adstrip(x.val), Base.tail(parent(x))...)))
 
 """
 Debug ustrip. Remove units if and only if debug mode is NOT enabled.
