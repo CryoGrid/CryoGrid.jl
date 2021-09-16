@@ -88,30 +88,31 @@ end
 @propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = subgrid(grid,interval)
 Base.setindex!(grid::Grid, args...) = error("setindex! is not allowed for Grid types")
 
-struct Profile{N,D<:DistQuantity,M,E}
-    values::NTuple{N,Pair{D,NTuple{M,E}}}
+struct Profile{N,D<:DistQuantity,T}
+    values::NTuple{N,Pair{D,T}}
+    Profile(values::Pair{D,T}...) where {D,T} = new{length(values),D,T}(values)
 end
 Flatten.flattenable(::Type{<:Profile}, ::Type{Val{:values}}) = false
-Base.iterate(profile::Profile) = Base.iterate(profile.values)
-Base.iterate(profile::Profile, state) = Base.iterate(profile.values, state)
+Base.iterate(profile::Profile) = iterate(profile.values)
+Base.iterate(profile::Profile, state) = iterate(profile.values, state)
 StructTypes.StructType(::Type{<:Profile}) = StructTypes.CustomStruct()
-StructTypes.lower(profile::Profile) = [(depth=StructTypes.lower(row[1]), value=StructTypes.lower.(row[2])) for row in profile.values]
-StructTypes.lowertype(::Type{<:Profile{N,D,M,E}}) where {N,D,M,E} = Vector{NamedTuple{(:depth,:value),Tuple{StructTypes.lowertype(D),Vector{StructTypes.lowertype(E)}}}}
-function StructTypes.construct(::Type{<:Profile{N,D,M,E}}, values::Vector) where {N,D,M,E}
+StructTypes.lower(profile::Profile) = [(depth=StructTypes.lower(row[1]), value=row[2]) for row in profile.values]
+StructTypes.lowertype(::Type{<:Profile{N,D,T}}) where {N,D,T} = Vector{NamedTuple{(:depth,:value),Tuple{StructTypes.lowertype(D),Vector{StructTypes.lowertype(T)}}}}
+function StructTypes.construct(::Type{<:Profile{N,D,T}}, values::Vector) where {N,D,T}
     depths = [StructTypes.construct(D, row["depth"]) for row in values]
-    values = [StructTypes.construct.(E, Tuple(row["value"])) for row in values]
+    values = [StructTypes.construct.(T, row["value"]...) for row in values]
     sortinds = sortperm(depths)
     return Profile(collect(map((d,v) -> d => v, depths[sortinds], values[sortinds])))
 end
 
 """
-    profile2array(profile::Profile{N,D,M,E};names) where {N,D,M,E}
+    profile2array(profile::Profile{N,D,T};names) where {N,D,T}
 
 Constructs a DimArray from the given Profile, i.e. pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
 Column names for the resulting DimArray can be set via the names parameter which accepts an NTuple of symbols,
 where N must match the number of parameters given (i.e. n).
 """
-function profile2array(profile::Profile{N,D,M,E};names::Union{Nothing,NTuple{M,Symbol}}=nothing) where {N,D,M,E}
+function profile2array(profile::Profile{N,D,T};names::Union{Nothing,NTuple{M,Symbol}}=nothing) where {M,N,D,T}
     depths, vals = zip(profile.values...)
     params = hcat(collect.(vals)...)'
     names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : collect(names)

@@ -32,7 +32,7 @@ abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
 
 TemperatureProfile(pairs::Pair{<:DistQuantity,<:TempQuantity}...) =
-    Profile(map(p -> uconvert(u"m", p[1]) => (uconvert(u"°C", p[2]),),pairs))
+    Profile(map(p -> uconvert(u"m", p[1]) => (uconvert(u"°C", p[2]),),pairs)...)
 
 DEFAULT_TEMP_PROFILE = TemperatureProfile(0.0u"m" => -1.0u"°C", 1000.0u"m" => -1.0u"°C") # uniform -1 degrees C
 
@@ -42,7 +42,7 @@ struct PartitionedEnthalpy <: HeatVariable end
 struct Temperature <: HeatVariable end
 
 @with_kw struct Heat{F<:FreezeCurve,S,N} <: SubSurfaceProcess
-    initialT::Profile{N,typeof(1.0u"m"),1,typeof(1.0u"°C")} = DEFAULT_TEMP_PROFILE
+    initialT::Profile{N,typeof(1.0u"m"),typeof(1.0u"°C")} = DEFAULT_TEMP_PROFILE
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = ρ*Lsl             #[J/m^3] (specific latent heat of fusion)

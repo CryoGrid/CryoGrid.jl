@@ -8,12 +8,18 @@ struct Clay <: SoilTexture end
 """
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
 """
-@with_kw struct SoilComposition{P}
-    xic::P = Param(0.0, bounds=(0.0,1.0)) # excess ice fraction
-    por::P = Param(0.5, bounds=(0.0,1.0)) # natural porosity
-    sat::P = Param(1.0, bounds=(0.0,1.0)) # saturation
-    org::P = Param(0.5, bounds=(0.0,1.0)) # organic fraction of solid; mineral fraction is 1-org
+struct SoilComposition{P}
+    xic::P # excess ice fraction
+    por::P # natural porosity
+    sat::P # saturation
+    org::P # organic fraction of solid; mineral fraction is 1-org
+    SoilComposition(xic::P, por::P, sat::P, org::P) where P = new{P}(xic,por,sat,org)
+    function SoilComposition(;xic=0.0, por=0.5, sat=1.0, org=0.5)
+        params = Tuple(Param(p, bounds=(0.0,1.0)) for p in [xic,por,sat,org])
+        new{typeof(params[1])}(params...)
+    end
 end
+SoilProfile(pairs::Pair{<:DistQuantity,<:SoilComposition}...) = Profile(pairs...)
 # Helper functions for obtaining soil component fractions from soil properties.
 soilfrac(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
 soilfrac(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ

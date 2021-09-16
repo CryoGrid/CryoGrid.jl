@@ -29,7 +29,7 @@ struct SoilLayerConfig{TSoilProfile,TTempProfile}
 end
 
 const SamoylovDefault = SoilLayerConfig(
-    (
+    SoilProfile(
         0.0u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
         0.1u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),
         0.4u"m" => SoilComposition(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.55),
