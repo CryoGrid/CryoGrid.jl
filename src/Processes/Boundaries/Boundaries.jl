@@ -12,6 +12,7 @@ using Dates
 using Flatten
 using Interpolations
 using ModelParameters
+using Parameters
 using TimeSeries
 using Unitful
 
@@ -25,15 +26,12 @@ export Forcings, Forcing, TimeSeriesForcing, ForcingData
 
 Constant boundary condition (of any type/unit) specified by `value`.
 """
-struct Constant{S,T,name} <: BoundaryProcess
+struct Constant{S,T} <: BoundaryProcess
     value::T
-    Constant(::Type{S}, value::T) where {S<:BoundaryStyle,T} = new{S,T,nothing}(value)
+    Constant(::Type{S}, value::T) where {S<:BoundaryStyle,T} = new{S,T}(value)
 end
 ConstructionBase.constructorof(::Type{<:Constant{S}}) where {S} = value -> Constant(S,value)
-# no name/parameter
-(bc::Constant{S,T,nothing})(l1,p2,l2,s1,s2) where {S,T} = bc.value
-# with parameter
-(bc::Constant{S,T,name})(l1,p2,l2,s1,s2) where {S,T,name} = s1.params[name] |> getscalar
+(bc::Constant{S,T})(l1,p2,l2,s1,s2) where {S,T} = bc.value
 
 BoundaryStyle(::Type{<:Constant{S}}) where {S} = S()
 
@@ -56,8 +54,12 @@ end
 
 BoundaryStyle(::Type{<:Periodic{S}}) where {S} = S()
 
-# Aliases
-Bias(;value::T=0.0) where T = Constant(Dirichlet, Param(value))
+@with_kw struct Bias{P} <: BoundaryProcess
+    bias::P = Param(0.0)
+end
+(bc::Bias)(l1,p2,l2,s1,s2) = bc.bias
+
+BoundaryStyle(::Type{<:Bias}) = Dirichlet()
 
 include("composed.jl")
 include("forcings.jl")
