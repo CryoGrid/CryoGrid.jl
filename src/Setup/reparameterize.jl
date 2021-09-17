@@ -75,12 +75,14 @@ end
     intercept::Float64 = 0.0
     tstart::Float64 = 0.0
     tstop::Float64 = Inf; @assert tstop > tstart
+    minval::Float64 = -Inf
+    maxval::Float64 = Inf
 end
 parameters(trend::LinearTrend) = (slope = Param(trend.slope), intercept = Param(trend.intercept))
 function transform(p, state, trend::LinearTrend)
     let t = min(state.t - trend.tstart, trend.tstop),
         β = p.slope,
         α = p.intercept;
-        IfElse.ifelse(t > 0, β*t + α, α)
+        min(max(IfElse.ifelse(t > 0, β*t + α, α), trend.minval), trend.maxval)
     end
 end
