@@ -128,6 +128,8 @@ sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.α,
     f.n,
 )
+# pressure head at T
+ψ(T,Tstar,ψ₀,L,g) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
     let θsat = max(θtot, θsat),
         g = 9.80665, # acceleration due to gravity
@@ -136,8 +138,8 @@ function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
         ψ₀ = IfElse.ifelse(θtot >= θsat, 0.0, (((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n)),
         T = T + 273.15,
         Tstar = Tₘ + g*Tₘ/L*ψ₀,
-        ψ(T) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T); # pressure head at T
-        f.swrc(ψ(T),θres,θsat,α,n)
+        ψ = ψ(T,Tstar,ψ₀,L,g);
+        f.swrc(ψ,θres,θsat,α,n)
     end
 end
 

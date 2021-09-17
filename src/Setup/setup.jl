@@ -9,14 +9,13 @@ end
 Defines the full specification of a CryoGrid model; i.e. stratigraphy, grids, variables, and diagnostic state. `uproto`
 field is an uninitialized, prototype `ComponentArray` that holds the axis information for the prognostic state vector.
 """
-struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv,P}
+struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
     strat::TStrat   # stratigraphy
     grid::TGrid     # grid
     meta::NamedTuple{names,TMeta} # metadata (variable info and grids per layer)
     cache::NamedTuple{names,TCache} # variable caches (per layer)
     hist::StateHistory # mutable "history" type for state tracking
     uproto::ComponentVector{T,A,uax} # prototype prognostic state ComponentArray for integrator
-    para::P
     function CryoGridSetup(
         strat::TStrat,
         grid::TGrid,
@@ -24,14 +23,13 @@ struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv,P}
         cache::NamedTuple{names,TCache},
         hist::StateHistory,
         uproto::ComponentVector{T,A,uax},
-        para::P,
         observed::Vector{Symbol}=Symbol[]) where
-        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TMeta<:Tuple,TCache<:Tuple,T<:Number,A<:AbstractVector{T},P,uax,names}
-        new{TStrat,TGrid,TMeta,TCache,T,A,uax,names,tuple(observed...),P}(strat,grid,meta,cache,hist,uproto,para)
+        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TMeta<:Tuple,TCache<:Tuple,T<:Number,A<:AbstractVector{T},uax,names}
+        new{TStrat,TGrid,TMeta,TCache,T,A,uax,names,tuple(observed...)}(strat,grid,meta,cache,hist,uproto)
     end
 end
-ConstructionBase.constructorof(::Type{CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv,P}}) where {TStrat,TGrid,TMeta,TCache,T,A,P,uax,names,obsv} =
-    (strat, grid, meta, cache, hist, uproto, para) -> CryoGridSetup(strat,grid,meta,cache,hist,uproto,para,length(obsv) > 0 ? collect(obsv) : Symbol[])
+ConstructionBase.constructorof(::Type{CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv} =
+    (strat, grid, meta, cache, hist, uproto) -> CryoGridSetup(strat,grid,meta,cache,hist,uproto,length(obsv) > 0 ? collect(obsv) : Symbol[])
 
 """
 Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
@@ -69,6 +67,7 @@ function CryoGridSetup(
     end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(strat.boundaries, Tuple(values(nodes)))
+    para = params(strat)
     # construct named tuples containing data for each layer
     componentnames = [componentname(node) for node in strat]
     nt_prog = NamedTuple{Tuple(componentnames)}(Tuple(values(pvar_arrays)))
@@ -77,12 +76,13 @@ function CryoGridSetup(
     ndvars = (length(meta.diagvars) for meta in nt_meta) |> sum
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
+    chunksize = isnothing(chunksize) ? length(para) : chunksize
     nt_cache = NamedTuple{Tuple(componentnames)}(Tuple(_buildcaches(strat, nt_meta, arrayproto, chunksize)))
     # construct prototype of u (prognostic state) array (note that this currently performs a copy)
     uproto = ComponentArray(nt_prog)
     # reconstruct with given array type
     uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
-    CryoGridSetup(strat,grid,nt_meta,nt_cache,StateHistory(),uproto,params(strat),observed)
+    CryoGridSetup(strat,grid,nt_meta,nt_cache,StateHistory(),uproto,observed)
 end
 CryoGridSetup(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = CryoGridSetup(strat, edges(grid); kwargs...)
 CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
@@ -228,7 +228,7 @@ is only executed during compilation and will not appear in the compiled version.
     # Declare variables
     @>> quote
     p = updateparams!(_p, setup, _du, _u, t)
-    strat = ModelParameters._update(setup.para, setup.strat, p)
+    strat = Flatten.reconstruct(setup.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
     cache = setup.cache
     meta = setup.meta
     _du .= zero(eltype(_du))

@@ -9,19 +9,21 @@ struct CryoGridODEProblem end
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing; saveat=3600.0, save_everystep=false, callback=nothing, kwargs...)
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing; saveat=3600.0, save_everystep=false, callback=nothing, save_adtypes=false, kwargs...)
     # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
+    values(u, ::Val{false}) = reinterpret(Float64, u) # the actual values resulting from reinterpret here will be garbage, but we only need the type for `getstates`
+    values(u, ::Val{true}) = true
     model = Model(setup)
     p = isnothing(p) ? dustrip.(collect(model[:val])) : p
 	# compute initial condition
 	u0, du0 = init!(setup, tspan, p)
     # set up saving callback
-    stateproto = getstates(setup, du0, u0, tspan[1], Val{:diagnostic}())
+    stateproto = getstates(setup, values(du0,Val{save_adtypes}()), values(u0,Val{save_adtypes}()), tspan[1], Val{:diagnostic}())
     savevals = SavedValues(Float64, typeof(stateproto))
-    savefunc = (u,t,integrator) -> deepcopy(getstates(setup, get_du(integrator), u, t, Val{:diagnostic}()))
+    savefunc = (u,t,integrator) -> deepcopy(getstates(setup, values(get_du(integrator),Val{save_adtypes}()), values(u,Val{save_adtypes}()), t, Val{:diagnostic}()))
     savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_everystep=save_everystep)
     callbacks = isnothing(callback) ? savingcallback : CallbackSet(savingcallback, callback)
     # note that this implicitly discards any existing saved values in the model setup's state history
