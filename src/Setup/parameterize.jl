@@ -5,29 +5,29 @@ struct ParamMapping{T,name,layer}
     ParamMapping(transform::T, name::Symbol, layer::Symbol) where {T<:ParamTransform} = new{T,name,layer}(transform)
 end
 
-struct ReparameterizedVector{T,TM,TP,P,M} <: DenseArray{T,1}
+struct ParameterVector{T,TM,TP,P,M} <: DenseArray{T,1}
     pmap::TM # input/reparameterized param vector
     pout::TP # target/original param vector
     params::P # parameters grouped by layer and name
     mappings::M # mapping metadata
-    ReparameterizedVector(pmap::TM,pout::TP,params::P,mappings::ParamMapping...) where {T,TM<:ComponentVector{T},TP<:ComponentVector{T},P<:NamedTuple} = new{T,TM,TP,P,typeof(mappings)}(pmap,pout,params,mappings)
+    ParameterVector(pmap::TM,pout::TP,params::P,mappings::ParamMapping...) where {T,TM<:ComponentVector{T},TP<:ComponentVector{T},P<:NamedTuple} = new{T,TM,TP,P,typeof(mappings)}(pmap,pout,params,mappings)
 end
-pmap(rv::ReparameterizedVector) = getfield(rv, :pmap)
-pout(rv::ReparameterizedVector) = getfield(rv, :pout)
-mappings(rv::ReparameterizedVector) = getfield(rv, :mappings)
-Base.axes(rv::ReparameterizedVector) = axes(getfield(rv, :pmap))
-Base.LinearIndices(rv::ReparameterizedVector) = LinearIndices(getfield(rv, :pmap))
-Base.IndexStyle(::Type{<:ReparameterizedVector}) = Base.IndexLinear()
-Base.similar(rv::ReparameterizedVector) = ReparameterizedVector(similar(pmap(rv)), similar(pout(rv)), mappings(rv))
-Base.similar(rv::ReparameterizedVector, ::Type{T}) where T = ReparameterizedVector(similar(pmap(rv), T), similar(pout(rv), T), mappings(rv))
-Base.length(rv::ReparameterizedVector) = length(getfield(rv, :pmap))
-Base.size(rv::ReparameterizedVector) = size(getfield(rv, :pmap))
-Base.getproperty(rv::ReparameterizedVector, sym::Symbol) = getproperty(getfield(rv, :pmap), sym)
-Base.getindex(rv::ReparameterizedVector, i) = getfield(rv, :pmap)[i]
-Base.setproperty!(rv::ReparameterizedVector, val, i) = setproperty!(getfield(rv, :pmap), val, sym)
-Base.setindex!(rv::ReparameterizedVector, val, i) = setindex!(getfield(rv, :pmap), val, i)
-Base.show(io, rv::ReparameterizedVector) = show(io, getfield(rv, :pmap))
-ComponentArrays.ComponentArray(rv::ReparameterizedVector) = getfield(rv, :pmap)
+pmap(rv::ParameterVector) = getfield(rv, :pmap)
+pout(rv::ParameterVector) = getfield(rv, :pout)
+mappings(rv::ParameterVector) = getfield(rv, :mappings)
+Base.axes(rv::ParameterVector) = axes(getfield(rv, :pmap))
+Base.LinearIndices(rv::ParameterVector) = LinearIndices(getfield(rv, :pmap))
+Base.IndexStyle(::Type{<:ParameterVector}) = Base.IndexLinear()
+Base.similar(rv::ParameterVector) = ParameterVector(similar(pmap(rv)), similar(pout(rv)), mappings(rv))
+Base.similar(rv::ParameterVector, ::Type{T}) where T = ParameterVector(similar(pmap(rv), T), similar(pout(rv), T), mappings(rv))
+Base.length(rv::ParameterVector) = length(getfield(rv, :pmap))
+Base.size(rv::ParameterVector) = size(getfield(rv, :pmap))
+Base.getproperty(rv::ParameterVector, sym::Symbol) = getproperty(getfield(rv, :pmap), sym)
+Base.getindex(rv::ParameterVector, i) = getfield(rv, :pmap)[i]
+Base.setproperty!(rv::ParameterVector, val, i) = setproperty!(getfield(rv, :pmap), val, sym)
+Base.setindex!(rv::ParameterVector, val, i) = setindex!(getfield(rv, :pmap), val, i)
+Base.show(io, rv::ParameterVector) = show(io, getfield(rv, :pmap))
+ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :pmap)
 
 function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     function getparam(p)
@@ -46,11 +46,11 @@ function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbo
     end
     outarr = ComponentArray(map(flat(p -> ustrip(p.val)), nestedparams))
     mappedarr = ComponentArray(map(flat(p -> ustrip(p.val)), mappedparams))
-    return ReparameterizedVector(mappedarr, outarr, mappedparams, mappings...)
+    return ParameterVector(mappedarr, outarr, mappedparams, mappings...)
 end
 
 @inline updateparams!(v::AbstractVector, setup::CryoGridSetup, du, u, t) = v
-@inline @generated function updateparams!(rv::ReparameterizedVector{T,TM,TP,P,M}, setup::CryoGridSetup, du, u, t) where {T,TM,TP,P,M}
+@inline @generated function updateparams!(rv::ParameterVector{T,TM,TP,P,M}, setup::CryoGridSetup, du, u, t) where {T,TM,TP,P,M}
     expr = Expr(:block)
     for i in 1:length(M.parameters)
         push!(expr.args, :(updateparams!(rv, mappings(rv)[$i], setup, du, u, t)))
@@ -60,7 +60,7 @@ end
 end
 # TODO: Roll this function into the one above. This forces the compiler to compile separate functions for each individual param mapping (i.e. every parameter)
 # which incurs a pretty hefty compile time cost.
-@inline @generated function updateparams!(rv::ReparameterizedVector, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
+@inline @generated function updateparams!(rv::ParameterVector, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
     quote
         p_map = pmap(rv)
         p_out = pout(rv)
