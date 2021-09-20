@@ -47,8 +47,8 @@ function CryoGridSetup(
     for (i,node) in enumerate(strat)
         name = componentname(node)
         # determine subgrid for layer
-        lo = strat.boundaries[i].val
-        hi = (i < length(strat) ? strat.boundaries[i+1].val : grid[end])
+        lo = boundaries(strat)[i].val
+        hi = (i < length(strat) ? boundaries(strat)[i+1].val : grid[end])
         # build subgrid using closed interval [lo,hi]
         subgrid = grid[lo..hi]
         # build layer
@@ -66,7 +66,7 @@ function CryoGridSetup(
         end
     end
     # rebuild stratigraphy with updated parameters
-    strat = Stratigraphy(strat.boundaries, Tuple(values(nodes)))
+    strat = Stratigraphy(boundaries(strat), Tuple(values(nodes)))
     para = params(strat)
     # construct named tuples containing data for each layer
     componentnames = [componentname(node) for node in strat]
@@ -134,7 +134,7 @@ getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::Abstract
             withaxes(u,setup).$layername,
             withaxes(du,setup).$layername,
             t,
-            setup.strat.boundaries[$i]
+            setup.boundaries(strat)[$i]
         )
     end
 end
@@ -157,7 +157,7 @@ getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{l
                 withaxes(integrator.u,setup).$layername,
                 withaxes(get_du(integrator),setup).$layername,
                 integrator.t,
-                setup.strat.boundaries[$i]
+                setup.boundaries(strat)[$i]
             )
         end
     end
@@ -243,10 +243,10 @@ is only executed during compilation and will not appear in the compiled version.
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
         @>> quote
-        $nz = strat.boundaries[$i]
+        $nz = boundaries(strat)[$i]
         $nstate = _buildstate(cache.$n, meta.$n, u.$n, du.$n, t, $nz)
-        $nlayer = strat.components[$i].layer
-        $nprocess = strat.components[$i].process
+        $nlayer = components(strat)[$i].layer
+        $nprocess = components(strat)[$i].process
         end push!(expr.args)
     end
     # Diagnostic step
@@ -349,14 +349,14 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
         n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
         # generated code for layer updates
         @>> quote
-        $n1z = strat.boundaries[$i]
-        $n2z = strat.boundaries[$(i+1)]
+        $n1z = boundaries(strat)[$i]
+        $n2z = boundaries(strat)[$(i+1)]
         $n1state = _buildstate(cache.$n1, meta.$n1, u.$n1, du.$n1, tspan[1], $n1z)
         $n2state = _buildstate(cache.$n2, meta.$n2, u.$n2, du.$n2, tspan[1], $n2z)
-        $n1layer = strat.components[$i].layer
-        $n1process = strat.components[$i].process
-        $n2layer = strat.components[$(i+1)].layer
-        $n2process = strat.components[$(i+1)].process
+        $n1layer = components(strat)[$i].layer
+        $n1process = components(strat)[$i].process
+        $n2layer = components(strat)[$(i+1)].layer
+        $n2process = components(strat)[$(i+1)].process
         end push!(expr.args)
         if i == 1
             # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls

@@ -14,8 +14,8 @@ componentname(::Type{<:StratComponent{L,P,name}}) where {L,P,name} = name
 Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
-top(boundaries::BoundaryProcess...) = StratComponent(:top, Top(), CompoundProcess(boundaries...))
-bottom(boundaries::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CompoundProcess(boundaries...))
+top(bcs::BoundaryProcess...) = StratComponent(:top, Top(), CompoundProcess(bcs...))
+bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CompoundProcess(bcs...))
 subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CompoundProcess(processes...))
 
 """
@@ -43,15 +43,21 @@ struct Stratigraphy{N,TComponents,TBounds}
         new{length(components),typeof(components),typeof(boundaries)}(boundaries,components)
     end
 end
+components(strat::Stratigraphy) = getfield(strat, :components)
+boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
 componenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
+Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
 # Array and iteration overrides
-Base.size(strat::Stratigraphy) = size(strat.components)
-Base.length(strat::Stratigraphy) = length(strat.components)
-Base.getindex(strat::Stratigraphy, i::Int) = strat.components[i]
-Base.iterate(strat::Stratigraphy) = (strat.components[1],strat.components[2:end])
+Base.size(strat::Stratigraphy) = size(components(strat))
+Base.length(strat::Stratigraphy) = length(components(strat))
+Base.getindex(strat::Stratigraphy, i::Int) = components(strat)[i]
+Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}]
+Base.getindex(strat::Stratigraphy, ::Val{sym}) where {sym} = strat[Val{sym}]
+@generated Base.getindex(strat::Stratigraphy{N,TC,TB}, ::Type{Val{sym}}) where {N,TC,TB,sym} = :(components(strat)[$(findfirst(T -> componentname(T) == sym, TC.parameters))])
+Base.iterate(strat::Stratigraphy) = (components(strat)[1],components(strat)[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
-Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod(("$b => $n, " for (n,b) in zip(strat.components,strat.boundaries))))")
+Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod(("$b => $n, " for (n,b) in zip(components(strat),boundaries(strat)))))")
 
 """
 Convenience macro for defining stratigraphies with multiple subsurface layers.
@@ -64,7 +70,3 @@ macro Stratigraphy(args...)
         :(Stratigraphy($(esc(args[1])), tuple($(esc.(args[2:end-1])...)), $(esc(args[end]))))
     end
 end
-
-export Stratigraphy, @Stratigraphy
-export top, bottom, subsurface
-export StratComponent, componentname, copmonenttypes

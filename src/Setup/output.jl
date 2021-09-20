@@ -29,7 +29,7 @@ function CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.AbstractODESolution}
     ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
     savedstate = setup.hist.vals.saveval
     layerstates = NamedTuple()
-    for (i,node) in enumerate(setup.strat.components)
+    for (i,node) in enumerate(components(setup.strat))
         name = componentname(node) 
         prog_vars = setup.meta[name][:progvars]
         diag_vars = setup.meta[name][:diagvars]

@@ -36,6 +36,10 @@ import Flatten
 @reexport using OrdinaryDiffEq
 @reexport using SimulationLogs
 
+export Stratigraphy, @Stratigraphy
+export top, bottom, subsurface
+export StratComponent, componentname, copmonenttypes, components, boundaries
+
 export CryoGridSetup, CryoGridOutput, withaxes, getstate, getvar
 export parameterize, LinearTrend
 
