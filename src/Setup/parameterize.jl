@@ -1,16 +1,16 @@
 abstract type ParamTransform end
-parameters(::ParamTransform) = []
 
 struct ParamMapping{T,name,layer}
     transform::T
     ParamMapping(transform::T, name::Symbol, layer::Symbol) where {T<:ParamTransform} = new{T,name,layer}(transform)
 end
 
-struct ReparameterizedVector{T,TM,TP,M} <: DenseArray{T,1}
+struct ReparameterizedVector{T,TM,TP,P,M} <: DenseArray{T,1}
     pmap::TM # input/reparameterized param vector
     pout::TP # target/original param vector
+    params::P # parameters grouped by layer and name
     mappings::M # mapping metadata
-    ReparameterizedVector(pmap::TM,pout::TP,mappings::ParamMapping...) where {T,TM<:ComponentVector{T},TP<:ComponentVector{T}} = new{T,TM,TP,typeof(mappings)}(pmap,pout,mappings)
+    ReparameterizedVector(pmap::TM,pout::TP,params::P,mappings::ParamMapping...) where {T,TM<:ComponentVector{T},TP<:ComponentVector{T},P<:NamedTuple} = new{T,TM,TP,P,typeof(mappings)}(pmap,pout,params,mappings)
 end
 pmap(rv::ReparameterizedVector) = getfield(rv, :pmap)
 pout(rv::ReparameterizedVector) = getfield(rv, :pout)
@@ -29,7 +29,7 @@ Base.setindex!(rv::ReparameterizedVector, val, i) = setindex!(getfield(rv, :pmap
 Base.show(io, rv::ReparameterizedVector) = show(io, getfield(rv, :pmap))
 ComponentArrays.ComponentArray(rv::ReparameterizedVector) = getfield(rv, :pmap)
 
-function reparameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
+function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     function getparam(p)
         # currently, we assume only one variable of each name in each layer;
         # this could be relaxed in the future but will need to be appropriately handled
@@ -38,19 +38,19 @@ function reparameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Sym
     end
     model = Model(setup)
     nestedparams = map(flat(getparam; matchtype=NamedTuple), group(model, :layer, :fieldname))
-    paramarr = ComponentArray(map(flat(p -> ustrip(p.val)), nestedparams))
     mappedparams = nestedparams
     mappings = ParamMapping[]
     for (layer,(var,transform)) in transforms
-        @set! mappedparams[layer][var] = parameters(transform)
+        @set! mappedparams[layer][var] = group(Model(transform), :fieldname)
         push!(mappings, ParamMapping(transform, var, layer))
     end
+    outarr = ComponentArray(map(flat(p -> ustrip(p.val)), nestedparams))
     mappedarr = ComponentArray(map(flat(p -> ustrip(p.val)), mappedparams))
-    return ReparameterizedVector(mappedarr, paramarr, mappings...)
+    return ReparameterizedVector(mappedarr, outarr, mappedparams, mappings...)
 end
 
 @inline updateparams!(v::AbstractVector, setup::CryoGridSetup, du, u, t) = v
-@inline @generated function updateparams!(rv::ReparameterizedVector{T,TM,TP,M}, setup::CryoGridSetup, du, u, t) where {T,TM,TP,M}
+@inline @generated function updateparams!(rv::ReparameterizedVector{T,TM,TP,P,M}, setup::CryoGridSetup, du, u, t) where {T,TM,TP,P,M}
     expr = Expr(:block)
     for i in 1:length(M.parameters)
         push!(expr.args, :(updateparams!(rv, mappings(rv)[$i], setup, du, u, t)))
@@ -65,24 +65,24 @@ end
         p_map = pmap(rv)
         p_out = pout(rv)
         state = getstate(Val($(QuoteNode(layer))), setup, du, u, t)
-        p_out.$layer.$name = transform(p_map.$layer.$name, state, mapping.transform)
+        op = Flatten.reconstruct(mapping.transform, p_map.$layer.$name, ModelParameters.SELECT, ModelParameters.IGNORE)
+        p_out.$layer.$name = transform(state, op)
     end
 end
 
 # Transform implementations
-@with_kw struct LinearTrend <: ParamTransform
-    slope::Float64 = 0.0
-    intercept::Float64 = 0.0
+@with_kw struct LinearTrend{P} <: ParamTransform
+    slope::P = Param(0.0)
+    intercept::P = Param(0.0)
     tstart::Float64 = 0.0
     tstop::Float64 = Inf; @assert tstop > tstart
     minval::Float64 = -Inf
     maxval::Float64 = Inf
 end
-parameters(trend::LinearTrend) = (slope = Param(trend.slope), intercept = Param(trend.intercept))
-function transform(p, state, trend::LinearTrend)
+function transform(state, trend::LinearTrend)
     let t = min(state.t - trend.tstart, trend.tstop),
-        β = p.slope,
-        α = p.intercept;
+        β = trend.slope,
+        α = trend.intercept;
         min(max(IfElse.ifelse(t > 0, β*t + α, α), trend.minval), trend.maxval)
     end
 end

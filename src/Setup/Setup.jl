@@ -37,11 +37,11 @@ import Flatten
 @reexport using SimulationLogs
 
 export CryoGridSetup, CryoGridOutput, withaxes, getstate, getvar
-export reparameterize, LinearTrend
+export parameterize, LinearTrend
 
 include("stratigraphy.jl")
 include("setup.jl")
-include("reparameterize.jl")
+include("parameterize.jl")
 include("problem.jl")
 include("output.jl")
 
