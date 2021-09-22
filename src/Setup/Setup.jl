@@ -41,7 +41,7 @@ export top, bottom, subsurface
 export StratComponent, componentname, copmonenttypes, components, boundaries
 
 export CryoGridSetup, CryoGridOutput, withaxes, getstate, getvar
-export parameterize, LinearTrend
+export ParameterVector, LinearTrend, parameterize
 
 include("stratigraphy.jl")
 include("setup.jl")
