@@ -37,15 +37,15 @@ function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbo
         return p[1]
     end
     model = Model(setup)
-    nestedparams = map(flat(getparam; matchtype=NamedTuple), group(model, :layer, :fieldname))
+    nestedparams = mapflat(getparam, groupparams(model, :layer, :fieldname); maptype=NamedTuple)
     mappedparams = nestedparams
     mappings = ParamMapping[]
     for (layer,(var,transform)) in transforms
-        @set! mappedparams[layer][var] = map(flat(getparam; matchtype=NamedTuple), group(Model(transform), :fieldname))
+        @set! mappedparams[layer][var] = mapflat(getparam, groupparams(Model(transform), :fieldname); maptype=NamedTuple)
         push!(mappings, ParamMapping(transform, var, layer))
     end
-    outarr = ComponentArray(map(flat(p -> ustrip(p.val)), nestedparams))
-    mappedarr = ComponentArray(map(flat(p -> ustrip(p.val)), mappedparams))
+    outarr = ComponentArray(mapflat(p -> ustrip(p.val), nestedparams))
+    mappedarr = ComponentArray(mapflat(p -> ustrip(p.val), mappedparams))
     return ParameterVector(mappedarr, outarr, mappedparams, mappings...)
 end
 
