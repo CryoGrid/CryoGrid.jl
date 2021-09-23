@@ -134,7 +134,7 @@ getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::Abstract
             withaxes(u,setup).$layername,
             withaxes(du,setup).$layername,
             t,
-            setup.boundaries(strat)[$i]
+            boundaries(setup.strat)[$i]
         )
     end
 end
@@ -157,7 +157,7 @@ getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{l
                 withaxes(integrator.u,setup).$layername,
                 withaxes(get_du(integrator),setup).$layername,
                 integrator.t,
-                setup.boundaries(strat)[$i]
+                boundaries(setup.strat)[$i]
             )
         end
     end
