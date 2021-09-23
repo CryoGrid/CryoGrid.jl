@@ -14,6 +14,9 @@ struct ParameterVector{T,TM,TP,P,M} <: DenseArray{T,1}
 end
 pmap(rv::ParameterVector) = getfield(rv, :pmap)
 pout(rv::ParameterVector) = getfield(rv, :pout)
+pout(rv::ParameterVector{T}, ::AbstractArray{T}, ::T) where {T} = pout(rv)
+pout(rv::ParameterVector{T}, ::AbstractArray{T}, ::U) where {T,U} = copyto!(similar(pout(rv), U), pout(rv)) # t type mismatch (Rosenbrock solvers)
+pout(rv::ParameterVector{T}, ::AbstractArray{U}, ::T) where {T,U} = copyto!(similar(pout(rv), U), pout(rv)) # u type mismatch
 mappings(rv::ParameterVector) = getfield(rv, :mappings)
 Base.axes(rv::ParameterVector) = axes(getfield(rv, :pmap))
 Base.LinearIndices(rv::ParameterVector) = LinearIndices(getfield(rv, :pmap))
@@ -51,22 +54,23 @@ end
 
 @inline updateparams!(v::AbstractVector, setup::CryoGridSetup, du, u, t) = v
 @inline @generated function updateparams!(rv::ParameterVector{T,TM,TP,P,M}, setup::CryoGridSetup, du, u, t) where {T,TM,TP,P,M}
-    expr = Expr(:block)
-    for i in 1:length(M.parameters)
-        push!(expr.args, :(updateparams!(rv, mappings(rv)[$i], setup, du, u, t)))
+    expr = quote
+        p_out = pout(rv, u, t)
+        p_map = pmap(rv)
     end
-    push!(expr.args, :(return pout(rv)))
+    for i in 1:length(M.parameters)
+        push!(expr.args, :(updateparams!(p_out, p_map, mappings(rv)[$i], setup, du, u, t)))
+    end
+    push!(expr.args, :(return p_out))
     return expr
 end
 # TODO: Roll this function into the one above. This forces the compiler to compile separate functions for each individual param mapping (i.e. every parameter)
 # which incurs a pretty hefty compile time cost.
-@inline @generated function updateparams!(rv::ParameterVector, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
+@inline @generated function updateparams!(pout, pmap, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
     quote
-        p_map = pmap(rv)
-        p_out = pout(rv)
         state = getstate(Val($(QuoteNode(layer))), setup, du, u, t)
-        op = Flatten.reconstruct(mapping.transform, p_map.$layer.$name, ModelParameters.SELECT, ModelParameters.IGNORE)
-        p_out.$layer.$name = transform(state, op)
+        op = Flatten.reconstruct(mapping.transform, pmap.$layer.$name, ModelParameters.SELECT, ModelParameters.IGNORE)
+        pout.$layer.$name = transform(state, op)
     end
 end
 
