@@ -135,7 +135,7 @@ function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
         g = 9.80665, # acceleration due to gravity
         m = 1-1/n,
         Tₘ = Tₘ + 273.15,
-        ψ₀ = IfElse.ifelse(θtot >= θsat, 0.0, (((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n)),
+        ψ₀ = -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n),
         T = T + 273.15,
         Tstar = Tₘ + g*Tₘ/L*ψ₀,
         ψ = ψ(T,Tstar,ψ₀,L,g);
