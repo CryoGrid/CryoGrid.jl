@@ -8,15 +8,15 @@ struct Clay <: SoilTexture end
 """
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
 """
-struct SoilComposition{P}
-    xic::P # excess ice fraction
-    por::P # natural porosity
-    sat::P # saturation
-    org::P # organic fraction of solid; mineral fraction is 1-org
-    SoilComposition(xic::P, por::P, sat::P, org::P) where P = new{P}(xic,por,sat,org)
+struct SoilComposition{P1,P2,P3,P4}
+    xic::P1 # excess ice fraction
+    por::P2 # natural porosity
+    sat::P3 # saturation
+    org::P4 # organic fraction of solid; mineral fraction is 1-org
+    SoilComposition(xic::P1, por::P2, sat::P3, org::P4) where {P1,P2,P3,P4} = new{P1,P2,P3,P4}(xic,por,sat,org)
     function SoilComposition(;xic=0.0, por=0.5, sat=1.0, org=0.5)
         params = Tuple(Param(p, bounds=(0.0,1.0)) for p in [xic,por,sat,org])
-        new{typeof(params[1])}(params...)
+        new{typeof.(params)...}(params...)
     end
 end
 SoilProfile(pairs::Pair{<:DistQuantity,<:SoilComposition}...) = Profile(pairs...)
@@ -53,9 +53,9 @@ end
 """
 Basic Soil layer.
 """
-@with_kw struct Soil{T,P,S} <: SubSurface
+@with_kw struct Soil{T,C<:SoilComposition,S} <: SubSurface
     texture::T = Sand()
-    comp::SoilComposition{P} = SoilComposition()
+    comp::C = SoilComposition()
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     sp::S = nothing # user-defined specialization

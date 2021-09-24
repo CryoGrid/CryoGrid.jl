@@ -7,9 +7,9 @@ GeothermalHeatFlux(value::UFloat"J/s/m^2"=0.053xu"J/s/m^2") = Constant(Neumann, 
 
 abstract type TempGradTransform end
 struct NoTransform <: TempGradTransform end
-@with_kw struct NFactor{T} <: TempGradTransform
-    winterfactor::T = Param(1.0, bounds=(0.0,1.0))
-    summerfactor::T = Param(1.0, bounds=(0.0,1.0))
+@with_kw struct NFactor{W,S} <: TempGradTransform
+    winterfactor::W = Param(1.0, bounds=(0.0,1.0))
+    summerfactor::S = Param(1.0, bounds=(0.0,1.0))
 end
 
 struct TemperatureGradient{T,F} <: BoundaryProcess

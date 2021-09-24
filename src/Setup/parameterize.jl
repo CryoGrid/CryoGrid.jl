@@ -5,33 +5,29 @@ struct ParamMapping{T,name,layer}
     ParamMapping(transform::T, name::Symbol, layer::Symbol) where {T<:ParamTransform} = new{T,name,layer}(transform)
 end
 
-struct ParameterVector{T,TM,TP,P,M} <: DenseArray{T,1}
-    pmap::TM # input/reparameterized param vector
-    pout::TP # target/original param vector
+struct ParameterVector{T,TV,P,M} <: DenseArray{T,1}
+    vals::TV # input/reparameterized param vector
     params::P # parameters grouped by layer and name
     mappings::M # mapping metadata
-    ParameterVector(pmap::TM,pout::TP,params::P,mappings::ParamMapping...) where {T,TM<:ComponentVector{T},TP<:ComponentVector{T},P<:NamedTuple} = new{T,TM,TP,P,typeof(mappings)}(pmap,pout,params,mappings)
+    ParameterVector(vals::TV,params::P,mappings::ParamMapping...) where {T,TV<:ComponentVector{T},P<:NamedTuple} = new{T,TV,P,typeof(mappings)}(vals,params,mappings)
 end
-pmap(rv::ParameterVector) = getfield(rv, :pmap)
-pout(rv::ParameterVector) = getfield(rv, :pout)
-pout(rv::ParameterVector{T}, ::AbstractArray{T}, ::T) where {T} = pout(rv)
-pout(rv::ParameterVector{T}, ::AbstractArray{T}, ::U) where {T,U} = copyto!(similar(pout(rv), U), pout(rv)) # t type mismatch (Rosenbrock solvers)
-pout(rv::ParameterVector{T}, ::AbstractArray{U}, ::T) where {T,U} = copyto!(similar(pout(rv), U), pout(rv)) # u type mismatch
+vals(rv::ParameterVector) = getfield(rv, :vals)
 mappings(rv::ParameterVector) = getfield(rv, :mappings)
-Base.axes(rv::ParameterVector) = axes(getfield(rv, :pmap))
-Base.LinearIndices(rv::ParameterVector) = LinearIndices(getfield(rv, :pmap))
+Base.axes(rv::ParameterVector) = axes(getfield(rv, :vals))
+Base.LinearIndices(rv::ParameterVector) = LinearIndices(getfield(rv, :vals))
 Base.IndexStyle(::Type{<:ParameterVector}) = Base.IndexLinear()
-Base.similar(rv::ParameterVector) = ParameterVector(similar(pmap(rv)), similar(pout(rv)), mappings(rv))
-Base.similar(rv::ParameterVector, ::Type{T}) where T = ParameterVector(similar(pmap(rv), T), similar(pout(rv), T), mappings(rv))
-Base.length(rv::ParameterVector) = length(getfield(rv, :pmap))
-Base.size(rv::ParameterVector) = size(getfield(rv, :pmap))
-Base.getproperty(rv::ParameterVector, sym::Symbol) = getproperty(getfield(rv, :pmap), sym)
-Base.getindex(rv::ParameterVector, i) = getfield(rv, :pmap)[i]
-Base.setproperty!(rv::ParameterVector, val, i) = setproperty!(getfield(rv, :pmap), val, sym)
-Base.setindex!(rv::ParameterVector, val, i) = setindex!(getfield(rv, :pmap), val, i)
-Base.show(io, rv::ParameterVector) = show(io, getfield(rv, :pmap))
-ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :pmap)
+Base.similar(rv::ParameterVector) = ParameterVector(similar(vals(rv)), similar(pout(rv)), mappings(rv))
+Base.similar(rv::ParameterVector, ::Type{T}) where T = ParameterVector(similar(vals(rv), T), similar(pout(rv), T), mappings(rv))
+Base.length(rv::ParameterVector) = length(getfield(rv, :vals))
+Base.size(rv::ParameterVector) = size(getfield(rv, :vals))
+Base.getproperty(rv::ParameterVector, sym::Symbol) = getproperty(getfield(rv, :vals), sym)
+Base.getindex(rv::ParameterVector, i) = getfield(rv, :vals)[i]
+Base.setproperty!(rv::ParameterVector, val, i) = setproperty!(getfield(rv, :vals), val, sym)
+Base.setindex!(rv::ParameterVector, val, i) = setindex!(getfield(rv, :vals), val, i)
+Base.show(io, rv::ParameterVector) = show(io, getfield(rv, :vals))
+ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
+_paramval(p::Param) = ustrip(p.val) # extracts value from Param type and strips units
 function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     function getparam(p)
         # currently, we assume only one variable of each name in each layer;
@@ -47,30 +43,33 @@ function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbo
         @set! mappedparams[layer][var] = mapflat(getparam, groupparams(Model(transform), :fieldname); maptype=NamedTuple)
         push!(mappings, ParamMapping(transform, var, layer))
     end
-    outarr = ComponentArray(mapflat(p -> ustrip(p.val), nestedparams))
-    mappedarr = ComponentArray(mapflat(p -> ustrip(p.val), mappedparams))
-    return ParameterVector(mappedarr, outarr, mappedparams, mappings...)
+    mappedarr = ComponentArray(mapflat(_paramval, mappedparams))
+    return ParameterVector(mappedarr, mappedparams, mappings...)
 end
-
 @inline updateparams!(v::AbstractVector, setup::CryoGridSetup, du, u, t) = v
-@inline @generated function updateparams!(rv::ParameterVector{T,TM,TP,P,M}, setup::CryoGridSetup, du, u, t) where {T,TM,TP,P,M}
+@inline updateparams!(v::ParameterVector{T,TV,P,Tuple{}}, setup::CryoGridSetup, du, u, t) where {T,TV,P} = v
+@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, setup::CryoGridSetup, du, u, t) where {T,TV,P,M}
     expr = quote
-        p_out = pout(rv, u, t)
-        p_map = pmap(rv)
+        pvals = vals(rv)
+        pmodel = getfield(rv, :params)
     end
+    # apply parameter transforms
     for i in 1:length(M.parameters)
-        push!(expr.args, :(updateparams!(p_out, p_map, mappings(rv)[$i], setup, du, u, t)))
+        push!(expr.args, :(pmodel = updateparams(pmodel, pvals, mappings(rv)[$i], setup, du, u, t)))
     end
-    push!(expr.args, :(return p_out))
+    # flatten parameters and strip Param types
+    push!(expr.args, :(return Utils.genmap(_paramval, Flatten.flatten(pmodel, ModelParameters.SELECT, ModelParameters.IGNORE))))
     return expr
 end
-# TODO: Roll this function into the one above. This forces the compiler to compile separate functions for each individual param mapping (i.e. every parameter)
-# which incurs a pretty hefty compile time cost.
-@inline @generated function updateparams!(pout, pmap, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
+@inline @generated function updateparams(pmodel, pvals, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
     quote
         state = getstate(Val($(QuoteNode(layer))), setup, du, u, t)
-        op = Flatten.reconstruct(mapping.transform, pmap.$layer.$name, ModelParameters.SELECT, ModelParameters.IGNORE)
-        pout.$layer.$name = transform(state, op)
+        p = pvals.$layer.$name
+        # reconstruct transform with new parameter values
+        op = Flatten.reconstruct(mapping.transform, Flatten.flatten(p), ModelParameters.SELECT, ModelParameters.IGNORE)
+        # apply transform and replace parameter in named tuple
+        @set! pmodel.$layer.$name = Param(transform(state, op))
+        return pmodel
     end
 end
 

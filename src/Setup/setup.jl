@@ -517,13 +517,18 @@ struct VarCache{N,A,Adual}
         cache = PreallocationTools.dualcache(A, Val{chunksize})
         new{chunksize,typeof(cache.du),typeof(cache.dual_du)}(name, cache)
     end
+    function VarCache(name::Symbol, array::AbstractArray, chunksize::Int)
+        # use dual cache for automatic compatibility with ForwardDiff
+        cache = PreallocationTools.dualcache(array, Val{chunksize})
+        new{chunksize,typeof(cache.du),typeof(cache.dual_du)}(name, cache)
+    end
 end
 Base.show(io::IO, cache::VarCache) = print(io, "VarCache $(cache.name) of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
 Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::VarCache) = show(io, cache)
 # use pre-cached array if chunk size matches
 retrieve(varcache::VarCache{N}, u::AbstractArray{T}) where {tag,U,N,T<:ForwardDiff.Dual{tag,U,N}} = DiffEqBase.get_tmp(varcache.cache, u)
 # otherwise just make a new copy with compatible type
-retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:Union{<:ForwardDiff.Dual,<:ReverseDiff.TrackedReal}} = copyto!(similar(u, length(varcache.cache.du)), varcache.cache.du)
+retrieve(varcache::VarCache, u::AbstractArray{T}) where {T<:Union{<:ForwardDiff.Dual,<:ReverseDiff.TrackedReal}} = copyto!(similar(varcache.cache.du, T), varcache.cache.du)
 retrieve(varcache::VarCache, u::ReverseDiff.TrackedArray) = copyto!(similar(identity.(u), length(varcache.cache.du)), varcache.cache.du)
 retrieve(varcache::VarCache, u::AbstractArray{T}) where {T} = reinterpret(T, varcache.cache.du)
 # this covers the case for Rosenbrock solvers where only t has differentiable type

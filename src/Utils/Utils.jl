@@ -105,6 +105,16 @@ function `f` is then applied to each element.
 @generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 
 """
+    @generated genmap(f, args::T) where {T<:Tuple}
+
+Generated `map` for `Tuple` types. This function is for use in generated functions where
+generators/comprehensions like `map` are not allowed.
+"""
+@generated function genmap(f, args::T) where {T<:Tuple}
+    return Expr(:tuple, (:(f(args[$i])) for i in 1:length(T.parameters))...)
+end
+
+"""
     ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 
 Forward fills missing values in vector `x`.
