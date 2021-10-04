@@ -51,22 +51,22 @@ end
 @inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, setup::CryoGridSetup, du, u, t) where {T,TV,P,M}
     expr = quote
         pvals = vals(rv)
-        pmodel = getfield(rv, :params)
+        pmodel = ModelParameters.update(getfield(rv, :params), pvals)
     end
     # apply parameter transforms
     for i in 1:length(M.parameters)
-        push!(expr.args, :(pmodel = updateparams(pmodel, pvals, mappings(rv)[$i], setup, du, u, t)))
+        push!(expr.args, :(pmodel = _updateparam(pmodel, mappings(rv)[$i], setup, du, u, t)))
     end
     # flatten parameters and strip Param types
-    push!(expr.args, :(return Utils.genmap(_paramval, Flatten.flatten(pmodel, ModelParameters.SELECT, ModelParameters.IGNORE))))
+    push!(expr.args, :(return Utils.genmap(_paramval, ModelParameters.params(pmodel))))
     return expr
 end
-@inline @generated function updateparams(pmodel, pvals, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
+@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
     quote
         state = getstate(Val($(QuoteNode(layer))), setup, du, u, t)
-        p = pvals.$layer.$name
+        p = pmodel.$layer.$name
         # reconstruct transform with new parameter values
-        op = Flatten.reconstruct(mapping.transform, Flatten.flatten(p), ModelParameters.SELECT, ModelParameters.IGNORE)
+        op = ModelParameters.update(mapping.transform, ModelParameters.params(p))
         # apply transform and replace parameter in named tuple
         @set! pmodel.$layer.$name = Param(transform(state, op))
         return pmodel
@@ -86,6 +86,6 @@ function transform(state, trend::LinearTrend)
     let t = min(state.t - trend.tstart, trend.tstop),
         β = trend.slope,
         α = trend.intercept;
-        min(max(IfElse.ifelse(t > 0, β*t + α, α), trend.minval), trend.maxval)
+        min(max(β*t + α, trend.minval), trend.maxval)
     end
 end
