@@ -35,6 +35,6 @@ van Genuchten MT, 1980. A closed-form equation for predicting the hydraulic cond
 struct VanGenuchten <: SWRCFunction end
 function (f::VanGenuchten)(ψ,θres,θsat,α,n)
     let m = 1-1/n;
-        IfElse.ifelse(ψ <= zero(ψ), θres + (θsat - θres)*(1 + (-α*ψ)^n)^(-m), θsat)
+        IfElse.ifelse(ψ <= zero(ψ), θres + (θsat - θres)*(1 + abs(-α*ψ)^n)^(-m), θsat)
     end
 end
