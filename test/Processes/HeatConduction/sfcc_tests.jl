@@ -3,18 +3,14 @@ using Test
 using ForwardDiff
 using ComponentArrays
 
-testprofile = SoilProfile(
-	0.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.5),
-	1.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.5),
-)
-soilcomps = begin 
-    comps = [CryoGrid.Layers.soilcomp(Val{var}(),testprofile[var=:χ],testprofile[var=:ϕ],testprofile[var=:θ],testprofile[var=:ω]) for var in [:θx,:θp,:θm,:θo]]
-    reduce(hcat, [comps[1] .+ comps[2], comps[3], comps[4], comps[2]])
-end
-
 @testset "SFCC" begin
     Tₘ = 0.0
     θres = 0.0
+    soil = Soil()
+    θw = CryoGrid.Layers.θw(soil.comp)
+    θp = CryoGrid.Layers.θp(soil.comp)
+    θm = CryoGrid.Layers.θm(soil.comp)
+    θo = CryoGrid.Layers.θo(soil.comp)
     @testset "McKenzie freeze curve" begin
         @testset "Sanity checks" begin
             f = McKenzie()
@@ -29,51 +25,48 @@ end
             γ = 0.1
             f = McKenzie()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-            soil = Soil(testprofile)
-            heat = Heat{:H}(freezecurve=sfcc)
-            L = heat.params.L
+            heat = Heat(freezecurve=sfcc)
+            L = heat.L
             @testset "Left tail" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,γ)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,γ=γ,))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
+                soil
                 T = [5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.-1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,γ)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,γ=γ,))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
+                soil
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,Tₘ,θres,θp,θw,γ)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,γ=γ,))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -96,51 +89,44 @@ end
             δ = 0.1
             f = Westermann()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-            soil = Soil(testprofile)
-            heat = Heat{:H}(freezecurve=sfcc)
-            L = heat.params.L
+            heat = Heat(freezecurve=sfcc)
+            L = heat.L
             @testset "Left tail" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,δ)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,δ=δ,))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,soil)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
             @testset "Right tail" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.-1,
                     θl = f.(T,Tₘ,θres,θp,θw,δ)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,δ=δ,))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,soil)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
             @testset "Near zero" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,Tₘ,θres,θp,θw,δ)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,δ=δ,))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,soil)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -152,7 +138,7 @@ end
             θsat = 0.8
             α = 4.0
             n = 2.0
-            L = Heat{:H}().params.L
+            L = Heat().L
             @test isapprox(f(-10.0,Tₘ,θres,θsat,θsat,L,α,n), 0.0, atol=1e-6)
             @test f(0.0,Tₘ,θres,θsat,θsat,L,α,n) ≈ θsat
             θl = f(-0.1,Tₘ,θres,θsat,θsat,L,α,n)
@@ -166,51 +152,44 @@ end
             Tₘ = 0.0
             f = DallAmico()
             sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-            soil = Soil(testprofile)
-            heat = Heat{:H}(freezecurve=sfcc)
-            L = heat.params.L
+            heat = Heat(freezecurve=sfcc)
+            L = heat.L
             @testset "Left tail" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,L,α,n)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,α=α,n=n))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,soil)
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
             @testset "Right tail" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.-1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,L,α,n)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,α=α,n=n))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,soil)
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
             @testset "Near zero" begin
-                # set up single-grid-cell state vars
-                θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil.params,θw,θl,θm,θo)
+                C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,Tₘ,θres,θp,θw,L,α,n)
-                    C = heatcapacity.(soil.params,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,α=α,n=n))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,soil)
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -225,13 +204,11 @@ end
         γ = 0.1
         f = McKenzie()
         sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
-        soil = Soil(testprofile)
-        heat = Heat{:H}(freezecurve=sfcc)
-        L = heat.params.L
-        θw,θm,θo,θp = map(x -> [x], soilcomps[1,:]) # convert to arrays
+        heat = Heat(freezecurve=sfcc)
+        L = heat.L
         T = [-0.1]
         θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-        C = heatcapacity.(soil.params,θw,θl,θm,θo)
+        C = heatcapacity.(soil,θw,θl,θm,θo)
         H = enthalpy.(T.+0.09,C,L,θl) # compute enthalpy at +1 degree
         # test gradients
         p = ComponentArray(γ=γ)
@@ -242,8 +219,8 @@ end
             T_ .= T
             C = similar(C,eltype(p))
             θl = similar(θl,eltype(p))
-            state = (T=T_,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(Tₘ=Tₘ,θres=θres,γ=p.γ,))
-            sfcc(soil, heat, state)
+            state = (T=T_,C=C,Ceff=similar(C),H=H,θl=θl)
+            SFCC(McKenzie(γ=Param(p.γ[1])))(soil, heat, state)
             state.T[1]
         end
         p = ComponentArray(γ=[γ])
@@ -262,20 +239,23 @@ function benchmarksfcc()
     Tₘ = 0.0
     f = DallAmico()
     sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, α₀=1.0, τ=0.75, onfail=:error))
-    soil = Soil(testprofile)
-    heat = Heat{:H}(freezecurve=sfcc)
-    L = heat.params.L
+    soil = Soil()
+    heat = Heat(freezecurve=sfcc)
+    L = heat.L
     # set up multi-grid-cell state vars
     T = [-15.0 for i in 1:10]
-    θw,θl,θm,θo,θp = map(x -> x*ones(length(T)), testprofile[1,:]) # convert to arrays
+    θp = Layers.θp(soilp)
+    θw = Layers.θw(soilp)
+    θm = Layers.θm(soilp)
+    θo = Layers.θo(soilp)
     θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-    C = heatcapacity.(soil.params,θw,θl,θm,θo)
+    C = heatcapacity.(soil,θw,θl,θm,θo)
     H = let T = T.+14.999,
             θl = f.(T,Tₘ,θres,θp,θw,L,α,n) 
-            C = heatcapacity.(soil.params,θw,θl,θm,θo);
+            C = heatcapacity.(soil,θw,θl,θm,θo);
         enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
     end
-    state = (T=T,C=C,Ceff=similar(C),H=H,θw=θw,θl=θl,θm=θm,θo=θo,θp=θp,params=(α=α,n=n))
+    state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl)
     # sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
     # @time begin
     #     state.T .= -0.05

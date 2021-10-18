@@ -1,7 +1,7 @@
-# Forcings
+# Boundary conditions and forcings
 
 ```@autodocs
-Modules = [CryoGrid.Forcings]
+Modules = [Boundaries]
 Private = false
 Order = [:type, :function, :macro]
 ```

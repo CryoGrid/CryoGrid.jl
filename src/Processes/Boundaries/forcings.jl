@@ -1,12 +1,39 @@
 """
+      Forcing{T,N}
+
+Abstract type representing a generic external boundary condition (i.e. "forcing").
+"""
+abstract type Forcing{T,N} end
+(forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
+(forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
+
+"""
+      Forcings{F<:NamedTuple}
+
+Convenience container for forcings that prevents forcing fields from being included in automatic
+type flattening/reconstruction.
+"""
+@flattenable struct Forcings{F<:NamedTuple}
+      forcings::F | false
+      Forcings(forcings::F) where {F<:NamedTuple} = new{F}(forcings)
+      function Forcings(;kwargs...)
+            forcings = (;kwargs...)
+            new{typeof(forcings)}(forcings)
+      end
+end
+Base.getproperty(f::Forcings, name::Symbol) = Base.getproperty(getfield(f, :forcings), name)
+
+"""
       TimeSeriesForcing{T,A,I}
+
+Forcing provided by a discrete time series of data.
 """
 struct TimeSeriesForcing{T,A,I} <: Forcing{T,1}
       tarray::TimeArray{T,1,DateTime,A}
       interp::I
       function TimeSeriesForcing(values::A, timestamps::AbstractArray{DateTime,1}, name::Symbol; interp=Linear()) where
             {T,A<:AbstractArray{T,1}}
-            tarray = TimeArray(timestamps,values,[name])
+            tarray = TimeArray(Vector(timestamps),Vector(values),[name])
             TimeSeriesForcing(tarray; interp=interp)
       end
       function TimeSeriesForcing(tarray::TimeArray{T,N,D,A}; interp=Linear()) where {T,N,D,A}

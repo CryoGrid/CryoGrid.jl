@@ -9,10 +9,25 @@ struct CryoGridODEProblem end
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
-	p = isnothing(p) ? setup.pproto : p
+function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing; saveat=3600.0, save_everystep=false, callback=nothing, save_adtypes=false, kwargs...)
+    # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
+    # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
+    expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
+    expandtstep(tstep::AbstractVector) = tstep
+    values(u, ::Val{false}) = reinterpret(Float64, u) # the actual values resulting from reinterpret here will be garbage, but we only need the type for `getstates`
+    values(u, ::Val{true}) = true
+    model = Model(setup)
+    p = isnothing(p) ? dustrip.(collect(model[:val])) : p
 	# compute initial condition
-	u0,_ = init!(setup, p, tspan)
+	u0, du0 = init!(setup, tspan, p)
+    # set up saving callback
+    stateproto = getstates(setup, values(du0,Val{save_adtypes}()), values(u0,Val{save_adtypes}()), tspan[1], Val{:diagnostic}())
+    savevals = SavedValues(Float64, typeof(stateproto))
+    savefunc = (u,t,integrator) -> deepcopy(getstates(setup, values(get_du(integrator),Val{save_adtypes}()), values(u,Val{save_adtypes}()), t, Val{:diagnostic}()))
+    savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_everystep=save_everystep)
+    callbacks = isnothing(callback) ? savingcallback : CallbackSet(savingcallback, callback)
+    # note that this implicitly discards any existing saved values in the model setup's state history
+    setup.hist.vals = savevals
     # set up default mass matrix
     M_diag = similar(setup.uproto)
     for layer in keys(setup.meta)
@@ -30,7 +45,7 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
 	func = odefunction(setup, M, u0, p, tspan; kwargs...)
-	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); kwargs...)
+	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); callback=callbacks, kwargs...)
 end
 # this version converts tspan from DateTime to float
 """
@@ -94,5 +109,5 @@ end
 # Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
 # Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
 # Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
-const HeatOnlySetup = CryoGridSetup{<:Stratigraphy{<:Tuple{TTop,Vararg{<:Union{<:StratNode{<:SubSurface, <:System{<:Tuple{<:Heat}}},TBot}}}}} where {TTop,TBot}
+const HeatOnlySetup = CryoGridSetup{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CompoundProcess{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
 JacobianStyle(::Type{<:HeatOnlySetup}) = TridiagJac()

@@ -3,11 +3,11 @@ using Plots
 
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
-forcings = loadforcings(CryoGrid.Models.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
 # use air temperature as upper boundary forcing
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGrid.Models.SoilHeat(TemperatureGradient(tair), CryoGrid.Models.SamoylovDefault)
+model = CryoGrid.Presets.SoilHeat(TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # CryoGrid front-end for ODEProblem
@@ -20,7 +20,7 @@ cg = Plots.cgrad(:copper,rev=true)
 plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 savefig("res/Ts_H_tair_freeW_2010-2011.png")
 
-model = CryoGrid.Models.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
+model = CryoGrid.Presets.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
 # Set-up parameters
 p = copy(model.pproto)
 p.soil.α .= 4.0

@@ -5,29 +5,34 @@ import CryoGrid: variables
 
 using CryoGrid.Numerics
 using CryoGrid.Utils
+using CryoGrid.InputOutput: Resource
 
+using ConstructionBase
+using Dates
+using Flatten
+using Interpolations
+using ModelParameters
+using Parameters
+using TimeSeries
 using Unitful
 
+import Flatten: flattenable
+
 export Constant, Periodic, Bias
+export Forcings, Forcing, TimeSeriesForcing, ForcingData
 
 """
-    struct Constant{S,T,name} <: BoundaryProcess
+    struct Constant{S,T} <: BoundaryProcess
 
-Constant boundary condition (of any type/unit) specified by `value`. If `name` is provided,
-then `Constant` will provide a tracked parameter `name`.
+Constant boundary condition (of any type/unit) specified by `value`.
 """
-struct Constant{S,T,name} <: BoundaryProcess
+struct Constant{S,T} <: BoundaryProcess
     value::T
-    Constant{S}(value::T) where {S<:BoundaryStyle,T} = new{S,T,nothing}(value)
-    Constant{S}(value::T, name::Symbol) where {S<:BoundaryStyle,T} = new{S,T,name}(value)
+    Constant(::Type{S}, value::T) where {S<:BoundaryStyle,T} = new{S,T}(value)
 end
+ConstructionBase.constructorof(::Type{<:Constant{S}}) where {S} = value -> Constant(S,value)
+(bc::Constant{S,T})(l1,p2,l2,s1,s2) where {S,T} = bc.value
 
-# no name/parameter
-(bc::Constant{S,T,nothing})(l1,p2,l2,s1,s2) where {S,T} = bc.value
-# with parameter
-(bc::Constant{S,T,name})(l1,p2,l2,s1,s2) where {S,T,name} = s1.params[name] |> getscalar
-
-variables(top::Top, bc::Constant{S,T,name}) where {S,T,name} = (Parameter(name, bc.value),)
 BoundaryStyle(::Type{<:Constant{S}}) where {S} = S()
 
 """
@@ -49,10 +54,14 @@ end
 
 BoundaryStyle(::Type{<:Periodic{S}}) where {S} = S()
 
-# Aliases
-const Bias{name,T} = Constant{Dirichlet,T,name} where {name,T}
-Bias(;value::T=0.0, name::Symbol=:bias) where T = Constant{Dirichlet}(value, name)
+@with_kw struct Bias{P} <: BoundaryProcess
+    bias::P = Param(0.0)
+end
+(bc::Bias)(l1,p2,l2,s1,s2) = bc.bias
 
-include("composite.jl")
+BoundaryStyle(::Type{<:Bias}) = Dirichlet()
+
+include("composed.jl")
+include("forcings.jl")
 
 end

@@ -11,40 +11,46 @@ variable shared across multiple layers, use `getvar(name, out)` where `name` is 
 to the variable name.
 """
 struct CryoGridOutput
+    ts::Vector{DateTime}
     sol::ODESolution
     vars::NamedTuple
-    CryoGridOutput(sol::ODESolution, vars::NamedTuple) = new(sol, vars)
+    CryoGridOutput(ts::Vector{DateTime}, sol::ODESolution, vars::NamedTuple) = new(ts, sol, vars)
 end
 
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`.
 """
-function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: SciMLBase.AbstractODESolution}
-    setup = sol.prob.f.f # CryoGridSetup
-    log = get_log(sol, ts)
-    ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
+function CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
-    withdims(var::Var{name,T,OnGrid{Edges}}, arr, i) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(setup.meta[i].grids[varname(var)], digits=5)u"m"),Ti(ts_datetime)))
-    withdims(var::Var{name,T,OnGrid{Cells}}, arr, i) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(setup.meta[i].grids[varname(var)], digits=5)u"m"),Ti(ts_datetime)))
-    withdims(var::Var{name,T}, arr, i) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts_datetime),))
+    withdims(::Var{name,T,<:OnGrid}, arr, zs, ts, i) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(zs, digits=5)u"m"),Ti(ts)))
+    withdims(::Var{name,T}, arr, zs, ts, i) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts),))
+    setup = sol.prob.f.f # CryoGridSetup
+    ts = setup.hist.vals.t # use save callback time points
+    ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
+    savedstate = setup.hist.vals.saveval
     layerstates = NamedTuple()
-    logvarnames = Set(keys(log))
-    for (i,node) in enumerate(setup.strat.nodes)
-        name = nodename(node) 
+    for (i,node) in enumerate(components(setup.strat))
+        name = componentname(node) 
         prog_vars = setup.meta[name][:progvars]
         diag_vars = setup.meta[name][:diagvars]
         vararrays = Dict()
-        # build nested arrays w/ flattened views of each variable's state trajectory
+        # prognostic variables
         for var in prog_vars
             arr = reduce(hcat, [withaxes(sol(t), setup)[name][varname(var)] for t in ts])
-            vararrays[var] = withdims(var, arr, i)
+            vararrays[var] = withdims(var, arr, setup.meta[i].grids[varname(var)], ts_datetime, i)
         end
+        # instantaneous time derivatives
+        for var in prog_vars # should also include algebraic variables?
+            dvar = Diagnostic(Symbol(:d,varname(var)), vartype(var), var.dim)
+            var_vals = [state[name][varname(dvar)] for state in savedstate]
+            arr = reduce(hcat, var_vals)
+            vararrays[dvar] = withdims(dvar, arr, setup.meta[i].grids[varname(var)], ts_datetime, i)
+        end
+        # diagnostic variables
         for var in diag_vars
-            varname_log = Symbol(name,:_,varname(var))
-            pop!(logvarnames, varname_log) # remove from set
-            var_log = log[varname_log]
-            arr = reduce(hcat, var_log)
-            vararrays[var] = withdims(var, arr, i)
+            var_vals = [state[name][varname(var)] for state in savedstate]
+            arr = reduce(hcat, var_vals)
+            vararrays[var] = withdims(var, arr, setup.meta[i].grids[varname(var)], ts_datetime, i)
         end
         # construct named tuple and merge with named tuple from previous layers
         varnames = map(var -> varname(var), keys(vararrays) |> Tuple)
@@ -52,21 +58,21 @@ function CryoGridOutput(sol::TSol, ts=sol.t) where {TSol <: SciMLBase.AbstractOD
         layerstates = merge(layerstates, NamedTuple{tuple(name)}((layer_nt,)))
     end
     # loop over remaining (user defined) log variables
-    uservars = Dict()
-    for varname in logvarnames
-        var_log = log[varname]
-        if eltype(var_log) <: AbstractVector
-            vardata = reduce(hcat, var_log)
-            uservars[varname] = DimArray(vardata, (Z(1:size(vardata,1)),Ti(ts)))
-        else
-            uservars[varname] = DimArray(vardata, (Ti(ts),))
-        end
-    end
-    if length(logvarnames) > 0
-        nt = NamedTuple{tuple(keys(uservars)...)}(tuple(values(uservars)...))
-        layerstates = merge(layerstates, (user=nt,))
-    end
-    CryoGridOutput(sol, layerstates)
+    # uservars = Dict()
+    # for varname in logvarnames
+    #     var_log = log[varname]
+    #     if eltype(var_log) <: AbstractVector
+    #         vardata = reduce(hcat, var_log)
+    #         uservars[varname] = DimArray(vardata, (Z(1:size(vardata,1)),Ti(ts)))
+    #     else
+    #         uservars[varname] = DimArray(vardata, (Ti(ts),))
+    #     end
+    # end
+    # if length(logvarnames) > 0
+    #     nt = NamedTuple{tuple(keys(uservars)...)}(tuple(values(uservars)...))
+    #     layerstates = merge(layerstates, (user=nt,))
+    # end
+    CryoGridOutput(ts_datetime, sol, layerstates)
 end
 
 """
@@ -91,7 +97,7 @@ function getvar(var::Symbol, out::CryoGridOutput)
     end
     X = reduce(vcat, parts)
     zs = reduce(vcat, [dims(A,Z).val for A in parts])
-    ts = Dates.epochms2datetime.(out.sol.t.*1000.0)
+    ts = getfield(out,:ts)
     DimArray(X,(Z(zs),Ti(ts)))
 end
 # Overrides from Base

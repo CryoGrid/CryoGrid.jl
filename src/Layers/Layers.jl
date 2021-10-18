@@ -8,10 +8,11 @@ using CryoGrid.Utils
 
 using DimensionalData
 using IntervalSets
+using ModelParameters
 using Parameters
 using Unitful
 
-export Soil, SoilProperties, SoilProfile, SoilParams, SoilType, Sand, Silt, Clay, SoilParameterization, BySoilProperties
+export Soil, SoilComposition, SoilProfile, SoilType, Sand, Silt, Clay
 
 include("soil.jl")
 

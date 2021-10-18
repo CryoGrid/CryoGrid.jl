@@ -1,5 +1,4 @@
 using CryoGrid
-using ForwardDiff
 using Test, BenchmarkTools
 
 include("../testutils.jl")
@@ -22,19 +21,6 @@ include("../testutils.jl")
         @test all(grid[Interval{:open,:open}(1.0u"m",10.0u"m")] .≈ grid[2:end-1])
         @test all(grid[Interval{:closed,:open}(1.0u"m",10.0u"m")] .≈ grid[1:end-1])
         @test all(grid[Interval{:open,:closed}(1.0u"m",10.0u"m")] .≈ grid[2:end])
-    end
-    @testset "Autodiff" begin
-        # test that regrid is differentiable
-        cgrid = @inferred cells(grid)
-        x = randn(length(grid))
-        xc = zeros(length(cgrid))
-        function f(x)
-            xc = similar(x,length(xc))
-            regrid!(xc,x,grid,cgrid)
-            sum(xc)
-        end
-        grad = ForwardDiff.gradient(f,x)
-        @test allfinite(grad)
     end
     @testset "Allocations" begin
         benchres = @benchmark Δ($grid)

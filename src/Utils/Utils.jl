@@ -6,6 +6,8 @@ Common utility functions, constants, and macros used throughout the CryoGrid.jl 
 module Utils
 
 using Dates
+using ModelParameters
+using StructTypes
 using Unitful
 
 import CryoGrid
@@ -15,6 +17,7 @@ import ReverseDiff
 include("macros.jl")
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar
+export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export dustrip, duconvert
 export structiterate, getscalar, tuplejoin, convert_tspan
 export Params
@@ -27,7 +30,10 @@ const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TempUnit}
 
-export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+StructTypes.StructType(::Type{<:Quantity}) = StructTypes.CustomStruct()
+StructTypes.lower(value::Quantity) = string(value)
+StructTypes.lowertype(value::Type{<:Quantity}) = String
+StructTypes.construct(::Type{Q}, value::String) where {Q<:Quantity} = uconvert(Q, uparse(replace(value, " " => "")))
 
 """
     applyunit(u::Unitful.Units, x::Number)
@@ -99,6 +105,16 @@ function `f` is then applied to each element.
 @generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
 
 """
+    @generated genmap(f, args::T) where {T<:Tuple}
+
+Generated `map` for `Tuple` types. This function is for use in generated functions where
+generators/comprehensions like `map` are not allowed.
+"""
+@generated function genmap(f, args::T) where {T<:Tuple}
+    return Expr(:tuple, (:(f(args[$i])) for i in 1:length(T.parameters))...)
+end
+
+"""
     ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 
 Forward fills missing values in vector `x`.
@@ -124,6 +140,7 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 adstrip(x::Number) = x
 adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
 adstrip(x::ReverseDiff.TrackedReal) = x.value
+adstrip(x::Param{T}) where {T<:ForwardDiff.Dual} = Param(NamedTuple{Tuple(keys(x))}((adstrip(x.val), Base.tail(parent(x))...)))
 
 """
 Debug ustrip. Remove units if and only if debug mode is NOT enabled.

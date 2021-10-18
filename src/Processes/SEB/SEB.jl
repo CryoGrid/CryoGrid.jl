@@ -2,7 +2,7 @@ module SEB
 
 using ..HeatConduction: Heat
 using ..Processes
-using CryoGrid.Forcings
+using ..Boundaries
 using CryoGrid.Layers: Soil
 using CryoGrid.Numerics
 using CryoGrid.Utils

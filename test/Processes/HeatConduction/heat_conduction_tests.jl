@@ -29,8 +29,8 @@ include("../../types.jl")
 		ΔT = Δ(xc)
 		Δk = Δ(x)
 		sub = TestGroundLayer()
-		heat = Heat{:H}()
-		bc = Constant{Dirichlet}(0.0u"°C")
+		heat = Heat()
+		bc = Constant(Dirichlet, 0.0u"°C")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"J/s/m^3"
@@ -65,27 +65,12 @@ end
 	@testset "n-factors" begin
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
 		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1], ts, :Tair)
-		tgrad = TemperatureGradient(forcing, NFactor(:stationary, :nf))
-		vars = variables(Top(), tgrad)
-		@test length(vars) == 2
-		@test getscalar(vars[1].default_value) == 1.0
-		@test getscalar(vars[2].default_value) == 1.0
+		tgrad = TemperatureGradient(forcing, NFactor(winterfactor=0.5, summerfactor=1.0))
 		sub = TestGroundLayer()
-		heat = Heat{:H}()
-		# stationary case
-		f1(t) = tgrad(Top(),sub,heat,(t=t, params=(nfw=0.5, nfs=1.0)), (t=t,))
+		heat = Heat()
+		f1(t) = tgrad(Top(),sub,heat,(t=t,),(t=t,))
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
-		# two-stage non-stationary case
-		tgrad = TemperatureGradient(forcing, NFactor(:twostage, :nf))
-		vars = variables(Top(), tgrad)
-		@test length(vars) == 5
-		@test all([getscalar(vars[i].default_value) == 1.0 for i in 1:4])
-		@test getscalar(vars[5].default_value) == 0.0
-		tchange = Dates.datetime2epochms(ts[end-1])./1000
-		f2(t) = tgrad(Top(),sub,heat,(t=t, params=(nfw1=0.5, nfw2=0.2, nfs1=1.0, nfs2=0.9, nftc=tchange)), (t=t,))
-		Tres = f2.(Dates.datetime2epochms.(ts)./1000)
-		@test all(Tres .≈ [1.0,0.5,-0.25,-0.2,0.09])
 	end
 end
 @testset "Fourier solution" begin
@@ -98,8 +83,8 @@ end
 	T₀ = (sin.(2π.*ustrip.(xc)))u"°C"
 	f_analytic(x,t) = exp(-t*4π^2)*sin(2.0*π*x)
 	sub = TestGroundLayer()
-	heat = Heat{:H}()
-	bc = Constant{Dirichlet}(0.0u"°C")
+	heat = Heat()
+	bc = Constant(Dirichlet, 0.0u"°C")
 	function dTdt(T,p,t)
 		dT = similar(T)u"J/s/m^3"
 		dT .= zero(eltype(dT))

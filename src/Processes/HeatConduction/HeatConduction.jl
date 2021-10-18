@@ -1,26 +1,27 @@
 module HeatConduction
 
-using Unitful: Temperature
 import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Boundary
 import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
 using ..Processes
 using ..Processes.Boundaries
 using ..Processes.Water: VanGenuchten
-using CryoGrid.Forcings
 using CryoGrid.Numerics
-using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean
-using CryoGrid.Layers: Soil, SoilParams
+using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heaviside
+using CryoGrid.Layers: Soil, θp, θw, θm, θo
 using CryoGrid.Utils
 
 using DimensionalData
 using IfElse
 using Interpolations: Linear, Flat
 using IntervalSets
+using ModelParameters
 using Parameters
 using Unitful
 
-export Heat, HeatParams, TempProfile
+import Flatten: @flattenable, flattenable
+
+export Heat, HeatParams, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
 export ConstantTemp, GeothermalHeatFlux, NFactor, TemperatureGradient
 export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
@@ -30,42 +31,35 @@ export heatconduction!, boundaryflux
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
 
-@with_kw struct HeatParams{F<:FreezeCurve,S} <: Params
+TemperatureProfile(pairs::Pair{<:DistQuantity,<:TempQuantity}...) =
+    Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]),pairs)...)
+
+DEFAULT_TEMP_PROFILE = TemperatureProfile(0.0u"m" => -1.0u"°C", 1000.0u"m" => -1.0u"°C") # uniform -1 degrees C
+
+abstract type HeatVariable end
+struct Enthalpy <: HeatVariable end
+struct PartitionedEnthalpy <: HeatVariable end
+struct Temperature <: HeatVariable end
+
+@with_kw struct Heat{F<:FreezeCurve,S,N} <: SubSurfaceProcess
+    initialT::Profile{N,typeof(1.0u"m"),typeof(1.0u"°C")} = DEFAULT_TEMP_PROFILE
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = ρ*Lsl             #[J/m^3] (specific latent heat of fusion)
     freezecurve::F = FreeWater()        # freeze curve, defautls to free water fc
-    sp::S = nothing
+    sp::S = Enthalpy()
 end
+# convenience constructors for specifying prognostic variable as symbol
+Heat(var::Union{Symbol,Tuple{Vararg{Symbol}}}; kwargs...) = Heat(Val{var}(); kwargs...)
+Heat(::Val{:H}; kwargs...) = Heat(;sp=Enthalpy(), kwargs...)
+Heat(::Val{(:Hₛ,:Hₗ)}; kwargs...) = Heat(;sp=PartitionedEnthalpy(), kwargs...)
+Heat(::Val{:T}; kwargs...) = Heat(;sp=Temperature(), kwargs...)
 
-"""
-Alias and constructor for Profile specific to temperature.
-"""
-TempProfile(pairs::Pair{<:DistQuantity, <:TempQuantity}...) = Profile([d=>(uconvert(u"°C",T),) for (d,T) in pairs]...;names=(:T,))
-
-struct Heat{U,F<:FreezeCurve,S} <: SubSurfaceProcess
-    params::HeatParams{F,S}
-    profile::Union{Nothing,<:DimArray{UFloat"°C"}}
-    function Heat{var}(profile::TProfile=nothing; kwargs...) where {var,TProfile<:Union{Nothing,<:DimArray{UFloat"°C"}}}
-        @assert var in [:H,(:Hₛ,:Hₗ)] "Invalid Heat prognostic variable: $var; must be one of :H, (:Hs,:Hl), or :T"
-        params = HeatParams(;kwargs...)
-        new{var,typeof(params.freezecurve),typeof(params.sp)}(params,profile)
-    end
-    function Heat{:T}(profile::TProfile=nothing; kwargs...) where {TProfile<:Union{Nothing,<:DimArray{UFloat"°C"}}}
-        @assert :freezecurve in keys(kwargs) "Freeze curve must be specified for prognostic T heat configuration."
-        @assert !(typeof(kwargs[:freezecurve]) <: FreeWater) "Free water freeze curve is not compatible with prognostic T."
-        params = HeatParams(;kwargs...)
-        new{:T,typeof(params.freezecurve),typeof(params.sp)}(params,profile)
-    end
-end
-
-Base.show(io::IO, h::Heat{U,F,S}) where {U,F,S} = print(io, "Heat{$U,$F,$S}($(h.params))")
-
-freezecurve(heat::Heat) = heat.params.freezecurve
+freezecurve(heat::Heat) = heat.freezecurve
 enthalpy(T::Number"°C", C::Number"J/K/m^3", L::Number"J/m^3", θ::Real) = T*C + L*θ
+totalwater(layer::SubSurface, heat::Heat, state) = state.θw
 heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
 thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
-
 """
     heatconduction!(∂H,T,ΔT,k,Δk)
 
@@ -100,18 +94,19 @@ function heatconduction!(∂H,T,ΔT,k,Δk)
     return nothing
 end
 """ Variable definitions for heat conduction (enthalpy) on any subsurface layer. """
-variables(layer::SubSurface, heat::Heat{:H}) = (
+variables(layer::SubSurface, heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
+    Diagnostic(:θl, Float"1", OnGrid(Cells)),
     # add freeze curve variables (if any are present)
     variables(layer, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (partitioned enthalpy) on any subsurface layer. """
-variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
+variables(layer::SubSurface, heat::Heat{<:FreezeCurve,PartitionedEnthalpy}) = (
     Prognostic(:Hₛ, Float"J/m^3", OnGrid(Cells)),
     Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
@@ -122,11 +117,12 @@ variables(layer::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}) = (
     Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    Diagnostic(:θl, Float"1", OnGrid(Cells)),
     # add freeze curve variables (if any are present)
     variables(layer, heat, freezecurve(heat))...,
 )
 """ Variable definitions for heat conduction (temperature) on any subsurface layer. """
-variables(layer::SubSurface, heat::Heat{:T}) = (
+variables(layer::SubSurface, heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
@@ -134,13 +130,15 @@ variables(layer::SubSurface, heat::Heat{:T}) = (
     Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
+    Diagnostic(:θl, Float"1", OnGrid(Cells)),
     # add freeze curve variables (if any are present)
     variables(layer, heat, freezecurve(heat))...,
 )
 """ Initial condition for heat conduction (all state configurations) on any subsurface layer. """
 function initialcondition!(layer::SubSurface, heat::Heat, state)
-    interpolateprofile!(heat.profile, state)
-    L = heat.params.L
+    T₀ = profile2array(heat.initialT; names=(:T,))
+    interpolateprofile!(T₀, state)
+    L = heat.L
     heatcapacity!(layer, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
@@ -162,19 +160,19 @@ function diagnosticstep!(layer::SubSurface, heat::Heat, state)
     return nothing # ensure no allocation
 end
 """ Prognostic step for heat conduction (enthalpy) on subsurface layer. """
-function prognosticstep!(::SubSurface, ::Heat{:H}, state)
+function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
     heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
 end
 """ Prognostic step for heat conduction (partitioned enthalpy) on subsurface layer."""
-function prognosticstep!(::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}, state)
+function prognosticstep!(::SubSurface, heat::Heat{<:FreezeCurve,PartitionedEnthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
     heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
-    let L = heat.params.L;
+    let L = heat.L;
         @. state.dHₛ = state.dH / (L/state.C*state.dθdT + 1)
         # This could also be expressed via a mass matrix with 1
         # in the upper right block diagonal. But this is easier.
@@ -182,7 +180,7 @@ function prognosticstep!(::SubSurface, heat::Heat{(:Hₛ,:Hₗ)}, state)
     end
 end
 """ Prognostic step for heat conduction (temperature) on subsurface layer. """
-function prognosticstep!(::SubSurface, ::Heat{:T}, state)
+function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
@@ -280,7 +278,7 @@ Implementation of "free water" freeze curve for any subsurface layer. Assumes th
 'state' contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θw), and liquid water content (θl).
 """
-@inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{:H}, state)
+@inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
     @inline function enthalpyinv(H, C, L, θtot)
         let θtot = max(1.0e-8,θtot),
             Lθ = L*θtot,
@@ -297,10 +295,13 @@ total water content (θw), and liquid water content (θl).
             I_c*(H/Lθ) + I_t
         end
     end
-    L = heat.params.L
-    @. state.θl = freezethaw(state.H, L, state.θw)*state.θw
-    heatcapacity!(layer, heat, state) # update heat capacity, C
-    @. state.T = enthalpyinv(state.H, state.C, L, state.θw)
+    let L = heat.L,
+        θw = totalwater(layer, heat, state);
+        @. state.θl = freezethaw(state.H, L, θw)*θw
+        heatcapacity!(layer, heat, state) # update heat capacity, C
+        @. state.T = enthalpyinv(state.H, state.C, L, θw)
+    end
+    return nothing
 end
 
 # Default implementation of `variables` for freeze curve
