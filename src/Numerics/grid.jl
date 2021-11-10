@@ -61,12 +61,11 @@ Base.show(io::IO, grid::Grid{S,G}) where {S,G} = print(io, "Grid{$S}($(grid[1]).
 Base.show(io::IO, ::MIME{Symbol("text/plain")}, grid::Grid) = show(io, grid)
 
 function subgrid(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
-    l,r = interval.left,interval.right
+    @assert interval.left <= interval.right "Invalid interval: $interval"
     vals = values(grid)
     # Determine indices which lie in the given interval
-    l_ind = findfirst(x -> x ∈ interval, vals)
-    r_ind = findlast(x -> x ∈ interval, vals)
-    @assert !isnothing(l_ind) && !isnothing(r_ind) "No grid points in the given interval $interval"
+    l_ind = searchsortedfirst(vals, interval.left)
+    r_ind = searchsortedlast(vals, interval.right)
     # Map back to full grid indices
     Grid(grid,l_ind..r_ind)
 end
