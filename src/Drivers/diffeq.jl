@@ -1,7 +1,7 @@
 using DiffEqBase
 using DiffEqCallbacks
-using OrdinaryDiffEq
 
+@reexport using OrdinaryDiffEq
 @reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
 
 """

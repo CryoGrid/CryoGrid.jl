@@ -6,7 +6,7 @@ module Drivers
 using CryoGrid: Land, SubSurface, CompoundProcess
 using CryoGrid.Numerics: varname
 using CryoGrid.Physics: Heat
-using CryoGrid.Utils: convert_tspan
+using CryoGrid.Utils
 
 using Dates
 using ModelParameters

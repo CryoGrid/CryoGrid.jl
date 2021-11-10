@@ -94,96 +94,6 @@ Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{name}}) where name = false
 
 """
-    withaxes(u::AbstractArray, ::LandModel)
-
-Constructs a `ComponentArray` with labeled axes from the given state vector `u`. Assumes `u` to be of the same type/shape
-as `setup.uproto`.
-"""
-withaxes(u::AbstractArray, setup::LandModel) = ComponentArray(u, getaxes(setup.uproto))
-withaxes(u::ComponentArray, ::LandModel) = u
-@generated function getstates(setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
-    stategetters = Tuple((:(getstate($(QuoteNode(name)), setup, du, u, t)) for name in names))
-    return :(NamedTuple{names}(tuple($(stategetters...))))
-end
-@generated function getstates(setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t, ::Val{:diagnostic}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
-    function diagnosticvarnames(::Type{M}) where {M}
-        pvars, dvars, avars = _resolve_vartypes(M)
-        # get diagnostic variables and derivatives
-        return tuple(QuoteNode.(varname.(dvars))..., map(s -> QuoteNode(Symbol(:d,s)), varname.(pvars))..., map(s -> QuoteNode(Symbol(:d,s)), varname.(avars))...)
-    end
-    stategetters = map(name -> :(getstate($(QuoteNode(name)), setup, du, u, t)), names)
-    varnames = map(T -> :(tuple($(diagnosticvarnames(T)...))), TMeta.parameters)
-    expr = Expr(:block)
-    for (vars,state,name) in zip(varnames,stategetters,names)
-        push!(expr.args, :($name = NamedTuple{$vars}($state)))
-    end
-    push!(expr.args, :(NamedTuple{names}(tuple($(names...)))))
-    return expr
-end
-"""
-    getstate(layername::Symbol, setup::LandModel, du::AbstractArray, u::AbstractArray, t)
-
-Builds the state named tuple for `layername` given `setup` and state arrays.
-"""
-getstate(layername::Symbol, setup::LandModel, du::AbstractArray, u::AbstractArray, t) = getstate(Val{layername}(), setup, du, u, t)
-@generated function getstate(::Val{layername}, setup::LandModel{TStrat}, du::AbstractArray, u::AbstractArray, t) where {TStrat,layername}
-    names = map(componentname, componenttypes(TStrat))
-    i = findfirst(n -> n == layername, names)
-    quote
-        _buildstate(
-            setup.cache[$(QuoteNode(layername))],
-            setup.meta[$(QuoteNode(layername))],
-            withaxes(u,setup).$layername,
-            withaxes(du,setup).$layername,
-            t,
-            boundaries(setup.strat)[$i]
-        )
-    end
-end
-"""
-    getvar(var::Symbol, setup::LandModel, u)
-"""
-getvar(var::Symbol, setup::LandModel, u) = getvar(Val{var}(), setup, u)
-"""
-    getvar(::Val{var}, setup::LandModel{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
-
-Generated function that finds all layers containing variable `var::Symbol` and returns an `ArrayPartition` combining
-them into a single contiguous array (allocation free).
-
-e.g: `T = getvar(:T, setup, u)`
-"""
-@generated function getvar(::Val{var}, setup::LandModel{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
-    expr = Expr(:block)
-    nodetyps = componenttypes(TStrat)
-    matchedlayers = []
-    push!(expr.args, :(u = ComponentArray(_u, getaxes(setup.uproto))))
-    for (i,node) in enumerate(nodetyps)
-        name = componentname(node)
-        metatype = TMeta.parameters[i]
-        # extract variable type information from metadata type
-        ptypes, dtypes, atypes = _resolve_vartypes(metatype)
-        prognames = tuplejoin(varname.(ptypes), varname.(atypes))
-        diagnames = varname.(dtypes)
-        identifier = Symbol(name,:_,var)
-        if var ∈ prognames
-            @>> quote
-            $identifier = u.$name.$var
-            end push!(expr.args)
-            push!(matchedlayers, identifier)
-        elseif var ∈ diagnames
-            @>> quote
-            $identifier = retrieve(setup.cache.$name.$var, u)
-            end push!(expr.args)
-            push!(matchedlayers, identifier)
-        end
-    end
-    @>> quote
-    ArrayPartition($(matchedlayers...))
-    end push!(expr.args)
-    return expr
-end
-
-"""
 Generated step function (i.e. du/dt) for any arbitrary LandModel. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 < i < N:
@@ -348,6 +258,96 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     end
     @>> quote
     return getdata(u), getdata(du)
+    end push!(expr.args)
+    return expr
+end
+
+"""
+    withaxes(u::AbstractArray, ::LandModel)
+
+Constructs a `ComponentArray` with labeled axes from the given state vector `u`. Assumes `u` to be of the same type/shape
+as `setup.uproto`.
+"""
+withaxes(u::AbstractArray, setup::LandModel) = ComponentArray(u, getaxes(setup.uproto))
+withaxes(u::ComponentArray, ::LandModel) = u
+@generated function getstates(setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
+    stategetters = Tuple((:(getstate($(QuoteNode(name)), setup, du, u, t)) for name in names))
+    return :(NamedTuple{names}(tuple($(stategetters...))))
+end
+@generated function getstates(setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t, ::Val{:diagnostic}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
+    function diagnosticvarnames(::Type{M}) where {M}
+        pvars, dvars, avars = _resolve_vartypes(M)
+        # get diagnostic variables and derivatives
+        return tuple(QuoteNode.(varname.(dvars))..., map(s -> QuoteNode(Symbol(:d,s)), varname.(pvars))..., map(s -> QuoteNode(Symbol(:d,s)), varname.(avars))...)
+    end
+    stategetters = map(name -> :(getstate($(QuoteNode(name)), setup, du, u, t)), names)
+    varnames = map(T -> :(tuple($(diagnosticvarnames(T)...))), TMeta.parameters)
+    expr = Expr(:block)
+    for (vars,state,name) in zip(varnames,stategetters,names)
+        push!(expr.args, :($name = NamedTuple{$vars}($state)))
+    end
+    push!(expr.args, :(NamedTuple{names}(tuple($(names...)))))
+    return expr
+end
+"""
+    getstate(layername::Symbol, setup::LandModel, du::AbstractArray, u::AbstractArray, t)
+
+Builds the state named tuple for `layername` given `setup` and state arrays.
+"""
+getstate(layername::Symbol, setup::LandModel, du::AbstractArray, u::AbstractArray, t) = getstate(Val{layername}(), setup, du, u, t)
+@generated function getstate(::Val{layername}, setup::LandModel{TStrat}, du::AbstractArray, u::AbstractArray, t) where {TStrat,layername}
+    names = map(componentname, componenttypes(TStrat))
+    i = findfirst(n -> n == layername, names)
+    quote
+        _buildstate(
+            setup.cache[$(QuoteNode(layername))],
+            setup.meta[$(QuoteNode(layername))],
+            withaxes(u,setup).$layername,
+            withaxes(du,setup).$layername,
+            t,
+            boundaries(setup.strat)[$i]
+        )
+    end
+end
+"""
+    getvar(var::Symbol, setup::LandModel, u)
+"""
+getvar(var::Symbol, setup::LandModel, u) = getvar(Val{var}(), setup, u)
+"""
+    getvar(::Val{var}, setup::LandModel{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
+
+Generated function that finds all layers containing variable `var::Symbol` and returns an `ArrayPartition` combining
+them into a single contiguous array (allocation free).
+
+e.g: `T = getvar(:T, setup, u)`
+"""
+@generated function getvar(::Val{var}, setup::LandModel{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
+    expr = Expr(:block)
+    nodetyps = componenttypes(TStrat)
+    matchedlayers = []
+    push!(expr.args, :(u = ComponentArray(_u, getaxes(setup.uproto))))
+    for (i,node) in enumerate(nodetyps)
+        name = componentname(node)
+        metatype = TMeta.parameters[i]
+        # extract variable type information from metadata type
+        ptypes, dtypes, atypes = _resolve_vartypes(metatype)
+        prognames = tuplejoin(varname.(ptypes), varname.(atypes))
+        diagnames = varname.(dtypes)
+        identifier = Symbol(name,:_,var)
+        if var ∈ prognames
+            @>> quote
+            $identifier = u.$name.$var
+            end push!(expr.args)
+            push!(matchedlayers, identifier)
+        elseif var ∈ diagnames
+            @>> quote
+            $identifier = retrieve(setup.cache.$name.$var, u)
+            end push!(expr.args)
+            push!(matchedlayers, identifier)
+        end
+    end
+    @>> quote
+    ArrayPartition($(matchedlayers...))
     end push!(expr.args)
     return expr
 end

@@ -86,7 +86,7 @@ Evaluates the continuous solution at time `t`.
 Similar to `getvar(::Symbol, ::LandModel, ...)` but for `CryoGridOutput`. However, this implementation
 is not type stable and will newly allocate the resulting `DimArray` from concatenating along the depth dimension.
 """
-function getvar(var::Symbol, out::CryoGridOutput)
+function Land.getvar(var::Symbol, out::CryoGridOutput)
     parts = []
     for layer in keys(out.vars)
         for name in keys(out.vars[layer])

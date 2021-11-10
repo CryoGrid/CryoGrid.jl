@@ -7,12 +7,12 @@ const gridvals = vcat([0:0.02:2...,2.05:0.05:4.0...,
 	35:5:50...,60:10:100...,200:100:1000...]...)u"m"
 # soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
-	0.0u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-	0.1u"m" => SoilProperties(χ=0.0,ϕ=0.80,θ=1.0,ω=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-	0.4u"m" => SoilProperties(χ=0.30,ϕ=0.55,θ=1.0,ω=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-	3.0u"m" => SoilProperties(χ=0.0,ϕ=0.50,θ=1.0,ω=0.0), #(θw=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-	10.0u"m" => SoilProperties(χ=0.0,ϕ=0.30,θ=1.0,ω=0.0), #(θw=0.30,θm=0.70,θo=0.0,ϕ=0.30),
-)
+    0.0u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+    0.1u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+    0.4u"m" => SoilComposition(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+    3.0u"m" => SoilComposition(xic=0.0,por=0.50,sat=1.0,org=0.0), #(θw=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+    10.0u"m" => SoilComposition(xic=0.0,por=0.30,sat=1.0,org=0.0), #(θw=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+),
 # mid-winter temperature profile
 tempprofile = TempProfile(
     0.01u"m" => -15.9u"°C",
@@ -50,5 +50,7 @@ out = @time solve(prob, Euler(), dt=2*60.0, callback=CFLStepLimiter(model), save
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.soil.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.soil.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+H = getvar(:H, out)
+T = getvar(:T, out)
+plot(H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
