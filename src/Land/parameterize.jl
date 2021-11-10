@@ -28,7 +28,7 @@ Base.show(io, rv::ParameterVector) = show(io, getfield(rv, :vals))
 ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
 _paramval(p::Param) = ustrip(p.val) # extracts value from Param type and strips units
-function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
+function parameterize(setup::LandModel, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     function getparam(p)
         # currently, we assume only one variable of each name in each layer;
         # this could be relaxed in the future but will need to be appropriately handled
@@ -46,9 +46,9 @@ function parameterize(setup::CryoGridSetup, transforms::Pair{Symbol,<:Pair{Symbo
     mappedarr = ComponentArray(mapflat(_paramval, mappedparams))
     return ParameterVector(mappedarr, mappedparams, mappings...)
 end
-@inline updateparams!(v::AbstractVector, setup::CryoGridSetup, du, u, t) = v
-@inline updateparams!(v::ParameterVector{T,TV,P,Tuple{}}, setup::CryoGridSetup, du, u, t) where {T,TV,P} = v
-@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, setup::CryoGridSetup, du, u, t) where {T,TV,P,M}
+@inline updateparams!(v::AbstractVector, setup::LandModel, du, u, t) = v
+@inline updateparams!(v::ParameterVector{T,TV,P,Tuple{}}, setup::LandModel, du, u, t) where {T,TV,P} = v
+@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, setup::LandModel, du, u, t) where {T,TV,P,M}
     expr = quote
         pvals = vals(rv)
         pmodel = ModelParameters.update(getfield(rv, :params), pvals)
@@ -61,7 +61,7 @@ end
     push!(expr.args, :(return Utils.genmap(_paramval, ModelParameters.params(pmodel))))
     return expr
 end
-@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, setup::CryoGridSetup, du, u, t) where {T,name,layer}
+@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, setup::LandModel, du, u, t) where {T,name,layer}
     quote
         state = getstate(Val($(QuoteNode(layer))), setup, du, u, t)
         p = pmodel.$layer.$name

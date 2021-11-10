@@ -1,4 +1,4 @@
-module Processes
+module Physics
 
 import CryoGrid: Process, CompoundProcess, Coupled, Layer, Top, Bottom, SubSurface
 import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, observe

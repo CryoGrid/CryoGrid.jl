@@ -1,7 +1,7 @@
 module Diagnostics
 
 using CryoGrid.Numerics
-using CryoGrid.Setup
+using CryoGrid.Land
 using CryoGrid.Utils
 
 using DimensionalData

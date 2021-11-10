@@ -24,26 +24,26 @@ include("../types.jl")
         @test hasproperty(setup.meta,:bottom)
     end
     # case: no variables defined
-    @test_throws AssertionError setup = CryoGridSetup(strat,grid)
+    @test_throws AssertionError setup = LandModel(strat,grid)
     # case no prognostic variables defined
     CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
     )
-    @test_throws AssertionError setup = CryoGridSetup(strat,grid)
+    @test_throws AssertionError setup = LandModel(strat,grid)
     CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
         Prognostic(:x, Float"J", OnGrid(Cells)),
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
     )
-    setup = CryoGridSetup(strat,grid)
+    setup = LandModel(strat,grid)
     checkfields()
     @test hasproperty(setup.uproto.testground,:x)
     @test hasproperty(setup.cache.testground,:k)
     # do not allow prognostic layer variables
     CryoGrid.variables(::TestGroundLayer) = (Prognostic(:w,Float"kg",OnGrid(Cells)),)
-    @test_throws AssertionError setup = CryoGridSetup(strat,grid)
+    @test_throws AssertionError setup = LandModel(strat,grid)
     # test inclusion of layer variables
     CryoGrid.variables(::TestGroundLayer) = (Diagnostic(:w,Float"kg",OnGrid(Cells)),)
-    setup = CryoGridSetup(strat,grid)
+    setup = LandModel(strat,grid)
     checkfields()
     @test hasproperty(setup.cache.testground,:w)
     # warn when variable declared as prognostic and diagnostic
@@ -52,7 +52,7 @@ include("../types.jl")
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
         Prognostic(:w, Float"kg", OnGrid(Cells)),
     )
-    @test_logs (:warn,r".*declared as both prognostic/algebraic and diagnostic.*") setup = CryoGridSetup(strat,grid)
+    @test_logs (:warn,r".*declared as both prognostic/algebraic and diagnostic.*") setup = LandModel(strat,grid)
     checkfields()
     @test hasproperty(setup.uproto.testground,:x)
     @test hasproperty(setup.uproto.testground,:w)
@@ -62,7 +62,7 @@ include("../types.jl")
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
         Diagnostic(:w, Float"kg", OnGrid(Cells)),
     )
-    setup = CryoGridSetup(strat,grid)
+    setup = LandModel(strat,grid)
     checkfields()
     @test hasproperty(setup.cache.testground,:w)
     # error when conflicting variables declared
@@ -71,14 +71,14 @@ include("../types.jl")
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
         Diagnostic(:w, Float"kg/m", OnGrid(Edges)),
     )
-    @test_throws AssertionError setup = CryoGridSetup(strat,grid)
+    @test_throws AssertionError setup = LandModel(strat,grid)
     # test scalar variables and parameters
     CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
         Prognostic(:x, Float"J", OnGrid(Cells)),
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
         Diagnostic(:a, Float64, Scalar),
     )
-    setup = CryoGridSetup(strat,grid)
+    setup = LandModel(strat,grid)
     checkfields()
     @test hasproperty(setup.cache.testground, :a)
     setup.cache.testground.a.cache.du[1] = 2.0
@@ -102,7 +102,7 @@ end
         Prognostic(:x, Float"J", OnGrid(Cells)),
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
     )
-    setup = CryoGridSetup(strat,grid)
+    setup = LandModel(strat,grid)
     # check for layers
     @test hasproperty(setup.uproto,:top)
     @test hasproperty(setup.uproto,:testground1)
@@ -137,7 +137,7 @@ end
         Prognostic(:x, Float"J", OnGrid(Cells)),
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
     )
-    setup = CryoGridSetup(strat,grid)
+    setup = LandModel(strat,grid)
     @test length(getvar(:x, setup, setup.uproto)) == length(cells(grid))
     # Note: This may be a future bug; currently, variables defined on grid boundaries
     # are duplicated between neighboring grid cells. This does not currently pose an

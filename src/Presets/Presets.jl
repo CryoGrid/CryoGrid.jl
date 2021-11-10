@@ -50,21 +50,20 @@ const SamoylovDefault = SoilLayerConfig(
 export SamoylovDefault
 
 """
-    SoilHeat([heatvar=:H], upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
-function SoilHeat(heatvar, upperbc::BoundaryProcess, soilconfig::SoilLayerConfig;
-    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
+function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilconfig::SoilLayerConfig;
+    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => top(upperbc),
-        Tuple(z => subsurface(Symbol(:soil,i), Soil(comp=comp), Heat(sp=heatvar,initialT=soilconfig.tempprofile, freezecurve=freezecurve)) for (i,(z,comp)) in enumerate(soilconfig.soilprofile)),
+        Tuple(z => subsurface(Symbol(:soil,i), Soil(comp=comp), Heat(heatvar,initialT=soilconfig.tempprofile, freezecurve=freezecurve)) for (i,(z,comp)) in enumerate(soilconfig.soilprofile)),
         1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
-    CryoGridSetup(strat,grid,chunk_size=chunk_size)
+    LandModel(strat, grid, chunksize=chunksize)
 end
-SoilHeat(upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} =
-    SoilHeat(:H, upperbc, soilconfig; grid=grid, freezecurve=freezecurve)
+SoilHeatColumn(upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilconfig; grid=grid, freezecurve=freezecurve)
 
 end

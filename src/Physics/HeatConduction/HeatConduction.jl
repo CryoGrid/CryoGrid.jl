@@ -3,9 +3,9 @@ module HeatConduction
 import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Boundary
 import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
-using ..Processes
-using ..Processes.Boundaries
-using ..Processes.Water: VanGenuchten
+using ..Physics
+using ..Physics.Boundaries
+using ..Physics.Water: VanGenuchten
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heaviside
 using CryoGrid.Layers: Soil, θp, θw, θm, θo

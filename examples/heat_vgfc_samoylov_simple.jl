@@ -4,10 +4,9 @@ using Plots
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
 # use air temperature as upper boundary forcing;
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
-# basic 1-layer heat conduction model (defaults to free water freezing scheme)
+# "simple" heat conduction model w/ 5 cm grid spacing
 grid = CryoGrid.Presets.DefaultGrid_5cm
-model = CryoGrid.Presets.SoilHeat(:H, TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault;
-    grid=grid, freezecurve=SFCC(DallAmico()))
+model = CryoGrid.Presets.SoilHeatColumn(:H, TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault; grid=grid, freezecurve=SFCC(DallAmico()))
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # CryoGrid front-end for ODEProblem
@@ -17,5 +16,7 @@ out = @time solve(prob, Euler(), dt=10*60.0, saveat=24*3600.0, progress=true) |>
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.soil.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.soil.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+H = getvar(:H, out)
+T = getvar(:T, out)
+plot(H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)

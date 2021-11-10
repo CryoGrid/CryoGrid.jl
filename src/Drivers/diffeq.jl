@@ -1,15 +1,21 @@
+using DiffEqBase
+using DiffEqCallbacks
+
+@reexport using OrdinaryDiffEq
+@reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
+
 """
 Specialized problem type for CryoGrid `ODEProblem`s.
 """
 struct CryoGridODEProblem end
 
 """
-    CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
+    CryoGridProblem(setup::LandModel, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
 
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 """
-function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothing; saveat=3600.0, save_everystep=false, callback=nothing, save_adtypes=false, kwargs...)
+function CryoGridProblem(setup::LandModel, tspan::NTuple{2,Float64}, p=nothing; saveat=3600.0, save_everystep=false, callback=nothing, save_adtypes=false, kwargs...)
     # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
@@ -19,7 +25,7 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     model = Model(setup)
     p = isnothing(p) ? dustrip.(collect(model[:val])) : p
 	# compute initial condition
-	u0, du0 = init!(setup, tspan, p)
+	u0, du0 = Land.init!(setup, tspan, p)
     # set up saving callback
     stateproto = getstates(setup, values(du0,Val{save_adtypes}()), values(u0,Val{save_adtypes}()), tspan[1], Val{:diagnostic}())
     savevals = SavedValues(Float64, typeof(stateproto))
@@ -45,40 +51,23 @@ function CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,Float64}, p=nothi
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
 	func = odefunction(setup, M, u0, p, tspan; kwargs...)
-	ODEProblem(func,u0,tspan,p,CryoGridODEProblem(); callback=callbacks, kwargs...)
+	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, kwargs...)
 end
 # this version converts tspan from DateTime to float
 """
-    CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...)
+    CryoGridProblem(setup::LandModel, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
-CryoGridProblem(setup::CryoGridSetup, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,convert_tspan(tspan),args...;kwargs...)
+CryoGridProblem(setup::LandModel, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,convert_tspan(tspan),args...;kwargs...)
 
 export CryoGridProblem
 
 """
-    JacobianStyle
-
-Trait for indicating Jacobian sparsity of a CryoGrid ODEProblem.
-"""
-abstract type JacobianStyle end
-struct DefaultJac <: JacobianStyle end
-struct TridiagJac <: JacobianStyle end
-"""
-    JacobianStyle(::Type{<:CryoGridSetup})
-
-Can be overriden/extended to specify Jacobian structure for specific `CryoGridSetup`s.
-"""
-JacobianStyle(::Type{<:CryoGridSetup}) = DefaultJac()
-
-export DefaultJac, TridiagJac, JacobianStyle
-
-"""
-    odefunction(setup::CryoGridSetup, M, u0, p, tspan; kwargs...)
+    odefunction(setup::LandModel, M, u0, p, tspan; kwargs...)
 
 Constructs a SciML `ODEFunction` given the model setup, mass matrix M, initial state u0, parameters p, and tspan.
 Can (and should) be overridden by users to provide customized ODEFunction configurations for specific problem setups, e.g:
 ```
-model = CryoGridSetup(strat,grid)
+model = LandModel(strat,grid)
 function CryoGrid.Setup.odefunction(::DefaultJac, setup::typeof(model), M, u0, p, tspan)
     ...
     # make sure to return an instance of ODEFunction
@@ -87,11 +76,11 @@ end
 prob = CryoGridProblem(model, tspan, p)
 ```
 
-`JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `CryoGridSetup`s.
+`JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `LandModel`s.
 """
-odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
-odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:CryoGridSetup} = ODEFunction(setup, mass_matrix=M; kwargs...)
-function odefunction(::TridiagJac, setup::CryoGridSetup, M, u0, p, tspan; kwargs...)
+odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:LandModel} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
+odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:LandModel} = ODEFunction(setup, mass_matrix=M; kwargs...)
+function odefunction(::TridiagJac, setup::LandModel, M, u0, p, tspan; kwargs...)
     if :jac_prototype in keys(kwargs)
         @warn "using user specified jac_prorotype instead of tridiagonal"
         ODEFunction(setup, mass_matrix=M; kwargs...)
@@ -106,8 +95,31 @@ function odefunction(::TridiagJac, setup::CryoGridSetup, M, u0, p, tspan; kwargs
     end
 end
 
-# Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
-# Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
-# Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
-const HeatOnlySetup = CryoGridSetup{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CompoundProcess{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
-JacobianStyle(::Type{<:HeatOnlySetup}) = TridiagJac()
+"""
+    getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
+
+Builds the state named tuple for `layername` given an initialized integrator.
+"""
+getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{layername}(), integrator)
+@generated function getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername}
+    # a bit hacky and may break in the future... but this is the hardcoded position of the LandModel type in DEIntegrator
+    TStrat = integrator.parameters[13].parameters[2].parameters[1]
+    names = map(componentname, componenttypes(TStrat))
+    i = findfirst(n -> n == layername, names)
+    quote
+        let setup = integrator.f.f;
+            Land._buildstate(
+                setup.cache[$(QuoteNode(layername))],
+                setup.meta[$(QuoteNode(layername))],
+                withaxes(integrator.u,setup).$layername,
+                withaxes(get_du(integrator),setup).$layername,
+                integrator.t,
+                boundaries(setup.strat)[$i]
+            )
+        end
+    end
+end
+"""
+    getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
+"""
+getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Land.getvar(Val{var}(), integrator.f.f, integrator.u)

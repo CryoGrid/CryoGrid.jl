@@ -1,20 +1,20 @@
 """
-    CryoGridOutput
+    CryoGridOutput{TRes}
 
-Helper type that stores the solution to a CryoGrid `ODEProblem` along with `DimArray` views of all
+Helper type that stores the raw output from a CryoGrid run along with `DimArray` views of all
 logged variables. `CryoGridOutput` overrides `Base.getproperty` to allow for direct dot-syntax
 access of state variables. For example, if your model has a grid variable named `T` in layer `layer`,
 then for a `CryoGridOutput` value `out`, `out.layer.T` returns a `DimArray` with indexed time and
-depth axes. The `ODESolution` can be accessed via `out.sol`, or for convenience, the continuous solution
-at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`. To access a
-variable shared across multiple layers, use `getvar(name, out)` where `name` is the symbol corresponding
-to the variable name.
+depth axes. For OrdinaryDiffEq.jl outputs, the `ODESolution` can be accessed via `out.sol`, or for convenience,
+the continuous solution at time `t` can be computed via `out(t)` which is equivalent to `withaxes(out.sol(t))`.
+To access a variable shared across multiple layers, use `getvar(name, out)` where `name` is the symbol
+corresponding to the variable name.
 """
-struct CryoGridOutput
+struct CryoGridOutput{TRes}
     ts::Vector{DateTime}
-    sol::ODESolution
+    res::TRes
     vars::NamedTuple
-    CryoGridOutput(ts::Vector{DateTime}, sol::ODESolution, vars::NamedTuple) = new(ts, sol, vars)
+    CryoGridOutput(ts::Vector{DateTime}, res::TRes, vars::NamedTuple) where TRes = new{TRes}(ts, res, vars)
 end
 
 """
@@ -24,7 +24,7 @@ function CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(::Var{name,T,<:OnGrid}, arr, zs, ts, i) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(zs, digits=5)u"m"),Ti(ts)))
     withdims(::Var{name,T}, arr, zs, ts, i) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts),))
-    setup = sol.prob.f.f # CryoGridSetup
+    setup = sol.prob.f.f # LandModel
     ts = setup.hist.vals.t # use save callback time points
     ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
     savedstate = setup.hist.vals.saveval
@@ -78,15 +78,15 @@ end
 """
 Evaluates the continuous solution at time `t`.
 """
-(out::CryoGridOutput)(t::Real) = withaxes(out.sol(t), out.sol.prob.f.f)
-(out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
+(out::CryoGridOutput{<:ODESolution})(t::Real) = withaxes(out.res(t), out.res.prob.f.f)
+(out::CryoGridOutput{<:ODESolution})(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 """
     getvar(var::Symbol, out::CryoGridOutput)
 
-Similar to `getvar(::Symbol, ::CryoGridSetup, ...)` but for `CryoGridOutput`. However, this implementation
+Similar to `getvar(::Symbol, ::LandModel, ...)` but for `CryoGridOutput`. However, this implementation
 is not type stable and will newly allocate the resulting `DimArray` from concatenating along the depth dimension.
 """
-function getvar(var::Symbol, out::CryoGridOutput)
+function Land.getvar(var::Symbol, out::CryoGridOutput)
     parts = []
     for layer in keys(out.vars)
         for name in keys(out.vars[layer])
@@ -114,8 +114,8 @@ function Base.show(io::IO, out::CryoGridOutput)
     end
 end
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
-    if sym in (:sol,:log,:vars)
-        getfield(out,sym)
+    if sym in (:res,:ts,:vars)
+        getfield(out, sym)
     else
         out.vars[sym]
     end

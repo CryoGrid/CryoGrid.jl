@@ -2,6 +2,7 @@ using Base: NamedTuple
 using CryoGrid
 using Test
 
-include("Common/runtests.jl")
-include("Setup/runtests.jl")
-include("Processes/runtests.jl")
+include("Utils/runtests.jl")
+include("Numerics/runtests.jl")
+include("Physics/runtests.jl")
+include("Land/runtests.jl")

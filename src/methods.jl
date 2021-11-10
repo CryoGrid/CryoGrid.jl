@@ -27,7 +27,7 @@ initialcondition!(::Layer, ::Process, state) = nothing
 """
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
-Defines the initial condition for two Processes on adjacent layers. `initialcondition!` should write initial values into all
+Defines the initial condition for two processes on adjacent layers. `initialcondition!` should write initial values into all
 relevant state variables in `state`.
 """
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
@@ -62,7 +62,7 @@ Example:
 observe(::Val{:meanT}, ::SubSurface, ::Heat, state) = @log meanT = mean(state.T)
 # build model
 ...
-setup = CryoGridSetup(stratigraphy, grid, observed=[:meanT])
+setup = LandModel(stratigraphy, grid, observed=[:meanT])
 # solve
 ...
 # retrieve results
