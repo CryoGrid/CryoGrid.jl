@@ -5,7 +5,6 @@ import CryoGrid: variables
 
 using CryoGrid.Numerics
 using CryoGrid.Utils
-using CryoGrid.InputOutput: Resource
 
 using ConstructionBase
 using Dates

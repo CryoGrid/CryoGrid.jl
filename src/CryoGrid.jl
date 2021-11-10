@@ -22,22 +22,22 @@ include("methods.jl")
 # Submodules
 include("Utils/Utils.jl")
 include("Numerics/Numerics.jl")
-include("IO/InputOutput.jl")
 include("Layers/Layers.jl")
 include("Physics/Physics.jl")
 include("Land/Land.jl")
 include("Drivers/Drivers.jl")
+include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 include("Callbacks/Callbacks.jl")
 
 # Re-exported submodules
 @reexport using .Utils
 @reexport using .Numerics
-@reexport using .InputOutput
 @reexport using .Layers
 @reexport using .Physics
 @reexport using .Land
 @reexport using .Drivers
+@reexport using .InputOutput
 @reexport using .Diagnostics
 @reexport using .Callbacks
 

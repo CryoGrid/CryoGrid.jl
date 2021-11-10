@@ -6,7 +6,6 @@ import ReverseDiff
 import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CompoundProcess
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
-using CryoGrid.InputOutput
 using CryoGrid.Layers
 using CryoGrid.Numerics
 using CryoGrid.Physics
