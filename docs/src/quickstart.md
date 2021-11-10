@@ -1,6 +1,8 @@
 ## Quick start
 
-After [installing](installation.md) `CryoGrid.jl`, you can get started right away with a simple soil heat model. The [`Models`](@ref) module (aliased `CryoGrid.Models`) provides pre-specified models that can be obtained with a single function call. It is also possible to modify the soil and initial temperature profiles via `SoilLayerConfig`; here `SamoylovDefault` is used.
+After [installing](installation.md) `CryoGrid.jl`, you can get started right away with a simple soil heat model. The [`Presets`](@ref) module (aliased `CryoGrid.Presets`) provides pre-specified model configurations that can be obtained with a single function call. It is also possible to modify the soil and initial temperature profiles via `SoilLayerConfig`; here `SamoylovDefault` is used.
+
+Single layer heat conduction model with free water freeze curve and air temperature upper boundary condition:
 
 ```julia
 using CryoGrid
@@ -12,7 +14,7 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 # use air temperature as upper boundary forcing
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGrid.Presets.SoilHeat(TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault)
+model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # CryoGrid front-end for ODEProblem
@@ -24,12 +26,12 @@ zs = [1.0,5,10,20,30,50,100,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 ```
-![Ts_output_freew](../../res/Ts_H_tair_freeW_2010-2011.png)
+![Ts_output_freew](res/Ts_H_tair_freeW_2010-2011.png)
 
 Alternatively, we can use a Dall'Amico freeze curve:
 
 ```julia
-model = CryoGrid.Presets.SoilHeat(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
+model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(DallAmico()))
 # Set-up parameters
 p = copy(model.pproto)
 p.soil.α .= 4.0
@@ -42,7 +44,7 @@ prob = CryoGridProblem(model,tspan,p)
 out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
 plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 ```
-![Ts_output_vgfc](../../res/Ts_H_tair_vg_2010-2011.png)
+![Ts_output_vgfc](res/Ts_H_tair_vg_2010-2011.png)
 
 Note that `SoilHeat` uses energy as the state variable by default. To use temperature as the state variable instead:
 
@@ -50,5 +52,5 @@ Note that `SoilHeat` uses energy as the state variable by default. To use temper
 # Note that this will work with any freeze curve, here we use Westermann (2011).
 # :T is the variable name for temperature, :H represents enthalpy/energy.
 # This is used in the specification of the Heat process type.
-model = CryoGrid.Presets.SoilHeat(:T, TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
+model = CryoGrid.Presets.SoilHeatColumn(:T, TemperatureGradient(tair), SamoylovDefault, freezecurve=SFCC(Westermann()))
 ```
