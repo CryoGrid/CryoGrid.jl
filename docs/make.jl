@@ -8,7 +8,7 @@ const modules = [
        CryoGrid.Utils,
        CryoGrid.Numerics,
        CryoGrid.Layers,
-       CryoGrid.Processes,
+       CryoGrid.Physics,
        CryoGrid.Boundaries,
        CryoGrid.HeatConduction,
        CryoGrid.SEB,
@@ -32,7 +32,7 @@ makedocs(modules=modules,
                        "Method interface" => "api/toplevel.md",
                        "Numerics" => "api/numerics.md",
                        "Utilities" => "api/utils.md",
-                       "Processes" => [
+                       "Physics" => [
                             "Heat Conduction" => "api/heat_conduction.md",
                             "Surface Energy Balance" => "api/seb.md",
                        ],

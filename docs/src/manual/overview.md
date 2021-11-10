@@ -12,7 +12,7 @@ strat = Stratigraphy(
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
-model = CryoGridSetup(strat,grid);
+model = LandModel(strat,grid);
 ```
 
 This model can then be used to construct an `ODEProblem` (from `DiffEqBase.jl`) via the `CryoGridProblem` constructor:
@@ -57,7 +57,7 @@ variables(soil::Soil, heat::Heat{:H}) = (
 )
 ```
 
-When the `Heat` process is assigned to a `Soil` layer, `CryoGridSetup` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and are automatically tracked by the modeling engine (i.e. their saved values will appear in `CryoGridOutput`).
+When the `Heat` process is assigned to a `Soil` layer, `LandModel` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and are automatically tracked by the modeling engine (i.e. their saved values will appear in `CryoGridOutput`).
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 

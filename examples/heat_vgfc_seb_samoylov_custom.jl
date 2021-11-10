@@ -40,7 +40,7 @@ strat = Stratigraphy(
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = Grid(gridvals);
-model = CryoGridSetup(strat,grid);
+model = LandModel(strat,grid);
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # CryoGrid front-end for ODEProblem

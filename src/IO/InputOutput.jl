@@ -1,7 +1,11 @@
 module InputOutput
 
+using CryoGrid.Numerics
+
 using DataStructures: DefaultDict
 using Dates
+using DiffEqBase: SciMLBase, ODESolution
+using DimensionalData
 using Downloads
 using JSON3
 using Lazy: @>>
@@ -10,6 +14,9 @@ using Unitful
 export loadforcings
 
 include("ioutils.jl")
+
+export CryoGridOutput
+include("output.jl")
 
 const INPUT_DIR = "input/"
 const DEFAULT_FORCINGS_DIR = joinpath(INPUT_DIR, "forcings")

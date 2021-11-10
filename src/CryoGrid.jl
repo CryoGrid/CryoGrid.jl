@@ -24,8 +24,9 @@ include("Utils/Utils.jl")
 include("Numerics/Numerics.jl")
 include("IO/InputOutput.jl")
 include("Layers/Layers.jl")
-include("Processes/Processes.jl")
-include("Setup/Setup.jl")
+include("Physics/Physics.jl")
+include("Land/Land.jl")
+include("Drivers/Drivers.jl")
 include("Diagnostics/Diagnostics.jl")
 include("Callbacks/Callbacks.jl")
 
@@ -34,8 +35,9 @@ include("Callbacks/Callbacks.jl")
 @reexport using .Numerics
 @reexport using .InputOutput
 @reexport using .Layers
-@reexport using .Processes
-@reexport using .Setup
+@reexport using .Physics
+@reexport using .Land
+@reexport using .Drivers
 @reexport using .Diagnostics
 @reexport using .Callbacks
 

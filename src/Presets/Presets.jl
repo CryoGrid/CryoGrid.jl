@@ -62,7 +62,7 @@ function SoilHeat(heatvar, upperbc::BoundaryProcess, soilconfig::SoilLayerConfig
         Tuple(z => subsurface(Symbol(:soil,i), Soil(comp=comp), Heat(sp=heatvar,initialT=soilconfig.tempprofile, freezecurve=freezecurve)) for (i,(z,comp)) in enumerate(soilconfig.soilprofile)),
         1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
-    CryoGridSetup(strat,grid,chunk_size=chunk_size)
+    LandModel(strat,grid,chunk_size=chunk_size)
 end
 SoilHeat(upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} =
     SoilHeat(:H, upperbc, soilconfig; grid=grid, freezecurve=freezecurve)

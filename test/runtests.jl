@@ -4,4 +4,4 @@ using Test
 
 include("Common/runtests.jl")
 include("Setup/runtests.jl")
-include("Processes/runtests.jl")
+include("Physics/runtests.jl")

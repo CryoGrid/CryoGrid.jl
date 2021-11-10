@@ -1,22 +1,22 @@
 mutable struct StateHistory
-    vals::Union{Missing,<:SavedValues}
+    vals::Union{Missing,<:Any}
     StateHistory() = new(missing)
 end
 
 """
-    CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv,P}
+LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv,P}
 
-Defines the full specification of a CryoGrid model; i.e. stratigraphy, grids, variables, and diagnostic state. `uproto`
+Defines the full specification of a CryoGrid land model; i.e. stratigraphy, grids, variables, and diagnostic state. `uproto`
 field is an uninitialized, prototype `ComponentArray` that holds the axis information for the prognostic state vector.
 """
-struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
+struct LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
     strat::TStrat   # stratigraphy
     grid::TGrid     # grid
     meta::NamedTuple{names,TMeta} # metadata (variable info and grids per layer)
     cache::NamedTuple{names,TCache} # variable caches (per layer)
     hist::StateHistory # mutable "history" type for state tracking
     uproto::ComponentVector{T,A,uax} # prototype prognostic state ComponentArray for integrator
-    function CryoGridSetup(
+    function LandModel(
         strat::TStrat,
         grid::TGrid,
         meta::NamedTuple{names,TMeta},
@@ -28,14 +28,16 @@ struct CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
         new{TStrat,TGrid,TMeta,TCache,T,A,uax,names,tuple(observed...)}(strat,grid,meta,cache,hist,uproto)
     end
 end
-ConstructionBase.constructorof(::Type{CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv} =
-    (strat, grid, meta, cache, hist, uproto) -> CryoGridSetup(strat,grid,meta,cache,hist,uproto,length(obsv) > 0 ? collect(obsv) : Symbol[])
+ConstructionBase.constructorof(::Type{LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv} =
+    (strat, grid, meta, cache, hist, uproto) -> LandModel(strat,grid,meta,cache,hist,uproto,length(obsv) > 0 ? collect(obsv) : Symbol[])
+
+Base.show(io::IO, ::MIME"text/plain", model::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv} = print(io, "LandModel{$TStrat,$TGrid,...} with layers $names and observables $obsv")
 
 """
-Constructs a `CryoGridSetup` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
+Constructs a `LandModel` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
-function CryoGridSetup(
+function LandModel(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity});
     arrayproto::AbstractArray=zeros(),
@@ -82,28 +84,28 @@ function CryoGridSetup(
     uproto = ComponentArray(nt_prog)
     # reconstruct with given array type
     uproto = ComponentArray(similar(arrayproto,length(uproto)), getaxes(uproto))
-    CryoGridSetup(strat,grid,nt_meta,nt_cache,StateHistory(),uproto,observed)
+    LandModel(strat,grid,nt_meta,nt_cache,StateHistory(),uproto,observed)
 end
-CryoGridSetup(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = CryoGridSetup(strat, edges(grid); kwargs...)
-CryoGridSetup(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
+LandModel(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = LandModel(strat, edges(grid); kwargs...)
+LandModel(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 
 # mark only stratigraphy field as flattenable
-Flatten.flattenable(::Type{<:CryoGridSetup}, ::Type{Val{:strat}}) = true
-Flatten.flattenable(::Type{<:CryoGridSetup}, ::Type{Val{name}}) where name = false
+Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{:strat}}) = true
+Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{name}}) where name = false
 
 """
-    withaxes(u::AbstractArray, ::CryoGridSetup)
+    withaxes(u::AbstractArray, ::LandModel)
 
 Constructs a `ComponentArray` with labeled axes from the given state vector `u`. Assumes `u` to be of the same type/shape
 as `setup.uproto`.
 """
-withaxes(u::AbstractArray, setup::CryoGridSetup) = ComponentArray(u, getaxes(setup.uproto))
-withaxes(u::ComponentArray, ::CryoGridSetup) = u
-@generated function getstates(setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
+withaxes(u::AbstractArray, setup::LandModel) = ComponentArray(u, getaxes(setup.uproto))
+withaxes(u::ComponentArray, ::LandModel) = u
+@generated function getstates(setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
     stategetters = Tuple((:(getstate($(QuoteNode(name)), setup, du, u, t)) for name in names))
     return :(NamedTuple{names}(tuple($(stategetters...))))
 end
-@generated function getstates(setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t, ::Val{:diagnostic}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
+@generated function getstates(setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names}, du::AbstractArray, u::AbstractArray, t, ::Val{:diagnostic}) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names}
     function diagnosticvarnames(::Type{M}) where {M}
         pvars, dvars, avars = _resolve_vartypes(M)
         # get diagnostic variables and derivatives
@@ -119,12 +121,12 @@ end
     return expr
 end
 """
-    getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, t)
+    getstate(layername::Symbol, setup::LandModel, du::AbstractArray, u::AbstractArray, t)
 
 Builds the state named tuple for `layername` given `setup` and state arrays.
 """
-getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::AbstractArray, t) = getstate(Val{layername}(), setup, du, u, t)
-@generated function getstate(::Val{layername}, setup::CryoGridSetup{TStrat}, du::AbstractArray, u::AbstractArray, t) where {TStrat,layername}
+getstate(layername::Symbol, setup::LandModel, du::AbstractArray, u::AbstractArray, t) = getstate(Val{layername}(), setup, du, u, t)
+@generated function getstate(::Val{layername}, setup::LandModel{TStrat}, du::AbstractArray, u::AbstractArray, t) where {TStrat,layername}
     names = map(componentname, componenttypes(TStrat))
     i = findfirst(n -> n == layername, names)
     quote
@@ -139,46 +141,18 @@ getstate(layername::Symbol, setup::CryoGridSetup, du::AbstractArray, u::Abstract
     end
 end
 """
-    getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
-
-Builds the state named tuple for `layername` given an initialized integrator.
+    getvar(var::Symbol, setup::LandModel, u)
 """
-getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{layername}(), integrator)
-@generated function getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername}
-    # a bit hacky and may break in the future... but this is the hardcoded position of the CryoGridSetup type in DEIntegrator
-    TStrat = integrator.parameters[13].parameters[2].parameters[1]
-    names = map(componentname, componenttypes(TStrat))
-    i = findfirst(n -> n == layername, names)
-    quote
-        let setup = integrator.f.f;
-            _buildstate(
-                setup.cache[$(QuoteNode(layername))],
-                setup.meta[$(QuoteNode(layername))],
-                withaxes(integrator.u,setup).$layername,
-                withaxes(get_du(integrator),setup).$layername,
-                integrator.t,
-                boundaries(setup.strat)[$i]
-            )
-        end
-    end
-end
+getvar(var::Symbol, setup::LandModel, u) = getvar(Val{var}(), setup, u)
 """
-    getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
-"""
-getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = getvar(Val{var}(), integrator.f.f, integrator.u)
-"""
-    getvar(var::Symbol, setup::CryoGridSetup, u)
-"""
-getvar(var::Symbol, setup::CryoGridSetup, u) = getvar(Val{var}(), setup, u)
-"""
-    getvar(::Val{var}, setup::CryoGridSetup{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
+    getvar(::Val{var}, setup::LandModel{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
 
 Generated function that finds all layers containing variable `var::Symbol` and returns an `ArrayPartition` combining
 them into a single contiguous array (allocation free).
 
 e.g: `T = getvar(:T, setup, u)`
 """
-@generated function getvar(::Val{var}, setup::CryoGridSetup{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
+@generated function getvar(::Val{var}, setup::LandModel{TStrat,<:Grid,TMeta}, _u) where {var,TStrat,TMeta}
     expr = Expr(:block)
     nodetyps = componenttypes(TStrat)
     matchedlayers = []
@@ -210,7 +184,7 @@ e.g: `T = getvar(:T, setup, u)`
 end
 
 """
-Generated step function (i.e. du/dt) for any arbitrary CryoGridSetup. Specialized code is generated and compiled
+Generated step function (i.e. du/dt) for any arbitrary LandModel. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 < i < N:
 
@@ -221,7 +195,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function (setup::CryoGridSetup{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv})(_du,_u,_p,t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
+@generated function (setup::LandModel{TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv})(_du,_u,_p,t) where {TStrat,TGrid,TMeta,TCache,T,A,uax,names,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -319,11 +293,11 @@ is only executed during compilation and will not appear in the compiled version.
 end
 
 """
-    init!(setup::CryoGridSetup{TStrat}, p, tspan) where TStrat
+    init!(setup::LandModel{TStrat}, p, tspan) where TStrat
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-@generated function init!(setup::CryoGridSetup{TStrat}, tspan, p) where TStrat
+@generated function init!(setup::LandModel{TStrat}, tspan, p) where TStrat
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -514,12 +488,12 @@ struct VarCache{N,A,Adual}
         # use dual cache for automatic compatibility with ForwardDiff
         A = similar(arrayproto, length(grid))
         A .= zero(eltype(A))
-        cache = PreallocationTools.dualcache(A, Val{chunksize})
+        cache = PreallocationTools.dualcache(A, chunksize)
         new{chunksize,typeof(cache.du),typeof(cache.dual_du)}(name, cache)
     end
     function VarCache(name::Symbol, array::AbstractArray, chunksize::Int)
         # use dual cache for automatic compatibility with ForwardDiff
-        cache = PreallocationTools.dualcache(array, Val{chunksize})
+        cache = PreallocationTools.dualcache(array, chunksize)
         new{chunksize,typeof(cache.du),typeof(cache.dual_du)}(name, cache)
     end
 end
