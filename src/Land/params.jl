@@ -28,15 +28,15 @@ Base.show(io, rv::ParameterVector) = show(io, getfield(rv, :vals))
 ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
 _paramval(p::Param) = ustrip(p.val) # extracts value from Param type and strips units
-function parameterize(setup::LandModel, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
+function parameters(model::LandModel, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     function getparam(p)
         # currently, we assume only one variable of each name in each layer;
         # this could be relaxed in the future but will need to be appropriately handled
         @assert length(p) == 1 "Found more than one parameter with name $var in $layer; this is not currently supported."
         return p[1]
     end
-    model = Model(setup)
-    nestedparams = mapflat(getparam, groupparams(model, :layer, :fieldname); maptype=NamedTuple)
+    m = Model(model)
+    nestedparams = mapflat(getparam, groupparams(m, :layer, :fieldname); maptype=NamedTuple)
     mappedparams = nestedparams
     mappings = ParamMapping[]
     for (layer,(var,transform)) in transforms
@@ -46,24 +46,28 @@ function parameterize(setup::LandModel, transforms::Pair{Symbol,<:Pair{Symbol,<:
     mappedarr = ComponentArray(mapflat(_paramval, mappedparams))
     return ParameterVector(mappedarr, mappedparams, mappings...)
 end
-@inline updateparams!(v::AbstractVector, setup::LandModel, du, u, t) = v
-@inline updateparams!(v::ParameterVector{T,TV,P,Tuple{}}, setup::LandModel, du, u, t) where {T,TV,P} = v
-@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, setup::LandModel, du, u, t) where {T,TV,P,M}
+@inline @generated function updateparams!(v::AbstractVector, model::LandModel, u, du, t)
+    quote
+        p = ModelParameters.update(ModelParameters.params(model), v)
+        return Utils.genmap(_paramval, p)
+    end
+end
+@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, model::LandModel, u, du, t) where {T,TV,P,M}
     expr = quote
         pvals = vals(rv)
         pmodel = ModelParameters.update(getfield(rv, :params), pvals)
     end
     # apply parameter transforms
     for i in 1:length(M.parameters)
-        push!(expr.args, :(pmodel = _updateparam(pmodel, mappings(rv)[$i], setup, du, u, t)))
+        push!(expr.args, :(pmodel = _updateparam(pmodel, mappings(rv)[$i], model, u, du, t)))
     end
     # flatten parameters and strip Param types
     push!(expr.args, :(return Utils.genmap(_paramval, ModelParameters.params(pmodel))))
     return expr
 end
-@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, setup::LandModel, du, u, t) where {T,name,layer}
+@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, model::LandModel, u, du, t) where {T,name,layer}
     quote
-        state = getstate(Val($(QuoteNode(layer))), setup, du, u, t)
+        state = getstate(Val($(QuoteNode(layer))), model, u, du, t)
         p = pmodel.$layer.$name
         # reconstruct transform with new parameter values
         op = ModelParameters.update(mapping.transform, ModelParameters.params(p))

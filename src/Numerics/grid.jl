@@ -1,7 +1,7 @@
 const GridValues{Q,A} = NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}} where {Q,A<:AbstractArray}
 
 """
-    struct Grid{S,G,Q,A} <: DenseVector{Q}
+    struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
 
 Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridSpec`,
 either `Edges` or `Cells` (always edges upon initial construction). The grid representation can be
@@ -9,7 +9,7 @@ converted (allocation free) between grid edges and cells via the `cells` and `ed
 represents the geometry/volume on which the vertical 1D discretization is applied. `A` is the underlying
 array type, and `Q` is the numerical type (e.g. `Float64` or a `Unitful.Quantity`).
 """
-struct Grid{S,G,Q,A} <: DenseVector{Q}
+struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
     geometry::G
     values::GridValues{Q,A}
     deltas::GridValues{Q,A}
@@ -53,14 +53,13 @@ ConstructionBase.constructorof(::Type{Grid{S,G,Q,A}}) where {S,G,Q,A} = (geom,va
 Base.show(io::IO, grid::Grid{S,G}) where {S,G} = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
 Base.show(io::IO, ::MIME{Symbol("text/plain")}, grid::Grid) = show(io, grid)
 
-function subgrid(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
+function subgridinds(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
     @assert interval.left <= interval.right "Invalid interval: $interval"
     vals = values(grid)
     # Determine indices which lie in the given interval
     l_ind = searchsortedfirst(vals, interval.left)
     r_ind = searchsortedlast(vals, interval.right)
-    # Map back to full grid indices
-    Grid(grid,l_ind..r_ind)
+    return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
 @inline Δ(grid::Grid{Edges}) = grid.deltas.edges
 @inline Δ(grid::Grid{Cells}) = grid.deltas.cells
@@ -75,7 +74,8 @@ end
 @inline Base.size(grid::Grid) = size(values(grid))
 @inline Base.length(grid::Grid) = length(values(grid))
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
-@propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = subgrid(grid,interval)
+@propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = Grid(grid, subgridinds(grid,interval))
+@propagate_inbounds Base.getindex(grid::Grid, interval::Interval{L,R,Int}) where {L,R} = Grid(grid, interval)
 Base.setindex!(grid::Grid, args...) = error("setindex! is not allowed for Grid types")
 
 # unit volume

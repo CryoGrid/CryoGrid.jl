@@ -51,7 +51,7 @@ prob = CryoGridProblem(model,tspan)
 out = @time solve(prob, Trapezoid(), abstol=1e-3, reltol=1e-4, saveat=6*3600.0, progress=true) |> CryoGridOutput;
 zs = [1.0,5,10,20,30,50,100,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
-plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
+plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 ```
 ![Ts_output_freew](res/Ts_H_tair_freeW_2010-2011.png)
 
@@ -69,7 +69,7 @@ prob = CryoGridProblem(model,tspan,p)
 # stiff solvers don't work well with Dall'Amico due to the ill-conditioned Jacobian;
 # We can just forward Euler instead.
 out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
-plot(out.soil.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
+plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 ```
 ![Ts_output_vgfc](res/Ts_H_tair_vg_2010-2011.png)
 

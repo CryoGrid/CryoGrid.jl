@@ -5,7 +5,6 @@ using CryoGrid.Land
 
 using DataStructures: DefaultDict
 using Dates
-using DiffEqBase: SciMLBase, ODESolution
 using DimensionalData
 using Downloads
 using JSON3

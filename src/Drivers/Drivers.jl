@@ -3,17 +3,22 @@ Module containing types and functions for enabling time-integration of a CryoGri
 """
 module Drivers
 
-using CryoGrid: Land, SubSurface, CompoundProcess
-using CryoGrid.Numerics: varname
+using CryoGrid: Land, SubSurface, CompoundProcess, variables
+using CryoGrid.InputOutput
+using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
 using CryoGrid.Utils
 
+using ComponentArrays
 using Dates
+using DimensionalData
+using Flatten
 using ModelParameters
 using LinearAlgebra
 using Reexport
+using Unitful
 
-import CryoGrid.Land: LandModel, Stratigraphy, StratComponent, componenttypes, boundaries, withaxes, getstate, getstates, getvar
+import CryoGrid.Land: LandModel, Stratigraphy, StratComponent
 
 export DefaultJac, TridiagJac, JacobianStyle, HeatOnlyLandModel
 
