@@ -1,7 +1,7 @@
-# Land
+# Diagnostics
 
 ```@autodocs
-Modules = [Land]
+Modules = [Diagnostics]
 Private = false
 Order = [:type, :function, :macro]
 ```
