@@ -4,11 +4,41 @@ mutable struct StateHistory
 end
 
 """
-LandModel{TStrat,TGrid,TStates,iip,obsv}
+    AbstractLandModel{iip}
 
-Defines the full specification of a CryoGrid land model; i.e. stratigraphy, grids, variables, and diagnostic state.
+Base type for 1D land models. `iip` is a value of enum `InPlaceMode` that indicates
+whether the model operates on state variables in-place (overwriting arrays) or
+out-of-place (copying arrays).
 """
-struct LandModel{TStrat,TGrid,TStates,iip,obsv}
+abstract type AbstractLandModel{iip} end
+"""
+    (model::AbstractLandModel{inp})(du,u,p,t)
+    (model::AbstractLandModel{oop})(u,p,t)
+
+Invokes the corresponding `step` function to compute the time derivative du/dt.
+"""
+(model::AbstractLandModel{inp})(du,u,p,t) = step!(model,du,u,p,t)
+(model::AbstractLandModel{oop})(u,p,t) = step(model,u,p,t)
+
+"""
+    step!(::T, du, u, p, t) where {T<:AbstractLandModel}
+
+In-place step function for model `T`. Computes du/dt and stores the result in `du`.
+"""
+step!(::T, du, u, p, t) where {T<:AbstractLandModel} = error("no implementation of in-place step! for $T")
+"""
+    step(::T, u, p, t) where {T<:AbstractLandModel}
+
+Out-of-place step function for model `T`. Computes and returns du/dt as vector with same size as `u`.
+"""
+step(::T, u, p, t) where {T<:AbstractLandModel} = error("no implementation of out-of-place step for $T")
+
+"""
+    LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
+
+Defines the full specification of a CryoGrid land model; i.e. stratigraphy, grid, and state variables.
+"""
+struct LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
@@ -73,7 +103,6 @@ function LandModel(
 end
 LandModel(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = LandModel(strat, edges(grid); kwargs...)
 LandModel(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
-
 # mark only stratigraphy field as flattenable
 Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{name}}) where name = false
@@ -90,7 +119,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function (model::LandModel{TStrat,TGrid,TStates,iip,obsv})(_du,_u,_p,t) where {TStrat,TGrid,TStates,iip,obsv}
+@generated function step!(model::LandModel{TStrat,TGrid,TStates,inp,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
