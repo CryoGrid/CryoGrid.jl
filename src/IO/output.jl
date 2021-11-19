@@ -11,27 +11,27 @@ or for convenience, the continuous solution at time `t` can be computed via `out
 struct CryoGridOutput{TRes}
     ts::Vector{DateTime}
     res::TRes
-    out::NamedTuple
-    CryoGridOutput(ts::Vector{DateTime}, res::TRes, out::NamedTuple) where TRes = new{TRes}(ts, res, out)
+    data::NamedTuple
+    CryoGridOutput(ts::Vector{DateTime}, res::TRes, data::NamedTuple) where TRes = new{TRes}(ts, res, data)
 end
 # Overrides from Base
 function Base.show(io::IO, out::CryoGridOutput)
     countvars(x) = 1
     countvars(nt::NamedTuple) = sum(map(countvars, nt))
-    repr(key, val) = "$key => $(typeof(val).name.wrapper) of $(eltype(val)) with dimensions $(size(val))"
-    repr(key, val::NamedTuple) = "$key => $(map(str, keys(val), values(val)))"
-    vars = out.vars
-    nvars = countvars(vars)
+    describe(key, val) = "$key => $(typeof(val).name.wrapper) of $(eltype(val)) with dimensions $(size(val))"
+    describe(key, val::NamedTuple) = "$key => $(map(describe, keys(val), values(val)))"
+    data = out.data
+    nvars = countvars(data)
     println(io, "CryoGridOutput with $(length(out.ts)) time steps and $(nvars != 1 ? "$nvars variables" : "1 variable"):")
-    reprs = map(repr, keys(vars), values(vars))
-    for r in reprs
+    strs = map(describe, keys(data), values(data))
+    for r in strs
         println(io, "   $r")
     end
 end
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
-    if sym in (:res,:ts,:out)
+    if sym in (:res,:ts,:data)
         getfield(out, sym)
     else
-        out.out[sym]
+        out.data[sym]
     end
 end
