@@ -23,7 +23,7 @@ import Flatten: @flattenable, flattenable
 
 export Heat, HeatParams, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
-export ConstantTemp, GeothermalHeatFlux, NFactor, TemperatureGradient
+export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, SnowDamping
 export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
 export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 export heatconduction!, boundaryflux
