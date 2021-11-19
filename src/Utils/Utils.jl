@@ -12,13 +12,12 @@ using Unitful
 
 import CryoGrid
 import ForwardDiff
-import ReverseDiff
-
-include("macros.jl")
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar
+include("macros.jl")
+
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert
+export dustrip, duconvert, applyunit
 export structiterate, getscalar, tuplejoin, convert_tspan
 export Params
 
@@ -139,7 +138,6 @@ an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type,
 """
 adstrip(x::Number) = x
 adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
-adstrip(x::ReverseDiff.TrackedReal) = x.value
 adstrip(x::Param{T}) where {T<:ForwardDiff.Dual} = Param(NamedTuple{Tuple(keys(x))}((adstrip(x.val), Base.tail(parent(x))...)))
 
 """

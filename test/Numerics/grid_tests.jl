@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.Numerics
 using Test, BenchmarkTools
 
 include("../testutils.jl")

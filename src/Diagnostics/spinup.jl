@@ -11,7 +11,8 @@ function spinup(setup::LandModel, tspan::NTuple{2,DateTime}, p, tol, layername; 
     sol = solve(prob, solver, dt=dt, saveat=saveat, solve_args...)
     out = CryoGridOutput(sol)
     H = out.vars[layername].H
-    grid = setup.meta[layername].grids.H
+    initialstate = getstate(setup, prob.u0, similar(prob.u0), prob.tspan[1])
+    grid = initialstate[layername].grids.H
     max_ind = argmin(abs.(grid*1u"m" .- maxdepth))
     dz = Δ(grid)[1:max_ind]
     H_sub = H[1:max_ind,:]

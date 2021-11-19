@@ -1,3 +1,8 @@
+"""
+    StratComponent{TLayer,TProcess,name}
+
+Represents a single component (layer + processes) in the stratigraphy.
+"""
 struct StratComponent{TLayer,TProcess,name}
     layer::TLayer
     process::TProcess
@@ -19,14 +24,14 @@ bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CompoundProc
 subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CompoundProcess(processes...))
 
 """
-    Stratigraphy{N,TComponents,TBounds}
+    Stratigraphy{N,TComponents,Q}
 
 Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to 1 or more subsurface layers.
 """
-struct Stratigraphy{N,TComponents,TBounds}
-    boundaries::TBounds
+struct Stratigraphy{N,TComponents,Q}
+    boundaries::NTuple{N,Q}
     components::TComponents
-    Stratigraphy(boundaries::NTuple{N,B}, components::NTuple{N,StratComponent}) where {N,B} = new{N,typeof(components),typeof(boundaries)}(boundaries, components)
+    Stratigraphy(boundaries::NTuple{N,Q}, components::NTuple{N,StratComponent}) where {N,Q} = new{N,typeof(components),Q}(boundaries, components)
     Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Pair{Q,<:StratComponent{<:SubSurface}},
         bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = Stratigraphy(top,(sub,),bot)
     function Stratigraphy(
@@ -37,14 +42,16 @@ struct Stratigraphy{N,TComponents,TBounds}
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         names = map(componentname, map(last, sub))
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
-        boundaries = map(pair -> Param(first(pair), units=unit(Q)), (top, sub..., bot)) |> Tuple
+        boundaries = Tuple(map(pair -> Param(ustrip(first(pair)), units=unit(Q), layer=:strat), (top, sub..., bot)))
         @assert issorted(boundaries, by=p -> p.val) "Stratigraphy boundary locations must be in strictly increasing order."
-        components = map(last, (top, sub..., bot)) |> Tuple
-        new{length(components),typeof(components),typeof(boundaries)}(boundaries,components)
+        components = Tuple(map(last, (top, sub..., bot)))
+        new{length(components),typeof(components),eltype(boundaries)}(boundaries,components)
     end
 end
 components(strat::Stratigraphy) = getfield(strat, :components)
 boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
+boundaryintervals(strat::Stratigraphy, z_bottom) = boundaryintervals(boundaries(strat), z_bottom)
+boundaryintervals(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
 componenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
 Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
 # Array and iteration overrides
@@ -53,7 +60,7 @@ Base.length(strat::Stratigraphy) = length(components(strat))
 Base.getindex(strat::Stratigraphy, i::Int) = components(strat)[i]
 Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}]
 Base.getindex(strat::Stratigraphy, ::Val{sym}) where {sym} = strat[Val{sym}]
-@generated Base.getindex(strat::Stratigraphy{N,TC,TB}, ::Type{Val{sym}}) where {N,TC,TB,sym} = :(components(strat)[$(findfirst(T -> componentname(T) == sym, TC.parameters))])
+@generated Base.getindex(strat::Stratigraphy{N,TC}, ::Type{Val{sym}}) where {N,TC,sym} = :(components(strat)[$(findfirst(T -> componentname(T) == sym, TC.parameters))])
 Base.iterate(strat::Stratigraphy) = (components(strat)[1],components(strat)[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing

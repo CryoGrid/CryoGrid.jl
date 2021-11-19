@@ -25,14 +25,16 @@ include("Numerics/Numerics.jl")
 include("Layers/Layers.jl")
 include("Physics/Physics.jl")
 include("Land/Land.jl")
-include("Drivers/Drivers.jl")
 include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
+include("Drivers/Drivers.jl")
 include("Callbacks/Callbacks.jl")
 
+using .Utils
+using .Numerics
 # Re-exported submodules
-@reexport using .Utils
-@reexport using .Numerics
+@reexport using .Utils: convert_tspan
+@reexport using .Numerics: Grid
 @reexport using .Layers
 @reexport using .Physics
 @reexport using .Land

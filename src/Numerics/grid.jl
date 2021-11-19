@@ -1,14 +1,7 @@
-abstract type GridSpec end
-struct Edges <: GridSpec end
-struct Cells <: GridSpec end
-
-abstract type Geometry end
-struct UnitVolume <: Geometry end
-
 const GridValues{Q,A} = NamedTuple{(:edges,:cells),NTuple{2,SubArray{Q,1,A,Tuple{StepRange{Int64,Int64}},true}}} where {Q,A<:AbstractArray}
 
 """
-    struct Grid{S,G,Q,A} <: DenseVector{Q}
+    struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
 
 Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridSpec`,
 either `Edges` or `Cells` (always edges upon initial construction). The grid representation can be
@@ -16,7 +9,7 @@ converted (allocation free) between grid edges and cells via the `cells` and `ed
 represents the geometry/volume on which the vertical 1D discretization is applied. `A` is the underlying
 array type, and `Q` is the numerical type (e.g. `Float64` or a `Unitful.Quantity`).
 """
-struct Grid{S,G,Q,A} <: DenseVector{Q}
+struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
     geometry::G
     values::GridValues{Q,A}
     deltas::GridValues{Q,A}
@@ -60,18 +53,14 @@ ConstructionBase.constructorof(::Type{Grid{S,G,Q,A}}) where {S,G,Q,A} = (geom,va
 Base.show(io::IO, grid::Grid{S,G}) where {S,G} = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
 Base.show(io::IO, ::MIME{Symbol("text/plain")}, grid::Grid) = show(io, grid)
 
-function subgrid(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
-    l,r = interval.left,interval.right
+function subgridinds(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
+    @assert interval.left <= interval.right "Invalid interval: $interval"
     vals = values(grid)
     # Determine indices which lie in the given interval
-    l_ind = findfirst(x -> x ∈ interval, vals)
-    r_ind = findlast(x -> x ∈ interval, vals)
-    @assert !isnothing(l_ind) && !isnothing(r_ind) "No grid points in the given interval $interval"
-    # Map back to full grid indices
-    Grid(grid,l_ind..r_ind)
+    l_ind = searchsortedfirst(vals, interval.left)
+    r_ind = searchsortedlast(vals, interval.right)
+    return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
-@inline volume(grid::Grid{Cells,UnitVolume}) = Δ(edges(grid)).*oneunit(eltype(grid))^2
-@inline area(grid::Grid{Edges,UnitVolume}) = oneunit(eltype(grid))^2
 @inline Δ(grid::Grid{Edges}) = grid.deltas.edges
 @inline Δ(grid::Grid{Cells}) = grid.deltas.cells
 @inline cells(grid::Grid{Edges}) = Grid(Cells, grid)
@@ -85,54 +74,10 @@ end
 @inline Base.size(grid::Grid) = size(values(grid))
 @inline Base.length(grid::Grid) = length(values(grid))
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
-@propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = subgrid(grid,interval)
+@propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = Grid(grid, subgridinds(grid,interval))
+@propagate_inbounds Base.getindex(grid::Grid, interval::Interval{L,R,Int}) where {L,R} = Grid(grid, interval)
 Base.setindex!(grid::Grid, args...) = error("setindex! is not allowed for Grid types")
 
-struct Profile{N,D<:DistQuantity,T}
-    values::NTuple{N,Pair{D,T}}
-    Profile(values::NTuple{N,Pair{D,T}}) where {N,D,T} = new{N,D,T}(values)
-    Profile(values::Pair{D,T}...) where {D,T} = new{length(values),D,T}(values)
-end
-Flatten.flattenable(::Type{<:Profile}, ::Type{Val{:values}}) = false
-Base.length(::Profile{N}) where N = N
-Base.iterate(profile::Profile) = iterate(profile.values)
-Base.iterate(profile::Profile, state) = iterate(profile.values, state)
-StructTypes.StructType(::Type{<:Profile}) = StructTypes.CustomStruct()
-StructTypes.lower(profile::Profile) = [(depth=StructTypes.lower(row[1]), value=row[2]) for row in profile.values]
-StructTypes.lowertype(::Type{<:Profile{N,D,T}}) where {N,D,T} = Vector{NamedTuple{(:depth,:value),Tuple{StructTypes.lowertype(D),Vector{StructTypes.lowertype(T)}}}}
-function StructTypes.construct(::Type{<:Profile{N,D,T}}, values::Vector) where {N,D,T}
-    depths = [StructTypes.construct(D, row["depth"]) for row in values]
-    values = [StructTypes.construct.(T, row["value"]...) for row in values]
-    sortinds = sortperm(depths)
-    return Profile(collect(map((d,v) -> d => v, depths[sortinds], values[sortinds])))
-end
-
-"""
-    profile2array(profile::Profile{N,D,T};names) where {N,D,T}
-
-Constructs a DimArray from the given Profile, i.e. pairs Q => (x1,...,xn) where x1...xn are the values defined at Q.
-Column names for the resulting DimArray can be set via the names parameter which accepts an NTuple of symbols,
-where N must match the number of parameters given (i.e. n).
-"""
-function profile2array(profile::Profile{N,D,T};names::Union{Nothing,NTuple{M,Symbol}}=nothing) where {M,N,D,T}
-    depths, vals = zip(profile.values...)
-    params = hcat(collect.(vals)...)'
-    names = isnothing(names) ? [Symbol(:x,:($i)) for i in 1:N] : collect(names)
-    DimArray(params, (Z(collect(depths)), Dim{:var}(names)))
-end
-
-"""
-    interpolateprofile!(profilearr::DimArray, state; interp=Linear(), extrap=Flat())
-
-Interpolates the given profile to the corresponding variable grids. Assumes state to be indexable via the corresponding
-variable symbol and that the parameter names in state and profile match.
-"""
-function interpolateprofile!(profilearr::DimArray, state; interp=Linear(), extrap=Flat())
-    let (depths,names) = dims(profilearr),
-        z = ustrip.(depths);
-        for p in names
-            f = extrapolate(interpolate((z,), ustrip.(profilearr[:,At(p)]), Gridded(interp)), extrap)
-            state[p] .= f.(state.grids[p])   # assume length(grid) == length(state.p)
-        end
-    end
-end
+# unit volume
+@inline volume(grid::Grid{Cells,UnitVolume,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
+@inline area(::Grid{Edges,UnitVolume,Q}) where Q = oneunit(Q)^2
