@@ -20,7 +20,7 @@ function CryoGridProblem(
     tspan::NTuple{2,Float64},
     p=nothing;
     saveat=3600.0,
-    save_vars=(),
+    savevars=(),
     save_everystep=false,
     callback=nothing,
     kwargs...
@@ -29,7 +29,7 @@ function CryoGridProblem(
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
-    getsavestate(model::LandModel, u, du) = deepcopy(Land.getvars(model.state, u, du, save_vars...))
+    getsavestate(model::LandModel, u, du) = deepcopy(Land.getvars(model.state, u, du, savevars...))
     savefunc(u, t, integrator) = getsavestate(integrator.f.f, u, get_du(integrator))
     pmodel = Model(landmodel)
     p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
