@@ -7,7 +7,7 @@ using CryoGrid.Numerics: Flux, discretize # import flux var type
 """
 Enumeration for in-place vs out-of-place mode.
 """
-@enum InPlaceMode inp oop
+@enum InPlaceMode inplace ooplace
 
 """
     VarStates{names,griddvars,TU,TD,TV,DF,DG}
@@ -90,7 +90,7 @@ struct LayerState{iip,TStates,TGrids,Tt,Tz,varnames}
     states::NamedTuple{varnames,TStates}
     t::Tt
     z::NTuple{2,Tz}
-    LayerState(grids::NamedTuple{varnames,TG}, states::NamedTuple{varnames,TS}, t::Tt, z::NTuple{2,Tz}, ::Val{iip}=Val{inp}()) where
+    LayerState(grids::NamedTuple{varnames,TG}, states::NamedTuple{varnames,TS}, t::Tt, z::NTuple{2,Tz}, ::Val{iip}=Val{inplace}()) where
         {TG,TS,Tt,Tz,varnames,iip} = new{iip,TS,TG,Tt,Tz,varnames}(grids, states, t, z)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
@@ -101,7 +101,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline function LayerState(vs::VarStates, zs::NTuple{2,Tz}, u, du, t, ::Val{layername}, ::Val{iip}=Val{inp}()) where {Tz,layername,iip}
+@inline function LayerState(vs::VarStates, zs::NTuple{2,Tz}, u, du, t, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {Tz,layername,iip}
     z_inds = subgridinds(edges(vs.grid), zs[1]..zs[2])
     return LayerState(
         _makegrids(Val{layername}(), getproperty(vs.vars, layername), vs, z_inds),
@@ -122,7 +122,7 @@ struct LandModelState{iip,TStrat,TGrid,TStates,Tt,names}
     grid::TGrid
     states::NamedTuple{names,TStates}
     t::Tt
-    LandModelState(strat::TStrat, grid::TGrid, states::NamedTuple{names,TS}, t::Tt, ::Val{iip}=Val{inp}()) where
+    LandModelState(strat::TStrat, grid::TGrid, states::NamedTuple{names,TS}, t::Tt, ::Val{iip}=Val{inplace}()) where
         {TStrat<:Stratigraphy,TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,names,iip} =
             new{iip,TStrat,TGrid,TS,Tt,names}(strat, grid, states, t)
 end
@@ -133,7 +133,7 @@ function Base.getproperty(state::LandModelState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline @generated function LandModelState(strat::Stratigraphy, vs::VarStates{names}, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inp}()) where {names,iip}
+@inline @generated function LandModelState(strat::Stratigraphy, vs::VarStates{names}, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inplace}()) where {names,iip}
     layerstates = (:(LayerState(vs, (ustrip(bounds[$i][1]), ustrip(bounds[$i][2])), u, du, t, Val{$(QuoteNode(names[i]))}(), Val{iip}())) for i in 1:length(names))
     quote
         bounds = boundaryintervals(boundaries(strat), vs.grid[end])

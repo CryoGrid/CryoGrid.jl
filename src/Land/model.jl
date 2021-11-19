@@ -12,26 +12,26 @@ out-of-place (copying arrays).
 """
 abstract type AbstractLandModel{iip} end
 """
-    (model::AbstractLandModel{inp})(du,u,p,t)
-    (model::AbstractLandModel{oop})(u,p,t)
+    (model::AbstractLandModel{inplace})(du,u,p,t)
+    (model::AbstractLandModel{ooplace})(u,p,t)
 
 Invokes the corresponding `step` function to compute the time derivative du/dt.
 """
-(model::AbstractLandModel{inp})(du,u,p,t) = step!(model,du,u,p,t)
-(model::AbstractLandModel{oop})(u,p,t) = step(model,u,p,t)
+(model::AbstractLandModel{inplace})(du,u,p,t) = step!(model,du,u,p,t)
+(model::AbstractLandModel{ooplace})(u,p,t) = step(model,u,p,t)
 
 """
-    step!(::T, du, u, p, t) where {T<:AbstractLandModel}
+    step!(::T,du,u,p,t) where {T<:AbstractLandModel}
 
 In-place step function for model `T`. Computes du/dt and stores the result in `du`.
 """
-step!(::T, du, u, p, t) where {T<:AbstractLandModel} = error("no implementation of in-place step! for $T")
+step!(::T,du,u,p,t) where {T<:AbstractLandModel} = error("no implementation of in-place step! for $T")
 """
-    step(::T, u, p, t) where {T<:AbstractLandModel}
+    step(::T,u,p,t) where {T<:AbstractLandModel}
 
 Out-of-place step function for model `T`. Computes and returns du/dt as vector with same size as `u`.
 """
-step(::T, u, p, t) where {T<:AbstractLandModel} = error("no implementation of out-of-place step for $T")
+step(::T,u,p,t) where {T<:AbstractLandModel} = error("no implementation of out-of-place step for $T")
 
 """
     LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
@@ -48,7 +48,7 @@ struct LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
         grid::TGrid,
         state::TStates,
         hist::StateHistory=StateHistory(),
-        iip::InPlaceMode=inp,
+        iip::InPlaceMode=inplace,
         observe::Vector{Symbol}=Symbol[]) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:VarStates}
         new{TStrat,TGrid,TStates,iip,tuple(observe...)}(strat,grid,state,hist)
@@ -67,7 +67,7 @@ function LandModel(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity});
     arrayproto::Type{A}=Vector,
-    iip::InPlaceMode=inp,
+    iip::InPlaceMode=inplace,
     observe::Vector{Symbol}=Symbol[],
     chunksize=nothing,
 ) where {A<:AbstractArray}
@@ -119,7 +119,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function step!(model::LandModel{TStrat,TGrid,TStates,inp,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,obsv}
+@generated function step!(model::LandModel{TStrat,TGrid,TStates,inplace,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -130,7 +130,7 @@ is only executed during compilation and will not appear in the compiled version.
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
-    state = LandModelState(strat, model.state, u, du, t, Val{iip}())
+    state = LandModelState(strat, model.state, u, du, t, Val{inplace}())
     end push!(expr.args)
     # Initialize variables for all layers
     for i in 1:N
