@@ -130,7 +130,7 @@ is only executed during compilation and will not appear in the compiled version.
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
-    state = LandModelState(strat, model.state, u, du, t, Val{inplace}())
+    state = LandModelState(model.state, boundaries(strat), u, du, t, Val{inplace}())
     end push!(expr.args)
     # Initialize variables for all layers
     for i in 1:N
@@ -207,7 +207,7 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
     du = similar(model.state.uproto, eltype(p))
     u = similar(model.state.uproto, eltype(p))
     strat = Flatten.reconstruct(model.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
-    state = LandModelState(strat, model.state, u, du, t0, Val{iip}())
+    state = LandModelState(model.state, boundaries(strat), u, du, t0, Val{iip}())
     end push!(expr.args)
     # Iterate over layers
     for i in 1:N-1
