@@ -26,7 +26,9 @@ function lineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δ::AbstractV
 end
 
 
-@propagate_inbounds _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂) = @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δx₂
+@propagate_inbounds function _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+    @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
+end
 @propagate_inbounds function _nonlineardiffusion!(
     ∂y::AbstractVector{Float64},
     x₁::AbstractVector{Float64},
@@ -35,9 +37,10 @@ end
     k₁::AbstractVector{Float64},
     k₂::AbstractVector{Float64},
     Δx₁::AbstractVector{Float64},
-    Δx₂::AbstractVector{Float64}
+    Δx₂::AbstractVector{Float64},
+    Δk::AbstractVector{Float64},
 )
-    @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δx₂
+    @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
 end
 
 """
@@ -59,7 +62,7 @@ function nonlineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δx::Abstr
         k₂ = (@view k[2:end]),
         Δx₁ = (@view Δx[1:end-1]),
         Δx₂ = (@view Δx[2:end]);
-        _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂)
+        _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
     end
 end
 
