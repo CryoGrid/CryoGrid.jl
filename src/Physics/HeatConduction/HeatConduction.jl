@@ -23,7 +23,6 @@ import Flatten: @flattenable, flattenable
 
 export Heat, HeatParams, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
-export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, SnowDamping
 export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
 export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 export heatconduction!, boundaryflux
@@ -211,9 +210,9 @@ function boundaryflux(::Dirichlet, top::Top, bc::BoundaryProcess, sub::SubSurfac
     @inbounds let Tupper=bc(top,sub,h,stop,ssub),
         Tsub=ssub.T[1],
         k=ssub.k[1],
-        δ=Δk[1],
-        δ₀=(Δk[1]/2); # distance to boundary
-        -k*(Tsub-Tupper)/δ/δ₀
+        d=Δk[1],
+        δ₀=(d/2); # distance to boundary
+        -k*(Tsub-Tupper)/δ₀/d
     end
 end
 function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, h::Heat, sbot, ssub)
@@ -221,9 +220,9 @@ function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSur
     @inbounds let Tlower=bc(bot,sub,h,sbot,ssub),
         Tsub=ssub.T[end],
         k=ssub.k[end],
-        δ=Δk[1],
-        δ₀=(Δk[1]/2); # distance to boundary
-        -k*(Tsub-Tlower)/δ/δ₀
+        d=Δk[1],
+        δ₀=(d/2); # distance to boundary
+        -k*(Tsub-Tlower)/δ₀/d
     end
 end
 """
@@ -311,6 +310,7 @@ variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
     error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
 
 include("soil/soilheat.jl")
+export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, Damping
 include("heat_bc.jl")
 
 end

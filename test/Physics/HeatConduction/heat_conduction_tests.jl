@@ -67,7 +67,7 @@ end
 	@testset "n-factors" begin
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
 		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1], ts, :Tair)
-		tgrad = TemperatureGradient(Forcings(Tair=forcing), NFactor(winterfactor=0.5, summerfactor=1.0))
+		tgrad = TemperatureGradient(forcing, NFactor(winterfactor=0.5, summerfactor=1.0))
 		sub = TestGroundLayer()
 		heat = Heat()
 		f1(t) = tgrad(Top(),sub,heat,(t=t,),(t=t,))
