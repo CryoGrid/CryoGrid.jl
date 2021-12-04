@@ -6,30 +6,38 @@ struct Sand <: SoilTexture end
 struct Silt <: SoilTexture end
 struct Clay <: SoilTexture end
 """
+    SoilParameterization
+
+Abstract base type for parameterizations of soil properties.
+"""
+abstract type SoilParameterization end
+"""
+    SoilCharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
+
 Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
 """
-struct SoilComposition{P1,P2,P3,P4}
+struct SoilCharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
     xic::P1 # excess ice fraction
     por::P2 # natural porosity
     sat::P3 # saturation
     org::P4 # organic fraction of solid; mineral fraction is 1-org
-    SoilComposition(xic::P1, por::P2, sat::P3, org::P4) where {P1,P2,P3,P4} = new{P1,P2,P3,P4}(xic,por,sat,org)
-    function SoilComposition(;xic=0.0, por=0.5, sat=1.0, org=0.5)
-        params = Tuple(Param(p, bounds=(0.0,1.0)) for p in [xic,por,sat,org])
-        new{typeof.(params)...}(params...)
-    end
+    SoilCharacteristicFractions(xic::P1, por::P2, sat::P3, org::P4) where {P1,P2,P3,P4} = new{P1,P2,P3,P4}(xic,por,sat,org)
 end
-SoilProfile(pairs::Pair{<:DistQuantity,<:SoilComposition}...) = Profile(pairs...)
-# Helper functions for obtaining soil component fractions from soil properties.
-soilfrac(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
-soilfrac(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
-soilfrac(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
-soilfrac(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
-θx(comp::SoilComposition) = comp.xic
-θp(comp::SoilComposition) = soilfrac(Val{:θp}(), comp.xic, comp.por, comp.sat, comp.org)
-θw(comp::SoilComposition) = soilfrac(Val{:θw}(), comp.xic, comp.por, comp.sat, comp.org)
-θm(comp::SoilComposition) = soilfrac(Val{:θm}(), comp.xic, comp.por, comp.sat, comp.org)
-θo(comp::SoilComposition) = soilfrac(Val{:θo}(), comp.xic, comp.por, comp.sat, comp.org)
+function soilparameters(;xic=0.0, por=0.5, sat=1.0, org=0.5)
+    params = Tuple(Param(p, bounds=(0.0,1.0)) for p in [xic,por,sat,org])
+    SoilCharacteristicFractions(params...)
+end
+SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
+# Helper functions for obtaining soil compositions from characteristic fractions.
+soilcomp(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
+soilcomp(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
+soilcomp(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
+soilcomp(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
+θx(fracs::SoilCharacteristicFractions) = fracs.xic
+θp(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θp}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
+θw(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θw}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
+θm(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θm}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
+θo(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θo}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
 """
 Thermal conductivity constants.
 """
@@ -53,9 +61,9 @@ end
 """
 Basic Soil layer.
 """
-@with_kw struct Soil{T,C<:SoilComposition,S} <: SubSurface
+@with_kw struct Soil{T,P<:SoilParameterization,S} <: SubSurface
     texture::T = Sand()
-    comp::C = SoilComposition()
+    para::P = soilparameters()
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     sp::S = nothing # user-defined specialization

@@ -8,7 +8,7 @@ GeothermalHeatFlux(value::UFloat"J/s/m^2"=0.053xu"J/s/m^2") = Constant(Neumann, 
 struct TemperatureGradient{E,F} <: BoundaryProcess
     T::F # temperature forcing
     effect::E # effect
-    TemperatureGradient(T::F, effect::E=NoEffect()) where {F<:Forcing,E} = new{E,F}(T, effect)
+    TemperatureGradient(T::F, effect::E=nothing) where {F<:Forcing,E} = new{E,F}(T, effect)
 end
 BoundaryStyle(::Type{<:TemperatureGradient}) = Dirichlet()
 BoundaryStyle(::Type{<:TemperatureGradient{<:Damping}}) = Neumann()
@@ -18,7 +18,7 @@ BoundaryStyle(::Type{<:TemperatureGradient{<:Damping}}) = Neumann()
     summerfactor::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
 end
 
-@inline (bc::TemperatureGradient)(l1,l2,p2,s1,s2) where {F} = bc.forcings.Tair(s1.t)
+@inline (bc::TemperatureGradient)(l1,l2,p2,s1,s2) where {F} = bc.T(s1.t)
 @inline function (bc::TemperatureGradient{<:NFactor})(l1,l2,p2::Heat,s1,s2)
     let nfw = bc.effect.winterfactor,
         nfs = bc.effect.summerfactor,

@@ -1,4 +1,4 @@
-totalwater(soil::Soil, heat::Heat, state) = θw(soil.comp)
+totalwater(soil::Soil, heat::Heat, state) = θw(soil.para)
 function heatcapacity(soil::Soil, totalwater, liquidwater, mineral, organic)
     @unpack cw,co,cm,ca,ci = soil.hc
     let air = 1.0 - totalwater - mineral - organic,
@@ -17,17 +17,17 @@ function thermalconductivity(soil::Soil, totalwater, liquidwater, mineral, organ
 end
 """ Heat capacity for soil layer """
 function heatcapacity!(soil::Soil, ::Heat, state)
-    let w = θw(soil.comp),
-        m = θm(soil.comp),
-        o = θo(soil.comp);
+    let w = θw(soil.para),
+        m = θm(soil.para),
+        o = θo(soil.para);
         @. state.C = heatcapacity(soil, w, state.θl, m, o)
     end
 end
 """ Thermal conductivity for soil layer """
 function thermalconductivity!(soil::Soil, ::Heat, state)
-    let w = θw(soil.comp),
-        m = θm(soil.comp),
-        o = θo(soil.comp);
+    let w = θw(soil.para),
+        m = θm(soil.para),
+        o = θo(soil.para);
         @. state.kc = thermalconductivity(soil, w, state.θl, m, o)
     end
 end

@@ -7,10 +7,10 @@ using ComponentArrays
     Tₘ = 0.0
     θres = 0.0
     soil = Soil()
-    θw = CryoGrid.Layers.θw(soil.comp)
-    θp = CryoGrid.Layers.θp(soil.comp)
-    θm = CryoGrid.Layers.θm(soil.comp)
-    θo = CryoGrid.Layers.θo(soil.comp)
+    θw = CryoGrid.Layers.θw(soil.para)
+    θp = CryoGrid.Layers.θp(soil.para)
+    θm = CryoGrid.Layers.θm(soil.para)
+    θo = CryoGrid.Layers.θo(soil.para)
     @testset "McKenzie freeze curve" begin
         @testset "Sanity checks" begin
             f = McKenzie()

@@ -212,7 +212,7 @@ initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector
     end push!(expr.args)
     # Call initializers
     for i in 1:N
-        for j in 1:length(initializers.parameters)
+        for j in 1:length(initializers)
             @>> quote
             let layerstate = state[$i],
                 init = initializers[$j];

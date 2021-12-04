@@ -32,6 +32,8 @@ include("Callbacks/Callbacks.jl")
 
 using .Utils
 using .Numerics
+# re-export initializer function from Numerics module
+export initializer
 # Re-exported submodules
 @reexport using .Utils: convert_tspan
 @reexport using .Numerics: Grid
