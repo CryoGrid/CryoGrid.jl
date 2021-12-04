@@ -8,7 +8,7 @@ At the highest level, a model in `CryoGrid.jl` is defined by a [`Grid`](@ref) an
 # see examples/heat_vgfc_seb_saoylov_custom.jl for more details
 strat = Stratigraphy(
     -2.0u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
-    0.0u"m" => subsurface(:soil, Soil(soilprofile), Heat{:H}(tempprofile, freezecurve=SFCC(DallAmico()))),
+    0.0u"m" => subsurface(:soil, Soil(soilprofile), Heat(:H;freezecurve=SFCC(DallAmico()))),
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
@@ -19,7 +19,12 @@ This model can then be used to construct an `ODEProblem` (from `DiffEqBase.jl`) 
 
 ```julia
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-prob = CryoGridProblem(model,tspan) # produces an ODEProblem with problem type CryoGridODEProblem
+p = parameters(model)
+# define initial conditions for temperature using a given profile;
+# The default initializer linearly interpolates between profile points.
+initT = initializer(:T, tempprofile)
+u0 = initialcondition!(model, tspan, p, initT)
+prob = CryoGridProblem(model, u0, tspan, p, savevars=(:T,)) # produces an ODEProblem with problem type CryoGridODEProblem
 ```
 
 It can then be solved simply using the `solve` function (also from `DiffEqBase` and `OrdinaryDiffEq`):
@@ -29,10 +34,10 @@ It can then be solved simply using the `solve` function (also from `DiffEqBase` 
 out = @time solve(prob, Euler(), dt=5*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 ```
 
-The result is a `CryoGridOutput` type which provides access to `DimArrays` containing the model outputs over time and space:
+The result is a `CryoGridOutput` type which provides `DimArray`s containing the model outputs over time and space:
 
 ```
-julia> out.soil.T
+julia> out.T
 278×366 DimArray{Float64,2} with dimensions: 
   Z: Quantity{Float64, 𝐋, Unitful.FreeUnits{(m,), 𝐋, nothing}}[0.01 m, 0.03 m, …, 850.0 m, 950.0 m] Sampled: Ordered Irregular Points,
   Ti (Time): DateTime[2010-10-30T00:00:00, …, 2011-10-30T00:00:00] Sampled: Ordered Irregular Points
@@ -57,7 +62,7 @@ variables(soil::Soil, heat::Heat{:H}) = (
 )
 ```
 
-When the `Heat` process is assigned to a `Soil` layer, `LandModel` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and are automatically tracked by the modeling engine (i.e. their saved values will appear in `CryoGridOutput`).
+When the `Heat` process is assigned to a `Soil` layer, `LandModel` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and can be automatically tracked by the modeling engine.
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 
@@ -77,6 +82,6 @@ end
 
 !!! warning
 
-    Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially crucial when using higher order or implicit integrators as unexpected changes to the underlying state may destroy the accuracy of their internal interpolators. For modleing discontinuities, use [`Callbacks`](@ref) instead.
+    Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially important when using higher order or implicit integrators as unexpected changes to the underlying state may destroy the accuracy of their internal interpolators. For modleing discontinuities, use [`Callbacks`](@ref) instead.
 
-Note that `state` is a `NamedTuple` with fields corresponding to the variables declared by the `variables` function for `Soil` and `Heat`. Additionally, output arrays for the time derivatives are provided (here `dH`), as well as the current timestep, layer upper boundary depth, parameters, and variable grids (accessible via `state.t`, `state.z`, `state.params`, and `state.grids` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.
+Note that `state` is of type [`LayerState`](@ref) with fields corresponding to the variables declared by the `variables` function for `Soil` and `Heat`. Additionally, output arrays for the time derivatives are provided (here `dH`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.z`, and `state.grids` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.

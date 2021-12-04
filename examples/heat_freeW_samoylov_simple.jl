@@ -9,8 +9,11 @@ grid = CryoGrid.Presets.DefaultGrid_5cm
 model = CryoGrid.Presets.SoilHeatColumn(:H, TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault; grid=grid)
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+p = parameters(model)
+initT = initializer(:T, tempprofile)
+u0 = initialcondition!(model, tspan, p, initT)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,tspan)
+prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 # solve with Crank-Nicolson (Trapezoid) and construct CryoGridOutput from solution
 out = @time solve(prob, Trapezoid(), abstol=1e-4, reltol=1e-4, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
