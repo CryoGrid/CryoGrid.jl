@@ -1,10 +1,4 @@
 """
-    variables(::Layer)
-
-Defines variables for a given Layer type. Implementations should return a `Tuple` of `Var`s.
-"""
-variables(::Layer) = ()
-"""
     variables(::Layer, ::Process)
 
 Defines variables for a given Process on Layer. Implementations should return a `Tuple` of `Var`s.

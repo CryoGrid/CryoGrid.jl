@@ -324,10 +324,7 @@ Collects and validates all declared variables (`Var`s) for the given strat compo
 """
 function _collectvars(@nospecialize(comp::StratComponent))
     layer, process = comp.layer, comp.process
-    layer_vars = variables(layer)
-    @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
-    process_vars = variables(layer, process)
-    all_vars = tuple(layer_vars...,process_vars...)
+    all_vars = variables(layer, process)
     @debug "Building layer $(componentname(comp)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
     groups = groupby(var -> varname(var), all_vars)
