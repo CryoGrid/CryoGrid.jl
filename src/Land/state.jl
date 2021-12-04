@@ -18,7 +18,7 @@ struct LayerState{iip,TStates,TGrids,Tt,Tz,varnames}
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
-    return if sym ∈ (:strat, :grid, :grids, :t, :z)
+    return if sym ∈ (:grids, :states, :t, :z)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)
@@ -48,8 +48,10 @@ struct LandModelState{iip,TGrid,TStates,Tt,names}
         {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,names,iip} =
             new{iip,TGrid,TS,Tt,names}(grid, states, t)
 end
+Base.getindex(state::LandModelState, sym::Symbol) = Base.getproperty(state, sym)
+Base.getindex(state::LandModelState, i::Int) = state.states[i]
 function Base.getproperty(state::LandModelState, sym::Symbol)
-    return if sym ∈ (:strat, :grid, :grids, :t)
+    return if sym ∈ (:grid,:states,:t)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)

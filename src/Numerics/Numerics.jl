@@ -10,7 +10,7 @@ using CryoGrid.Utils
 using Base: @inbounds, @propagate_inbounds
 using ConstructionBase
 using ComponentArrays
-using DimensionalData: DimArray, Dim, At, dims, Z
+using DimensionalData: AbstractDimArray, DimArray, Dim, At, dims, Z
 using Flatten
 using IfElse
 using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
@@ -42,7 +42,7 @@ include("math.jl")
 export Grid, cells, edges, indexmap, subgridinds, Δ, volume, area
 include("grid.jl")
 
-export Profile, profile2array, interpolateprofile!
+export Profile, profile2array, array2profile
 include("profile.jl")
 
 export Var, Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
@@ -53,5 +53,8 @@ export VarStates, DiffCache, retrieve, getvar, getvars
 include("varstates.jl")
 
 include("discretize.jl")
+
+export initializer, init!
+include("init.jl")
 
 end

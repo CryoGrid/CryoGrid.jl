@@ -35,7 +35,7 @@ include("stratigraphy.jl")
 export LandModelState, LayerState
 include("state.jl")
 
-export LandModel, withaxes, getstate, getvar
+export LandModel, withaxes, getstate
 include("model.jl")
 
 export ParameterVector, LinearTrend, parameters

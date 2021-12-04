@@ -6,7 +6,7 @@ Produces a discretization of the given variable based on `T` and array type `A`.
 discretize(::Type{A}, ::D, ::Var) where {Q,T,N,D<:AbstractDiscretization{Q,N},A<:AbstractArray{T,N}} = error("missing discretize implementation for $D")
 discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Array{vartype(var),N}, d, var)
 # grid discretizations
-discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = similar(A{vartype(var)}, dimlength(var.dim, grid))
+discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, grid)))
 function discretize(::Type{A}, grid::Grid, pvars::Union{<:Prognostic,<:Algebraic}...) where {A<:AbstractVector}
     # separate into grid and non-grid vars
     gridvars = unique(filter(v -> isa(vardims(v), OnGrid), pvars))
@@ -23,6 +23,6 @@ function discretize(::Type{A}, grid::Grid, pvars::Union{<:Prognostic,<:Algebraic
     # i:k:kn where k is the number of grid variables and n is the length of the grid.
     gridvar_ax = (;(varname(p) => st:length(gridvars):Ng for (p,st) in zip(gridvars, (Np+1):(1+Np+length(gridvars))))...)
     # allocate component array; assumes all variables have (and should!) have the same type
-    u = similar(A{vartype(first(pvars))}, Ng+Np)
+    u = zero(similar(A{vartype(first(pvars))}, Ng+Np))
     ComponentVector(u, (Axis(merge(pointvar_ax, gridvar_ax)),))
 end

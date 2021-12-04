@@ -36,8 +36,6 @@ include("sfcc.jl")
 
 """ Initial condition for heat conduction (all state configurations) on soil layer. """
 function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
-    T₀ = profile2array(heat.initialT; names=(:T,))
-    interpolateprofile!(T₀, state)
     L = heat.L
     sfcc = freezecurve(heat)
     state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
@@ -46,8 +44,6 @@ function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
 end
 """ Diagonstic step for partitioned heat conduction on soil layer. """
 function initialcondition!(soil::Soil, heat::Heat{<:SFCC,PartitionedEnthalpy}, state)
-    T₀ = profile2array(heat.initialT; names=(:T,))
-    interpolateprofile!(T₀, state)
     L = heat.L
     sfcc = freezecurve(heat)
     state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
