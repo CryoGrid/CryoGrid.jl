@@ -243,13 +243,11 @@ initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector
         if i == 1
             # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls
             @>> quote
-            initialcondition!($n1layer,$n1state)
             initialcondition!($n1layer,$n1process,$n1state)
             end push!(expr.args)
         end
         # invoke initialcondition! for each layer, then for both (similar to interact!)
         @>> quote
-        initialcondition!($n2layer,$n2state)
         initialcondition!($n2layer,$n2process,$n2state)
         initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)

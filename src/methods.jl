@@ -5,13 +5,6 @@ Defines variables for a given Process on Layer. Implementations should return a 
 """
 variables(::Layer, ::Process) = ()
 """
-    initialcondition!(::Layer, state)
-
-Defines the initial condition for a given Layer. `initialcondition!` should write initial values into all relevant
-state variables in `state`.
-"""
-initialcondition!(::Layer, state) = nothing
-"""
     initialcondition!(::Layer, ::Process, state)
 
 Defines the initial condition for a given Process on Layer. `initialcondition!` should write initial values into all relevant
