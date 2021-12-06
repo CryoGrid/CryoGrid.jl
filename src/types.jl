@@ -77,7 +77,7 @@ Base.Broadcast.broadcastable(p::Process) = Ref(p)
 """
 Trait that specifies the "style" or kind of boundary condition. This can be used to write generic
 implementations of `interact!` that are (relatively) agnostic to specific implementations of
-`BoundaryProcess`. A good example of this can be found in `HeatConduction.boundaryflux`.
+`BoundaryProcess`. A good example of this can be found in the `boundaryflux` method interface.
 """
 abstract type BoundaryStyle end
 """
