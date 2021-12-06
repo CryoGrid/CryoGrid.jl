@@ -61,6 +61,13 @@ include("../../types.jl")
 			@test ∂H[1] < 0.0u"J/s/m^3"
 			@test ∂H[end] < 0.0u"J/s/m^3"
 		end
+		@testset "Neumann boundary" begin
+			bc = Constant(Neumann, -1.0u"J/m^3")
+			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
+			∂H = zeros(length(T₀))u"J/s/m^3"
+			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"J/m^3"
+		end
 	end
 end
 @testset "Boundary conditions" begin
