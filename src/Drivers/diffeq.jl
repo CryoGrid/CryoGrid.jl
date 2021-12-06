@@ -17,6 +17,7 @@ condition and necessary callbacks.
 """
 function CryoGridProblem(
     landmodel::LandModel,
+    u0::ComponentVector,
     tspan::NTuple{2,Float64},
     p=nothing;
     saveat=3600.0,
@@ -30,11 +31,10 @@ function CryoGridProblem(
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
     getsavestate(model::LandModel, u, du) = deepcopy(Land.getvars(model.state, u, du, savevars...))
-    savefunc(u, t, integrator) = getsavestate(integrator.f.f, u, get_du(integrator))
+    savefunc(u, t, integrator) = getsavestate(integrator.f.f, Land.withaxes(u, integrator.f.f), get_du(integrator))
     pmodel = Model(landmodel)
     p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
-	# compute initial condition
-	u0, du0 = Land.init!(landmodel, tspan, p)
+    du0 = zero(u0)
     # set up saving callback
     stateproto = getsavestate(landmodel, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
@@ -65,7 +65,7 @@ end
 """
     CryoGridProblem(setup::LandModel, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
-CryoGridProblem(setup::LandModel, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,convert_tspan(tspan),args...;kwargs...)
+CryoGridProblem(setup::LandModel, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,u0,convert_tspan(tspan),args...;kwargs...)
 
 export CryoGridProblem
 

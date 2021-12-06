@@ -1,7 +1,7 @@
 module Boundaries
 
 import CryoGrid: BoundaryProcess, BoundaryStyle, Dirichlet, Neumann, Top
-import CryoGrid: variables
+import CryoGrid: variables, boundaryvalue
 
 using CryoGrid.Numerics
 using CryoGrid.Utils
@@ -17,8 +17,11 @@ using Unitful
 
 import Flatten: flattenable
 
-export Constant, Periodic, Bias, BoundaryEffect, Damping
+export Constant, Periodic, Bias
+export BoundaryEffect, Damping
+include("effects.jl")
 export Forcing, TimeSeriesForcing, ForcingData
+include("forcing.jl")
 
 """
     struct Constant{S,T} <: BoundaryProcess
@@ -30,7 +33,7 @@ struct Constant{S,T} <: BoundaryProcess
     Constant(::Type{S}, value::T) where {S<:BoundaryStyle,T} = new{S,T}(value)
 end
 ConstructionBase.constructorof(::Type{<:Constant{S}}) where {S} = value -> Constant(S,value)
-(bc::Constant{S,T})(l1,p2,l2,s1,s2) where {S,T} = bc.value
+boundaryvalue(bc::Constant{S,T},l2,p2,s1,s2) where {S,T} = bc.value
 
 BoundaryStyle(::Type{<:Constant{S}}) where {S} = S()
 
@@ -48,40 +51,40 @@ struct Periodic{S,T} <: BoundaryProcess
         new{S,T}(uconvert(u"s",period) |> dustrip, amplitude, phaseshift)
 end
 
-@inline (bc::Periodic)(t) = bc.amplitude*sin(π*(1/bc.period)*t + bc.phaseshift)
-@inline (bc::Periodic)(l1,l2,p2,s1,s2) = bc(s1.t)
+@inline boundaryvalue(bc::Periodic,l2,p2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*t + bc.phaseshift)
 
 BoundaryStyle(::Type{<:Periodic{S}}) where {S} = S()
 
 @with_kw struct Bias{P} <: BoundaryProcess
     bias::P = Param(0.0)
 end
-(bc::Bias)(l1,p2,l2,s1,s2) = bc.bias
+@inline boundaryvalue(bc::Bias,l2,p2,s1,s2) = bc.bias
 
 BoundaryStyle(::Type{<:Bias}) = Dirichlet()
 
-abstract type BoundaryEffect end
 """
-    Damping{D,K} <: BoundaryEffect
+    struct CombinedBoundaryProcess{B1,B2,F,S} <: BoundaryProcess
 
-Generic implementation of bulk conductive damping at the boundary.
+Represents a composition of two boundary processes, `B1` and `B2`, via an operator `F`.
+A typical use case is combining `Constant` with a forcing-driven boundary process to
+scale or shift the forcing.
 """
-@with_kw struct Damping{D,K} <: BoundaryEffect
-    depth::D = t -> 0.0 # function of t -> damping depth; defaults to zero function
-    k::K = Param(1.0, bounds=(0.0,Inf)) # conductivity of medium
-end
-function (damp::Damping)(u_top, u_sub, k_sub, Δsub, t)
-    let d_med = damp.depth(t), # length of medium
-        d_sub = Δsub / 2, # half length of upper grid cell
-        d = d_med + d_sub, # total flux distance (from grid center to "surface")
-        k_med = damp.k, # conductivity of damping medium (assumed uniform)
-        k_sub = k_sub, # conductivity at grid center
-        k = Numerics.harmonicmean(k_med, k_sub, d_med, d_sub);
-        -k*(u_sub - u_top)/d/Δsub # flux per unit volume
+struct CombinedBoundaryProcess{B1,B2,F,S} <: BoundaryProcess
+    op::F
+    bc1::B1
+    bc2::B2
+    function CombinedBoundaryProcess(op::F, bc1::B1, bc2::B2) where {F,B1<:BoundaryProcess,B2<:BoundaryProcess}
+        @assert BoundaryStyle(bc1) == BoundaryStyle(bc2) "boundary condition styles (e.g. Dirichlet vs Neumann) must match"
+        new{B1,B2,F,typeof(BoundaryStyle(bc1))}(op,bc1,bc2)
     end
 end
-
-include("composed.jl")
-include("forcing.jl")
+@inline boundaryvalue(cbc::CombinedBoundaryProcess,l2,p2,s1,s2) = cbc.op(cbc.bc1(l1,l2,p2,s1,s2), cbc.bc2(l1,l2,p2,s1,s2))
+variables(top::Top, cbc::CombinedBoundaryProcess) = tuplejoin(variables(top, cbc.bc1), variables(top, cbc.bc2))
+BoundaryStyle(::Type{CombinedBoundaryProcess{B1,B2,F,S}}) where {F,B1,B2,S} = S()
+# Overload arithmetic operators on boundary processes.
+Base.:+(bc1::BoundaryProcess, bc2::BoundaryProcess) = CombinedBoundaryProcess(+, bc1, bc2)
+Base.:-(bc1::BoundaryProcess, bc2::BoundaryProcess) = CombinedBoundaryProcess(-, bc1, bc2)
+Base.:*(bc1::BoundaryProcess, bc2::BoundaryProcess) = CombinedBoundaryProcess(*, bc1, bc2)
+Base.:/(bc1::BoundaryProcess, bc2::BoundaryProcess) = CombinedBoundaryProcess(/, bc1, bc2)
 
 end

@@ -1,22 +1,9 @@
 """
-    variables(::Layer)
-
-Defines variables for a given Layer type. Implementations should return a `Tuple` of `Var`s.
-"""
-variables(::Layer) = ()
-"""
     variables(::Layer, ::Process)
 
 Defines variables for a given Process on Layer. Implementations should return a `Tuple` of `Var`s.
 """
 variables(::Layer, ::Process) = ()
-"""
-    initialcondition!(::Layer, state)
-
-Defines the initial condition for a given Layer. `initialcondition!` should write initial values into all relevant
-state variables in `state`.
-"""
-initialcondition!(::Layer, state) = nothing
 """
     initialcondition!(::Layer, ::Process, state)
 
@@ -50,6 +37,24 @@ prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined
 Defines a boundary interaction between two processes on adjacent layers.
 """
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+"""
+    boundaryflux(top::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2)
+    boundaryflux(bot::Bottom, bc::BoundaryProcess, sub::SubSurface, bc1::SubSurfaceProcess, s1, s2)
+    boundaryflux(s::BoundaryStyle, ::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2)
+    boundaryflux(s::BoundaryStyle, sub::SubSurface, p::SubSurfaceProcess, ::Bottom, bc::BoundaryProcess, s1, s2)
+
+Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
+"""
+boundaryflux(top::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = boundaryflux(BoundaryStyle(bc), top, bc, sub, p, s1, s2)
+boundaryflux(bot::Bottom, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = boundaryflux(BoundaryStyle(bc), bot, bc, sub, p, s1, s2)
+boundaryflux(s::BoundaryStyle, ::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = error("missing implementation of $(typeof(s)) top boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
+boundaryflux(s::BoundaryStyle, ::Bottom, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = error("missing implementation of $(typeof(s)) bottom boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
+"""
+    boundaryvalue(bc::BoundaryProcess, layer::SubSurface, p::SubSurfaceProcess, sbc, ssub)
+
+Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
+"""
+boundaryvalue(bc::BoundaryProcess, layer, p, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(layer)) with $(typeof(p))")
 """
     observe(::Val{name}, ::Layer, ::Process, state1)
 

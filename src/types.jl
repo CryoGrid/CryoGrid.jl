@@ -20,12 +20,6 @@ struct Top <: Layer end
 Generic "bottom" layer that marks the lower boundary of the subsurface grid.
 """
 struct Bottom <: Layer end
-"""
-    Boundary = Union{Top,Bottom}
-
-Alias that refers to the type union over both Top and Bottom layer types.
-"""
-const Boundary = Union{Top,Bottom}
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)
 

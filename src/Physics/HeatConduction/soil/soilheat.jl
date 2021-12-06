@@ -1,4 +1,4 @@
-totalwater(soil::Soil, heat::Heat, state) = θw(soil.comp)
+totalwater(soil::Soil, heat::Heat, state) = θw(soil.para)
 function heatcapacity(soil::Soil, totalwater, liquidwater, mineral, organic)
     @unpack cw,co,cm,ca,ci = soil.hc
     let air = 1.0 - totalwater - mineral - organic,
@@ -17,17 +17,17 @@ function thermalconductivity(soil::Soil, totalwater, liquidwater, mineral, organ
 end
 """ Heat capacity for soil layer """
 function heatcapacity!(soil::Soil, ::Heat, state)
-    let w = θw(soil.comp),
-        m = θm(soil.comp),
-        o = θo(soil.comp);
+    let w = θw(soil.para),
+        m = θm(soil.para),
+        o = θo(soil.para);
         @. state.C = heatcapacity(soil, w, state.θl, m, o)
     end
 end
 """ Thermal conductivity for soil layer """
 function thermalconductivity!(soil::Soil, ::Heat, state)
-    let w = θw(soil.comp),
-        m = θm(soil.comp),
-        o = θo(soil.comp);
+    let w = θw(soil.para),
+        m = θm(soil.para),
+        o = θo(soil.para);
         @. state.kc = thermalconductivity(soil, w, state.θl, m, o)
     end
 end
@@ -36,8 +36,6 @@ include("sfcc.jl")
 
 """ Initial condition for heat conduction (all state configurations) on soil layer. """
 function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
-    T₀ = profile2array(heat.initialT; names=(:T,))
-    interpolateprofile!(T₀, state)
     L = heat.L
     sfcc = freezecurve(heat)
     state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
@@ -46,8 +44,6 @@ function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
 end
 """ Diagonstic step for partitioned heat conduction on soil layer. """
 function initialcondition!(soil::Soil, heat::Heat{<:SFCC,PartitionedEnthalpy}, state)
-    T₀ = profile2array(heat.initialT; names=(:T,))
-    interpolateprofile!(T₀, state)
     L = heat.L
     sfcc = freezecurve(heat)
     state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)

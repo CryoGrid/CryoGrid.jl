@@ -35,18 +35,11 @@ include("../types.jl")
         checkfields(model)
         @test hasproperty(model.state.uproto,:x)
         @test hasproperty(model.state.griddiag,:k)
-        # do not allow prognostic layer variables
-        CryoGrid.variables(::TestGroundLayer) = (Prognostic(:w,Float"kg",OnGrid(Cells)),)
-        @test_throws AssertionError model = LandModel(strat,grid)
-        # test inclusion of layer variables
-        CryoGrid.variables(::TestGroundLayer) = (Diagnostic(:w,Float"kg",OnGrid(Cells)),)
-        model = LandModel(strat,grid)
-        checkfields(model)
-        @test hasproperty(model.state.griddiag,:w)
         # warn when variable declared as prognostic and diagnostic
         CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
             Prognostic(:x, Float"J", OnGrid(Cells)),
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
+            Diagnostic(:w, Float"kg", OnGrid(Cells)),
             Prognostic(:w, Float"kg", OnGrid(Cells)),
         )
         @test_logs (:warn,r".*declared as both prognostic/algebraic and diagnostic.*") model = LandModel(strat,grid)
@@ -58,6 +51,7 @@ include("../types.jl")
             Prognostic(:x, Float"J", OnGrid(Cells)),
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             Diagnostic(:w, Float"kg", OnGrid(Cells)),
+            Diagnostic(:w, Float"kg", OnGrid(Cells)),
         )
         model = LandModel(strat,grid)
         checkfields(model)
@@ -66,6 +60,7 @@ include("../types.jl")
         CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
             Prognostic(:x, Float"J", OnGrid(Cells)),
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
+            Diagnostic(:w, Float"kg/m", OnGrid(Cells)),
             Diagnostic(:w, Float"kg/m", OnGrid(Edges)),
         )
         @test_throws AssertionError model = LandModel(strat,grid)
@@ -84,7 +79,6 @@ include("../types.jl")
     finally
         # clean-up method definitions (necessary for re-running test set)
         Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
-        Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))
     end
 end
 @testset "4-layer" begin
@@ -96,10 +90,10 @@ end
         ),
         1000.0u"m" => bottom(TestBoundary())
     )
-    CryoGrid.variables(::TestGroundLayer) = (Diagnostic(:w,Float"kg",OnGrid(Cells)),)
     CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-        Prognostic(:x, Float"J", OnGrid(Cells)),
+        Diagnostic(:w,Float"kg",OnGrid(Cells)),
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
+        Prognostic(:x, Float"J", OnGrid(Cells)),
     )
     model = LandModel(strat,grid)
     # check vars
@@ -112,7 +106,6 @@ end
     @test hasproperty(model.state.uproto, :x)
     # clean-up method definitions (necessary for re-running test set)
     Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
-    Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))
 end
 @testset "Helper functions" begin
     grid = Grid(Vector(0.0:10.0:1000.0)u"m")
@@ -123,15 +116,14 @@ end
         ),
         1000.0u"m" => bottom(TestBoundary())
     )
-    CryoGrid.variables(::TestGroundLayer) = (Diagnostic(:w,Float"kg",OnGrid(Cells)),)
     CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
         Prognostic(:x, Float"J", OnGrid(Cells)),
         Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
+        Diagnostic(:w,Float"kg",OnGrid(Cells)),
     )
     model = LandModel(strat,grid)
     @test length(getvar(:x, model, model.state.uproto)) == length(cells(grid))
     @test length(getvar(:k, model, model.state.uproto)) == length(grid)
     # clean-up method definitions (necessary for re-running test set)
     Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
-    Base.delete_method(@which CryoGrid.variables(TestGroundLayer()))
 end

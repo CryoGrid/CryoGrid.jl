@@ -58,9 +58,9 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,PartitionedEnthalpy}, state)
         f = sfcc.f,
         ∇f = sfcc.∇f,
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
-        let θw = θw(soil.comp),
-            θm = θm(soil.comp),
-            θo = θo(soil.comp);
+        let θw = θw(soil.para),
+            θm = θm(soil.para),
+            θo = θo(soil.para);
             @inbounds @fastmath for i in 1:N
                 state.H[i] = state.Hₛ[i] + state.Hₗ[i]
                 # It is possible for the integrator to violate physical constraints by integrating
@@ -76,9 +76,9 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,PartitionedEnthalpy}, state)
     end
 end
 function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
-    let θw = θw(soil.comp),
-        θm = θm(soil.comp),
-        θo = θo(soil.comp);
+    let θw = θw(soil.para),
+        θm = θm(soil.para),
+        θo = θo(soil.para);
         @inbounds @fastmath let L = heat.L,
             f = sfcc.f,
             ∇f = sfcc.∇f,
@@ -122,8 +122,8 @@ end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    θp(soil.comp), # θ saturated = porosity
-    θw(soil.comp),
+    θp(soil.para), # θ saturated = porosity
+    θw(soil.para),
     heat.L, # specific latent heat of fusion, L
     f.α,
     f.n,
@@ -158,8 +158,8 @@ end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    θp(soil.comp), # θ saturated = porosity
-    θw(soil.comp),
+    θp(soil.para), # θ saturated = porosity
+    θw(soil.para),
     f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
@@ -183,8 +183,8 @@ end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    θp(soil.comp), # θ saturated = porosity
-    θw(soil.comp),
+    θp(soil.para), # θ saturated = porosity
+    θw(soil.para),
     f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
@@ -233,9 +233,9 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
             H = state.H[i] |> Utils.adstrip, # enthalpy
             C = state.C[i] |> Utils.adstrip, # heat capacity
             θl = state.θl[i] |> Utils.adstrip, # liquid water content
-            θw = θw(soil.comp), # total water content
-            θm = θm(soil.comp), # mineral content
-            θo = θo(soil.comp), # organic content
+            θw = θw(soil.para), # total water content
+            θm = θm(soil.para), # mineral content
+            θo = θo(soil.para), # organic content
             L = heat.L, # specific latent heat of fusion
             cw = soil.hc.cw, # heat capacity of liquid water
             α₀ = s.α₀,

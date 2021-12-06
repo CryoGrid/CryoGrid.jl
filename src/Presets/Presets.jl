@@ -5,6 +5,8 @@ module Presets
 
 using CryoGrid
 using CryoGrid.InputOutput: Resource
+using CryoGrid.Numerics
+
 using Statistics
 
 include("presetgrids.jl")
@@ -19,25 +21,15 @@ Parameters = (
     EcoCLimMap_ULC_126_72 = Resource("EcoCLimMap_ULC_126_72", "json", "https://nextcloud.awi.de/s/nWiJr5pBoqFtw7p/download")
 )
 
-"""
-    SoilLayerConfig
-
-Helper type for representing site-specific soil layer configuration (e.g. soil and temperature profile).
-"""
-struct SoilLayerConfig{TSoilProfile,TTempProfile}
-    soilprofile::TSoilProfile
-    tempprofile::TTempProfile
-end
-
-const SamoylovDefault = SoilLayerConfig(
-    SoilProfile(
-        0.0u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-        0.1u"m" => SoilComposition(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-        0.4u"m" => SoilComposition(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-        3.0u"m" => SoilComposition(xic=0.0,por=0.50,sat=1.0,org=0.0), #(θw=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-        10.0u"m" => SoilComposition(xic=0.0,por=0.30,sat=1.0,org=0.0), #(θw=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+const SamoylovDefault = (
+    soilprofile = SoilProfile(
+        0.0u"m" => soilparameters(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θw=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+        0.1u"m" => soilparameters(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+        0.4u"m" => soilparameters(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θw=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+        3.0u"m" => soilparameters(xic=0.0,por=0.50,sat=1.0,org=0.0), #(θw=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+        10.0u"m" => soilparameters(xic=0.0,por=0.30,sat=1.0,org=0.0), #(θw=0.30,θm=0.70,θo=0.0,ϕ=0.30),
     ),
-    TemperatureProfile(
+    tempprofile = TemperatureProfile(
         0.0u"m" => -1.0u"°C",
         2.0u"m" => -1.0u"°C",
         5.0u"m" => -3.0u"°C",
@@ -51,20 +43,20 @@ const SamoylovDefault = SoilLayerConfig(
 export SamoylovDefault
 
 """
-    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
-function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilconfig::SoilLayerConfig;
-    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
+function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization};
+    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {N,D,F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => top(upperbc),
-        Tuple(z => subsurface(Symbol(:soil,i), Soil(comp=comp), Heat(heatvar,initialT=soilconfig.tempprofile, freezecurve=freezecurve)) for (i,(z,comp)) in enumerate(soilconfig.soilprofile)),
+        Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar,freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
         1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
     LandModel(strat, grid, chunksize=chunksize)
 end
-SoilHeatColumn(upperbc::BoundaryProcess, soilconfig::SoilLayerConfig; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilconfig; grid=grid, freezecurve=freezecurve)
+SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {N,D,F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile; grid=grid, freezecurve=freezecurve)
 
 end

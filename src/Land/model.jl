@@ -130,7 +130,7 @@ is only executed during compilation and will not appear in the compiled version.
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
-    state = LandModelState(strat, model.state, u, du, t, Val{inplace}())
+    state = LandModelState(model.state, boundaries(strat), u, du, t, Val{inplace}())
     end push!(expr.args)
     # Initialize variables for all layers
     for i in 1:N
@@ -192,23 +192,37 @@ is only executed during compilation and will not appear in the compiled version.
     # emit generated expression block
     return expr
 end
-
 """
-    init!(model::LandModel{TStrat}, t0, p) where TStrat
+    initialcondition!(model::LandModel, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::VarInit...)
+    initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector, initializers::VarInit...)
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-@generated function init!(model::LandModel{TStrat,TGrid,TStates,iip,obsv}, t0, p) where {TStrat,TGrid,TStates,iip,obsv}
+initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(model, convert_tspan(tspan), p, args...)
+@generated function initialcondition!(model::LandModel{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::Numerics.VarInit...) where {TStrat,TGrid,TStates,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
     @>> quote
-    du = similar(model.state.uproto, eltype(p))
-    u = similar(model.state.uproto, eltype(p))
+    du = zero(similar(model.state.uproto, eltype(p)))
+    u = zero(similar(model.state.uproto, eltype(p)))
     strat = Flatten.reconstruct(model.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
-    state = LandModelState(strat, model.state, u, du, t0, Val{iip}())
+    state = LandModelState(model.state, boundaries(strat), u, du, tspan[1], Val{iip}())
     end push!(expr.args)
+    # Call initializers
+    for i in 1:N
+        for j in 1:length(initializers)
+            @>> quote
+            let layerstate = state[$i],
+                init = initializers[$j];
+                if haskey(layerstate.states, varname(init))
+                    initvar!(layerstate, strat, init)
+                end
+            end
+            end push!(expr.args)
+        end
+    end
     # Iterate over layers
     for i in 1:N-1
         n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
@@ -229,21 +243,57 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
         if i == 1
             # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls
             @>> quote
-            initialcondition!($n1layer,$n1state)
             initialcondition!($n1layer,$n1process,$n1state)
             end push!(expr.args)
         end
         # invoke initialcondition! for each layer, then for both (similar to interact!)
         @>> quote
-        initialcondition!($n2layer,$n2state)
         initialcondition!($n2layer,$n2process,$n2state)
         initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)
     end
     @>> quote
-    return u, du
+    return u
     end push!(expr.args)
     return expr
+end
+"""
+    initvar!(state::LayerState, ::Stratigraphy, init::VarInit{varname}) where {varname}
+    initvar!(state::LayerState, ::Stratigraphy, init::InterpInit{varname})
+
+Calls the initializer for state variable `varname`.
+"""
+initvar!(state::LayerState, ::Stratigraphy, init::Numerics.VarInit{varname}) where {varname} = init!(state[varname], init)
+initvar!(state::LayerState, ::Stratigraphy, init::Numerics.InterpInit{varname}) where {varname} = init!(state[varname], init, state.grids[varname])
+"""
+    getvar(name::Symbol, model::LandModel, u)
+    getvar(::Val{name}, model::LandModel, u)
+
+Retrieves the (diagnostic or prognostic) grid variable from `model` given prognostic state `u`.
+If `name` is not a variable in the model, or if it is not a grid variable, `nothing` is returned.
+"""
+Numerics.getvar(name::Symbol, model::LandModel, u) = getvar(Val{name}(), model, u)
+Numerics.getvar(::Val{name}, model::LandModel, u) where name = getvar(Val{name}(), model.state, withaxes(u, model))
+"""
+    getstate(layername::Symbol, model::LandModel, u, du, t)
+    getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t)
+
+Constructs a `LayerState` representing the full state of `layername` given `model`, state vectors `u` and `du`, and the
+time step `t`.
+"""
+getstate(layername::Symbol, model::LandModel, u, du, t) = getstate(Val{layername}(), model, u, du, t)
+function getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t) where {layername,TStrat,TGrid,iip,layernames}
+    du = ComponentArray(_du, getaxes(model.state.uproto))
+    u = ComponentArray(_u, getaxes(model.state.uproto))
+    i = 1
+    for j in 1:length(model.strat)
+        if layernames[j] == layername
+            i = j
+            break
+        end
+    end
+    z = boundaryintervals(map(ustrip, stripparams(boundaries(model.strat))), ustrip(model.grid[end]))[i]
+    return LayerState(model.state, z, u, du, t, Val{layername}(), Val{iip}())
 end
 """
     variables(model::LandModel)
@@ -268,45 +318,11 @@ function getstate(model::LandModel{TStrat,TGrid,TStates,iip}, _u, _du, t) where 
     return LandModelState(model.strat, model.state, u, du, t, Val{iip}())
 end
 """
-    getstate(layername::Symbol, model::LandModel, u, du, t)
-    getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t)
-
-Constructs a `LayerState` representing the full state of `layername` given `model`, state vectors `u` and `du`, and the
-time step `t`.
-"""
-getstate(layername::Symbol, model::LandModel, u, du, t) = getstate(Val{layername}(), model, u, du, t)
-function getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t) where {layername,TStrat,TGrid,iip,layernames}
-    du = ComponentArray(_du, getaxes(model.state.uproto))
-    u = ComponentArray(_u, getaxes(model.state.uproto))
-    i = 1
-    for j in 1:length(model.strat)
-        if layernames[j] == layername
-            i = j
-            break
-        end
-    end
-    z = boundaryintervals(map(ustrip, stripparams(boundaries(model.strat))), ustrip(model.grid[end]))[i]
-    return LayerState(model.state, z, u, du, t, Val{layername}(), Val{iip}())
-end
-"""
-    getvar(name::Symbol, model::LandModel, u)
-    getvar(::Val{name}, model::LandModel, u)
-
-Retrieves the (diagnostic or prognostic) grid variable from `model` given prognostic state `u`.
-If `name` is not a variable in the model, or if it is not a grid variable, `nothing` is returned.
-"""
-getvar(name::Symbol, model::LandModel, u) = getvar(Val{name}(), model, u)
-getvar(::Val{name}, model::LandModel, u) where name = getvar(Val{name}(), model.state, withaxes(u, model))
-
-"""
 Collects and validates all declared variables (`Var`s) for the given strat component.
 """
 function _collectvars(@nospecialize(comp::StratComponent))
     layer, process = comp.layer, comp.process
-    layer_vars = variables(layer)
-    @assert all([isdiagnostic(var) for var in layer_vars]) "Layer variables must be diagnostic."
-    process_vars = variables(layer, process)
-    all_vars = tuple(layer_vars...,process_vars...)
+    all_vars = variables(layer, process)
     @debug "Building layer $(componentname(comp)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
     groups = groupby(var -> varname(var), all_vars)

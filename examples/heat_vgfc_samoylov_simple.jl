@@ -6,11 +6,15 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # "simple" heat conduction model w/ 5 cm grid spacing
 grid = CryoGrid.Presets.DefaultGrid_5cm
-model = CryoGrid.Presets.SoilHeatColumn(:H, TemperatureGradient(tair), CryoGrid.Presets.SamoylovDefault; grid=grid, freezecurve=SFCC(DallAmico()))
+soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
+model = CryoGrid.Presets.SoilHeatColumn(:H, TemperatureGradient(tair), soilprofile; grid=grid, freezecurve=SFCC(DallAmico()))
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+p = parameters(model)
+initT = initializer(:T, tempprofile)
+u0 = initialcondition!(model, tspan, p, initT)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,tspan)
+prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 # solve with forward Euler (fixed 10 minute timestep) and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=10*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

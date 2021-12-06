@@ -70,7 +70,7 @@ end
 		tgrad = TemperatureGradient(forcing, NFactor(winterfactor=0.5, summerfactor=1.0))
 		sub = TestGroundLayer()
 		heat = Heat()
-		f1(t) = tgrad(Top(),sub,heat,(t=t,),(t=t,))
+		f1(t) = boundaryvalue(tgrad,sub,heat,(t=t,),(t=t,))
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
 	end
