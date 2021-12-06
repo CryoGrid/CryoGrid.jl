@@ -12,14 +12,13 @@ struct TemperatureGradient{E,F} <: BoundaryProcess
 end
 BoundaryStyle(::Type{<:TemperatureGradient}) = Dirichlet()
 BoundaryStyle(::Type{<:TemperatureGradient{<:Damping}}) = Neumann()
+@inline boundaryvalue(bc::TemperatureGradient,l2,p2,s1,s2) where {F} = bc.T(s1.t)
 
 @with_kw struct NFactor{W,S} <: BoundaryEffect
     winterfactor::W = Param(1.0, bounds=(0.0,1.0)) # applied when Tair <= 0
     summerfactor::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
 end
-
-@inline (bc::TemperatureGradient)(l1,l2,p2,s1,s2) where {F} = bc.T(s1.t)
-@inline function (bc::TemperatureGradient{<:NFactor})(l1,l2,p2::Heat,s1,s2)
+@inline function boundaryvalue(bc::TemperatureGradient{<:NFactor},l2,p2::Heat,s1,s2)
     let nfw = bc.effect.winterfactor,
         nfs = bc.effect.summerfactor,
         Tair = bc.T(s1.t),
@@ -27,7 +26,8 @@ end
         nf*Tair # apply damping factor to air temperature
     end
 end
-@inline function (bc::TemperatureGradient{<:Damping})(l1,l2,p2::Heat,s1,s2)
+# damped temperature gradient
+@inline function boundaryvalue(bc::TemperatureGradient{<:Damping},l2,p2::Heat,s1,s2)
     let Ttop = bc.T(s1.t),
         Tsub = s2.T[1],
         δ = Δ(s2.grids.k)[1], # grid cell size

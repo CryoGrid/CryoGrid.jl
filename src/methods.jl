@@ -38,6 +38,24 @@ Defines a boundary interaction between two processes on adjacent layers.
 """
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
+    boundaryflux(top::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2)
+    boundaryflux(bot::Bottom, bc::BoundaryProcess, sub::SubSurface, bc1::SubSurfaceProcess, s1, s2)
+    boundaryflux(s::BoundaryStyle, ::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2)
+    boundaryflux(s::BoundaryStyle, sub::SubSurface, p::SubSurfaceProcess, ::Bottom, bc::BoundaryProcess, s1, s2)
+
+Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
+"""
+boundaryflux(top::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = boundaryflux(BoundaryStyle(bc), top, bc, sub, p, s1, s2)
+boundaryflux(bot::Bottom, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = boundaryflux(BoundaryStyle(bc), bot, bc, sub, p, s1, s2)
+boundaryflux(s::BoundaryStyle, ::Top, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = error("missing implementation of $(typeof(s)) top boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
+boundaryflux(s::BoundaryStyle, ::Bottom, bc::BoundaryProcess, sub::SubSurface, p::SubSurfaceProcess, s1, s2) = error("missing implementation of $(typeof(s)) bottom boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
+"""
+    boundaryvalue(bc::BoundaryProcess, layer::SubSurface, p::SubSurfaceProcess, sbc, ssub)
+
+Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
+"""
+boundaryvalue(bc::BoundaryProcess, layer, p, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(layer)) with $(typeof(p))")
+"""
     observe(::Val{name}, ::Layer, ::Process, state1)
 
 Called at the end of each step. Can be used by the user to add additional observables via `@log` without affecting the
