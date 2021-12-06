@@ -32,12 +32,14 @@ end
         :(return nothing)
     end
 end
-function getvars(vs::VarStates{layers,gridvars}, u, du, vals::Union{Symbol,<:Pair{Symbol}}...) where {layers,gridvars,T}
-    vars = map(vals) do val
+function getvars(vs::VarStates{layers,gridvars,TU}, u::ComponentVector, du::ComponentVector, vals::Union{Symbol,<:Pair{Symbol}}...) where {layers,gridvars,T,A,pax,TU<:ComponentVector{T,A,Tuple{Axis{pax}}}}
+    vars = map(filter(n -> n ∉ keys(pax), vals)) do val # map over given variable names, ignoring prognostic variables
         if val ∈ gridvars
             val => getvar(Val{val}(), vs, u, du)
+        elseif val ∈ map(n -> Symbol(:d,n), keys(pax))
+            val => du[val]
         else
-            nestedvals = isa(last(val), Tuple) ? last(val) : tuple(last(val))
+            nestedvals = isa(vals[val], Tuple) ? vals[val] : tuple(vals[val])
             first(val) => (;map(n -> n => retrieve(getproperty(vs.diag[first(val)], n)), nestedvals)...)
         end
     end

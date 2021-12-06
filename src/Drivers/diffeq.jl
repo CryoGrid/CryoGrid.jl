@@ -31,7 +31,7 @@ function CryoGridProblem(
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
     getsavestate(model::LandModel, u, du) = deepcopy(Land.getvars(model.state, u, du, savevars...))
-    savefunc(u, t, integrator) = getsavestate(integrator.f.f, u, get_du(integrator))
+    savefunc(u, t, integrator) = getsavestate(integrator.f.f, Land.withaxes(u, integrator.f.f), get_du(integrator))
     pmodel = Model(landmodel)
     p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
     du0 = zero(u0)
