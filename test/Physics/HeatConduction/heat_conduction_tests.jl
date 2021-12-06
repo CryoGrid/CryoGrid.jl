@@ -37,15 +37,15 @@ include("../../types.jl")
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"J/s/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(Top(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
-			@test boundaryflux(Bottom(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
+			@test boundaryflux(bc,Top(),heat,sub,state,state) > 0.0u"J/s/m^3"
+			@test boundaryflux(bc,Bottom(),heat,sub,state,state) < 0.0u"J/s/m^3"
 		end
 		@testset "top: -, bot: +" begin
 			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"J/s/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(Top(),bc,sub,heat,state,state) < 0.0u"J/s/m^3"
-			@test boundaryflux(Bottom(),bc,sub,heat,state,state) > 0.0u"J/s/m^3"
+			@test boundaryflux(bc,Top(),heat,sub,state,state) < 0.0u"J/s/m^3"
+			@test boundaryflux(bc,Bottom(),heat,sub,state,state) > 0.0u"J/s/m^3"
 		end
 		@testset "inner edge boundary (positive)" begin
 			T₀ = Vector(sin.(ustrip.(xc).*π))u"°C"
@@ -61,6 +61,13 @@ include("../../types.jl")
 			@test ∂H[1] < 0.0u"J/s/m^3"
 			@test ∂H[end] < 0.0u"J/s/m^3"
 		end
+		@testset "Neumann boundary" begin
+			bc = Constant(Neumann, -1.0u"J/m^3")
+			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
+			∂H = zeros(length(T₀))u"J/s/m^3"
+			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"J/m^3"
+		end
 	end
 end
 @testset "Boundary conditions" begin
@@ -70,7 +77,7 @@ end
 		tgrad = TemperatureGradient(forcing, NFactor(winterfactor=0.5, summerfactor=1.0))
 		sub = TestGroundLayer()
 		heat = Heat()
-		f1(t) = boundaryvalue(tgrad,sub,heat,(t=t,),(t=t,))
+		f1(t) = boundaryvalue(tgrad,Top(),heat,sub,(t=t,),(t=t,))
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
 	end
@@ -95,8 +102,8 @@ end
 		# compute boundary fluxes;
 		# while not correct in general, for this test case we can just re-use state for both layers.
 		state = (T=T_K,k=k,dH=dT,grids=(T=xc,k=x),t=t)
-		dT[1] += boundaryflux(Top(),bc,sub,heat,state,state)
-		dT[end] += boundaryflux(Bottom(),bc,sub,heat,state,state)
+		dT[1] += boundaryflux(bc,Top(),heat,sub,state,state)
+		dT[end] += boundaryflux(bc,Bottom(),heat,sub,state,state)
 		# strip units from dT before returning dT to the solver
 		return ustrip.(dT)
 	end

@@ -49,7 +49,7 @@ Heat(::Val{(:Hₛ,:Hₗ)}; kwargs...) = Heat(;sp=PartitionedEnthalpy(), kwargs..
 Heat(::Val{:T}; kwargs...) = Heat(;sp=Temperature(), kwargs...)
 
 export enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
-export heatconduction!, boundaryflux
+export heatconduction!
 include("heat.jl")
 export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, Damping
 include("heat_bc.jl")

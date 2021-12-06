@@ -33,7 +33,7 @@ struct Constant{S,T} <: BoundaryProcess
     Constant(::Type{S}, value::T) where {S<:BoundaryStyle,T} = new{S,T}(value)
 end
 ConstructionBase.constructorof(::Type{<:Constant{S}}) where {S} = value -> Constant(S,value)
-boundaryvalue(bc::Constant{S,T},l2,p2,s1,s2) where {S,T} = bc.value
+boundaryvalue(bc::Constant{S,T},l1,p2,l2,s1,s2) where {S,T} = bc.value
 
 BoundaryStyle(::Type{<:Constant{S}}) where {S} = S()
 
@@ -51,14 +51,14 @@ struct Periodic{S,T} <: BoundaryProcess
         new{S,T}(uconvert(u"s",period) |> dustrip, amplitude, phaseshift)
 end
 
-@inline boundaryvalue(bc::Periodic,l2,p2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*t + bc.phaseshift)
+@inline boundaryvalue(bc::Periodic,l1,p2,l2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*t + bc.phaseshift)
 
 BoundaryStyle(::Type{<:Periodic{S}}) where {S} = S()
 
 @with_kw struct Bias{P} <: BoundaryProcess
     bias::P = Param(0.0)
 end
-@inline boundaryvalue(bc::Bias,l2,p2,s1,s2) = bc.bias
+@inline boundaryvalue(bc::Bias,l1,p2,l2,s1,s2) = bc.bias
 
 BoundaryStyle(::Type{<:Bias}) = Dirichlet()
 
@@ -78,7 +78,7 @@ struct CombinedBoundaryProcess{B1,B2,F,S} <: BoundaryProcess
         new{B1,B2,F,typeof(BoundaryStyle(bc1))}(op,bc1,bc2)
     end
 end
-@inline boundaryvalue(cbc::CombinedBoundaryProcess,l2,p2,s1,s2) = cbc.op(cbc.bc1(l1,l2,p2,s1,s2), cbc.bc2(l1,l2,p2,s1,s2))
+@inline boundaryvalue(cbc::CombinedBoundaryProcess,l1,p2,l2,s1,s2) = cbc.op(cbc.bc1(l1,l2,p2,s1,s2), cbc.bc2(l1,l2,p2,s1,s2))
 variables(top::Top, cbc::CombinedBoundaryProcess) = tuplejoin(variables(top, cbc.bc1), variables(top, cbc.bc2))
 BoundaryStyle(::Type{CombinedBoundaryProcess{B1,B2,F,S}}) where {F,B1,B2,S} = S()
 # Overload arithmetic operators on boundary processes.

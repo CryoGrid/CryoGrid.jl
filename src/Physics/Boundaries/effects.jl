@@ -15,6 +15,6 @@ function (damp::Damping)(u_top, u_sub, k_sub, Δsub, t)
         k_med = damp.k, # conductivity of damping medium (assumed uniform)
         k_sub = k_sub, # conductivity at grid center
         k = Numerics.harmonicmean(k_med, k_sub, d_med, d_sub);
-        -k*(u_sub - u_top)/d # flux (unscaled)
+        -k*(u_sub - u_top)/d/Δsub # flux per unit volume
     end
 end

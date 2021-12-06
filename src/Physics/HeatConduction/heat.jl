@@ -137,17 +137,11 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     @inbounds @. state.dT = state.dH / state.Ceff
     return nothing
 end
-boundaryflux(::Neumann, top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub) =
-    @inbounds let δ₀ = Δ(ssub.grids.k)[1]
-        boundaryvalue(bc,sub,heat,stop,ssub)/δ₀
-    end
-boundaryflux(::Neumann, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, heat::Heat, sbot, ssub) =
-    @inbounds let δ₀ = Δ(ssub.grids.k)[end]
-        boundaryvalue(bc,sub,heat,sbot,ssub)/δ₀
-    end
-function boundaryflux(::Dirichlet, top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub)
+boundaryflux(::Neumann, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
+boundaryflux(::Neumann, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
+function boundaryflux(::Dirichlet, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
     Δk = Δ(ssub.grids.k)
-    @inbounds let Tupper=boundaryvalue(bc,sub,heat,stop,ssub),
+    @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
         Tsub=ssub.T[1],
         k=ssub.k[1],
         d=Δk[1],
@@ -155,9 +149,9 @@ function boundaryflux(::Dirichlet, top::Top, bc::BoundaryProcess, sub::SubSurfac
         -k*(Tsub-Tupper)/δ₀/d
     end
 end
-function boundaryflux(::Dirichlet, bot::Bottom, bc::BoundaryProcess, sub::SubSurface, heat::Heat, sbot, ssub)
+function boundaryflux(::Dirichlet, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
     Δk = Δ(ssub.grids.k)
-    @inbounds let Tlower=boundaryvalue(bc,sub,heat,sbot,ssub),
+    @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
         k=ssub.k[end],
         d=Δk[1],
@@ -173,7 +167,7 @@ function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, s
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
     @inbounds ssub.k[1] = ssub.k[2]
     # boundary flux
-    @inbounds ssub.dH[1] += boundaryflux(top, bc, sub, heat, stop, ssub)
+    @inbounds ssub.dH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
     return nothing # ensure no allocation
 end
 """
@@ -184,7 +178,7 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
     @inbounds ssub.k[end] = ssub.k[end-1]
     # boundary flux
-    @inbounds ssub.dH[end] += boundaryflux(bot, bc, sub, heat, sbot, ssub)
+    @inbounds ssub.dH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
     return nothing # ensure no allocation
 end
 """
