@@ -248,8 +248,8 @@ initialcondition!(model::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, arg
         end
         # invoke initialcondition! for each layer, then for both (similar to interact!)
         @>> quote
-        initialcondition!($n2layer,$n2process,$n2state)
         initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
+        initialcondition!($n2layer,$n2process,$n2state)
         end push!(expr.args)
     end
     @>> quote
