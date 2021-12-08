@@ -4,8 +4,8 @@
 Abstract type representing a generic external boundary condition (i.e. "forcing").
 """
 abstract type Forcing{T,N} end
-(forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
-(forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
+@inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
+@inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
 # disable flattening for all fields of forcing types by default
 Flatten.flattenable(::Type{<:Forcing}, ::Type) = false
 
@@ -36,9 +36,9 @@ Base.show(io::IO, forcing::TimeSeriesForcing{T}) where T = print(io, "TimeSeries
 """
 Get interpolated forcing value at t seconds from t0.
 """
-(forcing::TimeSeriesForcing)(t::Number) = forcing.interp(t) # extract interpolation and evaluate
+@inline @propagate_inbounds (forcing::TimeSeriesForcing)(t::Number) = forcing.interp(t) # extract interpolation and evaluate
 
-Base.getindex(f::TimeSeriesForcing, i) = forcing.tarray[i]
+@inline @propagate_inbounds Base.getindex(forcing::TimeSeriesForcing, i) = forcing.tarray[i]
 function Base.getindex(f::TimeSeriesForcing{T,A,I}, range::StepRange{DateTime,TStep}) where {T,A,I,TStep}
       order(::Interpolations.GriddedInterpolation{T1,N,T2,Gridded{Torder}}) where {T1,N,T2,Torder} = Torder()
       subseries = f.tarray[range]

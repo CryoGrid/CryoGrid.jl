@@ -55,7 +55,7 @@ function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile{
         Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar,freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
         1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
-    LandModel(strat, grid, chunksize=chunksize)
+    Tile(strat, grid, chunksize=chunksize)
 end
 SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {N,D,F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile; grid=grid, freezecurve=freezecurve)
 

@@ -4,46 +4,46 @@ mutable struct StateHistory
 end
 
 """
-    AbstractLandModel{iip}
+    AbstractTile{iip}
 
 Base type for 1D land models. `iip` is a value of enum `InPlaceMode` that indicates
 whether the model operates on state variables in-place (overwriting arrays) or
 out-of-place (copying arrays).
 """
-abstract type AbstractLandModel{iip} end
+abstract type AbstractTile{iip} end
 """
-    (model::AbstractLandModel{inplace})(du,u,p,t)
-    (model::AbstractLandModel{ooplace})(u,p,t)
+    (model::AbstractTile{inplace})(du,u,p,t)
+    (model::AbstractTile{ooplace})(u,p,t)
 
 Invokes the corresponding `step` function to compute the time derivative du/dt.
 """
-(model::AbstractLandModel{inplace})(du,u,p,t) = step!(model,du,u,p,t)
-(model::AbstractLandModel{ooplace})(u,p,t) = step(model,u,p,t)
+(model::AbstractTile{inplace})(du,u,p,t) = step!(model,du,u,p,t)
+(model::AbstractTile{ooplace})(u,p,t) = step(model,u,p,t)
 
 """
-    step!(::T,du,u,p,t) where {T<:AbstractLandModel}
+    step!(::T,du,u,p,t) where {T<:AbstractTile}
 
 In-place step function for model `T`. Computes du/dt and stores the result in `du`.
 """
-step!(::T,du,u,p,t) where {T<:AbstractLandModel} = error("no implementation of in-place step! for $T")
+step!(::T,du,u,p,t) where {T<:AbstractTile} = error("no implementation of in-place step! for $T")
 """
-    step(::T,u,p,t) where {T<:AbstractLandModel}
+    step(::T,u,p,t) where {T<:AbstractTile}
 
 Out-of-place step function for model `T`. Computes and returns du/dt as vector with same size as `u`.
 """
-step(::T,u,p,t) where {T<:AbstractLandModel} = error("no implementation of out-of-place step for $T")
+step(::T,u,p,t) where {T<:AbstractTile} = error("no implementation of out-of-place step for $T")
 
 """
-    LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
+    Tile{TStrat,TGrid,TStates,iip,obsv} <: AbstractTile{iip}
 
-Defines the full specification of a CryoGrid land model; i.e. stratigraphy, grid, and state variables.
+Defines the full specification of a single CryoGrid tile; i.e. stratigraphy, grid, and state variables.
 """
-struct LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
+struct Tile{TStrat,TGrid,TStates,iip,obsv} <: AbstractTile{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
     hist::StateHistory # mutable "history" type for state tracking
-    function LandModel(
+    function Tile(
         strat::TStrat,
         grid::TGrid,
         state::TStates,
@@ -54,16 +54,16 @@ struct LandModel{TStrat,TGrid,TStates,iip,obsv} <: AbstractLandModel{iip}
         new{TStrat,TGrid,TStates,iip,tuple(observe...)}(strat,grid,state,hist)
     end
 end
-ConstructionBase.constructorof(::Type{LandModel{TStrat,TGrid,TStates,iip,obsv}}) where {TStrat,TGrid,TStates,iip,obsv} =
-    (strat, grid, state, hist) -> LandModel(strat,grid,state,hist,iip,length(obsv) > 0 ? collect(obsv) : Symbol[])
+ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,iip,obsv}}) where {TStrat,TGrid,TStates,iip,obsv} =
+    (strat, grid, state, hist) -> Tile(strat,grid,state,hist,iip,length(obsv) > 0 ? collect(obsv) : Symbol[])
 
-Base.show(io::IO, ::MIME"text/plain", model::LandModel{TStrat,TGrid,TStates,iip,obsv}) where {TStrat,TGrid,TStates,iip,obsv} = print(io, "LandModel ($iip) with layers $(map(componentname, components(model.strat))), observables=$obsv, $TGrid, $TStrat")
+Base.show(io::IO, ::MIME"text/plain", model::Tile{TStrat,TGrid,TStates,iip,obsv}) where {TStrat,TGrid,TStates,iip,obsv} = print(io, "Tile ($iip) with layers $(map(componentname, components(model.strat))), observables=$obsv, $TGrid, $TStrat")
 
 """
-Constructs a `LandModel` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
+Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
-function LandModel(
+function Tile(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity});
     arrayproto::Type{A}=Vector,
@@ -99,16 +99,16 @@ function LandModel(
     @assert npvars > 0 "At least one prognostic variable must be specified."
     chunksize = isnothing(chunksize) ? length(para) : chunksize
     states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
-    LandModel(strat,grid,states,StateHistory(),iip,observe)
+    Tile(strat,grid,states,StateHistory(),iip,observe)
 end
-LandModel(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = LandModel(strat, edges(grid); kwargs...)
-LandModel(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
+Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
+Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 # mark only stratigraphy field as flattenable
-Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{:strat}}) = true
-Flatten.flattenable(::Type{<:LandModel}, ::Type{Val{name}}) where name = false
+Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
+Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
 
 """
-Generated step function (i.e. du/dt) for any arbitrary LandModel. Specialized code is generated and compiled
+Generated step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 < i < N:
 
@@ -119,7 +119,7 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function step!(model::LandModel{TStrat,TGrid,TStates,inplace,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,obsv}
+@generated function step!(model::Tile{TStrat,TGrid,TStates,inplace,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -193,13 +193,13 @@ is only executed during compilation and will not appear in the compiled version.
     return expr
 end
 """
-    initialcondition!(model::LandModel, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::VarInit...)
-    initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector, initializers::VarInit...)
+    initialcondition!(model::Tile, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::VarInit...)
+    initialcondition!(model::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, initializers::VarInit...)
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(model, convert_tspan(tspan), p, args...)
-@generated function initialcondition!(model::LandModel{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::Numerics.VarInit...) where {TStrat,TGrid,TStates,iip,obsv}
+initialcondition!(model::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(model, convert_tspan(tspan), p, args...)
+@generated function initialcondition!(model::Tile{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::Numerics.VarInit...) where {TStrat,TGrid,TStates,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -248,8 +248,8 @@ initialcondition!(model::LandModel, tspan::NTuple{2,DateTime}, p::AbstractVector
         end
         # invoke initialcondition! for each layer, then for both (similar to interact!)
         @>> quote
-        initialcondition!($n2layer,$n2process,$n2state)
         initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
+        initialcondition!($n2layer,$n2process,$n2state)
         end push!(expr.args)
     end
     @>> quote
@@ -266,23 +266,23 @@ Calls the initializer for state variable `varname`.
 initvar!(state::LayerState, ::Stratigraphy, init::Numerics.VarInit{varname}) where {varname} = init!(state[varname], init)
 initvar!(state::LayerState, ::Stratigraphy, init::Numerics.InterpInit{varname}) where {varname} = init!(state[varname], init, state.grids[varname])
 """
-    getvar(name::Symbol, model::LandModel, u)
-    getvar(::Val{name}, model::LandModel, u)
+    getvar(name::Symbol, model::Tile, u)
+    getvar(::Val{name}, model::Tile, u)
 
 Retrieves the (diagnostic or prognostic) grid variable from `model` given prognostic state `u`.
 If `name` is not a variable in the model, or if it is not a grid variable, `nothing` is returned.
 """
-Numerics.getvar(name::Symbol, model::LandModel, u) = getvar(Val{name}(), model, u)
-Numerics.getvar(::Val{name}, model::LandModel, u) where name = getvar(Val{name}(), model.state, withaxes(u, model))
+Numerics.getvar(name::Symbol, model::Tile, u) = getvar(Val{name}(), model, u)
+Numerics.getvar(::Val{name}, model::Tile, u) where name = getvar(Val{name}(), model.state, withaxes(u, model))
 """
-    getstate(layername::Symbol, model::LandModel, u, du, t)
-    getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t)
+    getstate(layername::Symbol, model::Tile, u, du, t)
+    getstate(::Val{layername}, model::Tile{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t)
 
 Constructs a `LayerState` representing the full state of `layername` given `model`, state vectors `u` and `du`, and the
 time step `t`.
 """
-getstate(layername::Symbol, model::LandModel, u, du, t) = getstate(Val{layername}(), model, u, du, t)
-function getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t) where {layername,TStrat,TGrid,iip,layernames}
+getstate(layername::Symbol, model::Tile, u, du, t) = getstate(Val{layername}(), model, u, du, t)
+function getstate(::Val{layername}, model::Tile{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t) where {layername,TStrat,TGrid,iip,layernames}
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
     i = 1
@@ -296,23 +296,23 @@ function getstate(::Val{layername}, model::LandModel{TStrat,TGrid,<:VarStates{la
     return LayerState(model.state, z, u, du, t, Val{layername}(), Val{iip}())
 end
 """
-    variables(model::LandModel)
+    variables(model::Tile)
 
 Returns a tuple of all variables defined in the model.
 """
-variables(model::LandModel) = Tuple(unique(Flatten.flatten(model.state.vars, Flatten.flattenable, Var)))
+variables(model::Tile) = Tuple(unique(Flatten.flatten(model.state.vars, Flatten.flattenable, Var)))
 """
-    withaxes(u::AbstractArray, ::LandModel)
+    withaxes(u::AbstractArray, ::Tile)
 
 Constructs a `ComponentArray` with labeled axes from the given state vector `u`. Assumes `u` to be of the same type/shape
 as `setup.uproto`.
 """
-withaxes(u::AbstractArray, model::LandModel) = ComponentArray(u, getaxes(model.state.uproto))
-withaxes(u::ComponentArray, ::LandModel) = u
+withaxes(u::AbstractArray, model::Tile) = ComponentArray(u, getaxes(model.state.uproto))
+withaxes(u::ComponentArray, ::Tile) = u
 """
 Gets the 
 """
-function getstate(model::LandModel{TStrat,TGrid,TStates,iip}, _u, _du, t) where {TStrat,TGrid,TStates,iip}
+function getstate(model::Tile{TStrat,TGrid,TStates,iip}, _u, _du, t) where {TStrat,TGrid,TStates,iip}
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
     return LandModelState(model.strat, model.state, u, du, t, Val{iip}())

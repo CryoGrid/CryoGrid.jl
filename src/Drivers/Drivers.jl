@@ -18,7 +18,7 @@ using LinearAlgebra
 using Reexport
 using Unitful
 
-import CryoGrid.Land: LandModel, Stratigraphy, StratComponent
+import CryoGrid.Land: Tile, Stratigraphy, StratComponent
 
 export DefaultJac, TridiagJac, JacobianStyle, HeatOnlyLandModel
 
@@ -31,15 +31,15 @@ abstract type JacobianStyle end
 struct DefaultJac <: JacobianStyle end
 struct TridiagJac <: JacobianStyle end
 """
-    JacobianStyle(::Type{<:LandModel})
+    JacobianStyle(::Type{<:Tile})
 
-Can be overriden/extended to specify Jacobian structure for specific `LandModel`s.
+Can be overriden/extended to specify Jacobian structure for specific `Tile`s.
 """
-JacobianStyle(::Type{<:LandModel}) = DefaultJac()
+JacobianStyle(::Type{<:Tile}) = DefaultJac()
 # Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
 # Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
 # Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
-const HeatOnlyLandModel = LandModel{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CompoundProcess{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
+const HeatOnlyLandModel = Tile{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CompoundProcess{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
 JacobianStyle(::Type{<:HeatOnlyLandModel}) = TridiagJac()
 
 # DiffEq/SciML driver

@@ -6,6 +6,7 @@ import CryoGrid: variables, boundaryvalue
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using Base: @propagate_inbounds
 using ConstructionBase
 using Dates
 using Flatten
