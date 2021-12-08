@@ -31,12 +31,9 @@ include("Drivers/Drivers.jl")
 include("Callbacks/Callbacks.jl")
 
 using .Utils
-using .Numerics
-# re-export initializer function from Numerics module
-export initializer
 # Re-exported submodules
+@reexport using .Numerics
 @reexport using .Utils: convert_tspan
-@reexport using .Numerics: Grid
 @reexport using .Layers
 @reexport using .Physics
 @reexport using .Land

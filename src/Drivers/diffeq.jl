@@ -10,13 +10,13 @@ Specialized problem type for CryoGrid `ODEProblem`s.
 struct CryoGridODEProblem end
 
 """
-    CryoGridProblem(setup::LandModel, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
+    CryoGridProblem(setup::Tile, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
 
 CryoGrid specialized constructor for ODEProblem that automatically generates the initial
 condition and necessary callbacks.
 """
 function CryoGridProblem(
-    landmodel::LandModel,
+    tile::Tile,
     u0::ComponentVector,
     tspan::NTuple{2,Float64},
     p=nothing;
@@ -30,22 +30,22 @@ function CryoGridProblem(
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
-    getsavestate(model::LandModel, u, du) = deepcopy(Land.getvars(model.state, u, du, savevars...))
+    getsavestate(model::Tile, u, du) = deepcopy(Land.getvars(model.state, u, du, savevars...))
     savefunc(u, t, integrator) = getsavestate(integrator.f.f, Land.withaxes(u, integrator.f.f), get_du(integrator))
-    pmodel = Model(landmodel)
+    pmodel = Model(tile)
     p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
     du0 = zero(u0)
     # set up saving callback
-    stateproto = getsavestate(landmodel, u0, du0)
+    stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
     savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_everystep=save_everystep)
     callbacks = isnothing(callback) ? savingcallback : CallbackSet(savingcallback, callback)
     # note that this implicitly discards any existing saved values in the model setup's state history
-    landmodel.hist.vals = savevals
+    tile.hist.vals = savevals
     # set up default mass matrix
-    M_diag = similar(landmodel.state.uproto)
+    M_diag = similar(tile.state.uproto)
     M_idxmap = ComponentArrays.indexmap(getaxes(M_diag)[1])
-    allvars = Flatten.flatten(landmodel.state.vars, Flatten.flattenable, Var)
+    allvars = Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)
     progvars = map(varname, filter(isprognostic, allvars))
     algvars = map(varname, filter(isalgebraic, allvars))
     for name in keys(M_idxmap)
@@ -59,36 +59,36 @@ function CryoGridProblem(
     # if no algebraic variables are present, use identity matrix
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
-	func = odefunction(landmodel, M, u0, p, tspan; kwargs...)
+	func = odefunction(tile, M, u0, p, tspan; kwargs...)
 	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, kwargs...)
 end
 """
-    CryoGridProblem(setup::LandModel, tspan::NTuple{2,DateTime}, args...;kwargs...)
+    CryoGridProblem(setup::Tile, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
-CryoGridProblem(setup::LandModel, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,u0,convert_tspan(tspan),args...;kwargs...)
+CryoGridProblem(setup::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,u0,convert_tspan(tspan),args...;kwargs...)
 
 export CryoGridProblem
 
 """
-    odefunction(setup::LandModel, M, u0, p, tspan; kwargs...)
+    odefunction(setup::Tile, M, u0, p, tspan; kwargs...)
 
 Constructs a SciML `ODEFunction` given the model setup, mass matrix M, initial state u0, parameters p, and tspan.
 Can (and should) be overridden by users to provide customized ODEFunction configurations for specific problem setups, e.g:
 ```
-model = LandModel(strat,grid)
-function CryoGrid.Setup.odefunction(::DefaultJac, setup::typeof(model), M, u0, p, tspan)
+tile = Tile(strat,grid)
+function CryoGrid.Setup.odefunction(::DefaultJac, setup::typeof(tile), M, u0, p, tspan)
     ...
     # make sure to return an instance of ODEFunction
 end
 ...
-prob = CryoGridProblem(model, tspan, p)
+prob = CryoGridProblem(tile, tspan, p)
 ```
 
-`JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `LandModel`s.
+`JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `Tile`s.
 """
-odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:LandModel} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
-odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:LandModel} = ODEFunction(setup, mass_matrix=M; kwargs...)
-function odefunction(::TridiagJac, setup::LandModel, M, u0, p, tspan; kwargs...)
+odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:Tile} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
+odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:Tile} = ODEFunction(setup, mass_matrix=M; kwargs...)
+function odefunction(::TridiagJac, setup::Tile, M, u0, p, tspan; kwargs...)
     if :jac_prototype in keys(kwargs)
         @warn "using user specified jac_prorotype instead of tridiagonal"
         ODEFunction(setup, mass_matrix=M; kwargs...)
@@ -122,7 +122,7 @@ function InputOutput.CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.Abstract
     withdims(::Var{name,T,<:OnGrid{Cells}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T,<:OnGrid{Edges}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T}, arr, zs, ts) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts),))
-    model = sol.prob.f.f # LandModel
+    model = sol.prob.f.f # Tile
     ts = model.hist.vals.t # use save callback time points
     ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
     u_all = reduce(hcat, sol.(ts))

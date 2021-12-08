@@ -38,7 +38,7 @@ end
 """
     LandModelState{iip,TGrid,TStates,Tt,names}
 
-Represents the instantaneous state of a CryoGrid `LandModel`.
+Represents the instantaneous state of a CryoGrid `Tile`.
 """
 struct LandModelState{iip,TGrid,TStates,Tt,names}
     grid::TGrid

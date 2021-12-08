@@ -12,19 +12,19 @@ strat = Stratigraphy(
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
-model = LandModel(strat,grid);
+tile = Tile(strat,grid);
 ```
 
 This model can then be used to construct an `ODEProblem` (from `DiffEqBase.jl`) via the `CryoGridProblem` constructor:
 
 ```julia
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = parameters(model)
+p = parameters(tile)
 # define initial conditions for temperature using a given profile;
 # The default initializer linearly interpolates between profile points.
 initT = initializer(:T, tempprofile)
-u0 = initialcondition!(model, tspan, p, initT)
-prob = CryoGridProblem(model, u0, tspan, p, savevars=(:T,)) # produces an ODEProblem with problem type CryoGridODEProblem
+u0 = initialcondition!(tile, tspan, p, initT)
+prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,)) # produces an ODEProblem with problem type CryoGridODEProblem
 ```
 
 It can then be solved simply using the `solve` function (also from `DiffEqBase` and `OrdinaryDiffEq`):
@@ -62,7 +62,7 @@ variables(soil::Soil, heat::Heat{:H}) = (
 )
 ```
 
-When the `Heat` process is assigned to a `Soil` layer, `LandModel` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and can be automatically tracked by the modeling engine.
+When the `Heat` process is assigned to a `Soil` layer, `Tile` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and can be automatically tracked by the modeling engine.
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 

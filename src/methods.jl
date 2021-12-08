@@ -65,7 +65,7 @@ Example:
 observe(::Val{:meanT}, ::SubSurface, ::Heat, state) = @log meanT = mean(state.T)
 # build model
 ...
-setup = LandModel(stratigraphy, grid, observed=[:meanT])
+setup = Tile(stratigraphy, grid, observed=[:meanT])
 # solve
 ...
 # retrieve results

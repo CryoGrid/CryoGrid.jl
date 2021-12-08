@@ -28,7 +28,7 @@ Base.show(io, rv::ParameterVector) = show(io, getfield(rv, :vals))
 ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
 _paramval(p::Param) = ustrip(p.val) # extracts value from Param type and strips units
-function parameters(model::LandModel, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
+function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     function getparam(p)
         # currently, we assume only one variable of each name in each layer;
         # this could be relaxed in the future but will need to be appropriately handled
@@ -46,13 +46,13 @@ function parameters(model::LandModel, transforms::Pair{Symbol,<:Pair{Symbol,<:Pa
     mappedarr = ComponentArray(mapflat(_paramval, mappedparams))
     return ParameterVector(mappedarr, mappedparams, mappings...)
 end
-@inline @generated function updateparams!(v::AbstractVector, model::LandModel, u, du, t)
+@inline @generated function updateparams!(v::AbstractVector, model::Tile, u, du, t)
     quote
         p = ModelParameters.update(ModelParameters.params(model), v)
         return Utils.genmap(_paramval, p)
     end
 end
-@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, model::LandModel, u, du, t) where {T,TV,P,M}
+@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, model::Tile, u, du, t) where {T,TV,P,M}
     expr = quote
         pvals = vals(rv)
         pmodel = ModelParameters.update(getfield(rv, :params), pvals)
@@ -65,7 +65,7 @@ end
     push!(expr.args, :(return Utils.genmap(_paramval, ModelParameters.params(pmodel))))
     return expr
 end
-@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, model::LandModel, u, du, t) where {T,name,layer}
+@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, model::Tile, u, du, t) where {T,name,layer}
     quote
         state = getstate(Val($(QuoteNode(layer))), model, u, du, t)
         p = pmodel.$layer.$name
