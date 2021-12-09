@@ -88,3 +88,17 @@ struct Dirichlet <: BoundaryStyle end
 `BoundaryStyle` instance for Neumann boundary conditions.
 """
 struct Neumann <: BoundaryStyle end
+"""
+    Callback
+
+Base type for callback implementations.
+"""
+abstract type Callback end
+"""
+    CallbackStyle
+
+Trait for callback types.
+"""
+abstract type CallbackStyle end
+struct Discrete <: CallbackStyle end
+struct Continuous <: CallbackStyle end

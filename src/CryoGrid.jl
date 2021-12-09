@@ -9,14 +9,14 @@ end
 using Base: @propagate_inbounds
 using Reexport
 
+# Common types and methods
 export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CompoundProcess, Coupled
 export BoundaryStyle, Dirichlet, Neumann
-export AbstractParameterization, Parameterization
-export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, boundaryflux, boundaryvalue, observe
-
-# Common types and methods
+export Callback, CallbackStyle
 include("types.jl")
+export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
+export boundaryflux, boundaryvalue, criterion, affect!, observe
 include("methods.jl")
 
 # Submodules
