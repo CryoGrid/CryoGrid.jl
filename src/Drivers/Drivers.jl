@@ -16,6 +16,7 @@ using ComponentArrays
 using Dates
 using DimensionalData
 using Flatten
+using IfElse
 using ModelParameters
 using LinearAlgebra
 using Reexport
