@@ -43,35 +43,35 @@ but may include its own diagnostic (or even prognostic) variables, if necessary.
 """
 abstract type BoundaryProcess <: Process end
 """
-    CompoundProcess{TProcs} <: Process
+    CoupledProcesses{TProcs} <: Process
 
 Represents an explicitly or implicitly coupled system of processes. `TProcs` is always a `Tuple`
 of other processes.
 """
-struct CompoundProcess{TProcs} <: Process
+struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
-    CompoundProcess(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
-    CompoundProcess(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
-    CompoundProcess(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
+    CoupledProcesses(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
+    CoupledProcesses(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
+    CoupledProcesses(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
 end
-Base.iterate(cp::CompoundProcess) = Base.iterate(cp.processes)
-Base.iterate(cp::CompoundProcess, state) = Base.iterate(cp.processes, state)
+Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
+Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 """
-    Coupled{P1,P2} = CompoundProcess{Tuple{T1,T2}} where {T1,T2}
+    Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
-Represents an explicitly coupled pair processes. Alias for `CompoundProcess{Tuple{P1,P2}}`.
+Represents an explicitly coupled pair processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
-const Coupled{P1,P2} = CompoundProcess{Tuple{T1,T2}} where {T1,T2}
+const Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 """
     Coupled(p1,p2)
 
-Alias for `CompoundProcess(p1,p2)`.
+Alias for `CoupledProcesses(p1,p2)`.
 """
-Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CompoundProcess(p1,p2)
+Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CoupledProcesses(p1,p2)
 # Base methods
-Base.show(io::IO, ps::CompoundProcess{T}) where T = print(io, "$T")
-@propagate_inbounds @inline Base.getindex(ps::CompoundProcess, i) = ps.processes[i]
+Base.show(io::IO, ps::CoupledProcesses{T}) where T = print(io, "$T")
+@propagate_inbounds @inline Base.getindex(ps::CoupledProcesses, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
 

@@ -11,7 +11,7 @@ using Reexport
 
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
-export Process, SubSurfaceProcess, BoundaryProcess, CompoundProcess, Coupled
+export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses, Coupled
 export BoundaryStyle, Dirichlet, Neumann
 export Callback, CallbackStyle
 include("types.jl")
