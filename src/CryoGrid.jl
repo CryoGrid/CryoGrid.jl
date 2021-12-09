@@ -28,7 +28,6 @@ include("Land/Land.jl")
 include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 include("Drivers/Drivers.jl")
-include("Callbacks/Callbacks.jl")
 
 using .Utils
 # Re-exported submodules
@@ -40,7 +39,6 @@ using .Utils
 @reexport using .Drivers
 @reexport using .InputOutput
 @reexport using .Diagnostics
-@reexport using .Callbacks
 
 # Re-exported packages
 @reexport using Dates: Dates, DateTime

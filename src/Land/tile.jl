@@ -130,7 +130,7 @@ is only executed during compilation and will not appear in the compiled version.
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
-    state = LandModelState(model.state, boundaries(strat), u, du, t, Val{inplace}())
+    state = TileState(model.state, boundaries(strat), u, du, t, Val{inplace}())
     end push!(expr.args)
     # Initialize variables for all layers
     for i in 1:N
@@ -208,7 +208,7 @@ initialcondition!(model::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, arg
     du = zero(similar(model.state.uproto, eltype(p)))
     u = zero(similar(model.state.uproto, eltype(p)))
     strat = Flatten.reconstruct(model.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
-    state = LandModelState(model.state, boundaries(strat), u, du, tspan[1], Val{iip}())
+    state = TileState(model.state, boundaries(strat), u, du, tspan[1], Val{iip}())
     end push!(expr.args)
     # Call initializers
     for i in 1:N
@@ -315,7 +315,7 @@ Gets the
 function getstate(model::Tile{TStrat,TGrid,TStates,iip}, _u, _du, t) where {TStrat,TGrid,TStates,iip}
     du = ComponentArray(_du, getaxes(model.state.uproto))
     u = ComponentArray(_u, getaxes(model.state.uproto))
-    return LandModelState(model.strat, model.state, u, du, t, Val{iip}())
+    return TileState(model.strat, model.state, u, du, t, Val{iip}())
 end
 """
 Collects and validates all declared variables (`Var`s) for the given strat component.

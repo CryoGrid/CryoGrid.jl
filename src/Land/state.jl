@@ -36,32 +36,32 @@ end
 end
 
 """
-    LandModelState{iip,TGrid,TStates,Tt,names}
+    TileState{iip,TGrid,TStates,Tt,names}
 
 Represents the instantaneous state of a CryoGrid `Tile`.
 """
-struct LandModelState{iip,TGrid,TStates,Tt,names}
+struct TileState{iip,TGrid,TStates,Tt,names}
     grid::TGrid
     states::NamedTuple{names,TStates}
     t::Tt
-    LandModelState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, ::Val{iip}=Val{inplace}()) where
+    TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, ::Val{iip}=Val{inplace}()) where
         {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,names,iip} =
             new{iip,TGrid,TS,Tt,names}(grid, states, t)
 end
-Base.getindex(state::LandModelState, sym::Symbol) = Base.getproperty(state, sym)
-Base.getindex(state::LandModelState, i::Int) = state.states[i]
-function Base.getproperty(state::LandModelState, sym::Symbol)
+Base.getindex(state::TileState, sym::Symbol) = Base.getproperty(state, sym)
+Base.getindex(state::TileState, i::Int) = state.states[i]
+function Base.getproperty(state::TileState, sym::Symbol)
     return if sym ∈ (:grid,:states,:t)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline @generated function LandModelState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inplace}()) where {names,iip}
+@inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inplace}()) where {names,iip}
     layerstates = (:(LayerState(vs, (ustrip(bounds[$i][1]), ustrip(bounds[$i][2])), u, du, t, Val{$(QuoteNode(names[i]))}(), Val{iip}())) for i in 1:length(names))
     quote
         bounds = boundaryintervals(zs, vs.grid[end])
-        return LandModelState(
+        return TileState(
             vs.grid,
             NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),
             t,

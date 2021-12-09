@@ -20,7 +20,7 @@ using Unitful
 
 import CryoGrid.Land: Tile, Stratigraphy, StratComponent
 
-export DefaultJac, TridiagJac, JacobianStyle, HeatOnlyLandModel
+export DefaultJac, TridiagJac, JacobianStyle, HeatOnlyTile
 
 """
     JacobianStyle
@@ -39,11 +39,13 @@ JacobianStyle(::Type{<:Tile}) = DefaultJac()
 # Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
 # Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
 # Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
-const HeatOnlyLandModel = Tile{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CompoundProcess{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
-JacobianStyle(::Type{<:HeatOnlyLandModel}) = TridiagJac()
+const HeatOnlyTile = Tile{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CompoundProcess{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
+JacobianStyle(::Type{<:HeatOnlyTile}) = TridiagJac()
 
 # DiffEq/SciML driver
 export CryoGridProblem
 include("diffeq.jl")
+export CFLStepLimiter
+include("courant_step.jl")
 
 end
