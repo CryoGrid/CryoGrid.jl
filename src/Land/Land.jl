@@ -32,11 +32,11 @@ export StratComponent, componentname, copmonenttypes, components, boundaries
 export top, bottom, subsurface
 include("stratigraphy.jl")
 
-export LandModelState, LayerState
+export TileState, LayerState
 include("state.jl")
 
 export Tile, withaxes, getstate
-include("model.jl")
+include("tile.jl")
 
 export ParameterVector, LinearTrend, parameters
 include("params.jl")
