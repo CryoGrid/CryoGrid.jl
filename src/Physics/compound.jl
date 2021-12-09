@@ -4,6 +4,7 @@ prognosticstep!(::Top, ::CompoundProcess, state) = nothing
 diagnosticstep!(::Bottom, ::CompoundProcess, state) = nothing
 prognosticstep!(::Bottom, ::CompoundProcess, state) = nothing
 variables(layer::Layer, ps::CompoundProcess) = tuplejoin((variables(layer,p) for p in ps.processes)...)
+callbacks(layer::Layer, ps::CompoundProcess) = tuplejoin((callbacks(layer,p) for p in ps.processes)...)
 """
     interact!(l1::Layer, ps1::CompoundProcess{P1}, l2::Layer, ps2::CompoundProcess{P2}, s1, s2) where {P1,P2}
 

@@ -54,6 +54,8 @@ struct CompoundProcess{TProcs} <: Process
     CompoundProcess(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
     CompoundProcess(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
 end
+Base.iterate(cp::CompoundProcess) = Base.iterate(cp.processes)
+Base.iterate(cp::CompoundProcess, state) = Base.iterate(cp.processes, state)
 """
     Coupled{P1,P2} = CompoundProcess{Tuple{T1,T2}} where {T1,T2}
 

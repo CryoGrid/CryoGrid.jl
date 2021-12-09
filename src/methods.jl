@@ -105,4 +105,5 @@ where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
 BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
 # default callback style impl
+CallbackStyle(::C) where {C<:Callback} = CallbackStyle(C)
 CallbackStyle(::Type{<:Callback}) = Discrete()
