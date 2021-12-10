@@ -6,7 +6,7 @@ end
 """
     AbstractTile{iip}
 
-Base type for 1D land models. `iip` is a value of enum `InPlaceMode` that indicates
+Base type for 1D tiles. `iip` is a value of enum `InPlaceMode` that indicates
 whether the model operates on state variables in-place (overwriting arrays) or
 out-of-place (copying arrays).
 """

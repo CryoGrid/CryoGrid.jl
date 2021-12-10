@@ -1,7 +1,7 @@
-# Land
+# Strat
 
 ```@autodocs
-Modules = [Land]
+Modules = [Strat]
 Private = false
 Order = [:type, :function, :macro]
 ```

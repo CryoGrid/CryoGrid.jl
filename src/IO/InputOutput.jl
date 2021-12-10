@@ -1,7 +1,7 @@
 module InputOutput
 
 using CryoGrid.Numerics
-using CryoGrid.Land
+using CryoGrid.Strat
 
 using DataStructures: DefaultDict
 using Dates

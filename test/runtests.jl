@@ -5,4 +5,4 @@ using Test
 include("Utils/runtests.jl")
 include("Numerics/runtests.jl")
 include("Physics/runtests.jl")
-include("Land/runtests.jl")
+include("Strat/runtests.jl")
