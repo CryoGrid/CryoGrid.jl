@@ -15,7 +15,6 @@ const modules = [
        CryoGrid.Land,
        CryoGrid.Presets,
        CryoGrid.Diagnostics,
-       CryoGrid.Callbacks,
 ]
 
 makedocs(modules=modules,
@@ -39,7 +38,6 @@ makedocs(modules=modules,
                        ],
                        "Land" => "api/land.md",
                        "Diagnostics" => "api/diagnostics.md",
-                       "Callbacks" => "api/callbacks.md",
                        "Presets" => "api/presets.md",
                 ],
                 "Contributing" => "contributing.md",

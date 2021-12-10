@@ -75,7 +75,7 @@ out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> Cr
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
 
-Note that `SoilHeat` uses energy as the state variable by default. To use temperature as the state variable instead:
+Note that `SoilHeatColumn` uses energy as the state variable by default. To use temperature as the state variable instead:
 
 ```julia
 # :T is the variable name for temperature, :H represents enthalpy/energy.
