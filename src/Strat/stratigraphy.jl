@@ -24,22 +24,32 @@ bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CoupledProce
 subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, sub, CoupledProcesses(processes...))
 
 """
-    Stratigraphy{N,TComponents,Q}
+Type bound for stratigraphy boundaries. Boundaries may be specified as fixed distance quantities
+(which are then treated as model parameters), depth forcings, or symbols which correspond to a
+depth state variable on the associated layer.
+"""
+const StratBoundaryType = Union{<:DistQuantity,<:Forcing{<:DistQuantity},Symbol}
+
+"""
+    Stratigraphy{N,TComponents,TBoundaries}
 
 Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to 1 or more subsurface layers.
 """
-struct Stratigraphy{N,TComponents,Q}
-    boundaries::NTuple{N,Q}
+struct Stratigraphy{N,TComponents,TBoundaries}
+    boundaries::TBoundaries
     components::TComponents
-    Stratigraphy(boundaries::NTuple{N,Q}, components::NTuple{N,StratComponent}) where {N,Q} = new{N,typeof(components),Q}(boundaries, components)
-    Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Pair{Q,<:StratComponent{<:SubSurface}},
-        bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = Stratigraphy(top,(sub,),bot)
+    Stratigraphy(boundaries::NTuple{N}, components::NTuple{N}) where {N} = new{N,typeof(components),typeof(boundaries)}(boundaries, components)
+    Stratigraphy(
+        top::Pair{<:StratBoundaryType,<:StratComponent{Top}},
+        sub::Pair{<:StratBoundaryType,<:StratComponent{<:SubSurface}},
+        bot::Pair{<:StratBoundaryType,<:StratComponent{Bottom}}
+    ) = Stratigraphy(top,(sub,),bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
-        @nospecialize(top::Pair{Q,<:StratComponent{Top}}),
-        @nospecialize(sub::Tuple{Vararg{Pair{Q,<:StratComponent{<:SubSurface}}}}),
-        @nospecialize(bot::Pair{Q,<:StratComponent{Bottom}})
-    ) where {Q<:DistQuantity}
+        @nospecialize(top::Pair{<:StratBoundaryType,<:StratComponent{Top}}),
+        @nospecialize(sub::Tuple{Vararg{Pair{<:StratBoundaryType,<:StratComponent{<:SubSurface}}}}),
+        @nospecialize(bot::Pair{<:StratBoundaryType,<:StratComponent{Bottom}})
+    )
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         names = map(componentname, map(last, sub))
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"

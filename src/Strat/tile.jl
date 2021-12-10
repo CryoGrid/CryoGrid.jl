@@ -65,6 +65,15 @@ Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
 Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,iip,obsv}) where {TStrat,TGrid,TStates,TInits,iip,obsv} = print(io, "Tile ($iip) with layers $(map(componentname, components(tile.strat))), observables=$obsv, $TGrid, $TStrat")
 
 """
+    Tile(
+        @nospecialize(strat::Stratigraphy),
+        @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity});
+        arrayproto::Type{A}=Vector,
+        iip::InPlaceMode=inplace,
+        observe::Vector{Symbol}=Symbol[],
+        chunksize=nothing,
+    )
+
 Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
