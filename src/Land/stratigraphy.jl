@@ -6,7 +6,7 @@ Represents a single component (layer + processes) in the stratigraphy.
 struct StratComponent{TLayer,TProcess,name}
     layer::TLayer
     process::TProcess
-    StratComponent(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:CompoundProcess} =
+    StratComponent(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:CoupledProcesses} =
         new{TLayer,TProcess,name}(layer,process)
 end
 ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcess,name}}) where {TLayer,TProcess,name} = (layer,process) -> StratComponent(name, layer, process)
@@ -19,9 +19,9 @@ componentname(::Type{<:StratComponent{L,P,name}}) where {L,P,name} = name
 Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
-top(bcs::BoundaryProcess...) = StratComponent(:top, Top(), CompoundProcess(bcs...))
-bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CompoundProcess(bcs...))
-subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CompoundProcess(processes...))
+top(bcs::BoundaryProcess...) = StratComponent(:top, Top(), CoupledProcesses(bcs...))
+bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CoupledProcesses(bcs...))
+subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CoupledProcesses(processes...))
 
 """
     Stratigraphy{N,TComponents,Q}

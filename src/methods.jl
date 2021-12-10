@@ -1,13 +1,19 @@
 """
     variables(::Layer, ::Process)
 
-Defines variables for a given Process on Layer. Implementations should return a `Tuple` of `Var`s.
+Defines variables for a given Process on the given Layer. Implementations should return a `Tuple` of `Var`s.
 """
 variables(::Layer, ::Process) = ()
 """
+    callbacks(::Layer, ::Process)
+
+Defines callbacks for a given Process on the given Layer. Implementations should return a `Tuple` or `Callback`s.
+"""
+callbacks(::Layer, ::Process) = ()
+"""
     initialcondition!(::Layer, ::Process, state)
 
-Defines the initial condition for a given Process on Layer. `initialcondition!` should write initial values into all relevant
+Defines the initial condition for a given Process on the given Layer. `initialcondition!` should write initial values into all relevant
 state variables in `state`.
 """
 initialcondition!(::Layer, ::Process, state) = nothing
@@ -54,6 +60,18 @@ Computes the value of the boundary condition specified by `bc` for the given lay
 """
 boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(b)) $(typeof(bc)) on $(typeof(layer)) with $(typeof(p))")
 """
+    criterion(c::Callback, ::Layer, ::Process, state)
+
+Callback criterion/condition. Should return a `Bool` for discrete callbacks and a real number for continuous callbacks.
+"""
+criterion(c::Callback, ::Layer, ::Process, state) = error("missing implementation of criterion for $(typeof(c))")
+"""
+    affect!(c::Callback, ::Layer, ::Process, state)
+
+Callback action executed when `criterion` is met (boolean condition for discrete callbacks, zero for continuous callbacks).
+"""
+affect!(c::Callback, ::Layer, ::Process, state) = error("missing implementation of affect! for $(typeof(c))")
+"""
     observe(::Val{name}, ::Layer, ::Process, state1)
 
 Called at the end of each step. Can be used by the user to add additional observables via `@log` without affecting the
@@ -86,3 +104,6 @@ where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
 BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
 BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
+# default callback style impl
+CallbackStyle(::C) where {C<:Callback} = CallbackStyle(C)
+CallbackStyle(::Type{<:Callback}) = Discrete()

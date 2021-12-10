@@ -18,15 +18,15 @@ include("../types.jl")
             if i == 1
                 @test CryoGrid.componentname(component) == :top
                 @test typeof(component.layer) <: Top
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestBoundary}}
             elseif i == 2
                 @test CryoGrid.componentname(component) == :testground
                 @test typeof(component.layer) <: TestGroundLayer
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestGroundProcess}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestGroundProcess}}
             elseif i == 3
                 @test CryoGrid.componentname(component) == :bottom
                 @test typeof(component.layer) <: Bottom
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestBoundary}}
             end
         end
     end
@@ -46,19 +46,19 @@ include("../types.jl")
             if i == 1
                 @test CryoGrid.componentname(component) == :top
                 @test typeof(component.layer) <: Top
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestBoundary}}
             elseif i == 2
                 @test CryoGrid.componentname(component) == :testground1
                 @test typeof(component.layer) <: TestGroundLayer
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestGroundProcess}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestGroundProcess}}
             elseif i == 3
                 @test CryoGrid.componentname(component) == :testground2
                 @test typeof(component.layer) <: TestGroundLayer
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestGroundProcess}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestGroundProcess}}
             elseif i == 4
                 @test CryoGrid.componentname(component) == :bottom
                 @test typeof(component.layer) <: Bottom
-                @test typeof(component.process) <: CompoundProcess{Tuple{TestBoundary}}
+                @test typeof(component.process) <: CoupledProcesses{Tuple{TestBoundary}}
             end
         end
     end

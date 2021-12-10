@@ -1,7 +1,7 @@
 name = "CryoGrid"
 uuid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
 authors = ["Brian Groenke <brian.groenke@awi.de>", "Moritz Langer <moritz.langer@awi.de>"]
-version = "0.5.3"
+version = "0.5.4"
 
 [deps]
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
@@ -39,10 +39,13 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
+[compat]
+julia = ">= 1.6"
+
 [extras]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]

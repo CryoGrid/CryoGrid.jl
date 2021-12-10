@@ -39,7 +39,9 @@ function CryoGridProblem(
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
     savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_everystep=save_everystep)
-    callbacks = isnothing(callback) ? savingcallback : CallbackSet(savingcallback, callback)
+    layercallbacks = tuplejoin((_getcallbacks(comp) for comp in tile.strat)...)
+    usercallbacks = isnothing(callback) ? () : callback
+    callbacks = CallbackSet(savingcallback, layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
     tile.hist.vals = savevals
     # set up default mass matrix
@@ -66,9 +68,6 @@ end
     CryoGridProblem(setup::Tile, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
 CryoGridProblem(setup::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,u0,convert_tspan(tspan),args...;kwargs...)
-
-export CryoGridProblem
-
 """
     odefunction(setup::Tile, M, u0, p, tspan; kwargs...)
 
@@ -102,7 +101,6 @@ function odefunction(::TridiagJac, setup::Tile, M, u0, p, tspan; kwargs...)
         ODEFunction(setup, mass_matrix=M, jac_prototype=J, kwargs...)
     end
 end
-
 """
     getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
 
@@ -168,3 +166,37 @@ Evaluates the continuous solution at time `t`.
 """
 (out::CryoGridOutput{<:ODESolution})(t::Real) = withaxes(out.res(t), out.res.prob.f.f)
 (out::CryoGridOutput{<:ODESolution})(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
+# callback building functions
+function _criterionfunc(::Val{name}, cb::Callback, layer, process) where name
+    (u,t,integrator) -> let layer=layer,
+        process=process,
+        cb=cb,
+        tile=integrator.f.f,
+        u = Land.withaxes(u, tile),
+        du = Land.withaxes(get_du(integrator), tile),
+        t = t;
+        criterion(cb, layer, process, Land.getstate(Val{name}(), tile, u, du, t))
+    end
+end
+function _affectfunc(::Val{name}, cb::Callback, layer, process) where name
+    integrator -> let layer=layer,
+        process=process,
+        cb=cb,
+        tile=integrator.f.f,
+        u = Land.withaxes(integrator.u, tile),
+        du = Land.withaxes(get_du(integrator), tile),
+        t = integrator.t;
+        affect!(cb, layer, process, Land.getstate(Val{name}(), tile, u, du, t))
+    end
+end
+_diffeqcallback(::Discrete, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.DiscreteCallback(
+    _criterionfunc(Val{name}(), cb, layer, process),
+    _affectfunc(Val{name}(), cb, layer, process),
+    # todo: initialize and finalize?
+)
+_diffeqcallback(::Continuous, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.ContinuousCallback(
+    _criterionfunc(Val{name}(), cb, layer, process),
+    _affectfunc(Val{name}(), cb, layer, process),
+    # todo: initialize and finalize?
+)
+_getcallbacks(component::StratComponent{L,P,name}) where {L,P,name} = Tuple(_diffeqcallback(CallbackStyle(callback), Val{name}(), callback, component.layer, proc) for proc in component.process for callback in callbacks(component.layer, proc))

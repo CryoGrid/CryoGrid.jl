@@ -24,6 +24,6 @@ function (cfl::CFLStepLimiter{<:Tile,Nothing})(u,p,t)
     end
 end
 function CFLStepLimiter(tile::HeatOnlyTile; courant_number=1//2, default_dt=60.0, iip=true)
-    cfl = iip ? CFLStepLimiter(tile, zero(dustrip(Δ(setup.grid))), default_dt) : CFLHeatState(tile, nothing, default_dt)
+    cfl = iip ? CFLStepLimiter(tile, zero(dustrip(Δ(tile.grid))), default_dt) : CFLStepLimiter(tile, nothing, default_dt)
     StepsizeLimiter(cfl; safety_factor=courant_number, max_step=true)
 end

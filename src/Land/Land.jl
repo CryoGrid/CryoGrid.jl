@@ -1,6 +1,6 @@
 module Land
 
-import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CompoundProcess
+import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
 using CryoGrid.Layers
