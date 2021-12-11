@@ -50,8 +50,8 @@ struct Stratigraphy{N,TComponents,Q}
 end
 components(strat::Stratigraphy) = getfield(strat, :components)
 boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
-boundaryintervals(strat::Stratigraphy, z_bottom) = boundaryintervals(boundaries(strat), z_bottom)
-boundaryintervals(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
+boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), z_bottom)
+boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
 componenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
 Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
 # Array and iteration overrides

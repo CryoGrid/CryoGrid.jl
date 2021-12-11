@@ -292,7 +292,7 @@ function getstate(::Val{layername}, model::Tile{TStrat,TGrid,<:VarStates{layerna
             break
         end
     end
-    z = boundaryintervals(map(ustrip, stripparams(boundaries(model.strat))), ustrip(model.grid[end]))[i]
+    z = boundarypairs(map(ustrip, stripparams(boundaries(model.strat))), ustrip(model.grid[end]))[i]
     return LayerState(model.state, z, u, du, t, Val{layername}(), Val{iip}())
 end
 """
