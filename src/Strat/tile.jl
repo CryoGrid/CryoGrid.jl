@@ -339,9 +339,6 @@ function _collectvars(@nospecialize(comp::StratComponent))
     # check for re-definition of diagnostic variables as prognostic
     prog_alg = prog_vars ∪ alg_vars
     diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
-    if !isempty(diag_prog)
-        @warn "Variables $(Tuple(map(varname,diag_prog))) declared as both prognostic/algebraic and diagnostic. In-place modifications outside of callbacks may degrade integration accuracy."
-    end
     # check for conflicting definitions of differential vars
     diff_varnames = map(v -> Symbol(:d, varname(v)), prog_alg)
     @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."

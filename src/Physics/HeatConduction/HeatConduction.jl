@@ -8,7 +8,7 @@ using CryoGrid.Physics.Boundaries
 using CryoGrid.Physics.Water: VanGenuchten
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heaviside
-using CryoGrid.Layers: Soil, θp, θw, θm, θo
+using CryoGrid.Layers: Soil, porosity
 using CryoGrid.Utils
 
 using DimensionalData
@@ -39,7 +39,7 @@ struct Temperature <: HeatImpl end
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = ρ*Lsl             #[J/m^3] (specific latent heat of fusion)
     freezecurve::F = FreeWater()        # freeze curve, defautls to free water fc
-    sp::S = Enthalpy()
+    sp::S = Enthalpy()                  # specialization
 end
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Union{Symbol,Tuple{Vararg{Symbol}}}; kwargs...) = Heat(Val{var}(); kwargs...)

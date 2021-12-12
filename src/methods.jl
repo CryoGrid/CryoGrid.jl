@@ -1,22 +1,28 @@
+# Core model functions
 """
-    variables(::Layer, ::Process)
+    variables(::Layer)
+    variables(::Process)
+    variables(layer::Layer, process::Process)
 
-Defines variables for a given Process on the given Layer. Implementations should return a `Tuple` of `Var`s.
+Defines variables for a given Process and/or Layer. Implementations should return a `Tuple` of `Var`s.
 """
-variables(::Layer, ::Process) = ()
+variables(::Layer) = ()
+variables(::Process) = ()
+variables(layer::Layer, process::Process) = tuple(variables(layer)..., variables(process)...)
 """
-    callbacks(::Layer, ::Process)
-
-Defines callbacks for a given Process on the given Layer. Implementations should return a `Tuple` or `Callback`s.
-"""
-callbacks(::Layer, ::Process) = ()
-"""
+    initialcondition!(::Layer, state)
+    initialcondition!(::Process, state) = nothing
     initialcondition!(::Layer, ::Process, state)
 
-Defines the initial condition for a given Process on the given Layer. `initialcondition!` should write initial values into all relevant
+Defines the initial condition for a given Process and/or Layer. `initialcondition!` should write initial values into all relevant
 state variables in `state`.
 """
-initialcondition!(::Layer, ::Process, state) = nothing
+initialcondition!(::Layer, state) = nothing
+initialcondition!(::Process, state) = nothing
+function initialcondition!(layer::Layer, process::Process, state)
+    initialcondition!(layer, state)
+    initialcondition!(process, state)
+end
 """
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
@@ -46,32 +52,6 @@ and separate dispatches must be provided for interactions in reverse order.
 """
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
-    boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2)
-    boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2)
-
-Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
-"""
-boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, s1, s2)
-boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2) = error("missing implementation of $(typeof(b)) $(typeof(s)) boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
-"""
-    boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub)
-
-Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
-"""
-boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(b)) $(typeof(bc)) on $(typeof(layer)) with $(typeof(p))")
-"""
-    criterion(c::Callback, ::Layer, ::Process, state)
-
-Callback criterion/condition. Should return a `Bool` for discrete callbacks and a real number for continuous callbacks.
-"""
-criterion(c::Callback, ::Layer, ::Process, state) = error("missing implementation of criterion for $(typeof(c))")
-"""
-    affect!(c::Callback, ::Layer, ::Process, state)
-
-Callback action executed when `criterion` is met (boolean condition for discrete callbacks, zero for continuous callbacks).
-"""
-affect!(c::Callback, ::Layer, ::Process, state) = error("missing implementation of affect! for $(typeof(c))")
-"""
     observe(::Val{name}, ::Layer, ::Process, state1)
 
 Called at the end of each step. Can be used by the user to add additional observables via `@log` without affecting the
@@ -91,6 +71,21 @@ setup = Tile(stratigraphy, grid, observed=[:meanT])
 ```
 """
 observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
+# Auxiliary functions for generalized boundary implementations
+"""
+    boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2)
+    boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2)
+
+Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
+"""
+boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, s1, s2)
+boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2) = error("missing implementation of $(typeof(b)) $(typeof(s)) boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
+"""
+    boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub)
+
+Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
+"""
+boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(b)) $(typeof(bc)) on $(typeof(layer)) with $(typeof(p))")
 """
     BoundaryStyle(::Type{T})
 
@@ -104,6 +99,31 @@ where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
 BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
 BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
-# default callback style impl
+# Callbacks
+"""
+    callbacks(::Layer, ::Process)
+
+Defines callbacks for a given Process on the given Layer. Implementations should return a `Tuple` or `Callback`s.
+"""
+callbacks(::Layer, ::Process) = ()
+"""
+    criterion(c::Callback, ::Layer, ::Process, state)
+
+Callback criterion/condition. Should return a `Bool` for discrete callbacks and a real number for continuous callbacks.
+"""
+criterion(c::Callback, ::Layer, ::Process, state) = error("missing implementation of criterion for $(typeof(c))")
+"""
+    affect!(c::Callback, ::Layer, ::Process, state)
+
+Callback action executed when `criterion` is met (boolean condition for discrete callbacks, zero for continuous callbacks).
+"""
+affect!(c::Callback, ::Layer, ::Process, state) = error("missing implementation of affect! for $(typeof(c))")
+"""
+    CallbackStyle(::C)
+    CallbackStyle(::Type{<:Callback})
+
+Trait implementation that defines the "style" or type of the given callback as any subtype of `CallbackStyle`,
+for example `Discrete` or `Continuous`.
+"""
 CallbackStyle(::C) where {C<:Callback} = CallbackStyle(C)
 CallbackStyle(::Type{<:Callback}) = Discrete()
