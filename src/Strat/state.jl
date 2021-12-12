@@ -11,10 +11,10 @@ Represents the state of a single component (layer + processes) in the stratigrap
 struct LayerState{iip,TStates,TGrids,Tt,Tz,varnames}
     grids::NamedTuple{varnames,TGrids}
     states::NamedTuple{varnames,TStates}
+    bounds::NTuple{2,Tz}
     t::Tt
-    z::NTuple{2,Tz}
-    LayerState(grids::NamedTuple{varnames,TG}, states::NamedTuple{varnames,TS}, t::Tt, z::NTuple{2,Tz}, ::Val{iip}=Val{inplace}()) where
-        {TG,TS,Tt,Tz,varnames,iip} = new{iip,TS,TG,Tt,Tz,varnames}(grids, states, t, z)
+    LayerState(grids::NamedTuple{varnames,TG}, states::NamedTuple{varnames,TS}, t::Tt, bounds::NTuple{2,Tz}, ::Val{iip}=Val{inplace}()) where
+        {TG,TS,Tt,Tz,varnames,iip} = new{iip,TS,TG,Tt,Tz,varnames}(grids, states, bounds, t)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
@@ -60,7 +60,7 @@ end
 @inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inplace}()) where {names,iip}
     layerstates = (:(LayerState(vs, (ustrip(bounds[$i][1]), ustrip(bounds[$i][2])), u, du, t, Val{$(QuoteNode(names[i]))}(), Val{iip}())) for i in 1:length(names))
     quote
-        bounds = boundaryintervals(zs, vs.grid[end])
+        bounds = boundarypairs(zs, vs.grid[end])
         return TileState(
             vs.grid,
             NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),

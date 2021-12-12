@@ -30,8 +30,8 @@ function CryoGridProblem(
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
-    getsavestate(model::Tile, u, du) = deepcopy(Land.getvars(model.state, u, du, savevars...))
-    savefunc(u, t, integrator) = getsavestate(integrator.f.f, Land.withaxes(u, integrator.f.f), get_du(integrator))
+    getsavestate(model::Tile, u, du) = deepcopy(Strat.getvars(model.state, u, du, savevars...))
+    savefunc(u, t, integrator) = getsavestate(integrator.f.f, Strat.withaxes(u, integrator.f.f), get_du(integrator))
     pmodel = Model(tile)
     p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
     du0 = zero(u0)
@@ -106,12 +106,12 @@ end
 
 Builds the state named tuple for `layername` given an initialized integrator.
 """
-Land.getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{layername}(), integrator)
-Land.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Land.getstate(integrator.f.f, integrator.u, get_du(integrator), integrator.t)
+Strat.getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{layername}(), integrator)
+Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Strat.getstate(integrator.f.f, integrator.u, get_du(integrator), integrator.t)
 """
     getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
 """
-Land.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Land.getvar(Val{var}(), integrator.f.f, integrator.u)
+Strat.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Strat.getvar(Val{var}(), integrator.f.f, integrator.u)
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`.
 """
@@ -172,10 +172,10 @@ function _criterionfunc(::Val{name}, cb::Callback, layer, process) where name
         process=process,
         cb=cb,
         tile=integrator.f.f,
-        u = Land.withaxes(u, tile),
-        du = Land.withaxes(get_du(integrator), tile),
+        u = Strat.withaxes(u, tile),
+        du = Strat.withaxes(get_du(integrator), tile),
         t = t;
-        criterion(cb, layer, process, Land.getstate(Val{name}(), tile, u, du, t))
+        criterion(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
     end
 end
 function _affectfunc(::Val{name}, cb::Callback, layer, process) where name
@@ -183,10 +183,10 @@ function _affectfunc(::Val{name}, cb::Callback, layer, process) where name
         process=process,
         cb=cb,
         tile=integrator.f.f,
-        u = Land.withaxes(integrator.u, tile),
-        du = Land.withaxes(get_du(integrator), tile),
+        u = Strat.withaxes(integrator.u, tile),
+        du = Strat.withaxes(get_du(integrator), tile),
         t = integrator.t;
-        affect!(cb, layer, process, Land.getstate(Val{name}(), tile, u, du, t))
+        affect!(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
     end
 end
 _diffeqcallback(::Discrete, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.DiscreteCallback(

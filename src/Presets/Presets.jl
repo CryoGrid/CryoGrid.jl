@@ -9,7 +9,26 @@ using CryoGrid.Numerics
 
 using Statistics
 
+export SoilHeatColumn, SamoylovDefault
+
 include("presetgrids.jl")
+
+"""
+    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+
+Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
+but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
+"""
+function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization};
+    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {N,D,F<:FreezeCurve}
+    strat = Stratigraphy(
+        -2.0u"m" => top(upperbc),
+        Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar,freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
+        1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
+    )
+    Tile(strat, grid, chunksize=chunksize)
+end
+SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {N,D,F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile; grid=grid, freezecurve=freezecurve)
 
 Forcings = (
     Samoylov_ERA5_fitted_daily_1979_2020 = Resource("samoylov_era5_fitted_daily_1979-2020", "json", "https://nextcloud.awi.de/s/Jk274jKGegkkTie/download/samoylov_era5_fitted_daily_1979-2020.json"),
@@ -39,24 +58,5 @@ const SamoylovDefault = (
         1000.0u"m" => 10.2u"°C",
     )
 )
-
-export SamoylovDefault
-
-"""
-    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
-
-Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
-but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
-"""
-function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization};
-    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {N,D,F<:FreezeCurve}
-    strat = Stratigraphy(
-        -2.0u"m" => top(upperbc),
-        Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar,freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
-        1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
-    )
-    Tile(strat, grid, chunksize=chunksize)
-end
-SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {N,D,F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile; grid=grid, freezecurve=freezecurve)
 
 end

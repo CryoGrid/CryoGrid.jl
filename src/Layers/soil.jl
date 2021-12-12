@@ -29,15 +29,11 @@ function soilparameters(;xic=0.0, por=0.5, sat=1.0, org=0.5)
 end
 SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
 # Helper functions for obtaining soil compositions from characteristic fractions.
+soilcomp(::Val{var}, fracs::SoilCharacteristicFractions) where var = soilcomp(Val{var}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
 soilcomp(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
 soilcomp(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
 soilcomp(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
 soilcomp(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
-θx(fracs::SoilCharacteristicFractions) = fracs.xic
-θp(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θp}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
-θw(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θw}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
-θm(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θm}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
-θo(fracs::SoilCharacteristicFractions) = soilcomp(Val{:θo}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
 """
 Thermal conductivity constants.
 """
@@ -67,4 +63,16 @@ Basic Soil layer.
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     sp::S = nothing # user-defined specialization
+end
+# Methods
+porosity(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θp}(), soil.para)
+variables(::Soil) = (
+    Diagnostic(:θw, Float"1", OnGrid(Cells)), # total water content (xice + saturated pore space)
+    Diagnostic(:θm, Float"1", OnGrid(Cells)), # mineral content
+    Diagnostic(:θo, Float"1", OnGrid(Cells)), # organic content
+)
+function initialcondition!(soil::Soil{T,<:SoilCharacteristicFractions}, state) where T
+    state.θw .= soilcomp(Val{:θw}(), soil.para)
+    state.θm .= soilcomp(Val{:θm}(), soil.para)
+    state.θo .= soilcomp(Val{:θo}(), soil.para)
 end

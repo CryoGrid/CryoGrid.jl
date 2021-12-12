@@ -13,7 +13,7 @@ using Unitful
 import CryoGrid
 import ForwardDiff
 
-export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar
+export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity

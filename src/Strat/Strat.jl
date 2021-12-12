@@ -1,4 +1,4 @@
-module Land
+module Strat
 
 import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe

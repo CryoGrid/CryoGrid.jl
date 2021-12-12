@@ -5,7 +5,7 @@
 [docs-dev-img]: https://img.shields.io/badge/docs-latest-blue.svg
 [docs-dev-url]: https://cryogrid.github.io/CryoGrid.jl/dev/
 
-Julia implementation of the CryoGrid land surface model using `DifferentialEquations.jl` and the [SciML](https://github.com/SciML)
+Julia implementation of the CryoGrid permafrost model using `DifferentialEquations.jl` and the [SciML](https://github.com/SciML)
 package ecosystem.
 
 Part of the broader research project: [Quantifying and explaining uncertainty in permafrost modeling under a warming climate](https://drive.google.com/file/d/1wB_EXtlO_PMXFSzZ-bRV8cg0a0DGDtAB/view?usp=sharing)
@@ -74,7 +74,6 @@ prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
-
 Note that `SoilHeatColumn` uses energy as the state variable by default. To use temperature as the state variable instead:
 
 ```julia

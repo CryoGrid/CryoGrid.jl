@@ -49,47 +49,18 @@ Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
 """
-function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
-    sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
-end
-function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,PartitionedEnthalpy}, state)
-    let L = heat.L,
-        N = length(state.grids.H),
+(sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
+function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
+    @inbounds @fastmath let L = heat.L,
         f = sfcc.f,
         ∇f = sfcc.∇f,
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
-        let θw = θw(soil.para),
-            θm = θm(soil.para),
-            θo = θo(soil.para);
-            @inbounds @fastmath for i in 1:N
-                state.H[i] = state.Hₛ[i] + state.Hₗ[i]
-                # It is possible for the integrator to violate physical constraints by integrating
-                # Hₗ outside of [0,Lθtot]. Here we clamp the result to physically correct values.
-                state.θl[i] = clamp(state.Hₗ[i] / L, 0.0, θw)
-                state.C[i] = heatcapacity(soil, θw, state.θl[i], θm, θo)
-                state.T[i] = state.Hₛ[i] / state.C[i]
-                f_argsᵢ = Utils.selectat(i, identity, f_args)
-                state.dθdT[i] = ∇f(f_argsᵢ)
-                state.Ceff[i] = L*state.dΘdT[i] + state.C[i]
-            end
-        end
-    end
-end
-function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
-    let θw = θw(soil.para),
-        θm = θm(soil.para),
-        θo = θo(soil.para);
-        @inbounds @fastmath let L = heat.L,
-            f = sfcc.f,
-            ∇f = sfcc.∇f,
-            f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
-            for i in 1:length(state.T)
-                f_argsᵢ = Utils.selectat(i, identity, f_args)
-                state.θl[i] = f(f_argsᵢ...)
-                state.C[i] = heatcapacity(soil, θw, state.θl[i], θm, θo)
-                state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-                state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
-            end
+        for i in 1:length(state.T)
+            f_argsᵢ = Utils.selectat(i, identity, f_args)
+            state.θl[i] = f(f_argsᵢ...)
+            state.C[i] = heatcapacity(soil, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
+            state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
         end
     end
     return nothing
@@ -102,7 +73,7 @@ Retrieves a tuple of values corresponding to each parameter declared by SFCCFunc
 Soil layer, Heat process, and model state. The order of parameters *must match* the argument order
 of the freeze curve function `f`.
 """
-sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state) = ()
+sfccparams(::SFCCFunction, ::Soil, ::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
 variables(::Soil, ::Heat, f::SFCCFunction) = ()
 variables(::Soil, ::Heat, s::SFCCSolver) = ()
@@ -122,8 +93,8 @@ end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    θp(soil.para), # θ saturated = porosity
-    θw(soil.para),
+    porosity(soil), # θ saturated = porosity
+    state.θw, # total water content
     heat.L, # specific latent heat of fusion, L
     f.α,
     f.n,
@@ -158,8 +129,8 @@ end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    θp(soil.para), # θ saturated = porosity
-    θw(soil.para),
+    porosity(soil), # θ saturated = porosity
+    state.θw, # total water content
     f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
@@ -183,8 +154,8 @@ end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    θp(soil.para), # θ saturated = porosity
-    θw(soil.para),
+    porosity(soil), # θ saturated = porosity
+    state.θw, # total water content
     f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
@@ -226,21 +197,21 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
     f_args = sfccparams(f, soil, heat, state)
     # iterate over each cell and solve the conservation law: H = TC + Lθ
-    @inbounds @fastmath for i in 1:length(state.T)
-        itercount = 0
-        let T₀ = state.T[i] |> Utils.adstrip,
+    @threaded for i in 1:length(state.T)
+        @inbounds @fastmath let T₀ = state.T[i] |> Utils.adstrip,
             T = T₀, # temperature
             H = state.H[i] |> Utils.adstrip, # enthalpy
             C = state.C[i] |> Utils.adstrip, # heat capacity
             θl = state.θl[i] |> Utils.adstrip, # liquid water content
-            θw = θw(soil.para), # total water content
-            θm = θm(soil.para), # mineral content
-            θo = θo(soil.para), # organic content
+            θw = state.θw[i] |> Utils.adstrip, # total water content
+            θm = state.θm[i] |> Utils.adstrip, # mineral content
+            θo = state.θo[i] |> Utils.adstrip, # organic content
             L = heat.L, # specific latent heat of fusion
             cw = soil.hc.cw, # heat capacity of liquid water
             α₀ = s.α₀,
             τ = s.τ,
-            f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
+            f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args),
+            itercount = 0;
             # compute initial guess T by setting θl according to free water scheme
             T = let Lθ = L*θw;
                 if H < 0

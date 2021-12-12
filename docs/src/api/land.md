@@ -1,7 +1,0 @@
-# Land
-
-```@autodocs
-Modules = [Land]
-Private = false
-Order = [:type, :function, :macro]
-```

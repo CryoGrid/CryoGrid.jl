@@ -1,16 +1,16 @@
 """
-Module containing types and functions for enabling time-integration of a CryoGrid land model.
+Module containing types and functions for enabling time-integration of a CryoGrid ground tile.
 """
 module Drivers
 
-using CryoGrid: Land, SubSurface, CoupledProcesses, Callback, CallbackStyle, Discrete, Continuous
+using CryoGrid: Strat, SubSurface, CoupledProcesses, Callback, CallbackStyle, Discrete, Continuous
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
 using CryoGrid.Utils
 
 import CryoGrid: variables, callbacks, criterion, affect!
-import CryoGrid.Land: Tile, Stratigraphy, StratComponent
+import CryoGrid.Strat: Tile, Stratigraphy, StratComponent
 
 using ComponentArrays
 using Dates

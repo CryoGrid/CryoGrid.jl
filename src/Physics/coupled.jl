@@ -3,6 +3,7 @@ diagnosticstep!(::Top, ::CoupledProcesses, state) = nothing
 prognosticstep!(::Top, ::CoupledProcesses, state) = nothing
 diagnosticstep!(::Bottom, ::CoupledProcesses, state) = nothing
 prognosticstep!(::Bottom, ::CoupledProcesses, state) = nothing
+variables(ps::CoupledProcesses) = tuplejoin((variables(p) for p in ps.processes)...)
 variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.processes)...)
 callbacks(layer::Layer, ps::CoupledProcesses) = tuplejoin((callbacks(layer,p) for p in ps.processes)...)
 """
@@ -54,10 +55,19 @@ Default implementation of `prognosticstep!` for multi-process types. Calls each 
     return expr
 end
 """
-    initialcondition!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
+    initialcondition!([l::Layer,] ps::CoupledProcesses{P}, state) where {P}
 
 Default implementation of `initialcondition!` for multi-process types. Calls each process in sequence.
 """
+@generated function initialcondition!(ps::CoupledProcesses{P}, state) where {P}
+    expr = Expr(:block)
+    for i in 1:length(P.parameters)
+        @>> quote
+        initialcondition!(ps[$i],state)
+        end push!(expr.args)
+    end
+    return expr
+end
 @generated function initialcondition!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
@@ -68,7 +78,7 @@ Default implementation of `initialcondition!` for multi-process types. Calls eac
     return expr
 end
 """
-    initialcondition!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
+    initialcondition!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 
 Default implementation of `initialcondition!` for multi-process types. Calls each process in sequence.
 """

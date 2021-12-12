@@ -29,7 +29,6 @@ Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the unit rather 
 on debug mode.
 """
 macro UT_str(unit) :(typeof(@u_str($unit))) end
-
 """
 Convenience macro for setting scalar (single-element) arrays/vectors. It turns an expression of the form:
     `a.b = ...`
@@ -44,4 +43,20 @@ macro setscalar(expr)
     quote
         $(esc(refexpr))[1] = $(esc(valexpr))
     end
+end
+"""
+Prepends `expr` with `Threads.@threads` if and only if `Threads.nthreads() > 1`, thus avoiding the overhead of
+`@threads` when running in single-threaded mode.
+
+Credit to @ranocha (Hendrik Ranocha)
+https://discourse.julialang.org/t/overhead-of-threads-threads/53964/22
+"""
+macro threaded(expr)
+    esc(quote
+        if Threads.nthreads() == 1
+            $(expr)
+        else
+            Threads.@threads $(expr)
+        end
+    end)
 end

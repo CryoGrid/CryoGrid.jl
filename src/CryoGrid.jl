@@ -24,7 +24,7 @@ include("Utils/Utils.jl")
 include("Numerics/Numerics.jl")
 include("Layers/Layers.jl")
 include("Physics/Physics.jl")
-include("Land/Land.jl")
+include("Strat/Strat.jl")
 include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 include("Drivers/Drivers.jl")
@@ -35,7 +35,7 @@ using .Utils
 @reexport using .Utils: convert_tspan
 @reexport using .Layers
 @reexport using .Physics
-@reexport using .Land
+@reexport using .Strat
 @reexport using .Drivers
 @reexport using .InputOutput
 @reexport using .Diagnostics
