@@ -198,13 +198,14 @@ end
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-initialcondition!(model::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(model, convert_tspan(tspan), p, args...)
-@generated function initialcondition!(model::Tile{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::Numerics.VarInit...) where {TStrat,TGrid,TStates,iip,obsv}
+initialcondition!(model::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, args...) = initialcondition!(model, convert_tspan(tspan), _p, args...)
+@generated function initialcondition!(model::Tile{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, _p::AbstractVector, initializers::Numerics.VarInit...) where {TStrat,TGrid,TStates,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
     @>> quote
+    p = updateparams!(_p, model, _du, _u, tspan[1])
     du = zero(similar(model.state.uproto, eltype(p)))
     u = zero(similar(model.state.uproto, eltype(p)))
     strat = Flatten.reconstruct(model.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
