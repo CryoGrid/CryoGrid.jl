@@ -42,12 +42,3 @@ function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
-""" Diagonstic step for partitioned heat conduction on soil layer. """
-function initialcondition!(soil::Soil, heat::Heat{<:SFCC,PartitionedEnthalpy}, state)
-    L = heat.L
-    sfcc = freezecurve(heat)
-    state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
-    heatcapacity!(soil, heat, state)
-    @. state.Hₛ = state.T*state.C
-    @. state.Hₗ = state.θl*L
-end

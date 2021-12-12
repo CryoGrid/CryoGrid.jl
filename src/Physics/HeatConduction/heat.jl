@@ -54,22 +54,6 @@ variables(layer::SubSurface, heat::Heat{<:FreezeCurve,Enthalpy}) = (
     # add freeze curve variables (if any are present)
     variables(layer, heat, freezecurve(heat))...,
 )
-""" Variable definitions for heat conduction (partitioned enthalpy) on any subsurface layer. """
-variables(layer::SubSurface, heat::Heat{<:FreezeCurve,PartitionedEnthalpy}) = (
-    Prognostic(:Hₛ, Float"J/m^3", OnGrid(Cells)),
-    Prognostic(:Hₗ, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
-    Diagnostic(:H, Float"J", OnGrid(Cells)),
-    Diagnostic(:T, Float"°C", OnGrid(Cells)),
-    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:dθdT, Float"m/m", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
-    Diagnostic(:θl, Float"1", OnGrid(Cells)),
-    # add freeze curve variables (if any are present)
-    variables(layer, heat, freezecurve(heat))...,
-)
 """ Variable definitions for heat conduction (temperature) on any subsurface layer. """
 variables(layer::SubSurface, heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, Float"°C", OnGrid(Cells)),
@@ -112,19 +96,6 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
     heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
-end
-""" Prognostic step for heat conduction (partitioned enthalpy) on subsurface layer."""
-function prognosticstep!(::SubSurface, heat::Heat{<:FreezeCurve,PartitionedEnthalpy}, state)
-    Δk = Δ(state.grids.k) # cell sizes
-    ΔT = Δ(state.grids.T)
-    # Diffusion on non-boundary cells
-    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
-    let L = heat.L;
-        @. state.dHₛ = state.dH / (L/state.C*state.dθdT + 1)
-        # This could also be expressed via a mass matrix with 1
-        # in the upper right block diagonal. But this is easier.
-        @. state.dHₗ = state.dH - state.dHₛ
-    end
 end
 """ Prognostic step for heat conduction (temperature) on subsurface layer. """
 function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
