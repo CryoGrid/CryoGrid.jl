@@ -205,9 +205,9 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
     expr = Expr(:block)
     # Declare variables
     @>> quote
-    p = updateparams!(_p, tile, _du, _u, tspan[1])
-    du = zero(similar(tile.state.uproto, eltype(p)))
-    u = zero(similar(tile.state.uproto, eltype(p)))
+    du = zero(similar(tile.state.uproto, eltype(_p)))
+    u = zero(similar(tile.state.uproto, eltype(_p)))
+    p = updateparams!(_p, tile, du, u, tspan[1])
     strat = Flatten.reconstruct(tile.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
     state = TileState(tile.state, boundaries(strat), u, du, tspan[1], Val{iip}())
     end push!(expr.args)
