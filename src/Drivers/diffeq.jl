@@ -9,6 +9,8 @@ Specialized problem type for CryoGrid `ODEProblem`s.
 """
 struct CryoGridODEProblem end
 
+Strat.Tile(integrator::SciMLBase.DEIntegrator) = integrator.sol.prob.f.f
+
 """
     CryoGridProblem(setup::Tile, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
 
@@ -31,7 +33,7 @@ function CryoGridProblem(
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
     getsavestate(model::Tile, u, du) = deepcopy(Strat.getvars(model.state, u, du, savevars...))
-    savefunc(u, t, integrator) = getsavestate(integrator.f.f, Strat.withaxes(u, integrator.f.f), get_du(integrator))
+    savefunc(u, t, integrator) = getsavestate(Tile(integrator), Strat.withaxes(u, Tile(integrator)), get_du(integrator))
     pmodel = Model(tile)
     p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
     du0 = zero(u0)
