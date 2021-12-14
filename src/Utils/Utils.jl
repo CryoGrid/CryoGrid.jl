@@ -11,6 +11,7 @@ using StructTypes
 using Unitful
 
 import CryoGrid
+import ExprTools
 import ForwardDiff
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded
@@ -92,6 +93,22 @@ Convenience method for converting between `Dates.DateTime` and solver time.
 """
 convert_tspan(tspan::NTuple{2,DateTime}) = Dates.datetime2epochms.(tspan) ./ 1000.0
 convert_tspan(tspan::NTuple{2,Float64}) = Dates.epochms2datetime.(tspan.*1000.0)
+
+"""
+    argnames(f, choosefn=first)
+
+Retrieves the argument names of function `f` via metaprogramming and `ExprTools`.
+The optional argument `choosefn` allows for customization of which method instance
+of `f` (if there is more than one) is chosen.
+"""
+function argnames(f, choosefn=first)
+    # Parse function parameter names using ExprTools
+    fms = ExprTools.methods(f)
+    symbol(arg::Symbol) = arg
+    symbol(expr::Expr) = expr.args[1]
+    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
+    return argnames
+end
 
 """
     @generated selectat(i::Int, f, args::T) where {T<:Tuple}

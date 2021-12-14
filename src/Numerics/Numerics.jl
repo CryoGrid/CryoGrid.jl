@@ -1,7 +1,6 @@
 module Numerics
 
 import Base.==
-import ExprTools
 import ForwardDiff
 import PreallocationTools as Prealloc
 

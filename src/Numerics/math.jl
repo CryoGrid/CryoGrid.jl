@@ -158,11 +158,7 @@ f(x,y) = 2*x + x*y
 ```
 """
 function ∇(f, dvar::Symbol; choosefn=first, context_module=Numerics)
-    # Parse function parameter names using ExprTools
-    fms = ExprTools.methods(f)
-    symbol(arg::Symbol) = arg
-    symbol(expr::Expr) = expr.args[1]
-    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
+    argnames = Utils.argnames(f, choosefn)
     @assert dvar in argnames "function must have $dvar as an argument"
     dind = findfirst(s -> s == dvar, argnames)
     # Convert to symbols
