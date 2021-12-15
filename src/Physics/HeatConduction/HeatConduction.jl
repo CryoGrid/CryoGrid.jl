@@ -11,6 +11,7 @@ using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heavi
 using CryoGrid.Layers: Soil, porosity
 using CryoGrid.Utils
 
+using Base: @propagate_inbounds
 using DimensionalData
 using IfElse
 using Interpolations: Linear, Flat

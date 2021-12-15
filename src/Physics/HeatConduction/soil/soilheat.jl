@@ -1,3 +1,4 @@
+# Thermal properties
 @inline function heatcapacity(soil::Soil, totalwater, liquidwater, mineral, organic)
     @unpack cw,co,cm,ca,ci = soil.hc
     let air = 1.0 - totalwater - mineral - organic,
@@ -14,13 +15,16 @@ end
         (liq*kw^0.5 + ice*ki^0.5 + mineral*km^0.5 + organic*ko^0.5 + air*ka^0.5)^2
     end
 end
-@inline function heatcapacity!(soil::Soil, ::Heat, state)
-    @inbounds @. state.C = heatcapacity(soil, state.θw, state.θl, state.θm, state.θo)
+@inline @propagate_inbounds heatcapacity(soil::Soil, ::Heat, state, i) = heatcapacity(soil, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+@inline @propagate_inbounds function heatcapacity!(soil::Soil, ::Heat, state)
+    @. state.C = heatcapacity(soil, state.θw, state.θl, state.θm, state.θo)
 end
-@inline function thermalconductivity!(soil::Soil, ::Heat, state)
-    @inbounds @. state.kc = thermalconductivity(soil, state.θw, state.θl, state.θm, state.θo)
+@inline @propagate_inbounds thermalconductivity(soil::Soil, ::Heat, state, i) = thermalconductivity(soil, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+@inline @propagate_inbounds function thermalconductivity!(soil::Soil, ::Heat, state)
+    @. state.kc = thermalconductivity(soil, state.θw, state.θl, state.θm, state.θo)
 end
 
+# SFCC
 include("sfcc.jl")
 
 """

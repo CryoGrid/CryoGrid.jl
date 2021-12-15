@@ -201,8 +201,14 @@ total water content (θw), and liquid water content (θl).
             I_c*(H/Lθ) + I_t
         end
     end
-    @inbounds @. state.θl = freezethaw(state.H, heat.L, state.θw)*state.θw
-    heatcapacity!(layer, heat, state) # update heat capacity, C
-    @inbounds @. state.T = enthalpyinv(state.H, state.C, heat.L, state.θw)
+    @inbounds for i in 1:length(state.H)
+        let θw = state.θw[i],
+            H = state.H[i],
+            L = heat.L;
+            state.θl[i] = θw*freezethaw(H, L, θw)
+            state.C[i] = heatcapacity(layer, heat, state, i) # update heat capacity, C
+            state.T[i] = enthalpyinv(H, state.C[i], L, θw)
+        end
+    end
     return nothing
 end
