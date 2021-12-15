@@ -25,6 +25,8 @@ function CryoGridProblem(
     saveat=3600.0,
     savevars=(),
     save_everystep=false,
+    save_start=true,
+    save_end=true,
     callback=nothing,
     kwargs...
 )
@@ -40,7 +42,7 @@ function CryoGridProblem(
     # set up saving callback
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
-    savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_everystep=save_everystep)
+    savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_start=save_start, save_end=save_end, save_everystep=save_everystep)
     layercallbacks = tuplejoin((_getcallbacks(comp) for comp in tile.strat)...)
     usercallbacks = isnothing(callback) ? () : callback
     callbacks = CallbackSet(savingcallback, layercallbacks..., usercallbacks...)
@@ -109,25 +111,28 @@ end
 Builds the state named tuple for `layername` given an initialized integrator.
 """
 Strat.getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{layername}(), integrator)
-Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Strat.getstate(integrator.f.f, integrator.u, get_du(integrator), integrator.t)
+Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Strat.getstate(Tile(integrator), integrator.u, get_du(integrator), integrator.t)
 """
     getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
 """
-Strat.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Strat.getvar(Val{var}(), integrator.f.f, integrator.u)
+Strat.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Strat.getvar(Val{var}(), Tile(integrator), integrator.u)
 """
-Constructs a `CryoGridOutput` from the given `ODESolution`.
+Constructs a `CryoGridOutput` from the given `ODESolution`. Optional `tspan`
 """
-function InputOutput.CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.AbstractODESolution}
+function InputOutput.CryoGridOutput(sol::TSol; tspan=nothing) where {TSol <: SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(::Var{name,T,<:OnGrid{Cells}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T,<:OnGrid{Edges}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T}, arr, zs, ts) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts),))
+    save_interval = isnothing(tspan) ? -Inf..Inf : ClosedInterval(convert_tspan(tspan)...)
     model = sol.prob.f.f # Tile
     ts = model.hist.vals.t # use save callback time points
-    ts_datetime = Dates.epochms2datetime.(round.(ts*1000.0))
-    u_all = reduce(hcat, sol.(ts))
+    t_mask = ts .∈ save_interval # indices within t interval
+    u_all = reduce(hcat, sol.(ts)) # build prognostic state from continuous solution
     pax = ComponentArrays.indexmap(getaxes(model.state.uproto)[1])
-    savedstates = model.hist.vals.saveval
+    # get saved diagnostic states and timestamps only in given interval
+    savedstates = model.hist.vals.saveval[t_mask]
+    ts_datetime = Dates.epochms2datetime.(round.(ts[t_mask]*1000.0))
     allvars = variables(model)
     progvars = tuplejoin(filter(isprognostic, allvars), filter(isalgebraic, allvars))
     diagvars = filter(isdiagnostic, allvars)
@@ -140,7 +145,7 @@ function InputOutput.CryoGridOutput(sol::TSol) where {TSol <: SciMLBase.Abstract
     for var in filter(isongrid, tuplejoin(diagvars, fluxvars))
         name = varname(var)
         states = collect(skipmissing([name ∈ keys(state) ? state[name] : missing for state in savedstates]))
-        if length(states) == length(ts)
+        if length(states) == length(ts_datetime)
             arr = reduce(hcat, states)
             outputs[name] = withdims(var, arr, model.grid, ts_datetime)
         end
@@ -173,7 +178,7 @@ function _criterionfunc(::Val{name}, cb::Callback, layer, process) where name
     (u,t,integrator) -> let layer=layer,
         process=process,
         cb=cb,
-        tile=integrator.f.f,
+        tile=Tile(integrator),
         u = Strat.withaxes(u, tile),
         du = Strat.withaxes(get_du(integrator), tile),
         t = t;
@@ -184,7 +189,7 @@ function _affectfunc(::Val{name}, cb::Callback, layer, process) where name
     integrator -> let layer=layer,
         process=process,
         cb=cb,
-        tile=integrator.f.f,
+        tile=Tile(integrator),
         u = Strat.withaxes(integrator.u, tile),
         du = Strat.withaxes(get_du(integrator), tile),
         t = integrator.t;

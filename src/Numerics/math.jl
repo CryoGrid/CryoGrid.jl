@@ -132,6 +132,7 @@ softplusinv(x) = let x = clamp(x, eps(), Inf); IfElse.ifelse(x > 34, x, log(exp(
 minusone(x) = x .- one.(x)
 plusone(x) = x .+ one.(x)
 
+# Symbolic differentiation
 """
     ∇(f, dvar::Symbol)
 
@@ -158,11 +159,7 @@ f(x,y) = 2*x + x*y
 ```
 """
 function ∇(f, dvar::Symbol; choosefn=first, context_module=Numerics)
-    # Parse function parameter names using ExprTools
-    fms = ExprTools.methods(f)
-    symbol(arg::Symbol) = arg
-    symbol(expr::Expr) = expr.args[1]
-    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
+    argnames = Utils.argnames(f, choosefn)
     @assert dvar in argnames "function must have $dvar as an argument"
     dind = findfirst(s -> s == dvar, argnames)
     # Convert to symbols
@@ -173,4 +170,39 @@ function ∇(f, dvar::Symbol; choosefn=first, context_module=Numerics)
     ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
     ∇f = @RuntimeGeneratedFunction(context_module, ∇f_expr)
     return ∇f
+end
+
+# Function tabulation
+"""
+    Tabulated(f, argknots...)
+
+Alias for `tabulate` intended for function types.
+"""
+Tabulated(f, argknots...) = tabulate(f, argknots...)
+"""
+    tabulate(f, argknots::Pair{Symbol,<:Union{Number,AbstractArray}}...)
+
+Tabulates the given function `f` using a linear, multi-dimensional interpolant.
+Knots should be given as pairs `:arg => A` where `A` is a `StepRange` or `Vector`
+of input values (knots) at which to evaluate the function. `A` may also be a
+`Number`, in which case a pseudo-point interpolant will be used (i.e valid on
+`[A,A+ϵ]`). No extrapolation is provided by default but can be configured via
+`Interpolations.extrapolate`.
+"""
+function tabulate(f, argknots::Pair{Symbol,<:Union{Number,AbstractArray}}...)
+    initknots(a::AbstractArray) = Interpolations.deduplicate_knots!(a)
+    initknots(x::Number) = initknots([x,x])
+    names = map(first, argknots)
+    # get knots for each argument, duplicating if only one value is provided
+    knots = map(initknots, map(last, argknots))
+    f_argnames = Utils.argnames(f)
+    @assert all(map(name -> name ∈ names, f_argnames)) "Missing one or more arguments $f_argnames in $f"
+    arggrid = Iterators.product(knots...)
+    # evaluate function construct interpolant
+    interp = interpolate(Tuple(knots), map(Base.splat(f), arggrid), Gridded(Linear()))
+    return interp
+end
+function ∇(f::AbstractInterpolation)
+    gradient(args...) = Interpolations.gradient(f, args...)
+    return gradient
 end
