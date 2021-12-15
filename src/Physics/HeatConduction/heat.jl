@@ -75,12 +75,6 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
 )
-""" Initial condition for heat conduction (all state configurations) on any subsurface layer. """
-function initialcondition!(layer::SubSurface, heat::Heat, state)
-    L = heat.L
-    heatcapacity!(layer, heat, state)
-    @. state.H = enthalpy(state.T, state.C, L, state.θl)
-end
 """ Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
 function diagnosticstep!(layer::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
@@ -88,10 +82,10 @@ function diagnosticstep!(layer::SubSurface, heat::Heat, state)
     @. state.dH = zero(eltype(state.dH))
     # Evaluate the freeze curve (updates T, C, and θl)
     fc! = freezecurve(heat);
-    fc!(layer,heat,state)
+    fc!(layer, heat, state)
     # Update thermal conductivity
     thermalconductivity!(layer, heat, state)
-    # Harmonic mean of conductivities
+    # Harmonic mean of inner conductivities
     @inbounds let k = (@view state.k[2:end-1]),
         Δk = Δ(state.grids.k);
         harmonicmean!(k, state.kc, Δk)
@@ -144,7 +138,7 @@ Generic top interaction. Computes flux dH at top cell.
 function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub)
     # thermal conductivity at boundary
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
-    @inbounds ssub.k[1] = ssub.k[2]
+    @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
     @inbounds ssub.dH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
     return nothing # ensure no allocation
@@ -155,7 +149,7 @@ Generic bottom interaction. Computes flux dH at bottom cell.
 function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess, ssub, sbot)
     # thermal conductivity at boundary
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
-    @inbounds ssub.k[end] = ssub.k[end-1]
+    @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
     @inbounds ssub.dH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
     return nothing # ensure no allocation
@@ -192,7 +186,7 @@ total water content (θw), and liquid water content (θl).
 """
 @inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
     @inline function enthalpyinv(H, C, L, θtot)
-        let θtot = max(1.0e-8,θtot),
+        let θtot = max(1.0e-8, θtot),
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_f = H <= 0.0;
@@ -200,7 +194,7 @@ total water content (θw), and liquid water content (θl).
         end
     end
     @inline function freezethaw(H, L, θtot)
-        let θtot = max(1.0e-8,θtot),
+        let θtot = max(1.0e-8, θtot),
             Lθ = L*θtot,
             I_t = H > Lθ,
             I_c = (H > 0.0) && (H <= Lθ);
