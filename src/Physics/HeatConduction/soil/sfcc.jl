@@ -163,6 +163,28 @@ function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
         IfElse.ifelse(T<=Tₘ, θres - (θsat-θres)*(δ/(T-δ)), θtot)
     end
 end
+struct SFCCTable{F,I} <: SFCCFunction
+    f::F
+    f_tab::I
+end
+(f::SFCCTable)(args...) = f.f_tab(args...)
+"""
+    Tabulated(f::SFCCFunction, args...)
+
+Produces an `SFCCTable` function which is a tabulation of `f`.
+"""
+Numerics.Tabulated(f::SFCCFunction, args...) = SFCCTable(f, Numerics.tabulate(f, args...))
+"""
+    SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
+
+Constructs a SFCC from the precomputed `SFCCTable`. The derivative is generated using the
+`gradient` function provided by `Interpolations`.
+"""
+function SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
+    # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
+    # when applied to runtime generated functions.
+    SFCC(f, Base.splat(∇(f.f_tab)), s)
+end
 
 """
 Specialized implementation of Newton's method with backtracking line search for resolving

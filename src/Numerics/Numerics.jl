@@ -12,7 +12,7 @@ using ComponentArrays
 using DimensionalData: AbstractDimArray, DimArray, Dim, At, dims, Z
 using Flatten
 using IfElse
-using Interpolations: Interpolations, Gridded, Linear, Flat, Line, interpolate, extrapolate
+using Interpolations
 using IntervalSets
 using LinearAlgebra
 using LoopVectorization
@@ -35,7 +35,7 @@ struct Cells <: GridSpec end
 abstract type Geometry end
 struct UnitVolume <: Geometry end
 
-export ∇
+export ∇, Tabulated
 include("math.jl")
 
 export Grid, cells, edges, indexmap, subgridinds, Δ, volume, area
