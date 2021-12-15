@@ -26,11 +26,23 @@ end
 include("sfcc.jl")
 
 """ Initial condition for heat conduction (all state configurations) on soil layer. """
-function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
+function initialcondition!(soil::Soil, heat::Heat, state)
     initialcondition!(soil, state)
     L = heat.L
-    sfcc = freezecurve(heat)
-    state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
+    fc! = freezecurve(heat)
+    fc!(soil, heat, state)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
+end
+""" Initial condition for heat conduction (all state configurations) with free water freeze curve on soil layer. """
+function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
+    initialcondition!(soil, state)
+    L = heat.L
+    # initialize liquid water content based on temperature
+    @. state.θl = ifelse.(state.T > 0.0, 0.0, state.θp)
+    heatcapacity!(soil, heat, state)
+    @. state.H = enthalpy(state.T, state.C, L, state.θl)
+    # evaluate freeze curve
+    fc! = freezecurve(heat)
+    fc!(soil, heat, state)
 end

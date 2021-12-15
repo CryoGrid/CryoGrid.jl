@@ -93,7 +93,7 @@ end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil), # θ saturated = porosity
+    state.θp, # θ saturated = porosity
     state.θw, # total water content
     heat.L, # specific latent heat of fusion, L
     f.α,
@@ -129,7 +129,7 @@ end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil), # θ saturated = porosity
+    state.θp, # θ saturated = porosity
     state.θw, # total water content
     f.γ,
 )
@@ -154,7 +154,7 @@ end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil), # θ saturated = porosity
+    state.θp, # θ saturated = porosity
     state.θw, # total water content
     f.δ,
 )

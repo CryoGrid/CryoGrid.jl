@@ -67,11 +67,13 @@ end
 # Methods
 porosity(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θp}(), soil.para)
 variables(::Soil) = (
+    Diagnostic(:θp, Float"1", OnGrid(Cells)), # porosity
     Diagnostic(:θw, Float"1", OnGrid(Cells)), # total water content (xice + saturated pore space)
     Diagnostic(:θm, Float"1", OnGrid(Cells)), # mineral content
     Diagnostic(:θo, Float"1", OnGrid(Cells)), # organic content
 )
 function initialcondition!(soil::Soil{T,<:SoilCharacteristicFractions}, state) where T
+    state.θp .= soilcomp(Val{:θp}(), soil.para)
     state.θw .= soilcomp(Val{:θw}(), soil.para)
     state.θm .= soilcomp(Val{:θm}(), soil.para)
     state.θo .= soilcomp(Val{:θo}(), soil.para)
