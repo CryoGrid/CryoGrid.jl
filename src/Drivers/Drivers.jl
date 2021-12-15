@@ -17,6 +17,7 @@ using Dates
 using DimensionalData
 using Flatten
 using IfElse
+using IntervalSets
 using ModelParameters
 using LinearAlgebra
 using Reexport
