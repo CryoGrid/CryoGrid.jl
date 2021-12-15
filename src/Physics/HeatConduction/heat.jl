@@ -110,9 +110,9 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     @inbounds @. state.dT = state.dH / state.Ceff
     return nothing
 end
-boundaryflux(::Neumann, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
-boundaryflux(::Neumann, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
-function boundaryflux(::Dirichlet, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
+@inline boundaryflux(::Neumann, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
+@inline boundaryflux(::Neumann, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
+@inline function boundaryflux(::Dirichlet, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
         Tsub=ssub.T[1],
@@ -122,7 +122,7 @@ function boundaryflux(::Dirichlet, bc::BoundaryProcess, top::Top, heat::Heat, su
         -k*(Tsub-Tupper)/δ₀/d
     end
 end
-function boundaryflux(::Dirichlet, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
+@inline function boundaryflux(::Dirichlet, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
     Δk = Δ(ssub.grids.k)
     @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
