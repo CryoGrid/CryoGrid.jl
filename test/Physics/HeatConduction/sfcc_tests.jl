@@ -36,7 +36,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -51,7 +51,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -66,7 +66,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -100,7 +100,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -113,7 +113,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -126,7 +126,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -163,7 +163,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -176,7 +176,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -189,7 +189,7 @@ using ComponentArrays
                     C = heatcapacity.(soil,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
-                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+                state = (T=T,C=C,Ceff=similar(C),H=H,θl=θl,)
                 @inferred sfcc(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
             end
@@ -219,7 +219,7 @@ using ComponentArrays
             T_ .= T
             C = similar(C,eltype(p))
             θl = similar(θl,eltype(p))
-            state = (T=T_,C=C,Ceff=similar(C),H=H,θl=θl,θw=θw.+zero(T),θm=θm.+zero(T),θo=θo.+zero(T),θp=θp.+zero(T))
+            state = (T=T_,C=C,Ceff=similar(C),H=H,θl=θl,)
             SFCC(McKenzie(γ=Param(p.γ[1])))(soil, heat, state)
             state.T[1]
         end

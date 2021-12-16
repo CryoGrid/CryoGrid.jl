@@ -31,29 +31,19 @@ function heatconduction!(∂H,T,ΔT,k,Δk)
     end
     return nothing
 end
-
-# Default implementation of `variables` for freeze curve
-variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
-# Fallback (error) implementation for freeze curve
-(fc::FreezeCurve)(layer::SubSurface, heat::Heat, state) =
-    error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(layer))")
-freezecurve(heat::Heat) = heat.freezecurve
-enthalpy(T, C, L, θ) = T*C + L*θ
-heatcapacity!(layer::SubSurface, heat::Heat, state) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(layer))")
-thermalconductivity!(layer::SubSurface, heat::Heat, state) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(layer))")
 """
 Variable definitions for heat conduction on any subsurface layer. Joins variables defined on
 `layer` and `heat` individually as well as variables defined by the freeze curve.
 """
-variables(layer::SubSurface, heat::Heat) = (
-    variables(layer)..., # layer variables
+variables(sub::SubSurface, heat::Heat) = (
+    variables(sub)..., # layer variables
     variables(heat)...,  # heat variables
-    variables(layer, heat, freezecurve(heat))..., # freeze curve variables
+    variables(sub, heat, freezecurve(heat))..., # freeze curve variables
 )
 """
 Variable definitions for heat conduction (enthalpy).
 """
-variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
+variables(::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
@@ -65,7 +55,7 @@ variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
 """
 Variable definitions for heat conduction (temperature).
 """
-variables(heat::Heat{<:FreezeCurve,Temperature}) = (
+variables(::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
@@ -76,15 +66,15 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
 )
 """ Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
-function diagnosticstep!(layer::SubSurface, heat::Heat, state)
+function diagnosticstep!(sub::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
     # Evaluate the freeze curve (updates T, C, and θl)
     fc! = freezecurve(heat);
-    fc!(layer, heat, state)
+    fc!(sub, heat, state)
     # Update thermal conductivity
-    thermalconductivity!(layer, heat, state)
+    thermalconductivity!(sub, heat, state)
     # Harmonic mean of inner conductivities
     @inbounds let k = (@view state.k[2:end-1]),
         Δk = Δ(state.grids.k);
@@ -97,14 +87,14 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
-    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    heatconduction!(state.dH, state.T, ΔT, state.k, Δk)
 end
 """ Prognostic step for heat conduction (temperature) on subsurface layer. """
 function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
-    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    heatconduction!(state.dH, state.T, ΔT, state.k, Δk)
     # Compute temperature flux by dividing by C_eff;
     # C_eff should be computed by the freeze curve.
     @inbounds @. state.dT = state.dH / state.Ceff
@@ -184,7 +174,7 @@ Implementation of "free water" freeze curve for any subsurface layer. Assumes th
 'state' contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θw), and liquid water content (θl).
 """
-@inline function (fc::FreeWater)(layer::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
+@inline function (fc::FreeWater)(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
     @inline function enthalpyinv(H, C, L, θtot)
         let θtot = max(1.0e-8, θtot),
             Lθ = L*θtot,
@@ -202,11 +192,11 @@ total water content (θw), and liquid water content (θl).
         end
     end
     @inbounds for i in 1:length(state.H)
-        let θw = state.θw[i],
+        let θw = totalwater(sub, heat, state, i),
             H = state.H[i],
             L = heat.L;
             state.θl[i] = θw*freezethaw(H, L, θw)
-            state.C[i] = heatcapacity(layer, heat, state, i) # update heat capacity, C
+            state.C[i] = heatcapacity(sub, heat, state, i) # update heat capacity, C
             state.T[i] = enthalpyinv(H, state.C[i], L, θw)
         end
     end

@@ -21,7 +21,7 @@ Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "
 # Constructors for stratigraphy nodes
 top(bcs::BoundaryProcess...) = StratComponent(:top, Top(), CoupledProcesses(bcs...))
 bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CoupledProcesses(bcs...))
-subsurface(name::Symbol, layer::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, layer, CoupledProcesses(processes...))
+subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, sub, CoupledProcesses(processes...))
 
 """
     Stratigraphy{N,TComponents,Q}

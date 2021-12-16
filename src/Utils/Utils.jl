@@ -83,7 +83,9 @@ Base.iterate(p::Params, state) = structiterate(p,state)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
 
 getscalar(x::Number) = x
+getscalar(x::Number, i) = x
 getscalar(a::AbstractArray) = a[1]
+getscalar(a::AbstractArray, i) = a[i]
 
 """
     convert_tspan(tspan::Tuple{DateTime,DateTime})

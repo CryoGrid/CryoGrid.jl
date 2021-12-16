@@ -57,8 +57,11 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = Utils.selectat(i, identity, f_args)
+            θw = totalwater(soil, heat, state, i)
+            θm = mineral(soil, heat, i)
+            θo = organic(soil, heat, i)
             state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, state.θw[i], state.θl[i], state.θm[i], state.θo[i])
+            state.C[i] = heatcapacity(soil, θw, state.θl[i], θm, θo)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
             state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
         end
@@ -93,8 +96,8 @@ end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    state.θp, # θ saturated = porosity
-    state.θw, # total water content
+    porosity(soil, heat, state), # θ saturated = porosity
+    totalwater(soil, heat, state), # total water content
     heat.L, # specific latent heat of fusion, L
     f.α,
     f.n,
@@ -129,8 +132,8 @@ end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    state.θp, # θ saturated = porosity
-    state.θw, # total water content
+    porosity(soil, heat, state), # θ saturated = porosity
+    totalwater(soil, heat, state), # total water content
     f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
@@ -154,8 +157,8 @@ end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    state.θp, # θ saturated = porosity
-    state.θw, # total water content
+    porosity(soil, heat, state), # θ saturated = porosity
+    totalwater(soil, heat, state), # total water content
     f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
@@ -225,9 +228,9 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
             H = state.H[i] |> Utils.adstrip, # enthalpy
             C = state.C[i] |> Utils.adstrip, # heat capacity
             θl = state.θl[i] |> Utils.adstrip, # liquid water content
-            θw = state.θw[i] |> Utils.adstrip, # total water content
-            θm = state.θm[i] |> Utils.adstrip, # mineral content
-            θo = state.θo[i] |> Utils.adstrip, # organic content
+            θw = totalwater(soil, heat, state, i) |> Utils.adstrip, # total water content
+            θm = mineral(soil, heat, state, i) |> Utils.adstrip, # mineral content
+            θo = organic(soil, heat, state, i) |> Utils.adstrip, # organic content
             L = heat.L, # specific latent heat of fusion
             cw = soil.hc.cw, # heat capacity of liquid water
             α₀ = s.α₀,
