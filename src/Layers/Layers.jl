@@ -12,7 +12,8 @@ using ModelParameters
 using Parameters
 using Unitful
 
-export Soil, SoilParameterization, SoilCharacteristicFractions, SoilProfile, SoilType, Sand, Silt, Clay, soilparameters, soilcomp, porosity
+export Soil, SoilParameterization, SoilCharacteristicFractions, SoilProfile, SoilType, Sand, Silt, Clay
+export soilparameters, soilcomp, porosity
 include("soil.jl")
 
 end

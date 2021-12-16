@@ -64,17 +64,8 @@ Basic Soil layer.
     hc::SoilHCParams = SoilHCParams()
     sp::S = nothing # user-defined specialization
 end
-# Methods
+# Volumetric content methods
+totalwater(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θw}(), soil.para)
 porosity(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θp}(), soil.para)
-variables(::Soil) = (
-    Diagnostic(:θp, Float"1", OnGrid(Cells)), # porosity
-    Diagnostic(:θw, Float"1", OnGrid(Cells)), # total water content (xice + saturated pore space)
-    Diagnostic(:θm, Float"1", OnGrid(Cells)), # mineral content
-    Diagnostic(:θo, Float"1", OnGrid(Cells)), # organic content
-)
-function initialcondition!(soil::Soil{T,<:SoilCharacteristicFractions}, state) where T
-    state.θp .= soilcomp(Val{:θp}(), soil.para)
-    state.θw .= soilcomp(Val{:θw}(), soil.para)
-    state.θm .= soilcomp(Val{:θm}(), soil.para)
-    state.θo .= soilcomp(Val{:θo}(), soil.para)
-end
+mineral(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θm}(), soil.para)
+organic(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θo}(), soil.para)
