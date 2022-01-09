@@ -34,12 +34,12 @@ Defaults to using the scalar porosity defined on `soil`.
 @inline heatcapacity(soil::Soil, heat::Heat, state, i) = heatcapacity(
     soil,
     totalwater(soil, heat, state, i),
-    state.θl[i],
+    liquidwater(soil, heat, state, i),
     mineral(soil, heat, state, i),
     organic(soil, heat, state, i),
 )
 @inline function heatcapacity(soil::Soil, totalwater, liquidwater, mineral, organic)
-    @unpack cw,co,cm,ca,ci = soil.hc
+    @unpack cw, co, cm, ca, ci = soil.hc
     let air = 1.0 - totalwater - mineral - organic,
         ice = totalwater - liquidwater,
         liq = liquidwater;
@@ -49,12 +49,12 @@ end
 @inline thermalconductivity(soil::Soil, heat::Heat, state, i) = thermalconductivity(
     soil,
     totalwater(soil, heat, state, i),
-    state.θl[i],
+    liquidwater(soil, heat, state, i),
     mineral(soil, heat, state, i),
     organic(soil, heat, state, i),
 )
 @inline function thermalconductivity(soil::Soil, totalwater, liquidwater, mineral, organic)
-    @unpack kw,ko,km,ka,ki = soil.tc
+    @unpack kw, ko, km, ka, ki = soil.tc
     let air = 1.0 - totalwater - mineral - organic,
         ice = totalwater - liquidwater,
         liq = liquidwater;

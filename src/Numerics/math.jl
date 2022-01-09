@@ -27,7 +27,7 @@ end
 
 
 @propagate_inbounds function _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
-    @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
+    @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
 end
 @propagate_inbounds function _nonlineardiffusion!(
     ∂y::AbstractVector{Float64},
@@ -40,7 +40,7 @@ end
     Δx₂::AbstractVector{Float64},
     Δk::AbstractVector{Float64},
 )
-    @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂-x₁)/Δx₁)/Δk
+    @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
 end
 
 """
