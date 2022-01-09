@@ -100,24 +100,26 @@ variables(sub::SubSurface, heat::Heat) = (
 """
 Variable definitions for heat conduction (enthalpy).
 """
-variables(::Heat{<:FreezeCurve,Enthalpy}) = (
+variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
-    Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
-    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
-    Diagnostic(:θl, Float"1", OnGrid(Cells)),
+    _variables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
 """
-variables(::Heat{<:FreezeCurve,Temperature}) = (
+variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
-    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:dH, Float"W/m^3", OnGrid(Cells)),
+    _variables(heat)...,
+)
+"""
+Common variable definitions for all heat implementations.
+"""
+_variables(::Heat) = (
     Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
@@ -187,7 +189,8 @@ function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, s
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
     @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
-    @inbounds ssub.dH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
+    @log dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
+    @inbounds ssub.dH[1] += dH_upper
     return nothing # ensure no allocation
 end
 """
@@ -198,7 +201,8 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
     @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
-    @inbounds ssub.dH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @log dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @inbounds ssub.dH[end] += dH_lower
     return nothing # ensure no allocation
 end
 """

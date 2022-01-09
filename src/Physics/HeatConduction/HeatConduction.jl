@@ -18,6 +18,7 @@ using Interpolations: Linear, Flat
 using IntervalSets
 using ModelParameters
 using Parameters
+using SimulationLogs
 using Unitful
 
 import Flatten: @flattenable, flattenable
