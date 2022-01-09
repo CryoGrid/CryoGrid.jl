@@ -63,7 +63,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
             state.θl[i] = f(f_argsᵢ...)
             state.C[i] = heatcapacity(soil, θw, state.θl[i], θm, θo)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.Ceff[i] = L*∇f(f_argsᵢ) + state.C[i]
+            state.dHdT[i] = L*∇f(f_argsᵢ) + state.C[i]
         end
     end
     return nothing
@@ -295,7 +295,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
                 let θl = state.θl[i],
                     H = state.H[i];
                     state.C[i] = heatcapacity(soil,θw,θl,θm,θo)
-                    state.Ceff[i] = state.C[i] + dθdT
+                    state.dHdT[i] = state.C[i] + dθdT
                     state.T[i] = (H - L*θl) / state.C[i]
                 end
             end

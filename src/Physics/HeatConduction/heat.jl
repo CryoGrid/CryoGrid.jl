@@ -104,7 +104,7 @@ variables(::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
@@ -117,7 +117,7 @@ variables(::Heat{<:FreezeCurve,Temperature}) = (
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
@@ -154,7 +154,7 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     heatconduction!(state.dH, state.T, ΔT, state.k, Δk)
     # Compute temperature flux by dividing by C_eff;
     # C_eff should be computed by the freeze curve.
-    @inbounds @. state.dT = state.dH / state.Ceff
+    @inbounds @. state.dT = state.dH / state.dHdT
     return nothing
 end
 @inline boundaryflux(::Neumann, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
@@ -259,8 +259,8 @@ total water content (θw), and liquid water content (θl).
         state.C[i] = heatcapacity(sub, heat, state, i)
         # enthalpy inverse function
         state.T[i] = enthalpyinv(H, state.C[i], L, θw)
-        # set dHdT (a.k.a Ceff)
-        state.Ceff[i] = liqfrac > 0.0 ? 1e8 : 1/state.C[i]
+        # set dHdT (a.k.a dHdT)
+        state.dHdT[i] = liqfrac > 0.0 ? 1e8 : 1/state.C[i]
     end
     return nothing
 end

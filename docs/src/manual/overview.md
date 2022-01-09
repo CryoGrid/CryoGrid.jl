@@ -53,7 +53,7 @@ variables(soil::Soil, heat::Heat{:H}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:C, Float"J//K*/m^3", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
+    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
     # this last line just appends any state variables or parameters
