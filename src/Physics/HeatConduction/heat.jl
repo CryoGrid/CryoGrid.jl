@@ -1,3 +1,60 @@
+# Thermal properties (generic)
+"""
+    enthalpy(T, C, L, θ) = T*C + L*θ
+
+Discrete enthalpy function on temperature, heat capacity, specific latent heat of fusion, and liquid water content.
+"""
+@inline enthalpy(T, C, L, θ) = T*C + L*θ
+"""
+    totalwater(sub::SubSurface, heat::Heat, state)
+    totalwater(sub::SubSurface, heat::Heat, state, i)
+
+Retrieves the total water content for the given layer at grid cell `i`, if specified.
+Defaults to using the scalar total water content defined on layer `sub`.
+"""
+@inline totalwater(sub::SubSurface, heat::Heat, state) = totalwater(sub)
+@inline totalwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(totalwater(sub, heat, state), i)
+"""
+    liquidwater(sub::SubSurface, heat::Heat, state)
+    liquidwater(sub::SubSurface, heat::Heat, state, i)
+
+Retrieves the liquid water content for the given layer at grid cell `i`, if specified.
+Defaults to using the scalar total water content defined on layer `sub`.
+"""
+@inline liquidwater(sub::SubSurface, heat::Heat, state) = state.θl
+@inline liquidwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(liquidwater(sub, heat, state), i)
+"""
+    heatcapacity(sub::SubSurface, heat::Heat, state, i)
+
+Computes the heat capacity at grid cell `i` for the given layer from the current state.
+"""
+heatcapacity(sub::SubSurface, heat::Heat, state, i) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(sub))")
+"""
+    heatcapacity!(sub::SubSurface, heat::Heat, state)
+
+Computes the heat capacity for the given layer from the current state and stores the result in-place in the state variable `C`.
+"""
+@inline function heatcapacity!(sub::SubSurface, heat::Heat, state)
+    @inbounds for i in 1:length(state.T)
+        state.C[i] = heatcapacity(sub, heat, state, i)
+    end
+end
+"""
+    thermalconductivity(sub::SubSurface, heat::Heat, state, i)
+
+Computes the thrmal conductivity at grid cell `i` for the given layer from the current state.
+"""
+thermalconductivity(sub::SubSurface, heat::Heat, state, i) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(sub))")
+"""
+    thermalconductivity!(sub::SubSurface, heat::Heat, state)
+
+Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `C`.
+"""
+@inline function thermalconductivity!(sub::SubSurface, heat::Heat, state)
+    @inbounds for i in 1:length(state.T)
+        state.kc[i] = thermalconductivity(sub, heat, state, i)
+    end
+end
 """
     heatconduction!(∂H,T,ΔT,k,Δk)
 
@@ -11,8 +68,8 @@ function heatconduction!(∂H,T,ΔT,k,Δk)
         T₁=T[1],
         k=k[2],
         δ=ΔT[1],
-        a=Δk[1];
-        k*(T₂-T₁)/δ/a
+        d=Δk[1];
+        k*(T₂-T₁)/δ/d
     end
     # diffusion on non-boundary cells
     @inbounds let T = T,
@@ -26,8 +83,8 @@ function heatconduction!(∂H,T,ΔT,k,Δk)
         T₁=T[end-1],
         k=k[end-1],
         δ=ΔT[end],
-        a=Δk[end];
-        -k*(T₂-T₁)/δ/a
+        d=Δk[end];
+        -k*(T₂-T₁)/δ/d
     end
     return nothing
 end
@@ -43,24 +100,26 @@ variables(sub::SubSurface, heat::Heat) = (
 """
 Variable definitions for heat conduction (enthalpy).
 """
-variables(::Heat{<:FreezeCurve,Enthalpy}) = (
+variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
-    Diagnostic(:C, Float"J//K/m^3", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
-    Diagnostic(:θl, Float"1", OnGrid(Cells)),
+    _variables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
 """
-variables(::Heat{<:FreezeCurve,Temperature}) = (
+variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:dH, Float"J/s/m^3", OnGrid(Cells)),
+    Diagnostic(:dH, Float"W/m^3", OnGrid(Cells)),
+    _variables(heat)...,
+)
+"""
+Common variable definitions for all heat implementations.
+"""
+_variables(::Heat) = (
+    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:Ceff, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
@@ -97,7 +156,7 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     heatconduction!(state.dH, state.T, ΔT, state.k, Δk)
     # Compute temperature flux by dividing by C_eff;
     # C_eff should be computed by the freeze curve.
-    @inbounds @. state.dT = state.dH / state.Ceff
+    @inbounds @. state.dT = state.dH / state.dHdT
     return nothing
 end
 @inline boundaryflux(::Neumann, bc::BoundaryProcess, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
@@ -130,7 +189,8 @@ function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, s
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
     @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
-    @inbounds ssub.dH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
+    @log dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
+    @inbounds ssub.dH[1] += dH_upper
     return nothing # ensure no allocation
 end
 """
@@ -141,7 +201,8 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
     @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
-    @inbounds ssub.dH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @log dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @inbounds ssub.dH[end] += dH_lower
     return nothing # ensure no allocation
 end
 """
@@ -192,13 +253,18 @@ total water content (θw), and liquid water content (θl).
         end
     end
     @inbounds for i in 1:length(state.H)
-        let θw = totalwater(sub, heat, state, i),
-            H = state.H[i],
-            L = heat.L;
-            state.θl[i] = θw*freezethaw(H, L, θw)
-            state.C[i] = heatcapacity(sub, heat, state, i) # update heat capacity, C
-            state.T[i] = enthalpyinv(H, state.C[i], L, θw)
-        end
+        θw = totalwater(sub, heat, state, i)
+        H = state.H[i]
+        L = heat.L
+        # liquid water content = (total water content) * (liquid fraction)
+        liqfrac = freezethaw(H, L, θw)
+        state.θl[i] = θw*liqfrac
+        # update heat capacity
+        state.C[i] = heatcapacity(sub, heat, state, i)
+        # enthalpy inverse function
+        state.T[i] = enthalpyinv(H, state.C[i], L, θw)
+        # set dHdT (a.k.a dHdT)
+        state.dHdT[i] = liqfrac > 0.0 ? 1e8 : 1/state.C[i]
     end
     return nothing
 end

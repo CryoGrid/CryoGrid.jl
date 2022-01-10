@@ -15,12 +15,12 @@ BoundaryStyle(::Type{<:TemperatureGradient{<:Damping}}) = Neumann()
 @inline boundaryvalue(bc::TemperatureGradient, l1, p2, l2, s1, s2) = bc.T(s1.t)
 
 @with_kw struct NFactor{W,S} <: BoundaryEffect
-    winterfactor::W = Param(1.0, bounds=(0.0,1.0)) # applied when Tair <= 0
-    summerfactor::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
+    nf::W = Param(1.0, bounds=(0.0,1.0)) # applied when Tair <= 0
+    nt::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
 end
 @inline function boundaryvalue(bc::TemperatureGradient{<:NFactor}, l1, ::Heat, l2, s1, s2)
-    let nfw = bc.effect.winterfactor,
-        nfs = bc.effect.summerfactor,
+    let nfw = bc.effect.nf,
+        nfs = bc.effect.nt,
         Tair = bc.T(s1.t),
         nf = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs;
         nf*Tair # apply damping factor to air temperature

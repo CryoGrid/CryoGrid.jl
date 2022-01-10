@@ -27,8 +27,8 @@ function zero_annual_amplitude(T::AbstractDimArray{<:TempQuantity}; threshold=0.
     Tarr = TimeArray(dims(T, Ti).val, permutedims(T, (Ti,Z)))
     annual_min = collapse(Tarr, year, first, minimum)
     annual_max = collapse(Tarr, year, first, maximum)
-    z_inds = argmax(abs.(values(annual_max) .- values(annual_min)) .< threshold, dims=2)
-    rebuild(T, dims(T, Z)[[i[2] for i in z_inds]], (Ti(timestamp(annual_max)),))[:,1]
+    z_inds = vec(argmax(abs.(values(annual_max) .- values(annual_min)) .< threshold, dims=2))
+    rebuild(T, collect(dims(T, Z)[[i[2] for i in z_inds]]), (Ti(timestamp(annual_max)),))
 end
 """
     permafrosttable(T::AbstractDimArray{<:TempQuantity})
@@ -42,8 +42,8 @@ function permafrosttable(T::AbstractDimArray{<:TempQuantity})
     Tarr = TimeArray(dims(T, Ti).val, permutedims(T, (Ti,Z)))
     annual_max = collapse(Tarr, year, first, maximum)
     # find argmax (first one/"true" bit) of annual_max < 0
-    z_inds = argmax(values(annual_max) .< 0u"°C", dims=2)
-    rebuild(T, dims(T, Z)[[i[2] for i in z_inds]], (Ti(timestamp(annual_max)),))[:,1]
+    z_inds = vec(argmax(values(annual_max) .< 0u"°C", dims=2))
+    rebuild(T, collect(dims(T, Z)[[i[2] for i in z_inds]]), (Ti(timestamp(annual_max)),))
 end
 """
     permafrostbase(T::AbstractDimArray{<:TempQuantity})
@@ -57,8 +57,8 @@ function permafrostbase(T::AbstractDimArray{<:TempQuantity})
     Tarr = TimeArray(dims(T, Ti).val, permutedims(T, (Ti,Z)))
     annual_max = collapse(Tarr, year, first, maximum)
     # find argmax (first one/"true" bit) of annual_max < 0
-    z_inds = size(Tarr,2) .- [i[2] for i in argmax(reverse(values(annual_max) .< 0u"°C", dims=2), dims=2)]
-    rebuild(T, dims(T, Z)[[i for i in z_inds]], (Ti(timestamp(annual_max)),))[:,1]
+    z_inds = vec(size(Tarr,2) .- [i[2] for i in argmax(reverse(values(annual_max) .< 0u"°C", dims=2), dims=2)])
+    rebuild(T, collect(dims(T, Z)[[i for i in z_inds]]), (Ti(timestamp(annual_max)),))
 end
 """
     thawdepth(T::AbstractDimArray{<:TempQuantity})
@@ -69,8 +69,8 @@ and `Z` (depth) in any order.
 function thawdepth(T::AbstractDimArray{<:TempQuantity})
     _check_arr_dims(T)
     T = permutedims(T, (Z,Ti))
-    z_inds = argmax((T .<= 0u"°C").data, dims=1)
-    rebuild(T, dims(T, Z)[[i[1] for i in z_inds]], (dims(T,Ti),))[1,:]
+    z_inds = vec(argmax((T .<= 0u"°C").data, dims=1))
+    rebuild(T, collect(dims(T, Z)[[i[1] for i in z_inds]]), (dims(T,Ti),))
 end
 """
     active_layer_thickness(T::AbstractDimArray{<:TempQuantity})

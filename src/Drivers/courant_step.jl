@@ -6,9 +6,9 @@ end
 function (cfl::CFLStepLimiter{<:Tile,<:AbstractArray})(u,p,t)
     let Δt = cfl.Δt,
         Δx = dustrip(Δ(cfl.tile.grid)),
-        Ceff = getvar(:Ceff, cfl.tile, u), # apparent heat capacity
+        dHdT = getvar(:dHdT, cfl.tile, u), # apparent heat capacity
         kc = getvar(:kc, cfl.tile, u); # thermal cond. at grid centers
-        @. Δt = Utils.adstrip(Δx^2 * Ceff / kc)
+        @. Δt = Utils.adstrip(Δx^2 * dHdT / kc)
         Δt_min = minimum(Δt)
         IfElse.ifelse(isfinite(Δt_min) && Δt_min > 0, Δt_min, cfl.default_dt)
     end
@@ -16,9 +16,9 @@ end
 function (cfl::CFLStepLimiter{<:Tile,Nothing})(u,p,t)
     let Δt = cfl.Δt,
         Δx = dustrip(Δ(cfl.tile.grid)),
-        Ceff = getvar(:Ceff, cfl.tile, u), # apparent heat capacity
+        dHdT = getvar(:dHdT, cfl.tile, u), # apparent heat capacity
         kc = getvar(:kc, cfl.tile, u); # thermal cond. at grid centers
-        Δt = Utils.adstrip(Δx^2 * Ceff / kc)
+        Δt = Utils.adstrip(Δx^2 * dHdT / kc)
         Δt_min = minimum(Δt)
         IfElse.ifelse(isfinite(Δt_min) && Δt_min > 0, Δt_min, cfl.default_dt)
     end
