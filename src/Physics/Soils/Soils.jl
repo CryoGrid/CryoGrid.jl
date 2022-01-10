@@ -7,7 +7,7 @@ import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, totalwater, liqui
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
 using CryoGrid.Physics.HeatConduction
-using CryoGrid.Physics.WaterBalance: VanGenuchten
+using CryoGrid.Physics.WaterBalance
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds
