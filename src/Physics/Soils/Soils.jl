@@ -1,3 +1,26 @@
+module Soils
+
+import CryoGrid: SubSurface
+import CryoGrid: initialcondition!, variables
+import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, totalwater, liquidwater, thermalconductivity, heatcapacity
+
+using CryoGrid.Numerics
+using CryoGrid.Numerics: heaviside
+using CryoGrid.Physics.HeatConduction
+using CryoGrid.Physics.WaterBalance: VanGenuchten
+using CryoGrid.Utils
+
+using Base: @propagate_inbounds
+using IfElse
+using ModelParameters
+using Parameters
+using Unitful
+
+import Flatten: @flattenable, flattenable
+
+export Soil, SoilParameterization, SoilCharacteristicFractions, SoilProfile, SoilType, Sand, Silt, Clay
+export soilparameters, soilcomp, porosity, mineral, organic
+
 """
 Represents the texture classification of the soil. Sand, Silt, and Clay are provided by default.
 """
@@ -69,3 +92,8 @@ totalwater(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:
 porosity(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θp}(), soil.para)
 mineral(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θm}(), soil.para)
 organic(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θo}(), soil.para)
+
+export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
+include("soilheat.jl")
+
+end

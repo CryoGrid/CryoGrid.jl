@@ -22,7 +22,6 @@ include("methods.jl")
 # Submodules
 include("Utils/Utils.jl")
 include("Numerics/Numerics.jl")
-include("Layers/Layers.jl")
 include("Physics/Physics.jl")
 include("Strat/Strat.jl")
 include("IO/InputOutput.jl")
@@ -33,7 +32,6 @@ using .Utils
 # Re-exported submodules
 @reexport using .Numerics
 @reexport using .Utils: convert_tspan
-@reexport using .Layers
 @reexport using .Physics
 @reexport using .Strat
 @reexport using .Drivers

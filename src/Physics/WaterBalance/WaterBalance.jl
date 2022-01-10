@@ -1,4 +1,4 @@
-module Water
+module WaterBalance
 
 import CryoGrid: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 

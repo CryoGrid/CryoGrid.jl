@@ -2,26 +2,19 @@ module HeatConduction
 
 import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Callback
 import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!
-import CryoGrid.Layers: Soil, totalwater, porosity, mineral, organic
 
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
-using CryoGrid.Physics.Water: VanGenuchten
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heaviside
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds
-using DimensionalData
 using IfElse
-using Interpolations: Linear, Flat
-using IntervalSets
 using ModelParameters
 using Parameters
 using SimulationLogs
 using Unitful
-
-import Flatten: @flattenable, flattenable
 
 export Heat, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
@@ -53,11 +46,9 @@ variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(sub::SubSurface, heat::Heat, state) = error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(sub))")
 
-export heatconduction!, enthalpy, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
+export heatconduction!, enthalpy, totalwater, liquidwater, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 include("heat.jl")
 export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, Damping
 include("heat_bc.jl")
-export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
-include("soil/soilheat.jl")
 
 end
