@@ -76,19 +76,19 @@ end
         return pmodel
     end
 end
-
 # Transform implementations
 @with_kw struct LinearTrend{P} <: ParamTransform
     slope::P = Param(0.0)
     intercept::P = Param(0.0)
     tstart::Float64 = 0.0
     tstop::Float64 = Inf; @assert tstop > tstart
+    period::Float64 = 1.0
     minval::Float64 = -Inf
     maxval::Float64 = Inf
 end
 function transform(state, trend::LinearTrend)
     let t = min(state.t - trend.tstart, trend.tstop),
-        β = trend.slope,
+        β = trend.slope / trend.period,
         α = trend.intercept;
         min(max(β*t + α, trend.minval), trend.maxval)
     end
