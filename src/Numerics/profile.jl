@@ -9,7 +9,9 @@ Flatten.flattenable(::Type{<:Profile}, ::Type{Val{:depths}}) = false
 Base.length(::Profile{N}) where N = N
 Base.iterate(profile::Profile) = iterate(zip(profile.depths,profile.values))
 Base.iterate(profile::Profile, state) = iterate(zip(profile.depths,profile.values),state)
-Base.getindex(profile::Profile, i) = (depth=profile.depths[i], value=profile.values[i])
+Base.getindex(profile::Profile, i::Int) = (depth=profile.depths[i], value=profile.values[i])
+Base.getindex(profile::Profile, i) = Profile(profile.depths[i], profile.values[i])
+Base.lastindex(profile::Profile) = lastindex(profile.depths)
 StructTypes.StructType(::Type{<:Profile}) = StructTypes.UnorderedStruct()
 """
     profile2array(profile::Profile{N,D,T};names) where {N,D,T}
