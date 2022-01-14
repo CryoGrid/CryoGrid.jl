@@ -176,7 +176,7 @@ end
 
 Produces an `SFCCTable` function which is a tabulation of `f`.
 """
-Numerics.Tabulated(f::SFCCFunction, args...) = SFCCTable(f, Numerics.tabulate(f, args...))
+Numerics.Tabulated(f::SFCCFunction, args...; kwargs...) = SFCCTable(f, Numerics.tabulate(f, args...; kwargs...))
 """
     SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
 
@@ -186,7 +186,7 @@ Constructs a SFCC from the precomputed `SFCCTable`. The derivative is generated 
 function SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
     # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
     # when applied to runtime generated functions.
-    SFCC(f, Base.splat(∇(f.f_tab)), s)
+    SFCC(f, Base.splat(first ∘ ∇(f.f_tab)), s)
 end
 
 """

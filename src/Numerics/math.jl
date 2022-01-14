@@ -192,6 +192,10 @@ of input values (knots) at which to evaluate the function. `A` may also be a
 function tabulate(f, argknots::Pair{Symbol,<:Union{Number,AbstractArray}}...)
     initknots(a::AbstractArray) = Interpolations.deduplicate_knots!(a)
     initknots(x::Number) = initknots([x,x])
+    interp(::AbstractArray) = Gridded(Linear())
+    interp(::Number) = Gridded(Constant())
+    extrap(::AbstractArray) = Flat()
+    extrap(::Number) = Throw()
     names = map(first, argknots)
     # get knots for each argument, duplicating if only one value is provided
     knots = map(initknots, map(last, argknots))
@@ -199,8 +203,8 @@ function tabulate(f, argknots::Pair{Symbol,<:Union{Number,AbstractArray}}...)
     @assert all(map(name -> name ∈ names, f_argnames)) "Missing one or more arguments $f_argnames in $f"
     arggrid = Iterators.product(knots...)
     # evaluate function construct interpolant
-    interp = interpolate(Tuple(knots), map(Base.splat(f), arggrid), Gridded(Linear()))
-    return interp
+    f = extrapolate(interpolate(Tuple(knots), map(Base.splat(f), arggrid), map(interp ∘ last, argknots)), map(extrap ∘ last, argknots))
+    return f
 end
 function ∇(f::AbstractInterpolation)
     gradient(args...) = Interpolations.gradient(f, args...)
