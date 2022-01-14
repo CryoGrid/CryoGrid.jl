@@ -6,6 +6,12 @@ Discrete enthalpy function on temperature, heat capacity, specific latent heat o
 """
 @inline enthalpy(T, C, L, θ) = T*C + L*θ
 """
+    enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+
+Discrete inverse enthalpy function given H, C, L, and θ.
+"""
+@inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+"""
     totalwater(sub::SubSurface, heat::Heat, state)
     totalwater(sub::SubSurface, heat::Heat, state, i)
 
@@ -154,8 +160,8 @@ function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
     heatconduction!(state.dH, state.T, ΔT, state.k, Δk)
-    # Compute temperature flux by dividing by C_eff;
-    # C_eff should be computed by the freeze curve.
+    # Compute temperature flux by dividing by dHdT;
+    # dHdT should be computed by the freeze curve.
     @inbounds @. state.dT = state.dH / state.dHdT
     return nothing
 end
@@ -230,41 +236,44 @@ function interact!(::SubSurface, ::Heat, ::SubSurface, ::Heat, s1, s2)
     return nothing # ensure no allocation
 end
 # Free water freeze curve
+@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
+    let θtot = totalwater(sub, heat, state, i),
+        H = state.H[i],
+        C = state.C[i],
+        L = heat.L,
+        Lθ = L*θtot,
+        I_t = H > Lθ,
+        I_f = H <= 0.0;
+        (I_t*(H-Lθ) + I_f*H)/C
+    end
+end
+@inline function liquidwater(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
+    let θtot = max(1e-8, totalwater(sub, heat, state, i)),
+        H = state.H[i],
+        L = heat.L,
+        Lθ = L*θtot,
+        I_t = H > Lθ,
+        I_c = (H > 0.0) && (H <= Lθ);
+        (I_c*(H/Lθ) + I_t)θtot
+    end
+end
 """
+    (fc::FreeWater)(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
+
 Implementation of "free water" freeze curve for any subsurface layer. Assumes that
 'state' contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θw), and liquid water content (θl).
 """
 @inline function (fc::FreeWater)(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
-    @inline function enthalpyinv(H, C, L, θtot)
-        let θtot = max(1.0e-8, θtot),
-            Lθ = L*θtot,
-            I_t = H > Lθ,
-            I_f = H <= 0.0;
-            (I_t*(H-Lθ) + I_f*H)/C
-        end
-    end
-    @inline function freezethaw(H, L, θtot)
-        let θtot = max(1.0e-8, θtot),
-            Lθ = L*θtot,
-            I_t = H > Lθ,
-            I_c = (H > 0.0) && (H <= Lθ);
-            I_c*(H/Lθ) + I_t
-        end
-    end
     @inbounds for i in 1:length(state.H)
-        θw = totalwater(sub, heat, state, i)
-        H = state.H[i]
-        L = heat.L
         # liquid water content = (total water content) * (liquid fraction)
-        liqfrac = freezethaw(H, L, θw)
-        state.θl[i] = θw*liqfrac
+        state.θl[i] = liquidwater(sub, heat, state, i)
         # update heat capacity
         state.C[i] = heatcapacity(sub, heat, state, i)
         # enthalpy inverse function
-        state.T[i] = enthalpyinv(H, state.C[i], L, θw)
+        state.T[i] = enthalpyinv(sub, heat, state, i)
         # set dHdT (a.k.a dHdT)
-        state.dHdT[i] = liqfrac > 0.0 ? 1e8 : 1/state.C[i]
+        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/state.C[i]
     end
     return nothing
 end
