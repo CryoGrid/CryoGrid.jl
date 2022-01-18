@@ -120,12 +120,11 @@ end
 @flattenable struct SFCCPreSolver{C} <: SFCCSolver
     cache::C | false
     Tmin::Float64 | false
-    Tmax::Float64 | false
     dH::Float64 | false
-    SFCCPreSolver(cache, Tmin, Tmax, dH) = new{typeof(cache)}(cache, Tmin, Tmax, dH)
-    function SFCCPreSolver(Tmin=-50.0, Tmax=50.0, dH=2e5)
+    SFCCPreSolver(cache, Tmin, dH) = new{typeof(cache)}(cache, Tmin, dH)
+    function SFCCPreSolver(Tmin=-50.0, dH=2e5)
         cache = SFCCPreSolverCache()
-        new{typeof(cache)}(cache, Tmin, Tmax, dH)
+        new{typeof(cache)}(cache, Tmin, dH)
     end
 end
 function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
