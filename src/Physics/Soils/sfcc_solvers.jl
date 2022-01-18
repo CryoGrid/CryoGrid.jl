@@ -112,20 +112,35 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
     end
     nothing
 end
+"""
+    SFCCPreSolver{TCache} <: SFCCSolver
 
-mutable struct SFCCPreSolverCache
-    f # H⁻¹ interpolant
-    SFCCPreSolverCache() = new()
-end
-@flattenable struct SFCCPreSolver{C} <: SFCCSolver
-    cache::C | false
+A fast SFCC "solver" which pre-builds an interpolant for the freeze curve in terms of enthalpy, θ(H).
+Note that this solver is **only valid when all freeze curve parameters are held constant** and will
+produce incorrect results otherwise.
+"""
+@flattenable struct SFCCPreSolver{TCache} <: SFCCSolver
+    cache::TCache | false
     Tmin::Float64 | false
     dH::Float64 | false
     SFCCPreSolver(cache, Tmin, dH) = new{typeof(cache)}(cache, Tmin, dH)
+    """
+        SFCCPreSolver(Tmin=-50.0, dH=2e5)
+
+    Constructs a new `SFCCPreSolver` with minimum temperature `Tmin` and integration step `dH`.
+    Enthalpy values below `H(Tmin)` under the given freeze curve will be extrapolated with a
+    constant/flat function. `dH` determines the step size used when integrating `dθdH`; smaller
+    values will produce a more accurate interpolant at the cost of storing more knots and slower
+    initialization. The default value of `dH=2e5` should be sufficient for most use-cases.
+    """
     function SFCCPreSolver(Tmin=-50.0, dH=2e5)
         cache = SFCCPreSolverCache()
         new{typeof(cache)}(cache, Tmin, dH)
     end
+end
+mutable struct SFCCPreSolverCache
+    f # H⁻¹ interpolant
+    SFCCPreSolverCache() = new()
 end
 function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
     L = heat.L
@@ -173,6 +188,3 @@ function (s::SFCCPreSolver)(soil::Soil, heat::Heat, state, _, _)
     ∇f = first ∘ ∇(s.cache.f)
     @. state.dHdT = 1 / ∇f.(state.H)
 end
-
-# θ = θT(T, θtot_val, α_val, n_val)
-#     1.0 / (hc(θ,θtot_val,θm_val,θo_val) + dθdT(T,θtot_val,α_val,n_val)*(T*hcp.cw + L))
