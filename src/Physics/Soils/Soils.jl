@@ -16,6 +16,7 @@ using ModelParameters
 using Parameters
 using Unitful
 
+import Interpolations
 import Flatten: @flattenable, flattenable
 
 export Soil, SoilParameterization, SoilCharacteristicFractions, SoilProfile, SoilType, Sand, Silt, Clay
@@ -93,7 +94,7 @@ porosity(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θ
 mineral(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θm}(), soil.para)
 organic(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θo}(), soil.para)
 
-export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver
+export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver, SFCCPreSolver
 include("soilheat.jl")
 
 end
