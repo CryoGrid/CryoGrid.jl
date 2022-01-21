@@ -37,7 +37,7 @@ include("state.jl")
 export Tile, withaxes, getstate
 include("tile.jl")
 
-export ParameterVector, LinearTrend, parameters
+export ParameterVector, LinearTrend, PiecewiseLinear, parameters
 include("params.jl")
 
 end

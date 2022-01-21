@@ -60,3 +60,15 @@ macro threaded(expr)
         end
     end)
 end
+"""
+    sym_str(val)
+
+Convenience macro, `sym"val"`, for creating a `Symbol` from `val`. Equivalent to `Symbol(val)`.
+Use in situations where normal Julia `:val` syntax is not possible, e.g. `sym"1"` instead of `Symbol(1)`
+or `sym"my.var"` instead of `Symbol("my.var")`.
+"""
+macro sym_str(val)
+    quote
+        Symbol($val)
+    end
+end
