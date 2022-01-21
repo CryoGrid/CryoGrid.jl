@@ -31,7 +31,7 @@ include("Drivers/Drivers.jl")
 using .Utils
 # Re-exported submodules
 @reexport using .Numerics
-@reexport using .Utils: convert_tspan
+@reexport using .Utils: convert_t, convert_tspan, @sym_str
 @reexport using .Physics
 @reexport using .Strat
 @reexport using .Drivers

@@ -1,9 +1,10 @@
 abstract type ParamTransform end
-
+# mapping
 struct ParamMapping{T,name,layer}
     transform::T
     ParamMapping(transform::T, name::Symbol, layer::Symbol) where {T<:ParamTransform} = new{T,name,layer}(transform)
 end
+# parameter array
 struct ParameterVector{T,TV,P,M} <: DenseArray{T,1}
     vals::TV # input/reparameterized param vector
     params::P # parameters grouped by layer and name
@@ -27,12 +28,16 @@ Base.show(io::IO, ::MIME"text/plain", rv::ParameterVector{T,<:Any,<:Any,Tuple{}}
 Base.show(io::IO, ::MIME"text/plain", rv::ParameterVector{T,<:Any,<:Any}) where {T} = println(io, "$(length(rv))-element ParameterVector{T} with $(length(mappings(rv))) mappings\n$(mappings(rv)):\n$(getfield(rv, :vals))")
 ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
+_paramval(x) = x
 _paramval(p::Param) = ustrip(p.val) # extracts value from Param type and strips units
 function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
-    function getparam(p)
+    type2nt(p::Param) = p
+    type2nt(obj) = (; filter(p -> isa(p[2], Param) || !isempty(p[2]), map(n -> Symbol(n) => type2nt(getfield(obj, n)), fieldnames(typeof(obj))))...)
+    getparam(x) = x
+    function getparam(p::AbstractVector)
         # currently, we assume only one variable of each name in each layer;
         # this could be relaxed in the future but will need to be appropriately handled
-        @assert length(p) == 1 "Found more than one parameter with name $var in $layer; this is not currently supported."
+        @assert length(p) == 1 "Found duplicate parameters in a layer: $p; this is not currently supported."
         return p[1]
     end
     m = Model(model)
@@ -40,7 +45,7 @@ function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTr
     mappedparams = nestedparams
     mappings = ParamMapping[]
     for (layer,(var,transform)) in transforms
-        @set! mappedparams[layer][var] = mapflat(getparam, groupparams(Model(transform), :fieldname); maptype=NamedTuple)
+        @set! mappedparams[layer][var] = mapflat(getparam, type2nt(transform); maptype=NamedTuple)
         push!(mappings, ParamMapping(transform, var, layer))
     end
     mappedarr = ComponentArray(mapflat(_paramval, mappedparams))
@@ -77,12 +82,17 @@ end
     end
 end
 # Transform implementations
+"""
+    LinearTrend{P} <: ParamTransform
+
+Applies a linear trend to a parameter `p` by reparameterizing it as: `p = p₁*t + p₀`
+"""
 @with_kw struct LinearTrend{P} <: ParamTransform
     slope::P = Param(0.0)
     intercept::P = Param(0.0)
     tstart::Float64 = 0.0
     tstop::Float64 = Inf; @assert tstop > tstart
-    period::Float64 = 1.0
+    period::Float64 = 1.0; @assert period > 0.0
     minval::Float64 = -Inf
     maxval::Float64 = Inf
 end
@@ -91,5 +101,40 @@ function transform(state, trend::LinearTrend)
         β = trend.slope / trend.period,
         α = trend.intercept;
         min(max(β*t + α, trend.minval), trend.maxval)
+    end
+end
+"""
+    PiecewiseLinear{N,Tb,Tv,Tl,I} <: ParamTransform
+
+Reparameterizes parameter `p` as `p = p₁δ₁t + ⋯ + pₖδₖt` where δₖ are indicators
+for when `tₖ₋₁ <= t <= tₖ`. To facilitate sampling and optimization, change points
+tᵢ are parameterized as bin widths, which should be strictly positive. `PiecewiseLinear`
+will normalize them and scale by the size of the time interval.
+"""
+@with_kw struct PiecewiseLinear{Nb,Tb,Nv,Tv} <: ParamTransform
+    bins::NTuple{Nb,Tb} = (1.0,); @assert Nb > 0; @assert all(bins .> 0.0)
+    values::NTuple{Nv,Tv} = (0.0,); @assert Nv == Nb+1 "need n+1 knots for n bins"
+    tstart::Float64 = 0.0; @assert isfinite(tstart)
+    tstop::Float64 = 1.0; @assert tstop > tstart; @assert isfinite(tstop)
+end
+function transform(state, pc::PiecewiseLinear)
+    function binindex(values::Tuple, st, en, x)
+        mid = Int(floor((st + en)/2))
+        if values[mid] >= x && en - st <= 1
+            return st
+        elseif values[mid] < x && en - st <= 1
+            return en-1
+        elseif values[mid] >= x
+            return binindex(values, st, mid, x)
+        else
+            return binindex(values, mid, en, x)
+        end
+    end
+    let tspan = pc.tstop - pc.tstart,
+        t = min(max(state.t - pc.tstart, zero(state.t)), tspan),
+        ts = (0.0, cumsum((pc.bins ./ sum(pc.bins)).*tspan)...),
+        vals = pc.values,
+        i = binindex(ts, 1, length(ts), t);
+        vals[i] + (vals[i+1] - vals[i])*(t - ts[i]) / (ts[i+1] - ts[i])
     end
 end
