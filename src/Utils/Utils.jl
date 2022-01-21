@@ -14,12 +14,12 @@ import CryoGrid
 import ExprTools
 import ForwardDiff
 
-export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded
+export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export dustrip, duconvert, applyunit
-export structiterate, getscalar, tuplejoin, convert_tspan
+export structiterate, getscalar, tuplejoin, convert_t, convert_tspan
 export Params
 
 # Convenience constants for units
@@ -84,17 +84,25 @@ Base.iterate(p::Params, state) = structiterate(p,state)
 
 getscalar(x::Number) = x
 getscalar(x::Number, i) = x
-getscalar(a::AbstractArray) = a[1]
+getscalar(a::AbstractArray) = begin @assert length(a) == 1; a[1] end
 getscalar(a::AbstractArray, i) = a[i]
 
+"""
+    convert_t(t::DateTime)
+    convert_t(t::Float64)
+
+Convenience method for converting between `Dates.DateTime` and solver time.
+"""
+convert_t(t::DateTime) = Dates.datetime2epochms(t) / 1000
+convert_t(t::Float64) = Dates.epochms2datetime(1000t)
 """
     convert_tspan(tspan::Tuple{DateTime,DateTime})
     convert_tspan(tspan::Tuple{Float64,Float64})
 
 Convenience method for converting between `Dates.DateTime` and solver time.
 """
-convert_tspan(tspan::NTuple{2,DateTime}) = Dates.datetime2epochms.(tspan) ./ 1000.0
-convert_tspan(tspan::NTuple{2,Float64}) = Dates.epochms2datetime.(tspan.*1000.0)
+convert_tspan(tspan::NTuple{2,DateTime}) = convert_t.(tspan)
+convert_tspan(tspan::NTuple{2,Float64}) = convert_t.(tspan)
 
 """
     argnames(f, choosefn=first)
