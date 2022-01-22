@@ -9,7 +9,6 @@ function finitediff!(∂x::AbstractVector, x::AbstractVector, Δ::AbstractVector
         @. ∂x = (x₂ - x₁) / Δ
     end
 end
-
 """
     lineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δ::AbstractVector, k::Number)
 
@@ -24,33 +23,8 @@ function lineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δ::AbstractV
         @. ∂y = k*((x₃ - x₂)/Δ₂ - (x₂-x₁)/Δ₁)/Δ₁
     end
 end
-
-
-@propagate_inbounds function _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
-    @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
-end
-@propagate_inbounds function _nonlineardiffusion!(
-    ∂y::AbstractVector{Float64},
-    x₁::AbstractVector{Float64},
-    x₂::AbstractVector{Float64},
-    x₃::AbstractVector{Float64},
-    k₁::AbstractVector{Float64},
-    k₂::AbstractVector{Float64},
-    Δx₁::AbstractVector{Float64},
-    Δx₂::AbstractVector{Float64},
-    Δk::AbstractVector{Float64},
-)
-    @turbo @. ∂y = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
-end
-
 """
-    nonlineardiffusion!(
-        ∂y::AbstractVector{Float64},
-        x::AbstractVector{Float64}, 
-        Δx::AbstractVector{Float64},
-        k::AbstractVector{Float64},
-        Δk::AbstractVector{Float64}
-    )
+    nonlineardiffusion!(∂y, x, Δx, k, Δk)
 
 Second order Laplacian with non-linear diffusion operator, `k`. Accelerated using `LoopVectorization.@turbo` for `Float64` vectors.
 """
@@ -62,8 +36,30 @@ function nonlineardiffusion!(∂y::AbstractVector, x::AbstractVector, Δx::Abstr
         k₂ = (@view k[2:end]),
         Δx₁ = (@view Δx[1:end-1]),
         Δx₂ = (@view Δx[2:end]);
-        _nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+        nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
     end
+end
+"""
+    nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+
+Scalar second order Laplacian with non-linear diffusion operator, `k`.
+"""
+nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk) = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
+@propagate_inbounds function nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+    @. ∂y = nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+end
+@propagate_inbounds function nonlineardiffusion!(
+    ∂y::AbstractVector{Float64},
+    x₁::AbstractVector{Float64},
+    x₂::AbstractVector{Float64},
+    x₃::AbstractVector{Float64},
+    k₁::AbstractVector{Float64},
+    k₂::AbstractVector{Float64},
+    Δx₁::AbstractVector{Float64},
+    Δx₂::AbstractVector{Float64},
+    Δk::AbstractVector{Float64},
+)
+    @turbo @. ∂y = nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
 end
 
 """
