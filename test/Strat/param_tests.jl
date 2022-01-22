@@ -13,14 +13,14 @@ using CryoGrid
        trend = LinearTrend(slope=0.1, intercept=0.5, tstart=0.0, tstop=1.0)
        @test CryoGrid.Strat.transform((t=2.0,), trend) ≈ 0.6
     end
-    @testset "PiecewiseConstant" begin
-        pc = PiecewiseLinear(bins=(1.0,), values=(0.0,1.0), tstart=0.0, tstop=1.0)
+    @testset "PiecewiseLinear" begin
+        pc = PiecewiseLinear(0.0, (1.0,1.0); tstart=0.0, tstop=1.0)
         @test CryoGrid.Strat.transform((t=-0.1,), pc) ≈ 0.0
         @test CryoGrid.Strat.transform((t=0.0,), pc) ≈ 0.0
         @test CryoGrid.Strat.transform((t=0.5,), pc) ≈ 0.5
         @test CryoGrid.Strat.transform((t=1.0,), pc) ≈ 1.0
         @test CryoGrid.Strat.transform((t=1.1,), pc) ≈ 1.0
-        pc = PiecewiseLinear(bins=(0.4,0.6), values=(1.0,0.5,0.0), tstart=0.0, tstop=1.0)
+        pc = PiecewiseLinear(1.0, (0.4,0.5), (0.6,0.0); tstart=0.0, tstop=1.0)
         @test CryoGrid.Strat.transform((t=-0.1,), pc) ≈ 1.0
         @test CryoGrid.Strat.transform((t=0.0,), pc) ≈ 1.0
         @test CryoGrid.Strat.transform((t=0.7,), pc) ≈ 0.25
