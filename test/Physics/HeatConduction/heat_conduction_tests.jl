@@ -32,7 +32,7 @@ include("../../types.jl")
 		Δk = Δ(x)
 		sub = TestGroundLayer()
 		heat = Heat()
-		bc = ConstantBC(Dirichlet, 0.0u"°C")
+		bc = ConstantBC(CryoGrid.Dirichlet, 0.0u"°C")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"J/s/m^3"
@@ -62,7 +62,7 @@ include("../../types.jl")
 			@test ∂H[end] < 0.0u"J/s/m^3"
 		end
 		@testset "Neumann boundary" begin
-			bc = ConstantBC(Neumann, -1.0u"J/m^3")
+			bc = ConstantBC(CryoGrid.Neumann, -1.0u"J/m^3")
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"J/s/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
@@ -93,7 +93,7 @@ end
 	f_analytic(x,t) = exp(-t*4π^2)*sin(2.0*π*x)
 	sub = TestGroundLayer()
 	heat = Heat()
-	bc = ConstantBC(Dirichlet, 0.0u"°C")
+	bc = ConstantBC(CryoGrid.Dirichlet, 0.0u"°C")
 	function dTdt(T,p,t)
 		dT = similar(T)u"J/s/m^3"
 		dT .= zero(eltype(dT))
