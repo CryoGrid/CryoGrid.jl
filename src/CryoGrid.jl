@@ -27,10 +27,10 @@ include("Diagnostics/Diagnostics.jl")
 include("Drivers/Drivers.jl")
 
 using .Numerics
+export Grid, cells, edges, subgridinds, Δ, volume, area, initializer
 using .Utils
+export convert_t, convert_tspan, @sym_str
 # Re-exported submodules
-@reexport using .Numerics: Grid, cells, edges, subgridinds, Δ, volume, area
-@reexport using .Utils: convert_t, convert_tspan, @sym_str
 @reexport using .Physics
 @reexport using .Strat
 @reexport using .Drivers
