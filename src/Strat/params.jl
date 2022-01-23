@@ -29,12 +29,12 @@ Base.show(io::IO, ::MIME"text/plain", rv::ParameterVector{T,<:Any,<:Any,Tuple{}}
 Base.show(io::IO, ::MIME"text/plain", rv::ParameterVector{T,<:Any,<:Any}) where {T} = println(io, "$(length(rv))-element ParameterVector{T} with $(length(mappings(rv))) mappings\n$(mappings(rv)):\n$(getfield(rv, :vals))")
 ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
+_paramval(x) = ustrip(x)
+_paramval(x::Param) = ustrip(x.val)
+_paramval(x::Tuple) = collect(x)
 function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     getparam(x) = x
     getparam(x::Union{<:AbstractVector,<:Tuple}) = length(x) == 1 ? getparam(x[1]) : Tuple(getparam.(x))
-    paramval(x) = ustrip(x)
-    paramval(x::Param) = ustrip(x.val)
-    paramval(x::Tuple) = collect(x)
     m = Model(model)
     nestedparams = mapflat(getparam, groupparams(m, :layer, :fieldname); maptype=NamedTuple)
     mappedparams = nestedparams
@@ -45,7 +45,7 @@ function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTr
         @set! mappedparams[layer][var] = mapflat(getparam, groupparams(m_transform, :transform, :fieldname); maptype=NamedTuple)
         push!(mappings, ParamMapping(transform, var, layer))
     end
-    mappedarr = ComponentArray(mapflat(paramval, mappedparams; maptype=NamedTuple))
+    mappedarr = ComponentArray(mapflat(_paramval, mappedparams; maptype=NamedTuple))
     return ParameterVector(mappedarr, mappedparams, mappings...)
 end
 @inline @generated function updateparams!(v::AbstractVector, model::Tile, u, du, t)
