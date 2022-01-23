@@ -1,9 +1,9 @@
 # Boundary condition type aliases
-const ConstantTemp = Constant{Dirichlet,Float"°C"}
-ConstantTemp(value::UFloat"K") = Constant(Dirichlet, dustrip(u"°C", value))
-ConstantTemp(value::UFloat"°C") = Constant(Dirichlet, dustrip(value))
-const GeothermalHeatFlux = Constant{Neumann,Float"J/s/m^2"}
-GeothermalHeatFlux(value::UFloat"J/s/m^2"=0.053xu"J/s/m^2") = Constant(Neumann, dustrip(value))
+const ConstantTemp = ConstantBC{Dirichlet,Float"°C"}
+ConstantTemp(value::UFloat"K") = ConstantBC(Dirichlet, dustrip(u"°C", value))
+ConstantTemp(value::UFloat"°C") = ConstantBC(Dirichlet, dustrip(value))
+const GeothermalHeatFlux = ConstantBC{Neumann,Float"J/s/m^2"}
+GeothermalHeatFlux(value::UFloat"J/s/m^2"=0.053xu"J/s/m^2") = ConstantBC(Neumann, dustrip(value))
 
 struct TemperatureGradient{E,F} <: BoundaryProcess
     T::F # temperature forcing
