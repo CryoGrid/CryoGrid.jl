@@ -12,8 +12,6 @@ using Reexport
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses, Coupled
-export BoundaryStyle, Dirichlet, Neumann
-export Callback, CallbackStyle
 include("types.jl")
 export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
 export boundaryflux, boundaryvalue, criterion, affect!, observe
@@ -28,10 +26,11 @@ include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 include("Drivers/Drivers.jl")
 
+using .Numerics
+export Grid, cells, edges, subgridinds, Δ, volume, area, initializer
 using .Utils
+export convert_t, convert_tspan, @sym_str
 # Re-exported submodules
-@reexport using .Numerics
-@reexport using .Utils: convert_t, convert_tspan, @sym_str
 @reexport using .Physics
 @reexport using .Strat
 @reexport using .Drivers

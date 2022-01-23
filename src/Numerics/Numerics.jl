@@ -38,7 +38,7 @@ struct UnitVolume <: Geometry end
 export ∇, Tabulated
 include("math.jl")
 
-export Grid, cells, edges, indexmap, subgridinds, Δ, volume, area
+export Grid, cells, edges, subgridinds, Δ, volume, area
 include("grid.jl")
 
 export Profile, profile2array, array2profile

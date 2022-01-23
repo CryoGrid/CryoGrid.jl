@@ -53,7 +53,7 @@ ConstructionBase.constructorof(::Type{Grid{S,G,Q,A}}) where {S,G,Q,A} = (geom,va
 Base.show(io::IO, grid::Grid{S,G}) where {S,G} = print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
 Base.show(io::IO, ::MIME{Symbol("text/plain")}, grid::Grid) = show(io, grid)
 
-function subgridinds(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R}
+function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     @assert interval.left <= interval.right "Invalid interval: $interval"
     vals = values(grid)
     # Determine indices which lie in the given interval

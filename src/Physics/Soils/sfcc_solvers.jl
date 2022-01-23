@@ -165,15 +165,17 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         Hmax = enthalpy(Tmax, C(Tmax), L, θ(Tmax)),
         dH = sfcc.solver.dH,
         Hs = Hmin:dH:Hmax;
-        θs = [θres]
-        Ts = [Tmin]
-        for _ in Hs[2:end]
-            θᵢ = θs[end]
-            Tᵢ = Ts[end]
+        θs = Vector{eltype(state.θl)}(undef, length(Hs))
+        θs[1] = θres
+        Ts = Vector{eltype(state.T)}(undef, length(Hs))
+        Ts[1] = Tmin
+        for i in 2:length(Hs)
+            θᵢ = θs[i-1]
+            Tᵢ = Ts[i-1]
             dTdH = 1.0 / (C(θᵢ) + dθdT(Tᵢ)*(Tᵢ*cw + L))
             dθdH = 1.0 / (1.0/dθdT(Tᵢ)*C(θᵢ)+Tᵢ*cw + L)
-            push!(θs, θᵢ + dH*dθdH)
-            push!(Ts, Tᵢ + dH*dTdH)
+            θs[i] = θᵢ + dH*dθdH
+            Ts[i] = Tᵢ + dH*dTdH
         end
         sfcc.solver.cache.f = Interpolations.extrapolate(
             Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
