@@ -26,9 +26,10 @@ include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 include("Drivers/Drivers.jl")
 
+using .Numerics
 using .Utils
 # Re-exported submodules
-@reexport using .Numerics
+@reexport using .Numerics: Grid, cells, edges, subgridinds, Δ, volume, area
 @reexport using .Utils: convert_t, convert_tspan, @sym_str
 @reexport using .Physics
 @reexport using .Strat
