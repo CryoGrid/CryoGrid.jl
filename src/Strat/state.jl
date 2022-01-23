@@ -24,7 +24,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline function LayerState(vs::VarStates, zs::NTuple{2,Tz}, u, du, t, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {Tz,layername,iip}
+@inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {layername,iip}
     z_inds = subgridinds(edges(vs.grid), zs[1]..zs[2])
     return LayerState(
         _makegrids(Val{layername}(), getproperty(vs.vars, layername), vs, z_inds),
@@ -58,9 +58,15 @@ function Base.getproperty(state::TileState, sym::Symbol)
     end
 end
 @inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inplace}()) where {names,iip}
-    layerstates = (:(LayerState(vs, (ustrip(bounds[$i][1]), ustrip(bounds[$i][2])), u, du, t, Val{$(QuoteNode(names[i]))}(), Val{iip}())) for i in 1:length(names))
+    layerstates = (
+        quote
+            bounds_i = (ustrip(bounds[$i][1]), ustrip(bounds[$i][2]))
+            LayerState(vs, bounds_i, u, du, t, Val{$(QuoteNode(names[i]))}(), Val{iip}())
+        end
+        for i in 1:length(names)
+    )
     quote
-        bounds = boundarypairs(zs, vs.grid[end])
+        bounds = boundarypairs(zs, convert(eltype(zs), vs.grid[end]))
         return TileState(
             vs.grid,
             NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),

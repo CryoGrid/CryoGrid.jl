@@ -12,8 +12,8 @@ struct VarStates{names,griddvars,TU,TD,TV,DF,DG}
     griddiag::NamedTuple{griddvars,DG} # on-grid non-prognostic variables
     gridcache::Dict{ClosedInterval{Int},TD} # grid cache; indices -> subgrid
 end
-@generated function getvar(::Val{name}, vs::VarStates{layers,griddvars,TU,TD,TV}, u::TU, du::Union{Nothing,TU}=nothing) where
-    {name,layers,griddvars,T,A,pax,TU<:ComponentVector{T,A,Tuple{Axis{pax}}},TD,TV}
+@generated function getvar(::Val{name}, vs::VarStates{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
+    pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u)))
     dnames = map(n -> Symbol(:d,n), keys(pax))
     if name ∈ griddvars
         quote
