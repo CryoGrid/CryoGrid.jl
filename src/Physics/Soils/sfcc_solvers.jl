@@ -133,7 +133,7 @@ produce incorrect results otherwise.
     values will produce a more accurate interpolant at the cost of storing more knots and slower
     initialization. The default value of `dH=2e5` should be sufficient for most use-cases.
     """
-    function SFCCPreSolver(Tmin=-50.0, dH=2e5)
+    function SFCCPreSolver(;Tmin=-50.0, dH=2e5)
         cache = SFCCPreSolverCache()
         new{typeof(cache)}(cache, Tmin, dH)
     end
@@ -154,11 +154,12 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         θsat = params[3],
         θtot = params[4],
         args = params[5:end],
-        θ(T) = sfcc.f(T, Tₘ, θres, θsat, θtot, args...),
-        dθdT(T) = sfcc.∇f((T, Tₘ, θres, θsat, θtot, args...)),
-        C(T) = heatcapacity(soil, θtot, θ(T), mineral(soil), organic(soil)),
         cw = soil.hc.cw,
         L = heat.L,
+        θ(T) = sfcc.f(T, Tₘ, θres, θsat, θtot, args...),
+        C(T) = heatcapacity(soil, θtot, θ(T), mineral(soil), organic(soil)),
+        dθdT(T) = sfcc.∇f((T, Tₘ, θres, θsat, θtot, args...)),
+        dTdH(T) = 1.0 / (C(T) + dθdT(T)*(T*cw + L)),
         Tmin = sfcc.solver.Tmin,
         Tmax = Tₘ,
         Hmin = enthalpy(Tmin, C(Tmin), L, θ(Tmin)),
@@ -166,17 +167,16 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         dH = sfcc.solver.dH,
         Hs = Hmin:dH:Hmax;
         θs = Vector{eltype(state.θl)}(undef, length(Hs))
-        θs[1] = θres
+        θs[1] = θ(Tmin)
         Ts = Vector{eltype(state.T)}(undef, length(Hs))
         Ts[1] = Tmin
         for i in 2:length(Hs)
-            θᵢ = θs[i-1]
-            Tᵢ = Ts[i-1]
-            dTdH = 1.0 / (C(θᵢ) + dθdT(Tᵢ)*(Tᵢ*cw + L))
-            dθdH = 1.0 / (1.0/dθdT(Tᵢ)*C(θᵢ)+Tᵢ*cw + L)
-            θs[i] = θᵢ + dH*dθdH
-            Ts[i] = Tᵢ + dH*dTdH
+            Tᵢ₋₁ = Ts[i-1]
+            Tᵢ = Tᵢ₋₁ + dH*dTdH(Tᵢ₋₁)
+            Ts[i] = Tᵢ
+            θs[i] = θ(Tᵢ)
         end
+        @assert θs[end] ≈ θtot "Numerical integration failed: expected saturation $θtot but got $(θs[end])"
         sfcc.solver.cache.f = Interpolations.extrapolate(
             Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
             Interpolations.Flat()
