@@ -5,20 +5,21 @@ struct CFLStepLimiter{TTile,A}
 end
 function (cfl::CFLStepLimiter{<:Tile,<:AbstractArray})(u,p,t)
     let Δt = cfl.Δt,
+        cfl! = Drivers.cfl!(Heat),
         Δx = dustrip(Δ(cfl.tile.grid)),
         dHdT = getvar(:dHdT, cfl.tile, u), # apparent heat capacity
         kc = getvar(:kc, cfl.tile, u); # thermal cond. at grid centers
-        @. Δt = Utils.adstrip(Δx^2 * dHdT / kc)
+        cfl!(Δt, Δx, dHdT, kc)
         Δt_min = minimum(Δt)
         IfElse.ifelse(isfinite(Δt_min) && Δt_min > 0, Δt_min, cfl.default_dt)
     end
 end
 function (cfl::CFLStepLimiter{<:Tile,Nothing})(u,p,t)
-    let Δt = cfl.Δt,
+    let cfl = Drivers.cfl(Heat),
         Δx = dustrip(Δ(cfl.tile.grid)),
         dHdT = getvar(:dHdT, cfl.tile, u), # apparent heat capacity
         kc = getvar(:kc, cfl.tile, u); # thermal cond. at grid centers
-        Δt = Utils.adstrip(Δx^2 * dHdT / kc)
+        Δt = cfl(Δt, Δx, dHdT, kc)
         Δt_min = minimum(Δt)
         IfElse.ifelse(isfinite(Δt_min) && Δt_min > 0, Δt_min, cfl.default_dt)
     end

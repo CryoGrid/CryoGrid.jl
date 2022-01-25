@@ -24,7 +24,6 @@ include("Physics/Physics.jl")
 include("Strat/Strat.jl")
 include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
-include("Drivers/Drivers.jl")
 
 using .Numerics
 export Grid, cells, edges, subgridinds, Δ, volume, area, initializer
@@ -33,7 +32,6 @@ export convert_t, convert_tspan, @sym_str
 # Re-exported submodules
 @reexport using .Physics
 @reexport using .Strat
-@reexport using .Drivers
 @reexport using .InputOutput
 @reexport using .Diagnostics
 
@@ -43,7 +41,9 @@ export convert_t, convert_tspan, @sym_str
 @reexport using IntervalSets
 @reexport using Unitful
 
-# Include Presets submodule last to allow dependence on other submodules.
+# include dependent submodules
+include("Drivers/Drivers.jl")
+@reexport using .Drivers
 include("Presets/Presets.jl")
 
 end # module
