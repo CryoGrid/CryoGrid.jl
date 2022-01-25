@@ -1,8 +1,36 @@
+module DiffEq
+
+using ..Drivers
+using CryoGrid: Strat, SubSurface, CoupledProcesses, Callback, CallbackStyle, Discrete, Continuous
+using CryoGrid.InputOutput
+using CryoGrid.Numerics
+using CryoGrid.Physics: Heat
+using CryoGrid.Utils
+
+import CryoGrid: variables, callbacks, criterion, affect!
+import CryoGrid.Strat: Tile, Stratigraphy, StratComponent
+
+using ComponentArrays
+using Dates
+using DimensionalData
+using Flatten
+using IfElse
+using IntervalSets
+using ModelParameters
+using LinearAlgebra
+using Reexport
+using Unitful
+
 using DiffEqBase
 using DiffEqCallbacks
 
 @reexport using OrdinaryDiffEq
 @reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
+
+export CryoGridProblem
+
+export CFLStepLimiter
+include("steplimiters.jl")
 
 """
 Specialized problem type for CryoGrid `ODEProblem`s.
@@ -206,4 +234,6 @@ _diffeqcallback(::Continuous, ::Val{name}, cb::Callback, layer, process) where n
     _affectfunc(Val{name}(), cb, layer, process),
     # todo: initialize and finalize?
 )
-_getcallbacks(component::StratComponent{L,P,name}) where {L,P,name} = Tuple(_diffeqcallback(CallbackStyle(callback), Val{name}(), callback, component.layer, proc) for proc in component.process for callback in callbacks(component.layer, proc))
+_getcallbacks(component::StratComponent{L,P,name}) where {L,P,name} = Tuple(_diffeqcallback(CallbackStyle(callback), Val{name}(), callback, component.layer, proc) for proc in component.processes for callback in callbacks(component.layer, proc))
+
+end

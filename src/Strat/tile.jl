@@ -141,7 +141,7 @@ is only executed during compilation and will not appear in the compiled version.
         @>> quote
         $nstate = state.$n
         $nlayer = components(strat)[$i].layer
-        $nprocess = components(strat)[$i].process
+        $nprocess = components(strat)[$i].processes
         end push!(expr.args)
     end
     # Diagnostic step
@@ -237,9 +237,9 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
         $n1state = state.$n1
         $n2state = state.$n2
         $n1layer = components(strat)[$i].layer
-        $n1process = components(strat)[$i].process
+        $n1process = components(strat)[$i].processes
         $n2layer = components(strat)[$(i+1)].layer
-        $n2process = components(strat)[$(i+1)].process
+        $n2process = components(strat)[$(i+1)].processes
         end push!(expr.args)
         if i == 1
             # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls
@@ -310,19 +310,16 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
-"""
-Gets the 
-"""
 function getstate(tile::Tile{TStrat,TGrid,TStates,iip}, _u, _du, t) where {TStrat,TGrid,TStates,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
-    return TileState(tile.strat, tile.state, u, du, t, Val{iip}())
+    return TileState(tile.state, map(b -> ustrip(b.val), boundaries(tile.strat)), u, du, t, Val{iip}())
 end
 """
 Collects and validates all declared variables (`Var`s) for the given strat component.
 """
 function _collectvars(@nospecialize(comp::StratComponent))
-    layer, process = comp.layer, comp.process
+    layer, process = comp.layer, comp.processes
     all_vars = variables(layer, process)
     @debug "Building layer $(componentname(comp)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters

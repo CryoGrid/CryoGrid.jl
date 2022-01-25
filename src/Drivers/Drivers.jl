@@ -1,29 +1,14 @@
 """
-Module containing types and functions for enabling time-integration of a CryoGrid ground tile.
+Module containing types and functions for enabling time-integration of a CryoGrid `Tile` model.
 """
 module Drivers
 
-using CryoGrid: Strat, SubSurface, CoupledProcesses, Callback, CallbackStyle, Discrete, Continuous
-using CryoGrid.InputOutput
-using CryoGrid.Numerics
-using CryoGrid.Physics: Heat
+using CryoGrid
 using CryoGrid.Utils
 
-import CryoGrid: variables, callbacks, criterion, affect!
-import CryoGrid.Strat: Tile, Stratigraphy, StratComponent
-
-using ComponentArrays
-using Dates
-using DimensionalData
-using Flatten
-using IfElse
-using IntervalSets
-using ModelParameters
-using LinearAlgebra
 using Reexport
-using Unitful
 
-export DefaultJac, TridiagJac, JacobianStyle, HeatOnlyTile
+export JacobianStyle, DefaultJac, TridiagJac, HeatOnlyTile
 
 """
     JacobianStyle
@@ -45,10 +30,20 @@ JacobianStyle(::Type{<:Tile}) = DefaultJac()
 const HeatOnlyTile = Tile{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CoupledProcesses{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
 JacobianStyle(::Type{<:HeatOnlyTile}) = TridiagJac()
 
-# DiffEq/SciML driver
-export CryoGridProblem
-include("diffeq.jl")
-export CFLStepLimiter
-include("courant_step.jl")
+# CFL conditions
+"""
+    cfl(::Type{<:SubSurfaceProcess})
+    cfl!(::Type{<:SubSurfaceProcess})
+
+Returns a function of the form (Δx, args...) -> Δt (or in-place, (Δt, Δx, args...) -> Δt)
+which comptues the CFL condition with process-specific parameters `args`.
+"""
+cfl(::Type{<:SubSurfaceProcess}) = error("not implemented")
+cfl(::Type{<:Heat}) = (Δx, dHdT, kc) -> Utils.adstrip(Δx^2 * dHdT / kc)
+cfl!(::T) where {T<:SubSurfaceProcess} = (Δt, Δx, dHdT, kc) -> @. Δt = cfl(T)(Δx, dHdT, kc)
+
+# DiffEq/SciML driver (possibly should be a soft dependency with Requires.jl)
+include("DiffEq/DiffEq.jl")
+@reexport using .DiffEq
 
 end
