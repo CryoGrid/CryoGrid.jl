@@ -3,13 +3,13 @@
 
 Represents a single component (layer + processes) in the stratigraphy.
 """
-struct StratComponent{TLayer,TProcess,name}
+struct StratComponent{TLayer,TProcesses,name}
     layer::TLayer
-    process::TProcess
-    StratComponent(name::Symbol, layer::TLayer, process::TProcess) where {TLayer<:Layer,TProcess<:CoupledProcesses} =
-        new{TLayer,TProcess,name}(layer,process)
+    processes::TProcesses
+    StratComponent(name::Symbol, layer::TLayer, processes::TProcesses) where {TLayer<:Layer,TProcesses<:CoupledProcesses} =
+        new{TLayer,TProcesses,name}(layer,processes)
 end
-ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcess,name}}) where {TLayer,TProcess,name} = (layer,process) -> StratComponent(name, layer, process)
+ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcesses,name}}) where {TLayer,TProcesses,name} = (layer,processes) -> StratComponent(name, layer, processes)
 """
 Get the name of the given stratigraphy node.
 """
@@ -52,20 +52,30 @@ components(strat::Stratigraphy) = getfield(strat, :components)
 boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
 boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), z_bottom)
 boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
+componentnames(strat::Stratigraphy) = map(componentname, components(strat))
 componenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
-Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
+Base.keys(strat::Stratigraphy) = componentnames(strat)
+Base.values(strat::Stratigraphy) = components(strat)
+@inline Base.propertynames(strat::Stratigraphy) = Base.keys(strat)
+@inline Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
+@inline Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
+@generated Base.getindex(strat::Stratigraphy{N,TC}, ::Val{sym}) where {N,TC,sym} = :(components(strat)[$(findfirst(T -> componentname(T) == sym, TC.parameters))])
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(components(strat))
 Base.length(strat::Stratigraphy) = length(components(strat))
 Base.getindex(strat::Stratigraphy, i::Int) = components(strat)[i]
-Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}]
-Base.getindex(strat::Stratigraphy, ::Val{sym}) where {sym} = strat[Val{sym}]
-@generated Base.getindex(strat::Stratigraphy{N,TC}, ::Type{Val{sym}}) where {N,TC,sym} = :(components(strat)[$(findfirst(T -> componentname(T) == sym, TC.parameters))])
 Base.iterate(strat::Stratigraphy) = (components(strat)[1],components(strat)[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
 Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod(("$b => $n, " for (n,b) in zip(components(strat),boundaries(strat)))))")
-
+# ConstructionBase
+ConstructionBase.getproperties(strat::Stratigraphy) = (;map(Pair, Base.keys(strat), Base.values(strat))...)
+function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)
+    components_patched = map(components(strat)) do comp
+        get(patch, componentname(comp), comp)
+    end
+    return Stratigraphy(boundaries(strat), components_patched)
+end
 """
 Convenience macro for defining stratigraphies with multiple subsurface layers.
 """
