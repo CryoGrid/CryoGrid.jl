@@ -176,7 +176,6 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
             Ts[i] = Tᵢ
             θs[i] = θ(Tᵢ)
         end
-        @assert θs[end] ≈ θtot "Numerical integration failed: expected saturation $θtot but got $(θs[end])"
         sfcc.solver.cache.f = Interpolations.extrapolate(
             Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
             Interpolations.Flat()
