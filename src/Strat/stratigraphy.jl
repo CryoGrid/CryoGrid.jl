@@ -35,6 +35,7 @@ struct Stratigraphy{N,TComponents,Q}
     Stratigraphy(top::Pair{Q,<:StratComponent{Top}}, sub::Pair{Q,<:StratComponent{<:SubSurface}},
         bot::Pair{Q,<:StratComponent{Bottom}}) where {Q<:DistQuantity} = Stratigraphy(top,(sub,),bot)
     function Stratigraphy(
+        # use @nospecialize to (hopefully) reduce compilation overhead
         @nospecialize(top::Pair{Q,<:StratComponent{Top}}),
         @nospecialize(sub::Tuple{Vararg{Pair{Q,<:StratComponent{<:SubSurface}}}}),
         @nospecialize(bot::Pair{Q,<:StratComponent{Bottom}})

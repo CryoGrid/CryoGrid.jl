@@ -1,12 +1,6 @@
 abstract type VarInit{varname} end
 Numerics.varname(::VarInit{varname}) where {varname} = varname
-"""
-    init!(x::AbstractVector, init::VarInit, args...)
-
-Initializes state variable `x` using initializer `init` and implementation-specific additional
-arguments.
-"""
-init!(x::AbstractVector, init::VarInit, args...) = error("not implemented")
+ConstructionBase.constructorof(::Type{T}) where {var,T<:VarInit{var}} = (args...) -> T.name.wrapper(var, args...)
 """
     ConstantInit{varname,T} <: VarInit
 
@@ -16,26 +10,29 @@ struct ConstantInit{varname,T} <: VarInit{varname}
     value::T
     ConstantInit(varname::Symbol, value::T) where {T} = new{varname,T}(value)
 end
-init!(x::AbstractVector, init::ConstantInit) = @. x = init.value
+(init::ConstantInit)(x::AbstractVector, args...) = @. x = init.value
 """
-    InterpInit{varname,P,I,E} <: VarInit
+    InterpInit{varname,P,I,E} <: VarInit{varname}
 
-Init for on-grid variables that takes a `Profile` as initial values
-and interpolates along the model grid. The interpolation mode is linear by default,
-but can also be quadratic, cubic, or any other `Gridded` interpolation mode supported
+Initializer for on-grid variables that takes a `Profile` as initial values and interpolates along the model grid.
+The interpolation mode is linear by default, but can also be any other `Gridded` interpolation mode supported
 by `Interpolations.jl`.
 """
 struct InterpInit{varname,P,I,E} <: VarInit{varname}
     profile::P
     interp::I
     extrap::E
-    InterpInit(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp)
+    InterpInit(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
-function init!(x::AbstractVector, init::InterpInit, grid::AbstractVector)
-    z = collect(map(dustrip, init.profile.depths))
-    f = extrapolate(interpolate((z,), collect(map(dustrip, init.profile.values)), Gridded(init.interp)), init.extrap)
+function (init::InterpInit)(x::AbstractVector, grid::AbstractVector, args...)
+    z = collect(map(knot -> dustrip(knot.depth), init.profile.knots))
+    f = extrapolate(interpolate((z,), collect(map(knot -> dustrip(knot.value), init.profile.knots)), Gridded(init.interp)), init.extrap)
     @. x = f(grid)
 end
+# automatic partitioning of profile based on interval
+Base.getindex(init::InterpInit{var}, itrv::Interval) where var = InterpInit(var, init.profile[itrv], init.interp, init.extrap)
+# concatenation (violations of monotonicity are not checked...)
+Base.cat(init1::InterpInit{var,P1,I,E}, init2::InterpInit{var,P2,I,E}; dims=1) where {var,P1,P2,I,E} = InterpInit(var, Profile(tuplejoin(init1.profile.knots, init2.profile.knots)), init1.interp, init1.extrap)
 """
     initializer(varname::Symbol, value::T) where {T} => ConstantInit
     initializer(varname::Symbol, profile::Profile, interp=Linear(), extrap=Flat()) => InterpInit

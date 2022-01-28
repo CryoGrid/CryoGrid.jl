@@ -42,13 +42,14 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # get preset soil and initial temperature profile for Samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
+# initializer for temperature
+initT = initializer(:T, tempprofile)
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), soilprofile)
+model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), soilprofile, initT)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = parameters(model)
-initT = initializer(:T, tempprofile)
-u0 = initialcondition!(model, tspan, p, initT)
+u0, du0 = initialcondition!(model, tspan, p)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 # solve discretized system, saving every 6 hours;

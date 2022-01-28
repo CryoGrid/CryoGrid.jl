@@ -193,13 +193,13 @@ is only executed during compilation and will not appear in the compiled version.
     return expr
 end
 """
-    initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::AbstractVector, initializers::VarInit...)
-    initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, initializers::VarInit...)
+    initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::AbstractVector)
+    initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector)
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), _p, args...)
-@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, _p::AbstractVector, initializers::Numerics.VarInit...) where {TStrat,TGrid,TStates,iip,obsv}
+initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), _p)
+@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, _p::AbstractVector) where {TStrat,TGrid,TStates,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -211,19 +211,6 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
     strat = Flatten.reconstruct(tile.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
     state = TileState(tile.state, boundaries(strat), u, du, tspan[1], Val{iip}())
     end push!(expr.args)
-    # Call initializers
-    for i in 1:N
-        for j in 1:length(initializers)
-            @>> quote
-            let layerstate = state[$i],
-                init = initializers[$j];
-                if haskey(layerstate.states, varname(init))
-                    initvar!(layerstate, strat, init)
-                end
-            end
-            end push!(expr.args)
-        end
-    end
     # Iterate over layers
     for i in 1:N-1
         n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
@@ -254,18 +241,10 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
         end push!(expr.args)
     end
     @>> quote
-    return u
+    return u, du
     end push!(expr.args)
     return expr
 end
-"""
-    initvar!(state::LayerState, ::Stratigraphy, init::VarInit{varname}) where {varname}
-    initvar!(state::LayerState, ::Stratigraphy, init::InterpInit{varname})
-
-Calls the initializer for state variable `varname`.
-"""
-initvar!(state::LayerState, ::Stratigraphy, init::Numerics.VarInit{varname}) where {varname} = init!(state[varname], init)
-initvar!(state::LayerState, ::Stratigraphy, init::Numerics.InterpInit{varname}) where {varname} = init!(state[varname], init, state.grids[varname])
 """
     getvar(name::Symbol, tile::Tile, u)
     getvar(::Val{name}, tile::Tile, u)

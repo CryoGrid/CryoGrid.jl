@@ -70,6 +70,7 @@ Initial condition for heat conduction (all state configurations) on soil layer w
 """
 function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
     initialcondition!(soil, state)
+    initialcondition!(heat, state)
     initialcondition!(soil, heat, freezecurve(heat), state)
 end
 """
@@ -77,6 +78,7 @@ Initial condition for heat conduction (all state configurations) on soil layer w
 """
 function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
     initialcondition!(soil, state)
+    initialcondition!(heat, state)
     L = heat.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
