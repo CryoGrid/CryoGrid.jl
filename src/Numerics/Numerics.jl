@@ -41,7 +41,7 @@ include("math.jl")
 export Grid, cells, edges, subgridinds, Δ, volume, area
 include("grid.jl")
 
-export Profile, profile2array, array2profile
+export Profile, ProfileKnot
 include("profile.jl")
 
 export Var, Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
