@@ -22,19 +22,19 @@ export FreeWater, FreezeCurve, freezecurve
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
 
-TemperatureProfile(pairs::Pair{<:DistQuantity,<:TempQuantity}...) =
-    Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]),pairs)...)
+TemperatureProfile(pairs::Pair{<:DistQuantity,<:TempQuantity}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]),pairs)...)
     
 abstract type HeatImpl end
 struct Enthalpy <: HeatImpl end
 struct Temperature <: HeatImpl end
 
-@with_kw struct Heat{F<:FreezeCurve,S} <: SubSurfaceProcess
+@with_kw struct Heat{F<:FreezeCurve,TSp,TInit} <: SubSurfaceProcess
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
-    L::Float"J/m^3" = ρ*Lsl             #[J/m^3] (specific latent heat of fusion)
-    freezecurve::F = FreeWater()        # freeze curve, defautls to free water fc
-    sp::S = Enthalpy()                  # specialization
+    L::Float"J/m^3" = ρ*Lsl #[J/m^3] (specific latent heat of fusion)
+    freezecurve::F = FreeWater() # freeze curve, defautls to free water fc
+    init::TInit = ConstantInit(:T, -1.0u"°C") # initializer
+    sp::TSp = Enthalpy() # specialization
 end
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Union{Symbol,Tuple{Vararg{Symbol}}}; kwargs...) = Heat(Val{var}(); kwargs...)

@@ -14,21 +14,21 @@ export SoilHeatColumn, SamoylovDefault
 include("presetgrids.jl")
 
 """
-    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInit; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
-function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization};
-    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {N,D,F<:FreezeCurve}
+function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInit;
+    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => top(upperbc),
-        Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar,freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
+        Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar, init=init, freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
         1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
     )
     Tile(strat, grid, chunksize=chunksize)
 end
-SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile{N,D,<:SoilParameterization}; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {N,D,F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile; grid=grid, freezecurve=freezecurve)
+SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInit; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile, init; grid=grid, freezecurve=freezecurve)
 
 Forcings = (
     Samoylov_ERA5_fitted_daily_1979_2020 = Resource("samoylov_era5_fitted_daily_1979-2020", "json", "https://nextcloud.awi.de/s/DSx3BWsfjCdy9MF"),
@@ -50,9 +50,10 @@ const SamoylovDefault = (
     ),
     tempprofile = TemperatureProfile(
         0.0u"m" => -1.0u"°C",
+        0.2u"m" => -1.0u"°C",
         2.0u"m" => -1.0u"°C",
         5.0u"m" => -3.0u"°C",
-        10.0u"m" => -6.0u"°C",
+        9.5u"m" => -6.0u"°C",
         25.0u"m" => -9.0u"°C",
         100.0u"m" => -9.0u"°C",
         1000.0u"m" => 10.2u"°C",

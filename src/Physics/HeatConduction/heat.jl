@@ -12,12 +12,14 @@ Discrete inverse enthalpy function given H, C, L, and θ.
 """
 @inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
+    totalwater(sub::SubSurface)
     totalwater(sub::SubSurface, heat::Heat, state)
     totalwater(sub::SubSurface, heat::Heat, state, i)
 
 Retrieves the total water content for the given layer at grid cell `i`, if specified.
 Defaults to using the scalar total water content defined on layer `sub`.
 """
+@inline totalwater(sub::SubSurface) = error("totalwater not defined for $(typeof(sub))")
 @inline totalwater(sub::SubSurface, heat::Heat, state) = totalwater(sub)
 @inline totalwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(totalwater(sub, heat, state), i)
 """
@@ -130,6 +132,7 @@ _variables(::Heat) = (
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
 )
+initialcondition!(heat::Heat, state) = heat.init(state.T, state.grids.T)
 """ Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
 function diagnosticstep!(sub::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable

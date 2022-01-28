@@ -34,9 +34,10 @@ Sin  = TimeSeriesForcing(forcings.data.Sin, forcings.timestamps, :Sin);
 z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
+initT = initializer(:T, tempprofile)
 strat = Stratigraphy(
     -2.0u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
-    Tuple(z => subsurface(:soil1, Soil(para=para), Heat(:H, freezecurve=SFCC(DallAmico()))) for (z,para) in soilprofile),
+    Tuple(z => subsurface(:soil1, Soil(para=para), Heat(:H, init=init, freezecurve=SFCC(DallAmico()))) for (z,para) in soilprofile),
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 grid = Grid(gridvals);
@@ -44,8 +45,7 @@ model = Tile(strat, grid);
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = parameters(model)
-initT = initializer(:T, tempprofile)
-u0 = initialcondition!(model, tspan, p, initT)
+u0, du0 = initialcondition!(model, tspan, p)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 # solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution

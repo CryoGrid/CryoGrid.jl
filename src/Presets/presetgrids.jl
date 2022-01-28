@@ -40,6 +40,15 @@ const DefaultGrid_20cm = Grid(vcat([
         ]...
     )u"m"
 )
+const DefaultGrid_50cm = Grid(vcat([
+            0.0:0.5:20...,
+            21:1:30...,
+            35:5:50...,
+            60:10:100...,
+            200:100:1000...
+        ]...
+    )u"m"
+)
 const DefaultGrid_1m = Grid(vcat([
             0.0:1:30...,
             35:5:50...,
