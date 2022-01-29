@@ -131,9 +131,9 @@ produce incorrect results otherwise.
     Enthalpy values below `H(Tmin)` under the given freeze curve will be extrapolated with a
     constant/flat function. `dH` determines the step size used when integrating `dθdH`; smaller
     values will produce a more accurate interpolant at the cost of storing more knots and slower
-    initialization. The default value of `dH=2e5` should be sufficient for most use-cases.
+    initialization. The default value of `dH=1e5` should be sufficient for most use-cases.
     """
-    function SFCCPreSolver(;Tmin=-50.0, dH=2e5)
+    function SFCCPreSolver(;Tmin=-50.0, dH=1e5)
         cache = SFCCPreSolverCache()
         new{typeof(cache)}(cache, Tmin, dH)
     end

@@ -16,6 +16,7 @@ using Interpolations
 using IntervalSets
 using LinearAlgebra
 using LoopVectorization
+using Parameters
 using RuntimeGeneratedFunctions
 using Unitful
 using StructTypes
@@ -49,6 +50,7 @@ struct Profile{N,TKnots}
     Profile(pairs::Pair{D}...) where {D} = Profile(pairs)
 end
 Flatten.flattenable(::Type{<:ProfileKnot}, ::Type{Val{:depth}}) = false
+Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:Number} = false
 Base.length(::Profile{N}) where N = N
 Base.iterate(profile::Profile) = iterate(profile.knots)
 Base.iterate(profile::Profile, state) = iterate(profile.knots, state)
@@ -73,7 +75,7 @@ include("varstates.jl")
 
 include("discretize.jl")
 
-export ConstantInit, InterpInit, initializer, init!
+export ConstantInitializer, InterpInitializer, initializer, init!
 include("init.jl")
 
 end
