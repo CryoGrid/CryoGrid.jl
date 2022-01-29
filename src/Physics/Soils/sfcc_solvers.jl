@@ -176,6 +176,7 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
             Ts[i] = Tᵢ
             θs[i] = θ(Tᵢ)
         end
+        θs[end] ≈ θtot || @warn "Numerical integration of freeze curve may be inaccurate: $(θs[end]) != $θsat"
         sfcc.solver.cache.f = Interpolations.extrapolate(
             Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
             Interpolations.Flat()

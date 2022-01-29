@@ -197,7 +197,7 @@ function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, s
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
     @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
-    dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
+    @log dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
     @inbounds ssub.dH[1] += dH_upper
     return nothing # ensure no allocation
 end
@@ -209,7 +209,7 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
     @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
-    dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @log dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
     @inbounds ssub.dH[end] += dH_lower
     return nothing # ensure no allocation
 end

@@ -31,7 +31,7 @@ ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
 _paramval(x) = ustrip(x)
 _paramval(x::Param) = ustrip(x.val)
-_paramval(x::Tuple) = collect(x)
+_paramval(x::Tuple) = collect(_paramval.(x))
 function parameters(tile::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     getparam(x) = x
     getparam(x::Union{<:AbstractVector,<:Tuple}) = length(x) == 1 ? getparam(x[1]) : Tuple(getparam.(x))
