@@ -21,10 +21,11 @@ using ComponentArrays
             @test θl > 0.0 && θl < 1.0
         end
         @testset "Newton solver checks" begin
-            tol = 0.01
+            abstol = 1e-2
+            reltol = 1e-4
             γ = 0.1
             f = McKenzie()
-            sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
+            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
             heat = Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
@@ -38,7 +39,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
@@ -53,7 +54,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
@@ -68,7 +69,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
         end
     end
@@ -85,10 +86,11 @@ using ComponentArrays
             @test θl > 0.0 && θl < 1.0
         end
         @testset "Newton solver checks" begin
-            tol = 0.01
+            abstol = 1e-2
+            reltol = 1e-4
             δ = 0.1
             f = Westermann()
-            sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
+            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
             heat = Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
@@ -102,7 +104,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Right tail" begin
                 T = [5.0]
@@ -115,7 +117,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Near zero" begin
                 T = [-0.05]
@@ -128,7 +130,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
         end
     end
@@ -145,13 +147,14 @@ using ComponentArrays
             @test θl > 0.0 && θl < 1.0
         end
         @testset "Newton solver checks" begin
-            tol = 0.01
+            abstol = 1e-2
+            reltol = 1e-4
             θsat = 0.8
             α = 4.0
             n = 2.0
             Tₘ = 0.0
             f = DallAmico()
-            sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
+            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
             heat = Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
@@ -165,7 +168,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 @inferred sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Right tail" begin
                 T = [5.0]
@@ -178,7 +181,7 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 @inferred sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Near zero" begin
                 T = [-0.05]
@@ -191,19 +194,18 @@ using ComponentArrays
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
                 @inferred sfcc(soil, heat, state)
-                @test all(abs.(T.-(H .- L.*θl)./C) .<= tol)
+                @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
         end
     end
     @testset "Newton solver autodiff" begin
         # set up
-        tol = 0.01
         θsat = 0.8
         θres = 0.05
         Tₘ = 0.0
         γ = 0.1
         f = McKenzie()
-        sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, onfail=:error))
+        sfcc = SFCC(f, SFCCNewtonSolver(onfail=:error))
         heat = Heat(freezecurve=sfcc)
         L = heat.L
         T = [-0.1]
@@ -231,14 +233,13 @@ end;
 
 using BenchmarkTools
 function benchmarksfcc()
-    tol = 0.01
     θsat = 0.8
     θres = 0.05
     α = 4.0
     n = 2.0
     Tₘ = 0.0
     f = DallAmico()
-    sfcc = SFCC(f, SFCCNewtonSolver(tol=tol, α₀=1.0, τ=0.75, onfail=:error))
+    sfcc = SFCC(f, SFCCNewtonSolver(α₀=1.0, τ=0.75, onfail=:error))
     soil = Soil()
     heat = Heat(freezecurve=sfcc)
     L = heat.L

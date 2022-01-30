@@ -1,13 +1,16 @@
 """
+    SFCCNewtonSolver <: SFCCSolver
+
 Specialized implementation of Newton's method with backtracking line search for resolving
 the energy conservation law, H = TC + Lθ. Attempts to find the root of the corresponding
 temperature residual: ϵ = T - (H - Lθ(T)) / C(θ(T)) and uses backtracking to avoid
-jumping over the solution. This prevents convergence issues that arise due to discontinuities
-and non-monotonic behavior in most common soil freeze curves.
+jumping over the solution. This prevents convergence issues that arise due to
+discontinuities and strong non-linearity in most common soil freeze curves.
 """
 @with_kw struct SFCCNewtonSolver <: SFCCSolver
-    maxiter::Int = 50 # maximum number of iterations
-    tol::Float64 = 0.01 # absolute tolerance for convergence
+    maxiter::Int = 100 # maximum number of iterations
+    abstol::Float64 = 1e-2 # absolute tolerance for convergence
+    reltol::Float64 = 1e-2 # relative tolerance for convergence
     α₀::Float64 = 1.0 # initial step size multiplier
     τ::Float64 = 0.7 # step size decay for backtracking
     onfail::Symbol = Symbol("warn") # error, warn, or ignore
@@ -25,73 +28,79 @@ function residual(T, H, θw, θm, θo, L, soil, f, f_args)
     return Tres, θl, C
 end
 # Newton solver implementation
-function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f, ∇f)
+function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, f, ∇f, f_args, H, L, θw, θm, θo, T₀=nothing)
+    # compute initial guess T by setting θl according to free water scheme
+    T = if isnothing(T₀)
+        let Lθ = L*θw;
+            if H < 0
+                H / heatcapacity(soil,θw,0.0,θm,θo)
+            elseif H >= 0 && H < Lθ
+                (1.0 - H/Lθ)*0.1
+            else
+                (H - Lθ) / heatcapacity(soil,θw,θw,θm,θo)
+            end
+        end
+    else
+        T₀
+    end
+    cw = soil.hc.cw # heat capacity of liquid water
+    α₀ = solver.α₀
+    τ = solver.τ
+    # compute initial residual
+    Tres, θl, C = residual(T, H, θw, θm, θo, L, soil, f, f_args)
+    itercount = 0
+    @fastmath while abs(Tres) > solver.abstol && abs(Tres) / abs(T) > solver.reltol
+        if itercount > solver.maxiter
+            convergencefailure(solver.onfail, i, solver.maxiter, Tres)
+            break
+        end
+        # derivative of freeze curve
+        args = tuplejoin((T,),f_args)
+        ∂θ∂T = ∇f(args)
+        # derivative of residual by quotient rule;
+        # note that this assumes heatcapacity to be a simple weighted average!
+        # in the future, it might be a good idea to compute an automatic derivative
+        # of heatcapacity in addition to the freeze curve function.
+        ∂Tres∂T = 1.0 - ∂θ∂T*(-L*C - (H - θl*L)*cw)/C^2
+        α = α₀ / ∂Tres∂T
+        T̂ = T - α*Tres
+        # do first residual check outside of loop;
+        # this way, we don't decrease α unless we have to.
+        T̂res, θl, C = residual(T̂, H, θw, θm, θo, L, soil, f, f_args)
+        inneritercount = 0
+        # simple backtracking line search to avoid jumping over the solution
+        while sign(T̂res) != sign(Tres)
+            if inneritercount > 100
+                @warn "Backtracking failed; this should not happen. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
+                break
+            end
+            α = α*τ # decrease step size by τ
+            T̂ = T - α*Tres # new guess for T
+            T̂res, θl, C = residual(T̂, H, θw, θm, θo, L, soil, f, f_args)
+            inneritercount += 1
+        end
+        T = T̂ # update T
+        Tres = T̂res # update residual
+        itercount += 1
+    end
+    return T, Tres, itercount
+end
+function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f, ∇f)
     # get f arguments; note that this does create some redundancy in the arguments
     # eventually passed to the `residual` function; this is less than ideal but
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
     f_args = sfccparams(f, soil, heat, state)
     # iterate over each cell and solve the conservation law: H = TC + Lθ
     @threaded for i in 1:length(state.T)
-        @inbounds @fastmath let T₀ = state.T[i] |> Utils.adstrip,
-            T = T₀, # temperature
+        @inbounds @fastmath let T₀ = i > 1 ? state.T[i-1] : nothing,
             H = state.H[i] |> Utils.adstrip, # enthalpy
-            C = state.C[i] |> Utils.adstrip, # heat capacity
             θl = state.θl[i] |> Utils.adstrip, # liquid water content
             θw = totalwater(soil, heat, state, i) |> Utils.adstrip, # total water content
             θm = mineral(soil, heat, state, i) |> Utils.adstrip, # mineral content
             θo = organic(soil, heat, state, i) |> Utils.adstrip, # organic content
             L = heat.L, # specific latent heat of fusion
-            cw = soil.hc.cw, # heat capacity of liquid water
-            α₀ = s.α₀,
-            τ = s.τ,
-            f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args),
-            itercount = 0;
-            # compute initial guess T by setting θl according to free water scheme
-            T = let Lθ = L*θw;
-                if H < 0
-                    H / heatcapacity(soil,θw,0.0,θm,θo)
-                elseif H >= 0 && H < Lθ
-                    (1.0 - H/Lθ)*0.1
-                else
-                    (H - Lθ) / heatcapacity(soil,θw,θw,θm,θo)
-                end
-            end
-            # compute initial residual
-            Tres, θl, C = residual(T, H, θw, θm, θo, L, soil, f, f_argsᵢ)
-            while abs(Tres) > s.tol
-                if itercount > s.maxiter
-                    convergencefailure(s.onfail, i, s.maxiter, Tres)
-                    break
-                end
-                # derivative of freeze curve
-                args = tuplejoin((T,),f_argsᵢ)
-                ∂θ∂T = ∇f(args)
-                # derivative of residual by quotient rule;
-                # note that this assumes heatcapacity to be a simple weighted average!
-                # in the future, it might be a good idea to compute an automatic derivative
-                # of heatcapacity in addition to the freeze curve function.
-                ∂Tres∂T = 1.0 - ∂θ∂T*(-L*C - (H - θl*L)*cw)/C^2
-                α = α₀ / ∂Tres∂T
-                T̂ = T - α*Tres
-                # do first residual check outside of loop;
-                # this way, we don't decrease α unless we have to.
-                T̂res, θl, C = residual(T̂, H, θw, θm, θo, L, soil, f, f_argsᵢ)
-                inneritercount = 0
-                # simple backtracking line search to avoid jumping over the solution
-                while sign(T̂res) != sign(Tres)
-                    if inneritercount > 100
-                        @warn "Backtracking failed; this should not happen. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
-                        break
-                    end
-                    α = α*τ # decrease step size by τ
-                    T̂ = T - α*Tres # new guess for T
-                    T̂res, θl, C = residual(T̂, H, θw, θm, θo, L, soil, f, f_argsᵢ)
-                    inneritercount += 1
-                end
-                T = T̂ # update T
-                Tres = T̂res # update residual
-                itercount += 1
-            end
+            f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
+            T, _, _ = sfccsolve(solver, soil, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
             # Here we apply the optimized result to the state variables;
             # Since we perform the Newton iteration on untracked variables,
             # we need to recompute θl, C, and T here with the tracked variables.
@@ -110,7 +119,7 @@ function (s::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f
             end
         end
     end
-    nothing
+    return nothing
 end
 """
     SFCCPreSolver{TCache} <: SFCCSolver
@@ -131,9 +140,9 @@ produce incorrect results otherwise.
     Enthalpy values below `H(Tmin)` under the given freeze curve will be extrapolated with a
     constant/flat function. `dH` determines the step size used when integrating `dθdH`; smaller
     values will produce a more accurate interpolant at the cost of storing more knots and slower
-    initialization. The default value of `dH=1e5` should be sufficient for most use-cases.
+    initialization. The default value of `dH=2e5` should be sufficient for most use-cases.
     """
-    function SFCCPreSolver(;Tmin=-50.0, dH=1e5)
+    function SFCCPreSolver(;Tmin=-50.0, dH=2e5)
         cache = SFCCPreSolverCache()
         new{typeof(cache)}(cache, Tmin, dH)
     end
