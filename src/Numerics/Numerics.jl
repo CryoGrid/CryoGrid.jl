@@ -44,11 +44,11 @@ struct ProfileKnot{D<:DistQuantity,T}
 end
 Base.show(io::IO, knot::ProfileKnot) = print(io, "$(knot.depth): $(knot.value)")
 struct Profile{N,TKnots}
-    knots::NTuple{N,TKnots}
+    knots::TKnots
     Profile(::Tuple{}) = new{0,Tuple{}}(())
-    Profile(knots::NTuple{N,TKnots}) where {N,TKnots} = new{N,TKnots}(knots)
-    Profile(pairs::NTuple{N,<:Pair{D}}) where {N,D} = Profile(map(Base.splat(ProfileKnot), pairs))
-    Profile(pairs::Pair{D}...) where {D} = Profile(pairs)
+    Profile(knots::Tuple{Vararg{<:ProfileKnot,N}}) where N = new{N,typeof(knots)}(knots)
+    Profile(pairs::Tuple{Vararg{<:Pair{D}}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
+    Profile(pairs::Pair{D}...) where D = Profile(pairs)
 end
 Flatten.flattenable(::Type{<:ProfileKnot}, ::Type{Val{:depth}}) = false
 Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:Number} = false
