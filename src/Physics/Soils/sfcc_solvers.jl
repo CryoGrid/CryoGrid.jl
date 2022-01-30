@@ -83,7 +83,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, f, ∇f, f_args, H, L, 
         Tres = T̂res # update residual
         itercount += 1
     end
-    return T, Tres, itercount
+    return (;T, Tres, θl, itercount)
 end
 function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f, ∇f)
     # get f arguments; note that this does create some redundancy in the arguments
@@ -100,7 +100,7 @@ function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
             θo = organic(soil, heat, state, i) |> Utils.adstrip, # organic content
             L = heat.L, # specific latent heat of fusion
             f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
-            T, _, _ = sfccsolve(solver, soil, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
+            T, _, _, _ = sfccsolve(solver, soil, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
             # Here we apply the optimized result to the state variables;
             # Since we perform the Newton iteration on untracked variables,
             # we need to recompute θl, C, and T here with the tracked variables.
@@ -157,20 +157,20 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
     state.θl .= sfcc.f.(state.T, params...)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
-    # pre-integrate freeze curve
+    # pre-solve freeze curve;
+    # note that this is only valid given that the following assumptions hold:
+    # 1) none of the freeze curve parameters (e.g. soil properties) change
+    # 2) soil properties are uniform in `soil`
     let Tₘ = params[1],
         θres = params[2],
         θsat = params[3],
         θtot = params[4],
         args = params[5:end],
-        cw = soil.hc.cw,
         L = heat.L,
-        θ(T) = sfcc.f(T, Tₘ, θres, θsat, θtot, args...),
-        C(T) = heatcapacity(soil, θtot, θ(T), mineral(soil), organic(soil)),
-        dθdT(T) = sfcc.∇f((T, Tₘ, θres, θsat, θtot, args...)),
-        dTdH(T) = 1.0 / (C(T) + dθdT(T)*(T*cw + L)),
         Tmin = sfcc.solver.Tmin,
         Tmax = Tₘ,
+        θ(T) = sfcc.f(T, Tₘ, θres, θsat, θtot, args...),
+        C(T) = heatcapacity(soil, θtot, θ(T), mineral(soil), organic(soil)),
         Hmin = enthalpy(Tmin, C(Tmin), L, θ(Tmin)),
         Hmax = enthalpy(Tmax, C(Tmax), L, θ(Tmax)),
         dH = sfcc.solver.dH,
@@ -179,13 +179,14 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         θs[1] = θ(Tmin)
         Ts = Vector{eltype(state.T)}(undef, length(Hs))
         Ts[1] = Tmin
+        solver = SFCCNewtonSolver(abstol=1e-3, reltol=1e-3, onfail=:error)
         for i in 2:length(Hs)
-            Tᵢ₋₁ = Ts[i-1]
-            Tᵢ = Tᵢ₋₁ + dH*dTdH(Tᵢ₋₁)
-            Ts[i] = Tᵢ
-            θs[i] = θ(Tᵢ)
+            Hᵢ = Hs[i]
+            T₀ = Ts[i-1] # use previous temperature value as initial guess
+            res = sfccsolve(solver, soil, sfcc.f, sfcc.∇f, params, Hᵢ, L, totalwater(soil), mineral(soil), organic(soil), T₀)
+            θs[i] = res.θl
+            Ts[i] = res.T
         end
-        θs[end] ≈ θtot || @warn "Numerical integration of freeze curve may be inaccurate: $(θs[end]) != $θsat"
         sfcc.solver.cache.f = Interpolations.extrapolate(
             Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
             Interpolations.Flat()
