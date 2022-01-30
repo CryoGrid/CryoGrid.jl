@@ -7,12 +7,14 @@ module Utils
 
 using Dates
 using ModelParameters
+using Setfield
 using StructTypes
 using Unitful
 
 import CryoGrid
 import ExprTools
 import ForwardDiff
+import Unitful
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str
 include("macros.jl")
@@ -175,6 +177,14 @@ dustrip(x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? 
 dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
 dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, uconvert.(u, x))
 
-duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u,x)
+duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
+
+# TODO: this should be in ModelParameters.jl, not here.
+function Unitful.uconvert(u::Unitful.Units, p::Param)
+    nt = parent(p)
+    @set! nt.val = ustrip(u, stripparams(p))
+    @set! nt.units = u
+    return Param(nt)
+end
 
 end

@@ -22,8 +22,18 @@ export FreeWater, FreezeCurve, freezecurve
 abstract type FreezeCurve end
 struct FreeWater <: FreezeCurve end
 
-TemperatureProfile(pairs::Pair{<:DistQuantity,<:TempQuantity}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]),pairs)...)
-    
+"""
+    TemperatureProfile(pairs::Pair{<:DistQuantity,<:Union{TempQuantity,Param}}...)
+
+Convenience constructor for `Numerics.Profile` which automatically converts temperature quantities.
+"""
+TemperatureProfile(pairs::Pair{<:DistQuantity,<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs)...)
+
+"""
+    HeatImpl
+
+Base type for different numerical formulations of two-phase heat diffusion.
+"""
 abstract type HeatImpl end
 struct Enthalpy <: HeatImpl end
 struct Temperature <: HeatImpl end
