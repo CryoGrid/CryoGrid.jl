@@ -31,11 +31,11 @@ ComponentArrays.ComponentArray(rv::ParameterVector) = getfield(rv, :vals)
 
 _paramval(x) = ustrip(x)
 _paramval(x::Param) = ustrip(x.val)
-_paramval(x::Tuple) = collect(x)
-function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
+_paramval(x::Tuple) = collect(_paramval.(x))
+function parameters(tile::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTransform}}...)
     getparam(x) = x
     getparam(x::Union{<:AbstractVector,<:Tuple}) = length(x) == 1 ? getparam(x[1]) : Tuple(getparam.(x))
-    m = Model(model)
+    m = Model(tile)
     nestedparams = mapflat(getparam, groupparams(m, :layer, :fieldname); maptype=NamedTuple)
     mappedparams = nestedparams
     mappings = ParamMapping[]
@@ -48,28 +48,28 @@ function parameters(model::Tile, transforms::Pair{Symbol,<:Pair{Symbol,<:ParamTr
     mappedarr = ComponentArray(mapflat(_paramval, mappedparams; maptype=NamedTuple))
     return ParameterVector(mappedarr, mappedparams, mappings...)
 end
-@inline @generated function updateparams!(v::AbstractVector, model::Tile, u, du, t)
+@inline @generated function updateparams!(v::AbstractVector, tile::Tile, u, du, t)
     quote
-        p = ModelParameters.update(ModelParameters.params(model), v)
+        p = ModelParameters.update(ModelParameters.params(tile), v)
         return Utils.genmap(_paramval, p)
     end
 end
-@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, model::Tile, u, du, t) where {T,TV,P,M}
+@inline @generated function updateparams!(rv::ParameterVector{T,TV,P,M}, tile::Tile, u, du, t) where {T,TV,P,M}
     expr = quote
         pvals = vals(rv)
         pmodel = ModelParameters.update(getfield(rv, :params), pvals)
     end
     # apply parameter transforms
     for i in 1:length(M.parameters)
-        push!(expr.args, :(pmodel = _updateparam(pmodel, mappings(rv)[$i], model, u, du, t)))
+        push!(expr.args, :(pmodel = _updateparam(pmodel, mappings(rv)[$i], tile, u, du, t)))
     end
     # flatten parameters and strip Param types
     push!(expr.args, :(return Utils.genmap(_paramval, ModelParameters.params(pmodel))))
     return expr
 end
-@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, model::Tile, u, du, t) where {T,name,layer}
+@inline @generated function _updateparam(pmodel, mapping::ParamMapping{T,name,layer}, tile::Tile, u, du, t) where {T,name,layer}
     quote
-        state = getstate(Val($(QuoteNode(layer))), model, u, du, t)
+        state = getstate(Val($(QuoteNode(layer))), tile, u, du, t)
         p = pmodel.$layer.$name
         # reconstruct transform with new parameter values
         op = ModelParameters.update(mapping.transform, ModelParameters.params(p))

@@ -28,16 +28,15 @@ abstract type HeatImpl end
 struct Enthalpy <: HeatImpl end
 struct Temperature <: HeatImpl end
 
-@with_kw struct Heat{F<:FreezeCurve,TSp,TInit} <: SubSurfaceProcess
+@with_kw struct Heat{Tfc<:FreezeCurve,Tsp} <: SubSurfaceProcess
     ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
     Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
     L::Float"J/m^3" = ρ*Lsl #[J/m^3] (specific latent heat of fusion)
-    freezecurve::F = FreeWater() # freeze curve, defautls to free water fc
-    init::TInit = ConstantInit(:T, -1.0u"°C") # initializer
-    sp::TSp = Enthalpy() # specialization
+    freezecurve::Tfc = FreeWater() # freeze curve, defautls to free water fc
+    sp::Tsp = Enthalpy() # specialization
 end
 # convenience constructors for specifying prognostic variable as symbol
-Heat(var::Union{Symbol,Tuple{Vararg{Symbol}}}; kwargs...) = Heat(Val{var}(); kwargs...)
+Heat(var::Symbol; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(;sp=Enthalpy(), kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(;sp=Temperature(), kwargs...)
 freezecurve(heat::Heat) = heat.freezecurve

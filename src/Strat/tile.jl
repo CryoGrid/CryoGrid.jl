@@ -34,30 +34,35 @@ Out-of-place step function for tile `T`. Computes and returns du/dt as vector wi
 step(::T,u,p,t) where {T<:AbstractTile} = error("no implementation of out-of-place step for $T")
 
 """
-    Tile{TStrat,TGrid,TStates,iip,obsv} <: AbstractTile{iip}
+    Tile{TStrat,TGrid,TStates,TInits,iip,obsv} <: AbstractTile{iip}
 
 Defines the full specification of a single CryoGrid tile; i.e. stratigraphy, grid, and state variables.
 """
-struct Tile{TStrat,TGrid,TStates,iip,obsv} <: AbstractTile{iip}
+struct Tile{TStrat,TGrid,TStates,TInits,iip,obsv} <: AbstractTile{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
+    inits::TInits # initializers
     hist::StateHistory # mutable "history" type for state tracking
     function Tile(
         strat::TStrat,
         grid::TGrid,
         state::TStates,
+        inits::TInits,
         hist::StateHistory=StateHistory(),
         iip::InPlaceMode=inplace,
-        observe::Vector{Symbol}=Symbol[]) where
-        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:VarStates}
-        new{TStrat,TGrid,TStates,iip,tuple(observe...)}(strat,grid,state,hist)
+        observe::Tuple{Vararg{Symbol}}=()) where
+        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:VarStates,TInits<:Tuple}
+        new{TStrat,TGrid,TStates,TInits,iip,observe}(strat,grid,state,inits,hist)
     end
 end
-ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,iip,obsv}}) where {TStrat,TGrid,TStates,iip,obsv} =
-    (strat, grid, state, hist) -> Tile(strat,grid,state,hist,iip,length(obsv) > 0 ? collect(obsv) : Symbol[])
-
-Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,iip,obsv}) where {TStrat,TGrid,TStates,iip,obsv} = print(io, "Tile ($iip) with layers $(map(componentname, components(tile.strat))), observables=$obsv, $TGrid, $TStrat")
+ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,iip,obsv}}) where {TStrat,TGrid,TStates,TInits,iip,obsv} =
+    (strat, grid, state, inits, hist) -> Tile(strat, grid, state, inits, hist, iip, obsv)
+# mark only stratigraphy and initializers fields as flattenable
+Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
+Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
+Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
+Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,iip,obsv}) where {TStrat,TGrid,TStates,TInits,iip,obsv} = print(io, "Tile ($iip) with layers $(map(componentname, components(tile.strat))), observables=$obsv, $TGrid, $TStrat")
 
 """
 Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
@@ -65,7 +70,8 @@ Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword a
 """
 function Tile(
     @nospecialize(strat::Stratigraphy),
-    @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity});
+    @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
+    @nospecialize(inits::Numerics.VarInitializer...);
     arrayproto::Type{A}=Vector,
     iip::InPlaceMode=inplace,
     observe::Vector{Symbol}=Symbol[],
@@ -80,12 +86,21 @@ function Tile(
         params = ModelParameters.params(comp)
         if length(params) > 0
             # create sub-model and add layer name to all parameters
-            submodel = Model(comp)
-            submodel[:layer] = repeat([name], length(params))
-            components[name] = parent(submodel)
+            m_comp = Model(comp)
+            m_comp[:layer] = repeat([name], length(params))
+            components[name] = parent(m_comp)
         else
             components[name] = comp
         end
+    end
+    # set :layer field on initializer parameters (if any)
+    init_params = ModelParameters.params(inits)
+    inits = if length(init_params) > 0
+        m_inits = Model(inits)
+        m_inits[:layer] = repeat([:init], length(init_params))
+        parent(m_inits)
+    else
+        inits
     end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(components)))
@@ -99,13 +114,11 @@ function Tile(
     @assert npvars > 0 "At least one prognostic variable must be specified."
     chunksize = isnothing(chunksize) ? length(para) : chunksize
     states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
-    Tile(strat,grid,states,StateHistory(),iip,observe)
+    isempty(inits) && @warn "No initializers provided. State variables without initializers will be set to zero by default."
+    Tile(strat, grid, states, inits, StateHistory(), iip, Tuple(observe))
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
-# mark only stratigraphy field as flattenable
-Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
-Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
 
 """
 Generated step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
@@ -119,17 +132,18 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function step!(tile::Tile{TStrat,TGrid,TStates,inplace,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,obsv}
+@generated function step!(tile::Tile{TStrat,TGrid,TStates,TInits,inplace,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,TInits,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
     @>> quote
     p = updateparams!(_p, tile, _du, _u, t)
-    strat = Flatten.reconstruct(tile.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
+    tile = Flatten.reconstruct(tile, p, ModelParameters.SELECT, ModelParameters.IGNORE)
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
+    strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
     end push!(expr.args)
     # Initialize variables for all layers
@@ -199,7 +213,7 @@ end
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
 initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), _p)
-@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,iip,obsv}, tspan::NTuple{2,Float64}, _p::AbstractVector) where {TStrat,TGrid,TStates,iip,obsv}
+@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,iip,obsv}, tspan::NTuple{2,Float64}, _p::AbstractVector) where {TStrat,TGrid,TStates,TInits,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -208,9 +222,23 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
     du = zero(similar(tile.state.uproto, eltype(_p)))
     u = zero(similar(tile.state.uproto, eltype(_p)))
     p = updateparams!(_p, tile, du, u, tspan[1])
-    strat = Flatten.reconstruct(tile.strat, p, ModelParameters.SELECT, ModelParameters.IGNORE)
+    tile = Flatten.reconstruct(tile, p, ModelParameters.SELECT, ModelParameters.IGNORE)
+    strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, tspan[1], Val{iip}())
     end push!(expr.args)
+    # Call initializers
+    for i in 1:N
+        for j in 1:length(TInits.parameters)
+            @>> quote
+            let layerstate = state[$i],
+                init = tile.inits[$j];
+                if haskey(layerstate.states, varname(init))
+                    initvar!(layerstate, init)
+                end
+            end
+            end push!(expr.args)
+        end
+    end
     # Iterate over layers
     for i in 1:N-1
         n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
@@ -228,16 +256,16 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
         $n2layer = components(strat)[$(i+1)].layer
         $n2process = components(strat)[$(i+1)].processes
         end push!(expr.args)
+        # invoke initialcondition! for each layer, then for both (similar to interact!);
+        # initialcondition! is called for layer1 only on the first iteration to avoid duplicate invocations
         if i == 1
-            # only invoke initialcondition! for layer i on first iteration to avoid duplicated calls
             @>> quote
             initialcondition!($n1layer,$n1process,$n1state)
             end push!(expr.args)
         end
-        # invoke initialcondition! for each layer, then for both (similar to interact!)
         @>> quote
-        initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         initialcondition!($n2layer,$n2process,$n2state)
+        initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)
     end
     @>> quote
@@ -245,6 +273,14 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
     end push!(expr.args)
     return expr
 end
+"""
+    initvar!(state::LayerState, init::VarInitializer{varname}) where {varname}
+    initvar!(state::LayerState, init::InterpInitializer{varname})
+
+Calls the initializer for state variable `varname`.
+"""
+initvar!(state::LayerState, init!::Numerics.VarInitializer{varname}) where {varname} = init!(state[varname])
+initvar!(state::LayerState, init!::Numerics.InterpInitializer{varname}) where {varname} = init!(state[varname], state.grids[varname])
 """
     getvar(name::Symbol, tile::Tile, u)
     getvar(::Val{name}, tile::Tile, u)
@@ -289,7 +325,7 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
-function getstate(tile::Tile{TStrat,TGrid,TStates,iip}, _u, _du, t) where {TStrat,TGrid,TStates,iip}
+function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,iip}, _u, _du, t) where {TStrat,TGrid,TStates,TInits,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     return TileState(tile.state, map(b -> ustrip(b.val), boundaries(tile.strat)), u, du, t, Val{iip}())

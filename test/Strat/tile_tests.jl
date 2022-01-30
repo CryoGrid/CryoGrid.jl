@@ -22,20 +22,23 @@ include("../types.jl")
         end
         try
             # case: no variables defined
-            @test_throws AssertionError model = Tile(strat,grid)
-            # case no prognostic variables defined
+            @test_throws AssertionError model = Tile(strat, grid)
+            # case: no prognostic variables defined
             CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
                 Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             )
             @test_throws AssertionError model = Tile(strat,grid)
+            # case: OK
             CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
                 Prognostic(:x, Float"J", OnGrid(Cells)),
                 Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             )
-            model = Tile(strat,grid)
+            model = Tile(strat, grid, DummyInitializer{:x}())
             checkfields(model)
             @test hasproperty(model.state.uproto,:x)
             @test hasproperty(model.state.griddiag,:k)
+            # no initializers
+            model = @test_logs (:warn, r"No initializers provided.*") Tile(strat, grid)
             # variable declared as prognostic and diagnostic
             CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
                 Prognostic(:x, Float"J", OnGrid(Cells)),
@@ -43,7 +46,7 @@ include("../types.jl")
                 Diagnostic(:w, Float"kg", OnGrid(Cells)),
                 Prognostic(:w, Float"kg", OnGrid(Cells)),
             )
-            model = Tile(strat,grid)
+            model = Tile(strat, grid, DummyInitializer{:x}())
             checkfields(model)
             @test hasproperty(model.state.uproto,:x)
             @test hasproperty(model.state.uproto,:w)
@@ -54,7 +57,7 @@ include("../types.jl")
                 Diagnostic(:w, Float"kg", OnGrid(Cells)),
                 Diagnostic(:w, Float"kg", OnGrid(Cells)),
             )
-            model = Tile(strat,grid)
+            model = Tile(strat, grid, DummyInitializer{:x}())
             checkfields(model)
             @test hasproperty(model.state.griddiag,:w)
             # error when conflicting variables declared
@@ -64,14 +67,14 @@ include("../types.jl")
                 Diagnostic(:w, Float"kg/m", OnGrid(Cells)),
                 Diagnostic(:w, Float"kg/m", OnGrid(Edges)),
             )
-            @test_throws AssertionError model = Tile(strat,grid)
+            @test_throws AssertionError model = Tile(strat, grid, DummyInitializer{:x}())
             # test scalar variables and parameters
             CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
                 Prognostic(:x, Float"J", OnGrid(Cells)),
                 Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
                 Diagnostic(:a, Float64, Scalar),
             )
-            model = Tile(strat,grid)
+            model = Tile(strat, grid, DummyInitializer{:x}())
             checkfields(model)
             @test hasproperty(model.state.diag.testground, :a)
             model.state.diag.testground.a.cache.du[1] = 2.0
@@ -96,7 +99,7 @@ include("../types.jl")
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             Prognostic(:x, Float"J", OnGrid(Cells)),
         )
-        model = Tile(strat,grid)
+        model = Tile(strat, grid, DummyInitializer{:x}())
         # check vars
         @test hasproperty(model.state.vars,:top)
         @test hasproperty(model.state.vars,:testground1)
@@ -122,7 +125,7 @@ include("../types.jl")
             Diagnostic(:k, Float"J/s/m^3", OnGrid(Edges)),
             Diagnostic(:w,Float"kg",OnGrid(Cells)),
         )
-        model = Tile(strat,grid)
+        model = Tile(strat, grid, DummyInitializer{:x}())
         @test length(getvar(:x, model, model.state.uproto)) == length(cells(grid))
         @test length(getvar(:k, model, model.state.uproto)) == length(grid)
         # clean-up method definitions (necessary for re-running test set)

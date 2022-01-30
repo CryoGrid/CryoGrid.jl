@@ -132,7 +132,6 @@ _variables(::Heat) = (
     Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
     Diagnostic(:θl, Float"1", OnGrid(Cells)),
 )
-initialcondition!(heat::Heat, state) = heat.init(state.T, state.grids.T)
 """ Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
 function diagnosticstep!(sub::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable

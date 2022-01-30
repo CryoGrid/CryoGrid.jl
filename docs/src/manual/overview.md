@@ -12,7 +12,10 @@ strat = Stratigraphy(
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
-tile = Tile(strat,grid);
+# define initial conditions for temperature using a given profile;
+# The default initializer linearly interpolates between profile points.
+initT = initializer(:T, tempprofile)
+tile = Tile(strat, grid, initT);
 ```
 
 This model can then be used to construct an `ODEProblem` (from `DiffEqBase.jl`) via the `CryoGridProblem` constructor:
@@ -20,9 +23,6 @@ This model can then be used to construct an `ODEProblem` (from `DiffEqBase.jl`) 
 ```julia
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = parameters(tile)
-# define initial conditions for temperature using a given profile;
-# The default initializer linearly interpolates between profile points.
-initT = initializer(:T, tempprofile)
 u0 = initialcondition!(tile, tspan, p, initT)
 prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,)) # produces an ODEProblem with problem type CryoGridODEProblem
 ```
