@@ -26,7 +26,7 @@ include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 
 using .Numerics
-export Grid, cells, edges, subgridinds, Δ, volume, area, initializer
+export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
 using .Utils
 export convert_t, convert_tspan, @sym_str
 # Re-exported submodules

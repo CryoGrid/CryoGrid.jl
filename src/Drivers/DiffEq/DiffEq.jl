@@ -143,7 +143,7 @@ Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {laye
 """
     getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
 """
-Strat.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Strat.getvar(Val{var}(), Tile(integrator), integrator.u)
+Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u)
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`. Optional `tspan`
 """
