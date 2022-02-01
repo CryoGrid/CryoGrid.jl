@@ -27,7 +27,7 @@ struct FreeWater <: FreezeCurve end
 
 Convenience constructor for `Numerics.Profile` which automatically converts temperature quantities.
 """
-TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs)...)
+TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
     HeatImpl
