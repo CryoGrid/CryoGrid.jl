@@ -47,8 +47,8 @@ struct Profile{N,TKnots}
     knots::TKnots
     Profile(::Tuple{}) = new{0,Tuple{}}(())
     Profile(knots::Tuple{Vararg{<:ProfileKnot,N}}) where N = new{N,typeof(knots)}(knots)
-    Profile(pairs::Tuple{Vararg{<:Pair{D}}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
-    Profile(pairs::Pair{D}...) where D = Profile(pairs)
+    Profile(pairs::Tuple{Vararg{<:Pair}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
+    Profile(pairs::Pair...) = Profile(pairs)
 end
 Flatten.flattenable(::Type{<:ProfileKnot}, ::Type{Val{:depth}}) = false
 Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:Number} = false
