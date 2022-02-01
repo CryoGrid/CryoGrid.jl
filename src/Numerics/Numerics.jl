@@ -38,7 +38,7 @@ struct Cells <: GridSpec end
 abstract type Geometry end
 struct UnitVolume <: Geometry end
 
-struct ProfileKnot{D<:DistQuantity,T}
+struct ProfileKnot{D,T}
     depth::D
     value::T
 end
