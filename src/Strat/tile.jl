@@ -132,17 +132,16 @@ prognosticstep!(layer i, ...)
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
 is only executed during compilation and will not appear in the compiled version.
 """
-@generated function step!(tile::Tile{TStrat,TGrid,TStates,TInits,inplace,obsv}, _du,_u,_p,t) where {TStrat,TGrid,TStates,TInits,obsv}
+@generated function step!(tile::Tile{TStrat,TGrid,TStates,TInits,inplace,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
     @>> quote
-    p = updateparams!(_p, tile, _du, _u, t)
-    tile = Flatten.reconstruct(tile, p, ModelParameters.SELECT, ModelParameters.IGNORE)
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
+    tile = update(tile, du, u, p, t)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
     end push!(expr.args)
@@ -212,19 +211,19 @@ end
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), _p)
-@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,iip,obsv}, tspan::NTuple{2,Float64}, _p::AbstractVector) where {TStrat,TGrid,TStates,TInits,iip,obsv}
+initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), p)
+@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector) where {TStrat,TGrid,TStates,TInits,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
     # Declare variables
     @>> quote
-    du = zero(similar(tile.state.uproto, eltype(_p)))
-    u = zero(similar(tile.state.uproto, eltype(_p)))
-    p = updateparams!(_p, tile, du, u, tspan[1])
-    tile = Flatten.reconstruct(tile, p, ModelParameters.SELECT, ModelParameters.IGNORE)
+    t0 = tspan[1]
+    du = zero(similar(tile.state.uproto, eltype(p)))
+    u = zero(similar(tile.state.uproto, eltype(p)))
+    tile = update(tile, du, u, p, t0)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, tspan[1], Val{iip}())
+    state = TileState(tile.state, boundaries(strat), u, du, t0, Val{iip}())
     end push!(expr.args)
     # Call initializers
     for i in 1:N
@@ -274,6 +273,14 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, _p::AbstractVector, arg
     return expr
 end
 """
+    update(tile::Tile, du, u, p, t)::Tile
+
+Sepcialized update function for `Tile` which can be used to reconstruct the `tile` accoridng to the
+current state and parameter values. Default implementation reconstructs `tile` with all `Param`s
+replaced with the values in `p`.
+"""
+update(tile::Tile, du, u, p, t) = Flatten.reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam)
+"""
     initvar!(state::LayerState, init::VarInitializer{varname}) where {varname}
     initvar!(state::LayerState, init::InterpInitializer{varname})
 
@@ -317,6 +324,12 @@ end
 Returns a tuple of all variables defined in the tile.
 """
 variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
+"""
+    parameters(tile::Tile)
+
+Extracts all parameters from `tile` in a vector.
+"""
+parameters(tile::Tile) = collect(Model(tile)[:val])
 """
     withaxes(u::AbstractArray, ::Tile)
 

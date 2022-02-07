@@ -21,10 +21,11 @@ using Unitful
 using Reexport
 using Setfield
 
-import Flatten
-
 @reexport using ModelParameters
 @reexport using SimulationLogs
+
+import Flatten
+import ModelParameters: update
 
 export Stratigraphy, @Stratigraphy
 export StratComponent, componentname, copmonenttypes, components, boundaries
@@ -34,10 +35,7 @@ include("stratigraphy.jl")
 export TileState, LayerState
 include("state.jl")
 
-export Tile, withaxes, getstate
+export Tile, withaxes, getstate, parameters
 include("tile.jl")
-
-export ParameterVector, LinearTrend, PiecewiseLinear, parameters
-include("params.jl")
 
 end
