@@ -147,7 +147,7 @@ Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getv
 """
 Constructs a `CryoGridOutput` from the given `ODESolution`. Optional `tspan`
 """
-function InputOutput.CryoGridOutput(sol::TSol; tspan=nothing) where {TSol <: SciMLBase.AbstractODESolution}
+function InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,DateTime}=nothing) where {TSol <: SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(::Var{name,T,<:OnGrid{Cells}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T,<:OnGrid{Edges}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
@@ -156,7 +156,7 @@ function InputOutput.CryoGridOutput(sol::TSol; tspan=nothing) where {TSol <: Sci
     model = sol.prob.f.f # Tile
     ts = model.hist.vals.t # use save callback time points
     t_mask = ts .∈ save_interval # indices within t interval
-    u_all = reduce(hcat, sol.(ts)) # build prognostic state from continuous solution
+    u_all = reduce(hcat, sol.(ts[t_mask])) # build prognostic state from continuous solution
     pax = ComponentArrays.indexmap(getaxes(model.state.uproto)[1])
     # get saved diagnostic states and timestamps only in given interval
     savedstates = model.hist.vals.saveval[t_mask]
