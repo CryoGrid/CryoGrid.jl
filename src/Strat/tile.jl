@@ -396,7 +396,7 @@ function updateparams(tile::Tile, u, p, t)
     dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
-    # build the `LayerState`s and evaluate the dynamic parameters in a fully type stabel manner.
+    # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
     dynamic_values = map(d -> d(u, t), dynamic_ps)
     return Flatten.reconstruct(tile_updated, dynamic_values, DynamicParameterization, Flatten.IGNORE)
 end

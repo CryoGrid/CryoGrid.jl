@@ -40,7 +40,10 @@ Specialized problem type for CryoGrid `ODEProblem`s.
 """
 struct CryoGridODEProblem end
 
-Strat.Tile(integrator::SciMLBase.DEIntegrator) = integrator.sol.prob.f.f
+function Strat.Tile(integrator::SciMLBase.DEIntegrator)
+    tile = integrator.sol.prob.f.f
+    return Strat.updateparams(tile, withaxes(integrator.u, tile), integrator.p, integrator.t)
+end
 
 """
     CryoGridProblem(setup::Tile, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
@@ -74,7 +77,7 @@ function CryoGridProblem(
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
     savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_start=save_start, save_end=save_end, save_everystep=save_everystep)
-    layercallbacks = tuplejoin((_getcallbacks(comp) for comp in tile.strat)...)
+    layercallbacks = _makecallbacks(tile)
     usercallbacks = isnothing(callback) ? () : callback
     callbacks = CallbackSet(savingcallback, layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
@@ -206,38 +209,58 @@ Evaluates the continuous solution at time `t`.
 (out::CryoGridOutput{<:ODESolution})(t::Real) = withaxes(out.res(t), out.res.prob.f.f)
 (out::CryoGridOutput{<:ODESolution})(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 # callback building functions
-function _criterionfunc(::Val{name}, cb::Callback, layer, process) where name
-    (u,t,integrator) -> let layer=layer,
-        process=process,
-        cb=cb,
-        tile=Tile(integrator),
-        u = Strat.withaxes(u, tile),
-        du = Strat.withaxes(get_du(integrator), tile),
-        t = t;
-        criterion(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+function _criterionfunc(::Val{name}, i_layer, i_proc, i_cb) where name
+    function _condition(u,t,integrator)
+        let tile = Tile(integrator),
+            comp = tile.strat[i_layer],
+            layer = comp.layer,
+            process = comp.processes[i_proc],
+            cb = tile.callbacks[name][i_cb],
+            u = Strat.withaxes(u, tile),
+            du = Strat.withaxes(get_du(integrator), tile),
+            t = t;
+            criterion(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+        end
     end
 end
-function _affectfunc(::Val{name}, cb::Callback, layer, process) where name
-    integrator -> let layer=layer,
-        process=process,
-        cb=cb,
-        tile=Tile(integrator),
-        u = Strat.withaxes(integrator.u, tile),
-        du = Strat.withaxes(get_du(integrator), tile),
-        t = integrator.t;
-        affect!(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+function _affectfunc(::Val{name}, i_layer, i_proc, i_cb) where name
+    function _affect!(integrator)
+        let tile=Tile(integrator),
+            comp = tile.strat[i_layer],
+            layer = comp.layer,
+            process = comp.processes[i_proc],
+            cb = tile.callbacks[name][i_cb],
+            u = Strat.withaxes(integrator.u, tile),
+            du = Strat.withaxes(get_du(integrator), tile),
+            t = integrator.t;
+            affect!(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+        end
     end
 end
-_diffeqcallback(::Discrete, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.DiscreteCallback(
-    _criterionfunc(Val{name}(), cb, layer, process),
-    _affectfunc(Val{name}(), cb, layer, process),
+_diffeqcallback(::Discrete, ::Val{name}, i_layer, i_proc, i_cb) where name = DiffEqCallbacks.DiscreteCallback(
+    _criterionfunc(Val{name}(), i_layer, i_proc, i_cb),
+    _affectfunc(Val{name}(), i_layer, i_proc, i_cb),
     # todo: initialize and finalize?
 )
-_diffeqcallback(::Continuous, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.ContinuousCallback(
-    _criterionfunc(Val{name}(), cb, layer, process),
-    _affectfunc(Val{name}(), cb, layer, process),
+_diffeqcallback(::Continuous, ::Val{name}, i_layer, i_proc, i_cb) where name = DiffEqCallbacks.ContinuousCallback(
+    _criterionfunc(Val{name}(), i_layer, i_proc, i_cb),
+    _affectfunc(Val{name}(), i_layer, i_proc, i_cb),
     # todo: initialize and finalize?
 )
-_getcallbacks(component::StratComponent{L,P,name}) where {L,P,name} = Tuple(_diffeqcallback(CallbackStyle(callback), Val{name}(), callback, component.layer, proc) for proc in component.processes for callback in callbacks(component.layer, proc))
+function _makecallbacks(component::StratComponent{L,P,name}, i_layer) where {L,P,name}
+    cbs = []
+    i_cb = 1
+    for (i_proc, proc) in enumerate(component.processes)
+        for callback in callbacks(component.layer, proc)
+            push!(cbs, _diffeqcallback(CallbackStyle(callback), Val{name}(), i_layer, i_proc, i_cb))
+            i_cb += 1
+        end
+    end
+    return Tuple(cbs)
+end
+function _makecallbacks(tile::Tile)
+    diffeq_callbacks = tuplejoin((_makecallbacks(comp, i) for (i,comp) in enumerate(tile.strat))...)
+    return diffeq_callbacks
+end
 
 end
