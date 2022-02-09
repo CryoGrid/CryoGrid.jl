@@ -40,7 +40,7 @@ which comptues the CFL condition with process-specific parameters `args`.
 """
 cfl(::Type{<:SubSurfaceProcess}) = error("not implemented")
 cfl(::Type{<:Heat}) = (Δx, dHdT, kc) -> Utils.adstrip(Δx^2 * dHdT / kc)
-cfl!(::T) where {T<:SubSurfaceProcess} = (Δt, Δx, dHdT, kc) -> @. Δt = cfl(T)(Δx, dHdT, kc)
+cfl!(::Type{T}) where {T<:SubSurfaceProcess} = (Δt, Δx, dHdT, kc) -> @. Δt = cfl(T)(Δx, dHdT, kc)
 
 # DiffEq/SciML driver (possibly should be a soft dependency with Requires.jl)
 include("DiffEq/DiffEq.jl")
