@@ -1,9 +1,11 @@
 module Strat
 
-import CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
+import CryoGrid
 import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
-using CryoGrid.InputOutput: Forcing
+using CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
+using CryoGrid: Parameterization, DynamicParameterization
+using CryoGrid.InputOutput: Forcing, CryoGridParams
 using CryoGrid.Numerics
 using CryoGrid.Physics
 using CryoGrid.Utils

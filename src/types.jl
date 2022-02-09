@@ -104,3 +104,15 @@ Trait for callback types.
 abstract type CallbackStyle end
 struct Discrete <: CallbackStyle end
 struct Continuous <: CallbackStyle end
+"""
+    Parameterization
+
+Base type for generic parameterizations of constants or unknown quantities.
+"""
+abstract type Parameterization end
+"""
+    DynamicParameterization
+
+Base type for dynamic parameterizations whose values may be time or state dependent.
+"""
+abstract type DynamicParameterization <: Parameterization end
