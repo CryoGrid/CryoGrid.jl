@@ -3,6 +3,7 @@ module SEB
 using ..HeatConduction: Heat
 using ..Physics
 using ..Boundaries
+using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils

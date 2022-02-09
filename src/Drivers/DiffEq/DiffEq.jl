@@ -1,3 +1,6 @@
+"""
+Driver module SciML diffeq solvers.
+"""
 module DiffEq
 
 using ..Drivers
@@ -76,7 +79,8 @@ function CryoGridProblem(
     callbacks = CallbackSet(savingcallback, layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
     tile.hist.vals = savevals
-    # set up default mass matrix
+    # set up default mass matrix, M:
+    # M⋅∂u∂t = f(u)
     M_diag = similar(tile.state.uproto)
     M_idxmap = ComponentArrays.indexmap(getaxes(M_diag)[1])
     allvars = Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)
