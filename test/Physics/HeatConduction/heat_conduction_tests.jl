@@ -16,12 +16,12 @@ include("../../types.jl")
 		k = collect(LinRange(0.5,5.0,length(x)))u"W/m/K"
 		ΔT = Δ(xc)
 		Δk = Δ(x)
-		∂H = zeros(length(T₀))u"J/s/m^3"
+		∂H = zeros(length(T₀))u"W/m^3"
 		@inferred heatconduction!(∂H,T₀,ΔT,k,Δk)
 		# conditions based on initial temperature gradient
-		@test ∂H[1] < 0.0u"J/s/m^3"
-		@test ∂H[end] > 0.0u"J/s/m^3"
-		@test sum(∂H) <= 0.0u"J/s/m^3"
+		@test ∂H[1] < 0.0u"W/m^3"
+		@test ∂H[end] > 0.0u"W/m^3"
+		@test sum(∂H) <= 0.0u"W/m^3"
 	end
 	# check boundary fluxes
 	@testset "Boundary fluxes" begin
@@ -35,38 +35,38 @@ include("../../types.jl")
 		bc = ConstantBC(CryoGrid.Dirichlet, 0.0u"°C")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
-			∂H = zeros(length(T₀))u"J/s/m^3"
+			∂H = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(bc,Top(),heat,sub,state,state) > 0.0u"J/s/m^3"
-			@test boundaryflux(bc,Bottom(),heat,sub,state,state) < 0.0u"J/s/m^3"
+			@test boundaryflux(bc,Top(),heat,sub,state,state) > 0.0u"W/m^2"
+			@test boundaryflux(bc,Bottom(),heat,sub,state,state) < 0.0u"W/m^2"
 		end
 		@testset "top: -, bot: +" begin
 			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
-			∂H = zeros(length(T₀))u"J/s/m^3"
+			∂H = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(bc,Top(),heat,sub,state,state) < 0.0u"J/s/m^3"
-			@test boundaryflux(bc,Bottom(),heat,sub,state,state) > 0.0u"J/s/m^3"
+			@test boundaryflux(bc,Top(),heat,sub,state,state) < 0.0u"W/m^2"
+			@test boundaryflux(bc,Bottom(),heat,sub,state,state) > 0.0u"W/m^2"
 		end
 		@testset "inner edge boundary (positive)" begin
 			T₀ = Vector(sin.(ustrip.(xc).*π))u"°C"
-			∂H = zeros(length(T₀))u"J/s/m^3"
+			∂H = zeros(length(T₀))u"W/m^3"
 			heatconduction!(∂H,T₀,ΔT,k,Δk)
-			@test ∂H[1] > 0.0u"J/s/m^3"
-			@test ∂H[end] > 0.0u"J/s/m^3"
+			@test ∂H[1] > 0.0u"W/m^3"
+			@test ∂H[end] > 0.0u"W/m^3"
 		end
 		@testset "inner edge boundary (negative)" begin
 			T₀ = Vector(-sin.(ustrip.(xc).*π))u"°C"
-			∂H = zeros(length(T₀))u"J/s/m^3"
+			∂H = zeros(length(T₀))u"W/m^3"
 			heatconduction!(∂H,T₀,ΔT,k,Δk)
-			@test ∂H[1] < 0.0u"J/s/m^3"
-			@test ∂H[end] < 0.0u"J/s/m^3"
+			@test ∂H[1] < 0.0u"W/m^3"
+			@test ∂H[end] < 0.0u"W/m^3"
 		end
 		@testset "Neumann boundary" begin
-			bc = ConstantBC(CryoGrid.Neumann, -1.0u"J/m^3")
+			bc = ConstantBC(CryoGrid.Neumann, -1.0u"W/m^2")
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
-			∂H = zeros(length(T₀))u"J/s/m^3"
+			∂H = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"J/m^3"
+			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"W/m^2"
 		end
 	end
 end
@@ -95,17 +95,17 @@ end
 	heat = Heat()
 	bc = ConstantBC(CryoGrid.Dirichlet, 0.0u"°C")
 	function dTdt(T,p,t)
-		dT = similar(T)u"J/s/m^3"
-		dT .= zero(eltype(dT))
+		dH = similar(T)u"W/m^3"
+		dH .= zero(eltype(dH))
 		T_K = (T)u"°C"
-		heatconduction!(dT,T_K,ΔT,k,Δk)
+		heatconduction!(dH,T_K,ΔT,k,Δk)
 		# compute boundary fluxes;
 		# while not correct in general, for this test case we can just re-use state for both layers.
-		state = (T=T_K,k=k,dH=dT,grids=(T=xc,k=x),t=t)
-		dT[1] += boundaryflux(bc,Top(),heat,sub,state,state)
-		dT[end] += boundaryflux(bc,Bottom(),heat,sub,state,state)
-		# strip units from dT before returning dT to the solver
-		return ustrip.(dT)
+		state = (T=T_K,k=k,dH=dH,grids=(T=xc,k=x),t=t)
+		dH[1] += boundaryflux(bc,Top(),heat,sub,state,state)/Δk[1]
+		dH[end] += boundaryflux(bc,Bottom(),heat,sub,state,state)/Δk[end]
+		# strip units from dH before returning it to the solver
+		return ustrip.(dH)
 	end
 	tspan = (0.0,0.5)
 	prob = ODEProblem(dTdt,ustrip.(T₀),tspan)

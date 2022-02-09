@@ -175,8 +175,8 @@ end
         Tsub=ssub.T[1],
         k=ssub.k[1],
         d=Δk[1],
-        δ₀=(d/2); # distance to boundary
-        -k*(Tsub-Tupper)/δ₀/d
+        δ₀=d/2; # distance to boundary
+        -k*(Tsub-Tupper)/δ₀
     end
 end
 @inline function boundaryflux(::Dirichlet, bc::BoundaryProcess, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
@@ -184,9 +184,9 @@ end
     @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
         k=ssub.k[end],
-        d=Δk[1],
-        δ₀=(d/2); # distance to boundary
-        -k*(Tsub-Tlower)/δ₀/d
+        d=Δk[end],
+        δ₀=d/2; # distance to boundary
+        -k*(Tsub-Tlower)/δ₀
     end
 end
 """
@@ -198,7 +198,8 @@ function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, s
     @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
     @log dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
-    @inbounds ssub.dH[1] += dH_upper
+    Δk = Δ(ssub.grids.k)
+    @inbounds ssub.dH[1] += dH_upper / Δk[1]
     return nothing # ensure no allocation
 end
 """
@@ -210,7 +211,8 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess
     @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
     @log dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
-    @inbounds ssub.dH[end] += dH_lower
+    Δk = Δ(ssub.grids.k)
+    @inbounds ssub.dH[end] += dH_lower / Δk[end]
     return nothing # ensure no allocation
 end
 """
