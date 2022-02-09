@@ -1,3 +1,5 @@
+const RESERVED_COMPONENT_NAMES = (:top, :bottom, :strat, :init)
+
 """
     StratComponent{TLayer,TProcess,name}
 
@@ -6,8 +8,7 @@ Represents a single component (layer + processes) in the stratigraphy.
 struct StratComponent{TLayer,TProcesses,name}
     layer::TLayer
     processes::TProcesses
-    StratComponent(name::Symbol, layer::TLayer, processes::TProcesses) where {TLayer<:Layer,TProcesses<:CoupledProcesses} =
-        new{TLayer,TProcesses,name}(layer,processes)
+    StratComponent(name::Symbol, layer::TLayer, processes::TProcesses) where {TLayer<:Layer,TProcesses<:CoupledProcesses} = new{TLayer,TProcesses,name}(layer,processes)
 end
 ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcesses,name}}) where {TLayer,TProcesses,name} = (layer,processes) -> StratComponent(name, layer, processes)
 """
@@ -15,20 +16,23 @@ Get the name of the given stratigraphy node.
 """
 componentname(::StratComponent{L,P,name}) where {L,P,name} = name
 componentname(::Type{<:StratComponent{L,P,name}}) where {L,P,name} = name
+componentnameval(::StratComponent{L,P,name}) where {L,P,name} = Val{name}
 
 Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
 top(bcs::BoundaryProcess...) = StratComponent(:top, Top(), CoupledProcesses(bcs...))
 bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CoupledProcesses(bcs...))
-subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...) = StratComponent(name, sub, CoupledProcesses(processes...))
+function subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...)
+    @assert name ∉ RESERVED_COMPONENT_NAMES "layer identifier $name is reserved"
+    return StratComponent(name, sub, CoupledProcesses(processes...))
+end
 
 """
 Type bound for stratigraphy boundaries. Boundaries may be specified as fixed distance quantities
-(which are then treated as model parameters), depth forcings, or symbols which correspond to a
-depth state variable on the associated layer.
+or via some arbitrary parameterization.
 """
-const StratBoundaryType = Union{<:DistQuantity,<:Forcing{<:DistQuantity},Symbol}
+const StratBoundaryType = Union{<:DistQuantity,<:AbstractParam,<:Parameterization}
 
 """
     Stratigraphy{N,TComponents,TBoundaries}
@@ -38,7 +42,7 @@ Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to 1 o
 struct Stratigraphy{N,TComponents,TBoundaries}
     boundaries::TBoundaries
     components::TComponents
-    Stratigraphy(boundaries::NTuple{N}, components::NTuple{N}) where {N} = new{N,typeof(components),typeof(boundaries)}(boundaries, components)
+    Stratigraphy(boundaries::NTuple{N,Any}, components::NTuple{N,StratComponent}) where {N} = new{N,typeof(components),typeof(boundaries)}(boundaries, components)
     Stratigraphy(
         top::Pair{<:StratBoundaryType,<:StratComponent{Top}},
         sub::Pair{<:StratBoundaryType,<:StratComponent{<:SubSurface}},
@@ -53,10 +57,25 @@ struct Stratigraphy{N,TComponents,TBoundaries}
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         names = map(componentname, map(last, sub))
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
-        boundaries = Tuple(map(pair -> Param(ustrip(first(pair)), units=unit(Q), layer=:strat), (top, sub..., bot)))
-        @assert issorted(boundaries, by=p -> p.val) "Stratigraphy boundary locations must be in strictly increasing order."
+        boundary(x) = x
+        boundary(x::DistQuantity) = Param(ustrip(u"m", x), units=u"m", bounds=(0.0,Inf), layer=:strat)
+        boundaries = Tuple(map(boundary ∘ first, (top, sub..., bot)))
+        @assert issorted(filter(Base.Fix2(isa, Param), boundaries), by=p -> p.val) "Stratigraphy boundary locations must be in strictly increasing order."
+        # get components
         components = Tuple(map(last, (top, sub..., bot)))
-        new{length(components),typeof(components),eltype(boundaries)}(boundaries,components)
+        # construct type
+        new{length(components),typeof(components),typeof(boundaries)}(boundaries, components)
+    end
+end
+"""
+Convenience macro for defining stratigraphies with multiple subsurface layers.
+"""
+macro Stratigraphy(args...)
+    @assert length(args) >= 3 "At least three stratigraphy nodes (top, subsurface, bottom) must be provided!"
+    if length(args) == 3
+        :(Stratigraphy($(esc(args[1])), $(esc(args[2])), $(esc(args[3]))))
+    elseif length(args) > 3
+        :(Stratigraphy($(esc(args[1])), tuple($(esc.(args[2:end-1])...)), $(esc(args[end]))))
     end
 end
 components(strat::Stratigraphy) = getfield(strat, :components)
@@ -86,15 +105,4 @@ function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)
         get(patch, componentname(comp), comp)
     end
     return Stratigraphy(boundaries(strat), components_patched)
-end
-"""
-Convenience macro for defining stratigraphies with multiple subsurface layers.
-"""
-macro Stratigraphy(args...)
-    @assert length(args) >= 3 "At least three stratigraphy nodes (top, subsurface, bottom) must be provided!"
-    if length(args) == 3
-        :(Stratigraphy($(esc(args[1])), $(esc(args[2])), $(esc(args[3]))))
-    elseif length(args) > 3
-        :(Stratigraphy($(esc(args[1])), tuple($(esc.(args[2:end-1])...)), $(esc(args[end]))))
-    end
 end
