@@ -41,4 +41,6 @@ include("state.jl")
 export Tile, withaxes, getstate, parameters
 include("tile.jl")
 
+precompile(CryoGridParams, (Tile,))
+
 end
