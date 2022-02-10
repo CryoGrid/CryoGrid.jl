@@ -1,5 +1,6 @@
 module InputOutput
 
+import CryoGrid
 using CryoGrid.Numerics
 
 using Base: @propagate_inbounds
@@ -13,6 +14,7 @@ using Interpolations
 using JSON3
 using Lazy: @>>, groupby
 using ModelParameters
+using NamedTupleTools
 using TimeSeries
 using Unitful
 
