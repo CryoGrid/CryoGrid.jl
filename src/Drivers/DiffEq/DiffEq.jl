@@ -1,3 +1,6 @@
+"""
+Driver module SciML diffeq solvers.
+"""
 module DiffEq
 
 using ..Drivers
@@ -37,7 +40,10 @@ Specialized problem type for CryoGrid `ODEProblem`s.
 """
 struct CryoGridODEProblem end
 
-Strat.Tile(integrator::SciMLBase.DEIntegrator) = integrator.sol.prob.f.f
+function Strat.Tile(integrator::SciMLBase.DEIntegrator)
+    tile = integrator.sol.prob.f.f
+    return Strat.updateparams(tile, Strat.withaxes(integrator.u, tile), integrator.p, integrator.t)
+end
 
 """
     CryoGridProblem(setup::Tile, tspan::NTuple{2,Float64}, p=nothing;kwargs...)
@@ -71,12 +77,13 @@ function CryoGridProblem(
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
     savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_start=save_start, save_end=save_end, save_everystep=save_everystep)
-    layercallbacks = tuplejoin((_getcallbacks(comp) for comp in tile.strat)...)
+    layercallbacks = _makecallbacks(tile)
     usercallbacks = isnothing(callback) ? () : callback
     callbacks = CallbackSet(savingcallback, layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
     tile.hist.vals = savevals
-    # set up default mass matrix
+    # set up default mass matrix, M:
+    # M⋅∂u∂t = f(u)
     M_diag = similar(tile.state.uproto)
     M_idxmap = ComponentArrays.indexmap(getaxes(M_diag)[1])
     allvars = Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)
@@ -145,14 +152,17 @@ Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {laye
 """
 Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u)
 """
-Constructs a `CryoGridOutput` from the given `ODESolution`. Optional `tspan`
+    CryoGridOutput(sol::TSol; tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
+
+Constructs a `CryoGridOutput` from the given `ODESolution`. Optional keyword argument `tspan` restricts the time span of the output.
 """
-function InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,DateTime}=nothing) where {TSol <: SciMLBase.AbstractODESolution}
+InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,DateTime}) where {TSol<:SciMLBase.AbstractODESolution} = CryoGridOutput(sol, tspan=convert_tspan(tspan))
+function InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(::Var{name,T,<:OnGrid{Cells}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T,<:OnGrid{Edges}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T}, arr, zs, ts) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts),))
-    save_interval = isnothing(tspan) ? -Inf..Inf : ClosedInterval(convert_tspan(tspan)...)
+    save_interval = ClosedInterval(tspan...)
     model = sol.prob.f.f # Tile
     ts = model.hist.vals.t # use save callback time points
     t_mask = ts .∈ save_interval # indices within t interval
@@ -202,38 +212,58 @@ Evaluates the continuous solution at time `t`.
 (out::CryoGridOutput{<:ODESolution})(t::Real) = withaxes(out.res(t), out.res.prob.f.f)
 (out::CryoGridOutput{<:ODESolution})(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 # callback building functions
-function _criterionfunc(::Val{name}, cb::Callback, layer, process) where name
-    (u,t,integrator) -> let layer=layer,
-        process=process,
-        cb=cb,
-        tile=Tile(integrator),
-        u = Strat.withaxes(u, tile),
-        du = Strat.withaxes(get_du(integrator), tile),
-        t = t;
-        criterion(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+function _criterionfunc(::Val{name}, i_layer, i_proc, i_cb) where name
+    function _condition(u,t,integrator)
+        let tile = Tile(integrator),
+            comp = tile.strat[i_layer],
+            layer = comp.layer,
+            process = comp.processes[i_proc],
+            cb = tile.callbacks[name][i_cb],
+            u = Strat.withaxes(u, tile),
+            du = Strat.withaxes(get_du(integrator), tile),
+            t = t;
+            criterion(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+        end
     end
 end
-function _affectfunc(::Val{name}, cb::Callback, layer, process) where name
-    integrator -> let layer=layer,
-        process=process,
-        cb=cb,
-        tile=Tile(integrator),
-        u = Strat.withaxes(integrator.u, tile),
-        du = Strat.withaxes(get_du(integrator), tile),
-        t = integrator.t;
-        affect!(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+function _affectfunc(::Val{name}, i_layer, i_proc, i_cb) where name
+    function _affect!(integrator)
+        let tile=Tile(integrator),
+            comp = tile.strat[i_layer],
+            layer = comp.layer,
+            process = comp.processes[i_proc],
+            cb = tile.callbacks[name][i_cb],
+            u = Strat.withaxes(integrator.u, tile),
+            du = Strat.withaxes(get_du(integrator), tile),
+            t = integrator.t;
+            affect!(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+        end
     end
 end
-_diffeqcallback(::Discrete, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.DiscreteCallback(
-    _criterionfunc(Val{name}(), cb, layer, process),
-    _affectfunc(Val{name}(), cb, layer, process),
+_diffeqcallback(::Discrete, ::Val{name}, i_layer, i_proc, i_cb) where name = DiffEqCallbacks.DiscreteCallback(
+    _criterionfunc(Val{name}(), i_layer, i_proc, i_cb),
+    _affectfunc(Val{name}(), i_layer, i_proc, i_cb),
     # todo: initialize and finalize?
 )
-_diffeqcallback(::Continuous, ::Val{name}, cb::Callback, layer, process) where name = DiffEqCallbacks.ContinuousCallback(
-    _criterionfunc(Val{name}(), cb, layer, process),
-    _affectfunc(Val{name}(), cb, layer, process),
+_diffeqcallback(::Continuous, ::Val{name}, i_layer, i_proc, i_cb) where name = DiffEqCallbacks.ContinuousCallback(
+    _criterionfunc(Val{name}(), i_layer, i_proc, i_cb),
+    _affectfunc(Val{name}(), i_layer, i_proc, i_cb),
     # todo: initialize and finalize?
 )
-_getcallbacks(component::StratComponent{L,P,name}) where {L,P,name} = Tuple(_diffeqcallback(CallbackStyle(callback), Val{name}(), callback, component.layer, proc) for proc in component.processes for callback in callbacks(component.layer, proc))
+function _makecallbacks(component::StratComponent{L,P,name}, i_layer) where {L,P,name}
+    cbs = []
+    i_cb = 1
+    for (i_proc, proc) in enumerate(component.processes)
+        for callback in callbacks(component.layer, proc)
+            push!(cbs, _diffeqcallback(CallbackStyle(callback), Val{name}(), i_layer, i_proc, i_cb))
+            i_cb += 1
+        end
+    end
+    return Tuple(cbs)
+end
+function _makecallbacks(tile::Tile)
+    diffeq_callbacks = tuplejoin((_makecallbacks(comp, i) for (i,comp) in enumerate(tile.strat))...)
+    return diffeq_callbacks
+end
 
 end

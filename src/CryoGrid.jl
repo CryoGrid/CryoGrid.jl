@@ -20,9 +20,9 @@ include("methods.jl")
 # Submodules
 include("Utils/Utils.jl")
 include("Numerics/Numerics.jl")
+include("IO/InputOutput.jl")
 include("Physics/Physics.jl")
 include("Strat/Strat.jl")
-include("IO/InputOutput.jl")
 include("Diagnostics/Diagnostics.jl")
 
 using .Numerics

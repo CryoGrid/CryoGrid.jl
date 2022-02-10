@@ -1,6 +1,6 @@
 module Soils
 
-import CryoGrid: SubSurface
+import CryoGrid: SubSurface, Parameterization
 import CryoGrid: initialcondition!, variables
 import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, totalwater, liquidwater, thermalconductivity, heatcapacity
 
@@ -34,7 +34,7 @@ struct Clay <: SoilTexture end
 
 Abstract base type for parameterizations of soil properties.
 """
-abstract type SoilParameterization end
+abstract type SoilParameterization <: Parameterization end
 """
     SoilCharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
 
