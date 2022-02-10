@@ -389,10 +389,11 @@ end
 """
     updateparams(tile::Tile, u, p, t)
 
-Replaces all `AbstractParam` values in `tile` with their (possibly updated) value from `p`.
+Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
+Subsequently evaluates and replaces all nested `DynamicParameterization`s.
 """
 function updateparams(tile::Tile, u, p, t)
-    tile_updated = Flatten.reconstruct(tile, p, Param, Flatten.IGNORE)
+    tile_updated = Flatten.reconstruct(tile, p, ModelParameters.AbstractParam, Flatten.IGNORE)
     dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
