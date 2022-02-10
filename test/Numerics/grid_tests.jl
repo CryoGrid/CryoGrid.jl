@@ -19,9 +19,13 @@ include("../testutils.jl")
         @test all([Δcgrid[i-1] ≈ cgrid[i] - cgrid[i-1] for i in 2:length(cgrid)])
         @test all(grid[1.0u"m"..10.0u"m"] .≈ grid)
         @test all(grid[1.0u"m"..2.0u"m"] .≈ grid[1:11])
+        @test all(grid[1..10] .≈ grid[1:10])
+        @test all(grid[5..10][2..4] .≈ grid[6:8])
+        @test all(grid[1..10] .≈ grid[1:10])
         @test all(grid[Interval{:open,:open}(1.0u"m",10.0u"m")] .≈ grid[2:end-1])
         @test all(grid[Interval{:closed,:open}(1.0u"m",10.0u"m")] .≈ grid[1:end-1])
         @test all(grid[Interval{:open,:closed}(1.0u"m",10.0u"m")] .≈ grid[2:end])
+        @test parent(grid[2..10]) == grid
     end
     @testset "Allocations" begin
         benchres = @benchmark Δ($grid)

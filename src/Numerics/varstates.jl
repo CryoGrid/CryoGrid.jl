@@ -10,7 +10,6 @@ struct VarStates{names,griddvars,TU,TD,TV,DF,DG}
     vars::NamedTuple{names,TV} # variable metadata
     diag::NamedTuple{names,DF} # off-grid non-prognostic variables
     griddiag::NamedTuple{griddvars,DG} # on-grid non-prognostic variables
-    gridcache::Dict{ClosedInterval{Int},TD} # grid cache; indices -> subgrid
 end
 @generated function getvar(::Val{name}, vs::VarStates{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
     pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u)))
@@ -108,5 +107,5 @@ function VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunks
     griddiagstate = map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunksize), griddiagvars)
     # join prognostic variables with flux variables, then build nested named tuples in each group with varnames as keys
     allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
-    VarStates(uproto, D, allvars, (;freediagstate...), (;griddiagstate...), Dict(1..length(D) => D))
+    VarStates(uproto, D, allvars, (;freediagstate...), (;griddiagstate...))
 end
