@@ -152,12 +152,12 @@ Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {laye
 """
 Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u)
 """
-    CryoGridOutput(sol::TSol; tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
+    CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
 
-Constructs a `CryoGridOutput` from the given `ODESolution`. Optional keyword argument `tspan` restricts the time span of the output.
+Constructs a `CryoGridOutput` from the given `ODESolution`. Optional argument `tspan` restricts the time span of the output.
 """
-InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,DateTime}) where {TSol<:SciMLBase.AbstractODESolution} = CryoGridOutput(sol, tspan=convert_tspan(tspan))
-function InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
+InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,DateTime}) where {TSol<:SciMLBase.AbstractODESolution} = CryoGridOutput(sol, convert_tspan(tspan))
+function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(::Var{name,T,<:OnGrid{Cells}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T,<:OnGrid{Edges}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
