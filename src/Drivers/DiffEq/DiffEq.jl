@@ -42,7 +42,7 @@ struct CryoGridODEProblem end
 
 function Strat.Tile(integrator::SciMLBase.DEIntegrator)
     tile = integrator.sol.prob.f.f
-    return Strat.updateparams(tile, withaxes(integrator.u, tile), integrator.p, integrator.t)
+    return Strat.updateparams(tile, Strat.withaxes(integrator.u, tile), integrator.p, integrator.t)
 end
 
 """
@@ -152,14 +152,17 @@ Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {laye
 """
 Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u)
 """
-Constructs a `CryoGridOutput` from the given `ODESolution`. Optional `tspan`
+    CryoGridOutput(sol::TSol; tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
+
+Constructs a `CryoGridOutput` from the given `ODESolution`. Optional keyword argument `tspan` restricts the time span of the output.
 """
-function InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,DateTime}=nothing) where {TSol <: SciMLBase.AbstractODESolution}
+InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,DateTime}) where {TSol<:SciMLBase.AbstractODESolution} = CryoGridOutput(sol, tspan=convert_tspan(tspan))
+function InputOutput.CryoGridOutput(sol::TSol; tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(::Var{name,T,<:OnGrid{Cells}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T,<:OnGrid{Edges}}, arr, grid, ts) where {name,T} = DimArray(arr*oneunit(T), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
     withdims(::Var{name,T}, arr, zs, ts) where {name,T} = DimArray(arr*oneunit(T), (Ti(ts),))
-    save_interval = isnothing(tspan) ? -Inf..Inf : ClosedInterval(convert_tspan(tspan)...)
+    save_interval = ClosedInterval(tspan...)
     model = sol.prob.f.f # Tile
     ts = model.hist.vals.t # use save callback time points
     t_mask = ts .∈ save_interval # indices within t interval
