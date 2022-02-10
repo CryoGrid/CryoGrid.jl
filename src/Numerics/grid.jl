@@ -80,13 +80,13 @@ Base.setindex!(::Grid, args...) = error("setindex! is not allowed for Grid types
 
 Overwrites `grid` edges with `vals`, and recomputes grid centers/deltas to be consistent with the new grid.
 """
-function updategrid!(grid::Grid{Edges,G,Q}, vals::Q) where {G,Q}
+function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}) where {G,Q}
     z_edges = values(grid)
     z_cells = values(cells(grid))
     Δz_edges = Δ(grid)
     Δz_cells = Δ(cells(grid))
     z_edges .= vals
-    z_cells .= (z_edges[1:end-1] .+ z_edges) ./ (2*one(Q))
+    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
     Δz_edges .= z_edges[2:end] .- z_edges[1:end-1]
     Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
     @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
