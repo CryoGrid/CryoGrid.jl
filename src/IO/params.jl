@@ -29,7 +29,7 @@ function Base.setindex!(ps::CryoGridParams, vals, col::Symbol; kwargs...)
     inds = findall(1:length(ps)) do i
         all(ps[first(kw)][i] == last(kw) for kw in kwargs)
     end
-    ps[col] = map(1:length(ps)) do i
+    ps.table[col] = map(1:length(ps)) do i
         r = searchsorted(inds, i)
         length(r) == 1 ?  vals[first(r)] : ps[col][i]
     end
