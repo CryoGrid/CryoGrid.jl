@@ -117,6 +117,15 @@ function Tile(
             callbacks[name] = cbs
         end
     end
+    # set :layer field on initializer parameters (if any)
+    init_params = ModelParameters.params(inits)
+    inits = if length(init_params) > 0
+        m_inits = Model(inits)
+        m_inits[:layer] = repeat([:init], length(init_params))
+        parent(m_inits)
+    else
+        inits
+    end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(components)))
     para = params(strat)
