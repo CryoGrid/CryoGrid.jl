@@ -14,7 +14,7 @@ using Interpolations
 using JSON3
 using Lazy: @>>, groupby
 using ModelParameters
-using NamedTupleTools
+using Tables
 using TimeSeries
 using Unitful
 
