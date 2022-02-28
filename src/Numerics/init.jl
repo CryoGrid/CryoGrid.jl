@@ -2,16 +2,16 @@ abstract type VarInitializer{varname} end
 Numerics.varname(::VarInitializer{varname}) where {varname} = varname
 ConstructionBase.constructorof(::Type{T}) where {varname,T<:VarInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
 """
-    ConstantInitializer{varname,T} <: VarInitializer{varname}
+    FunctionInitializer{varname,F} <: VarInitializer{varname}
 
-Initializes a scalar or vector-valued state variable with a pre-specified constant value.
+Initializes a scalar or vector-valued state variable using an arbitrary method/function.
 """
-struct ConstantInitializer{varname,T} <: VarInitializer{varname}
-    value::T
-    ConstantInitializer(varname::Symbol, value::T) where {T} = new{varname,T}(value)
+struct FunctionInitializer{varname,F} <: VarInitializer{varname}
+    f::F
+    FunctionInitializer(varname::Symbol, f::F) where {F} = new{varname,F}(f)
 end
-(init::ConstantInitializer)(u::AbstractVector, args...) = @. u = init.value
-Base.getindex(init::ConstantInitializer, itrv::Interval) = init
+(init::FunctionInitializer)(args...) = f(args...)
+Base.getindex(init::FunctionInitializer, itrv::Interval) = init
 """
     InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
 
@@ -25,9 +25,11 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     extrap::E
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
-function (init::InterpInitializer)(u::AbstractVector, z::AbstractVector)
+function (init::InterpInitializer{var})(state) where var
     @unpack profile, interp, extrap = init
     depths = collect(map(knot -> dustrip(knot.depth), profile.knots))
+    u = getproperty(state, var)
+    z = getproperty(state.grids, var)
     if length(depths) > 1
         f = extrapolate(interpolate((depths,), collect(map(knot -> dustrip(knot.value), profile.knots)), Gridded(interp)), extrap)
         @. u = f(z)
@@ -42,11 +44,17 @@ function (init::InterpInitializer)(u::AbstractVector, z::AbstractVector)
 end
 # automatic partitioning of profile based on interval
 Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpInitializer(var, init.profile[itrv], init.interp, init.extrap)
+# constructor for constant initializer function
+function _constantinit(::Val{varname}, x) where {varname}
+    return state -> state[varname] .= x
+end
 """
-    initializer(varname::Symbol, value::T) where {T} => ConstantInitializer
+    initializer(varname::Symbol, x::Number) => FunctionInitializer w/ constant
+    initializer(varname::Symbol, f::Function) => FunctionInitializer
     initializer(varname::Symbol, profile::Profile, interp=Linear(), extrap=Flat()) => InterpInitializer
 
 Convenience constructor for `VarInitializer` that selects the appropriate initializer type based on the arguments.
 """
-initializer(varname::Symbol, value::T) where {T} = ConstantInitializer(varname, value)
+initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, _constantinit(Val{varname}(), x))
+initializer(varname::Symbol, f::Function) = FunctionInitializer(varname, f)
 initializer(varname::Symbol, profile::Profile, interp=Linear(), extrap=Flat()) = InterpInitializer(varname, profile, interp, extrap)
