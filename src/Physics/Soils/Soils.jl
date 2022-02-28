@@ -12,23 +12,23 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds
 using IfElse
-using ModelParameters
 using Parameters
 using Unitful
 
 import Interpolations
 import Flatten: @flattenable, flattenable
 
-export Soil, SoilParameterization, SoilCharacteristicFractions, SoilProfile, SoilType, Sand, Silt, Clay
-export soilparameters, soilcomp, porosity, mineral, organic
+export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
+export soilcomponent, porosity, mineral, organic
 
 """
-Represents the texture classification of the soil. Sand, Silt, and Clay are provided by default.
+    SoilComposition
+
+Trait for representing homogenous vs inhomogeneous soil layers.
 """
-abstract type SoilTexture end
-struct Sand <: SoilTexture end
-struct Silt <: SoilTexture end
-struct Clay <: SoilTexture end
+abstract type SoilComposition end
+struct Homogeneous <: SoilComposition end
+struct Inhomogeneous <: SoilComposition end
 """
     SoilParameterization
 
@@ -36,28 +36,26 @@ Abstract base type for parameterizations of soil properties.
 """
 abstract type SoilParameterization <: Parameterization end
 """
-    SoilCharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
+    CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
 
-Represents the composition of the soil in terms of fractions: excess ice, natural porosity, saturation, and organic/(mineral + organic).
+Represents uniform composition of a soil volume in terms of fractions: excess ice, natural porosity, saturation, and organic solid fraction.
 """
-struct SoilCharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
-    xic::P1 # excess ice fraction
-    por::P2 # natural porosity
-    sat::P3 # saturation
-    org::P4 # organic fraction of solid; mineral fraction is 1-org
-    SoilCharacteristicFractions(xic::P1, por::P2, sat::P3, org::P4) where {P1,P2,P3,P4} = new{P1,P2,P3,P4}(xic,por,sat,org)
+@with_kw struct CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
+    xic::P1 = 0.0 # excess ice fraction
+    por::P2 = 0.5 # natural porosity
+    sat::P3 = 1.0 # saturation
+    org::P4 = 0.0 # organic fraction of solid; mineral fraction is 1-org
 end
-function soilparameters(;xic=0.0, por=0.5, sat=1.0, org=0.5)
-    params = Tuple(Param(p, bounds=(0.0,1.0)) for p in [xic,por,sat,org])
-    SoilCharacteristicFractions(params...)
-end
+# Type alias for CharacteristicFractions with all scalar/numeric constituents
+const HomogeneousCharacteristicFractions = CharacteristicFractions{<:Number,<:Number,<:Number,<:Number}
+SoilComposition(::Type{<:Soil}) = Inhomogeneous() # default
 SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
 # Helper functions for obtaining soil compositions from characteristic fractions.
-soilcomp(::Val{var}, fracs::SoilCharacteristicFractions) where var = soilcomp(Val{var}(), fracs.xic, fracs.por, fracs.sat, fracs.org)
-soilcomp(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
-soilcomp(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
-soilcomp(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
-soilcomp(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
+soilcomponent(::Val{var}, para::CharacteristicFractions) where var = soilcomponent(Val{var}(), para.xic, para.por, para.sat, para.org)
+soilcomponent(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
+soilcomponent(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
+soilcomponent(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
+soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
 Thermal conductivity constants.
 """
@@ -81,18 +79,56 @@ end
 """
 Basic Soil layer.
 """
-@with_kw struct Soil{T,P<:SoilParameterization,S} <: SubSurface
-    texture::T = Sand()
-    para::P = soilparameters()
+@with_kw struct Soil{P<:SoilParameterization,S} <: SubSurface
+    para::P = CharacteristicFractions()
     tc::SoilTCParams = SoilTCParams()
     hc::SoilHCParams = SoilHCParams()
     sp::S = nothing # user-defined specialization
 end
-# Volumetric content methods
-totalwater(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θw}(), soil.para)
-porosity(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θp}(), soil.para)
-mineral(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θm}(), soil.para)
-organic(soil::Soil{T,<:SoilCharacteristicFractions}) where T = soilcomp(Val{:θo}(), soil.para)
+# SoilComposition trait impl
+SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
+SoilComposition(::Type{<:Soil}) = Heterogeneous()
+SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
+# Fixed volumetric content methods (will error for inhomogeneous soils)
+totalwater(soil::Soil) = totalwater(SoilComposition(soil), soil)
+porosity(soil::Soil) = porosity(SoilComposition(soil), soil)
+mineral(soil::Soil) = mineral(SoilComposition(soil), soil)
+organic(soil::Soil) = organic(SoilComposition(soil), soil)
+## Homogeneous soils
+totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θw}(), soil.para)
+porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
+mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
+organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
+
+variables(soil::Soil) = variables(SoilComposition(soil), soil)
+variables(::Homogeneous, ::Soil) = ()
+variables(::Inhomogeneous, ::Soil) = (
+    Diagnostic(:θw, Real, OnGrid(Cells())),
+    Diagnostic(:θp, Real, OnGrid(Cells())),
+    Diagnostic(:θm, Real, OnGrid(Cells())),
+    Diagnostic(:θo, Real, OnGrid(Cells())),
+)
+
+initialcondition!(soil::Soil, state) = initialcondition!(SoilComposition(soil), soil, state)
+initialcondition!(::Homogeneous, ::Soil, state) = nothing
+"""
+    initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
+
+Default implementation of initialcondition! for heterogeneous soils parameterized by characteristic fractions.
+Fields of `soil.para` may be either numbers (including `Param`s) or `Function`s of the form `f(::Soil, state)::AbstractVector`.
+"""
+function initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
+    evaluate(x::Number) = x
+    evaluate(f::Function) = f(soil, state)
+    χ = evaluate(soil.para.xic)
+    ϕ = evaluate(soil.para.por)
+    θ = evaluate(soil.para.sat)
+    ω = evaluate(soil.para.org)
+    @. state.θw = soilcomponent(Val{:θw}(), χ, ϕ, θ, ω)
+    @. state.θp = soilcomponent(Val{:θp}(), χ, ϕ, θ, ω)
+    @. state.θm = soilcomponent(Val{:θm}(), χ, ϕ, θ, ω)
+    @. state.θo = soilcomponent(Val{:θo}(), χ, ϕ, θ, ω)
+end
 
 export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver, SFCCPreSolver
 include("soilheat.jl")

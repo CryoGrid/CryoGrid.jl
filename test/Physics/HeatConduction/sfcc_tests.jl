@@ -6,11 +6,11 @@ using ComponentArrays
 @testset "SFCC" begin
     Tₘ = 0.0
     θres = 0.0
-    soil = Soil(para=soilparameters())
-    θw = Soils.soilcomp(Val{:θw}(), soil.para)
-    θp = Soils.soilcomp(Val{:θp}(), soil.para)
-    θm = Soils.soilcomp(Val{:θm}(), soil.para)
-    θo = Soils.soilcomp(Val{:θo}(), soil.para)
+    soil = Soil(para=CharacteristicFractions())
+    θw = Soils.soilcomponent(Val{:θw}(), soil.para)
+    θp = Soils.soilcomponent(Val{:θp}(), soil.para)
+    θm = Soils.soilcomponent(Val{:θm}(), soil.para)
+    θo = Soils.soilcomponent(Val{:θo}(), soil.para)
     @testset "McKenzie freeze curve" begin
         @testset "Sanity checks" begin
             f = McKenzie()
@@ -245,10 +245,10 @@ function benchmarksfcc()
     L = heat.L
     # set up multi-grid-cell state vars
     T = [-15.0 for i in 1:10]
-    θw = Soils.soilcomp(Val{:θw}(), soil.para)
-    θp = Soils.soilcomp(Val{:θp}(), soil.para)
-    θm = Soils.soilcomp(Val{:θm}(), soil.para)
-    θo = Soils.soilcomp(Val{:θo}(), soil.para)
+    θw = Soils.soilcomponent(Val{:θw}(), soil.para)
+    θp = Soils.soilcomponent(Val{:θp}(), soil.para)
+    θm = Soils.soilcomponent(Val{:θm}(), soil.para)
+    θo = Soils.soilcomponent(Val{:θo}(), soil.para)
     θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
     C = heatcapacity.(soil,θw,θl,θm,θo)
     H = let T = T.+14.999,
