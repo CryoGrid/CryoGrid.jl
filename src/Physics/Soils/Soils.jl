@@ -12,6 +12,7 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds
 using IfElse
+using ModelParameters
 using Parameters
 using Unitful
 
@@ -24,11 +25,11 @@ export soilcomponent, porosity, mineral, organic
 """
     SoilComposition
 
-Trait for representing homogenous vs inhomogeneous soil layers.
+Trait for representing homogenous vs heterogeneous soil layers.
 """
 abstract type SoilComposition end
 struct Homogeneous <: SoilComposition end
-struct Inhomogeneous <: SoilComposition end
+struct Heterogeneous <: SoilComposition end
 """
     SoilParameterization
 
@@ -48,7 +49,6 @@ Represents uniform composition of a soil volume in terms of fractions: excess ic
 end
 # Type alias for CharacteristicFractions with all scalar/numeric constituents
 const HomogeneousCharacteristicFractions = CharacteristicFractions{<:Number,<:Number,<:Number,<:Number}
-SoilComposition(::Type{<:Soil}) = Inhomogeneous() # default
 SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
 # Helper functions for obtaining soil compositions from characteristic fractions.
 soilcomponent(::Val{var}, para::CharacteristicFractions) where var = soilcomponent(Val{var}(), para.xic, para.por, para.sat, para.org)
@@ -89,7 +89,7 @@ end
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
-# Fixed volumetric content methods (will error for inhomogeneous soils)
+# Fixed volumetric content methods (will error for heterogeneous soils)
 totalwater(soil::Soil) = totalwater(SoilComposition(soil), soil)
 porosity(soil::Soil) = porosity(SoilComposition(soil), soil)
 mineral(soil::Soil) = mineral(SoilComposition(soil), soil)
@@ -102,7 +102,7 @@ organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Va
 
 variables(soil::Soil) = variables(SoilComposition(soil), soil)
 variables(::Homogeneous, ::Soil) = ()
-variables(::Inhomogeneous, ::Soil) = (
+variables(::Heterogeneous, ::Soil) = (
     Diagnostic(:θw, Real, OnGrid(Cells())),
     Diagnostic(:θp, Real, OnGrid(Cells())),
     Diagnostic(:θm, Real, OnGrid(Cells())),
