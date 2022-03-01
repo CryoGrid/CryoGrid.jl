@@ -89,24 +89,29 @@ end
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
-# Fixed volumetric content methods (will error for heterogeneous soils)
-totalwater(soil::Soil) = totalwater(SoilComposition(soil), soil)
-porosity(soil::Soil) = porosity(SoilComposition(soil), soil)
-mineral(soil::Soil) = mineral(SoilComposition(soil), soil)
-organic(soil::Soil) = organic(SoilComposition(soil), soil)
+# Fixed volumetric content methods
+totalwater(soil::Soil, state) = totalwater(SoilComposition(soil), soil, state)
+porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil, state)
+mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil, state)
+organic(soil::Soil, state) = organic(SoilComposition(soil), soil, state)
 ## Homogeneous soils
-totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θw}(), soil.para)
-porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
-mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
-organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
+totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θw}(), soil.para)
+porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θp}(), soil.para)
+mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θm}(), soil.para)
+organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θo}(), soil.para)
+## Heterogeneous soils
+totalwater(::Heterogeneous, soil::Soil, state) = state.θw   
+porosity(::Heterogeneous, soil::Soil, state) = state.θp
+mineral(::Heterogeneous, soil::Soil, state) = state.θm
+organic(::Heterogeneous, soil::Soil, state) = state.θo
 
 variables(soil::Soil) = variables(SoilComposition(soil), soil)
 variables(::Homogeneous, ::Soil) = ()
 variables(::Heterogeneous, ::Soil) = (
-    Diagnostic(:θw, Real, OnGrid(Cells())),
-    Diagnostic(:θp, Real, OnGrid(Cells())),
-    Diagnostic(:θm, Real, OnGrid(Cells())),
-    Diagnostic(:θo, Real, OnGrid(Cells())),
+    Diagnostic(:θw, Float64, OnGrid(Cells)),
+    Diagnostic(:θp, Float64, OnGrid(Cells)),
+    Diagnostic(:θm, Float64, OnGrid(Cells)),
+    Diagnostic(:θo, Float64, OnGrid(Cells)),
 )
 
 initialcondition!(soil::Soil, state) = initialcondition!(SoilComposition(soil), soil, state)

@@ -151,7 +151,7 @@ mutable struct SFCCPreSolverCache
     f # H⁻¹ interpolant
     SFCCPreSolverCache() = new()
 end
-function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
+function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
     L = heat.L
     params = sfccparams(sfcc.f, soil, heat, state)
     state.θl .= sfcc.f.(state.T, params...)
@@ -166,11 +166,13 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         θsat = params[3],
         θtot = params[4],
         args = params[5:end],
+        θm = mineral(soil, state),
+        θo = organic(soil, state),
         L = heat.L,
         Tmin = sfcc.solver.Tmin,
         Tmax = Tₘ,
         θ(T) = sfcc.f(T, Tₘ, θres, θsat, θtot, args...),
-        C(T) = heatcapacity(soil, θtot, θ(T), mineral(soil), organic(soil)),
+        C(T) = heatcapacity(soil, θtot, θ(T), θm, θo),
         Hmin = enthalpy(Tmin, C(Tmin), L, θ(Tmin)),
         Hmax = enthalpy(Tmax, C(Tmax), L, θ(Tmax)),
         dH = sfcc.solver.dH,
@@ -183,7 +185,7 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         for i in 2:length(Hs)
             Hᵢ = Hs[i]
             T₀ = Ts[i-1] # use previous temperature value as initial guess
-            res = sfccsolve(solver, soil, sfcc.f, sfcc.∇f, params, Hᵢ, L, totalwater(soil), mineral(soil), organic(soil), T₀)
+            res = sfccsolve(solver, soil, sfcc.f, sfcc.∇f, params, Hᵢ, L, θtot, θm, θo, T₀)
             θs[i] = res.θl
             Ts[i] = res.T
         end
@@ -193,7 +195,7 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSo
         )
     end
 end
-function (s::SFCCPreSolver)(soil::Soil, heat::Heat, state, _, _)
+function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, state, _, _)
     state.θl .= s.cache.f.(state.H)
     heatcapacity!(soil, heat, state)
     @. state.T = (state.H - heat.L*state.θl) / state.C

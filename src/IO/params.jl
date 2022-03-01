@@ -48,10 +48,14 @@ function CryoGridParams(obj)
 end
 function _setparafields(m::Model)
     function _setparafield(name, type::Type, para::CryoGrid.Parameterization)
-        mpara = Model(para)
-        mpara[:paratype] = repeat([type], length(mpara))
-        mpara[:parafield] = repeat([name], length(mpara))
-        return parent(mpara)
+        if length(ModelParameters.params(para)) > 0
+            mpara = Model(para)
+            mpara[:paratype] = repeat([type], length(mpara))
+            mpara[:parafield] = repeat([name], length(mpara))
+            return parent(mpara)
+        else
+            return para
+        end
     end
     parameterizations = Flatten.flatten(parent(m), Flatten.flattenable, CryoGrid.Parameterization)
     parameterization_fields = Flatten.fieldnameflatten(parent(m), Flatten.flattenable, CryoGrid.Parameterization)

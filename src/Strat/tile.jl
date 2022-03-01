@@ -256,7 +256,7 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
             @>> quote
             let layerstate = state[$i],
                 init! = tile.inits[$j];
-                if haskey(layerstate.states, varname(init))
+                if haskey(layerstate.states, varname(init!))
                     init!(layerstate)
                 end
             end
