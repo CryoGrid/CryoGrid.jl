@@ -12,15 +12,15 @@ Discrete inverse enthalpy function given H, C, L, and θ.
 """
 @inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
-    totalwater(sub::SubSurface)
+    totalwater(sub::SubSurface, state)
     totalwater(sub::SubSurface, heat::Heat, state)
     totalwater(sub::SubSurface, heat::Heat, state, i)
 
 Retrieves the total water content for the given layer at grid cell `i`, if specified.
 Defaults to using the scalar total water content defined on layer `sub`.
 """
-@inline totalwater(sub::SubSurface) = error("totalwater not defined for $(typeof(sub))")
-@inline totalwater(sub::SubSurface, heat::Heat, state) = totalwater(sub)
+@inline totalwater(sub::SubSurface, state) = error("totalwater not defined for $(typeof(sub))")
+@inline totalwater(sub::SubSurface, heat::Heat, state) = totalwater(sub, state)
 @inline totalwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(totalwater(sub, heat, state), i)
 """
     liquidwater(sub::SubSurface, heat::Heat, state)
@@ -111,7 +111,7 @@ Variable definitions for heat conduction (enthalpy).
 variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:T, Float"°C", OnGrid(Cells)),
-    _variables(heat)...,
+    basevariables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
@@ -120,12 +120,12 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, Float"°C", OnGrid(Cells)),
     Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
     Diagnostic(:dH, Float"W/m^3", OnGrid(Cells)),
-    _variables(heat)...,
+    basevariables(heat)...,
 )
 """
 Common variable definitions for all heat implementations.
 """
-_variables(::Heat) = (
+basevariables(::Heat) = (
     Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),

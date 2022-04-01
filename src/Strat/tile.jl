@@ -255,9 +255,9 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
         for j in 1:length(TInits.parameters)
             @>> quote
             let layerstate = state[$i],
-                init = tile.inits[$j];
-                if haskey(layerstate.states, varname(init))
-                    initvar!(layerstate, init)
+                init! = tile.inits[$j];
+                if haskey(layerstate.states, varname(init!))
+                    init!(layerstate)
                 end
             end
             end push!(expr.args)
@@ -297,14 +297,6 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
     end push!(expr.args)
     return expr
 end
-"""
-    initvar!(state::LayerState, init::VarInitializer{varname}) where {varname}
-    initvar!(state::LayerState, init::InterpInitializer{varname})
-
-Calls the initializer for state variable `varname`.
-"""
-initvar!(state::LayerState, init!::Numerics.VarInitializer{varname}) where {varname} = init!(state[varname])
-initvar!(state::LayerState, init!::Numerics.InterpInitializer{varname}) where {varname} = init!(state[varname], state.grids[varname])
 """
     getvar(name::Symbol, tile::Tile, u)
     getvar(::Val{name}, tile::Tile, u)
@@ -361,11 +353,28 @@ function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TCallbacks,iip}, _u, _d
     return TileState(tile.state, map(b -> ustrip(b.val), boundaries(tile.strat)), u, du, t, Val{iip}())
 end
 """
+    updateparams(tile::Tile, u, p, t)
+
+Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
+Subsequently evaluates and replaces all nested `DynamicParameterization`s.
+"""
+function updateparams(tile::Tile, u, p, t)
+    tile_updated = Flatten.reconstruct(tile, p, ModelParameters.AbstractParam, Flatten.IGNORE)
+    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
+    # TODO: perhaps should allow dependence on local layer state;
+    # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
+    # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
+    dynamic_values = map(d -> d(u, t), dynamic_ps)
+    return Flatten.reconstruct(tile_updated, dynamic_values, DynamicParameterization, Flatten.IGNORE)
+end
+"""
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.
 """
 function _collectvars(@nospecialize(comp::StratComponent))
     layer, process = comp.layer, comp.processes
-    all_vars = variables(layer, process)
+    declared_vars = variables(layer, process)
+    nested_vars = Flatten.flatten(comp, Flatten.flattenable, Var)
+    all_vars = tuplejoin(declared_vars, nested_vars)
     @debug "Building layer $(componentname(comp)) with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
     groups = groupby(var -> varname(var), all_vars)
@@ -394,19 +403,4 @@ function _collectvars(@nospecialize(comp::StratComponent))
     # convert back to tuples
     diag_vars, prog_vars, alg_vars = Tuple(diag_vars), Tuple(prog_vars), Tuple(alg_vars)
     return tuplejoin(diag_vars, prog_vars, alg_vars)
-end
-"""
-    updateparams(tile::Tile, u, p, t)
-
-Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
-Subsequently evaluates and replaces all nested `DynamicParameterization`s.
-"""
-function updateparams(tile::Tile, u, p, t)
-    tile_updated = Flatten.reconstruct(tile, p, ModelParameters.AbstractParam, Flatten.IGNORE)
-    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
-    # TODO: perhaps should allow dependence on local layer state;
-    # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
-    # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
-    dynamic_values = map(d -> d(u, t), dynamic_ps)
-    return Flatten.reconstruct(tile_updated, dynamic_values, DynamicParameterization, Flatten.IGNORE)
 end

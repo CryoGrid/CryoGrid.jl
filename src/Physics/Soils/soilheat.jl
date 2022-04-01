@@ -11,7 +11,7 @@
 Retrieves the mineral content for the given layer at grid cell `i`, if provided.
 Defaults to using the scalar mineral content defined on `soil`.
 """
-@inline mineral(soil::Soil, ::Heat, state) = mineral(soil)
+@inline mineral(soil::Soil, ::Heat, state) = mineral(soil, state)
 @inline mineral(soil::Soil, heat::Heat, state, i) = Utils.getscalar(mineral(soil, heat, state), i)
 """
     organic(soil::Soil, ::Heat, state)
@@ -20,7 +20,7 @@ Defaults to using the scalar mineral content defined on `soil`.
 Retrieves the organic content for the given layer at grid cell `i`, if provided.
 Defaults to using the scalar organic content defined on `soil`.
 """
-@inline organic(soil::Soil, ::Heat, state) = organic(soil)
+@inline organic(soil::Soil, ::Heat, state) = organic(soil, state)
 @inline organic(soil::Soil, heat::Heat, state, i) = Utils.getscalar(organic(soil, heat, state), i)
 """
     porosity(soil::Soil, ::Heat, state)
@@ -29,7 +29,7 @@ Defaults to using the scalar organic content defined on `soil`.
 Retrieves the porosity for the given layer at grid cell `i`, if provided.
 Defaults to using the scalar porosity defined on `soil`.
 """
-@inline porosity(soil::Soil, ::Heat, state) = porosity(soil)
+@inline porosity(soil::Soil, ::Heat, state) = porosity(soil, state)
 @inline porosity(soil::Soil, heat::Heat, state, i) = Utils.getscalar(porosity(soil, heat, state), i)
 @inline heatcapacity(soil::Soil, heat::Heat, state, i) = heatcapacity(
     soil,
