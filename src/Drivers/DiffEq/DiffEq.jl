@@ -70,8 +70,7 @@ function CryoGridProblem(
     expandtstep(tstep::AbstractVector) = tstep
     getsavestate(model::Tile, u, du) = deepcopy(Strat.getvars(model.state, u, du, savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Strat.withaxes(u, Tile(integrator)), get_du(integrator))
-    pmodel = Model(tile)
-    p = isnothing(p) ? dustrip.(collect(pmodel[:val])) : p
+    p = isnothing(p) ? dustrip.(collect(Model(tile)[:val])) : collect(p)
     du0 = zero(u0)
     # set up saving callback
     stateproto = getsavestate(tile, u0, du0)

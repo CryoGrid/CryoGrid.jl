@@ -149,6 +149,7 @@ produce incorrect results otherwise.
 end
 mutable struct SFCCPreSolverCache
     f # H⁻¹ interpolant
+    ∇f # derivative of f
     SFCCPreSolverCache() = new()
 end
 function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
@@ -193,12 +194,12 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
             Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
             Interpolations.Flat()
         )
+        sfcc.solver.cache.∇f = first ∘ ∇(sfcc.solver.cache.f)
     end
 end
 function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, state, _, _)
     state.θl .= s.cache.f.(state.H)
     heatcapacity!(soil, heat, state)
     @. state.T = (state.H - heat.L*state.θl) / state.C
-    ∇f = first ∘ ∇(s.cache.f)
-    @. state.dHdT = 1 / ∇f.(state.H)
+    @. state.dHdT = 1 / s.cache.∇f.(state.H)
 end
