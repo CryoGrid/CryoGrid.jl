@@ -31,10 +31,10 @@ using ComponentArrays
             @testset "Left tail" begin
                 T = [-5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,γ)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -46,10 +46,10 @@ using ComponentArrays
                 soil
                 T = [5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.-1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,γ)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -61,10 +61,10 @@ using ComponentArrays
                 soil
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,Tₘ,θres,θp,θw,γ)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -96,10 +96,10 @@ using ComponentArrays
             @testset "Left tail" begin
                 T = [-5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,δ)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -112,7 +112,7 @@ using ComponentArrays
                 C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.-1,
                     θl = f.(T,Tₘ,θres,θp,θw,δ)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -122,10 +122,10 @@ using ComponentArrays
             @testset "Near zero" begin
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,Tₘ,θres,θp,θw,δ)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -160,10 +160,10 @@ using ComponentArrays
             @testset "Left tail" begin
                 T = [-5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,L,α,n)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -176,7 +176,7 @@ using ComponentArrays
                 C = heatcapacity.(soil,θw,θl,θm,θo)
                 H = let T = T.-1.0,
                     θl = f.(T,Tₘ,θres,θp,θw,L,α,n)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -186,10 +186,10 @@ using ComponentArrays
             @testset "Near zero" begin
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,θw,θl,θm,θo)
+                C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+0.04,
                     θl = f.(T,Tₘ,θres,θp,θw,L,α,n)
-                    C = heatcapacity.(soil,θw,θl,θm,θo);
+                    C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
@@ -210,7 +210,7 @@ using ComponentArrays
         L = heat.L
         T = [-0.1]
         θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
-        C = heatcapacity.(soil,θw,θl,θm,θo)
+        C = heatcapacity.(soil,heat,θw,θl,θm,θo)
         H = enthalpy.(T.+0.09,C,L,θl) # compute enthalpy at +1 degree
         # test gradients
         p = ComponentArray(γ=γ)
@@ -250,10 +250,10 @@ function benchmarksfcc()
     θm = Soils.soilcomponent(Val{:θm}(), soil.para)
     θo = Soils.soilcomponent(Val{:θo}(), soil.para)
     θl = f.(T,Tₘ,θres,θp,θw,L,α,n) # set liquid water content according to freeze curve
-    C = heatcapacity.(soil,θw,θl,θm,θo)
+    C = heatcapacity.(soil,heat,θw,θl,θm,θo)
     H = let T = T.+14.999,
             θl = f.(T,Tₘ,θres,θp,θw,L,α,n) 
-            C = heatcapacity.(soil,θw,θl,θm,θo);
+            C = heatcapacity.(soil,heat,θw,θl,θm,θo);
         enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
     end
     state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,θw=θw.+zero(T))
