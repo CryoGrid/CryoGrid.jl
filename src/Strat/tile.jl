@@ -93,7 +93,7 @@ function Tile(
     vars = OrderedDict()
     callbacks = OrderedDict()
     components = OrderedDict()
-    for comp in strat
+    for comp in stripunits(strat)
         name = componentname(comp)
         # build layer
         vars[name] = _collectvars(comp)
@@ -359,9 +359,7 @@ Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possib
 Subsequently evaluates and replaces all nested `DynamicParameterization`s.
 """
 function updateparams(tile::Tile, u, p, t)
-    quantities = Flatten.flatten(tile, Flatten.flattenable, Unitful.AbstractQuantity)
-    tile_updated = Flatten.reconstruct(tile, map(ustrip, quantities), Unitful.AbstractQuantity, Flatten.IGNORE)
-    tile_updated = Flatten.reconstruct(tile_updated, p, ModelParameters.AbstractParam, Flatten.IGNORE)
+    tile_updated = Flatten.reconstruct(tile, p, ModelParameters.AbstractParam, Flatten.IGNORE)
     dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to

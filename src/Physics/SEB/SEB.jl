@@ -11,7 +11,7 @@ using CryoGrid.Utils
 import CryoGrid: BoundaryProcess, BoundaryStyle, Neumann, Top
 import CryoGrid: initialcondition!, variables
 
-Base.@kwdef struct SEBParams <: AbstractProperties
+Base.@kwdef struct SEBParams <: IterableStruct
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
     ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]

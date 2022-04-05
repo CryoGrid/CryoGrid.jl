@@ -32,16 +32,16 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_
     # compute initial guess T by setting θl according to free water scheme
     T = if isnothing(T₀)
         let Lθ = L*θw;
-            if H < 0
+            if H < zero(H)
                 H / heatcapacity(soil, heat, θw, 0.0, θm, θo)
-            elseif H >= 0 && H < Lθ
+            elseif H >= zero(H) && H < Lθ
                 (1.0 - H/Lθ)*0.1
             else
                 (H - Lθ) / heatcapacity(soil, heat, θw, θw, θm, θo)
             end
         end
     else
-        T₀
+        T₀ - zero(T₀) # implicitly converts to K if T₀ has units °C
     end
     cw = heat.prop.cw # heat capacity of liquid water
     α₀ = solver.α₀
@@ -112,8 +112,8 @@ function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
                 dθdT = ∇f(args)
                 let θl = state.θl[i],
                     H = state.H[i];
-                    state.C[i] = heatcapacity(soil,θw,θl,θm,θo)
-                    state.dHdT[i] = state.C[i] + dθdT*(L + heat.prop.cw)
+                    state.C[i] = heatcapacity(soil,heat,θw,θl,θm,θo)
+                    state.dHdT[i] = state.C[i] + dθdT*(L + heat.prop.cw - heat.prop.ci)
                     state.T[i] = (H - L*θl) / state.C[i]
                 end
             end
@@ -147,10 +147,22 @@ produce incorrect results otherwise.
         new{typeof(cache)}(cache, Tmin, dH)
     end
 end
-mutable struct SFCCPreSolverCache
-    f # H⁻¹ interpolant
-    ∇f # derivative of f
-    SFCCPreSolverCache() = new()
+mutable struct SFCCPreSolverCache{F,∇F}
+    f::F # H⁻¹ interpolant
+    ∇f::∇F # derivative of f
+    function SFCCPreSolverCache()
+        # initialize with dummy functions to get type information
+        x  = -3e8:1e6:3e8
+        dummy_f = _build_interpolant(x, zeros(length(x)))
+        dummy_∇f = first ∘ ∇(dummy_f)
+        return new{typeof(dummy_f),typeof(dummy_∇f)}(dummy_f, dummy_∇f)
+    end
+end
+function _build_interpolant(Hs, θs)
+    return Interpolations.extrapolate(
+        Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
+        Interpolations.Flat()
+    )
 end
 function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
     L = heat.L
@@ -190,10 +202,7 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
             θs[i] = res.θl
             Ts[i] = res.T
         end
-        sfcc.solver.cache.f = Interpolations.extrapolate(
-            Interpolations.interpolate((Vector(Hs),), θs, Interpolations.Gridded(Interpolations.Linear())),
-            Interpolations.Flat()
-        )
+        sfcc.solver.cache.f = _build_interpolant(Hs, θs)
         sfcc.solver.cache.∇f = first ∘ ∇(sfcc.solver.cache.f)
     end
 end
@@ -205,6 +214,6 @@ function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, he
     @inbounds for i in 1:length(state.T)
         ∇f_argsᵢ = Utils.selectat(i, identity, ∇f_args)
         dθdTᵢ = heat.freezecurve.∇f(∇f_argsᵢ)
-        state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + heat.prop.cw)
+        state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + heat.prop.cw - heat.prop.ci)
     end
 end

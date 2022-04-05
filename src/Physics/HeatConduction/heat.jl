@@ -36,7 +36,7 @@ Defaults to using the scalar total water content defined on layer `sub`.
 
 Computes the heat capacity as a weighted average over constituent `capacities` with volumetric fractions `fracs`.
 """
-heatcapacity(capacities::NTuple{N}, fracs::NTuple{N}) where N = sum(map(*, capacities, fracs))
+heatcapacity(capacities::NTuple{N,Any}, fracs::NTuple{N,Any}) where N = sum(map(*, capacities, fracs))
 """
     heatcapacity!(sub::SubSurface, heat::Heat, state)
 
@@ -52,7 +52,7 @@ end
 
 Computes the thermal conductivity as a squared weighted sum over constituent `conductivities` with volumetric fractions `fracs`.
 """
-thermalconductivity(conductivities::NTuple{N}, fracs::NTuple{N}) where N = sum(map(*, map(sqrt, conductivities), fracs))^2
+thermalconductivity(conductivities::NTuple{N,Any}, fracs::NTuple{N,Any}) where N = sum(map(*, map(sqrt, conductivities), fracs))^2
 """
     thermalconductivity!(sub::SubSurface, heat::Heat, state)
 

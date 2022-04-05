@@ -43,7 +43,7 @@ struct Temperature <: HeatImpl end
 
 Base type for defining thermal properties.
 """
-abstract type ThermalProperties <: AbstractProperties end
+abstract type ThermalProperties <: IterableStruct end
 """
     HydroThermalProperties{Tρ,TLsl,Tkw,Tki,Tcw,Tci}
 
