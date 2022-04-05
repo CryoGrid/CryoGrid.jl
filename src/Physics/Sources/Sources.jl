@@ -8,7 +8,6 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using ConstructionBase
-using Parameters
 using ModelParameters
 using Unitful
 
@@ -23,7 +22,7 @@ abstract type SourceTerm end
 
 Parametric source term that is constant through time and space.
 """
-@with_kw struct Constant{S} <: SourceTerm
+Base.@kwdef struct Constant{S} <: SourceTerm
     S₀::S = Param(0.0)
 end
 """
@@ -31,7 +30,7 @@ end
 
 Parametric source term that is periodic through time and constant through space.
 """
-@with_kw struct Periodic{A,F,S,L} <: SourceTerm
+Base.@kwdef struct Periodic{A,F,S,L} <: SourceTerm
     amp::A = Param(1.0)
     freq::F = Param(1.0/(3600*24))
     shift::S = Param(0.0)

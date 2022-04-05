@@ -32,11 +32,11 @@ Defaults to using the scalar total water content defined on layer `sub`.
 @inline liquidwater(sub::SubSurface, heat::Heat, state) = state.θl
 @inline liquidwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(liquidwater(sub, heat, state), i)
 """
-    heatcapacity(sub::SubSurface, heat::Heat, state, i)
+    heatcapacity(capacities::NTuple{N}, fracs::NTuple{N}) where N
 
-Computes the heat capacity at grid cell `i` for the given layer from the current state.
+Computes the heat capacity as a weighted average over constituent `capacities` with volumetric fractions `fracs`.
 """
-heatcapacity(sub::SubSurface, heat::Heat, state, i) = error("heatcapacity not defined for $(typeof(heat)) on $(typeof(sub))")
+heatcapacity(capacities::NTuple{N}, fracs::NTuple{N}) where N = sum(map(*, capacities, fracs))
 """
     heatcapacity!(sub::SubSurface, heat::Heat, state)
 
@@ -48,11 +48,11 @@ Computes the heat capacity for the given layer from the current state and stores
     end
 end
 """
-    thermalconductivity(sub::SubSurface, heat::Heat, state, i)
+    thermalconductivity(capacities::NTuple{N}, fracs::NTuple{N}) where N
 
-Computes the thrmal conductivity at grid cell `i` for the given layer from the current state.
+Computes the thermal conductivity as a squared weighted sum over constituent `conductivities` with volumetric fractions `fracs`.
 """
-thermalconductivity(sub::SubSurface, heat::Heat, state, i) = error("thermalconductivity not defined for $(typeof(heat)) on $(typeof(sub))")
+thermalconductivity(conductivities::NTuple{N}, fracs::NTuple{N}) where N = sum(map(*, map(sqrt, conductivities), fracs))^2
 """
     thermalconductivity!(sub::SubSurface, heat::Heat, state)
 

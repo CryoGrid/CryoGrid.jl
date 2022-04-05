@@ -10,10 +10,9 @@ using CryoGrid.Physics.HeatConduction
 using CryoGrid.Physics.WaterBalance
 using CryoGrid.Utils
 
-using Base: @propagate_inbounds
+using Base: @propagate_inbounds, @kwdef
 using IfElse
 using ModelParameters
-using Parameters
 using Unitful
 
 import Interpolations
@@ -41,7 +40,7 @@ abstract type SoilParameterization <: Parameterization end
 
 Represents uniform composition of a soil volume in terms of fractions: excess ice, natural porosity, saturation, and organic solid fraction.
 """
-@with_kw struct CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
+Base.@kwdef struct CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
     xic::P1 = 0.0 # excess ice fraction
     por::P2 = 0.5 # natural porosity
     sat::P3 = 1.0 # saturation
@@ -57,33 +56,23 @@ soilcomponent(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
 soilcomponent(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
 soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
-Thermal conductivity constants.
+Soil thermal properties.
 """
-@with_kw struct SoilTCParams @deftype Float"W/(m*K)"
-    kw = 0.57xu"W/(m*K)" #water [Hillel(1982)]
-    ko = 0.25xu"W/(m*K)" #organic [Hillel(1982)]
-    km = 3.8xu"W/(m*K)" #mineral [Hillel(1982)]
-    ka = 0.025xu"W/(m*K)" #air [Hillel(1982)]
-    ki = 2.2xu"W/(m*K)" #ice [Hillel(1982)]
-end
-"""
-Heat capacity constants.
-"""
-@with_kw struct SoilHCParams @deftype Float"J/(K*m^3)"
-    cw = 4.2e6xu"J/(K*m^3)" #[J/m^3K] heat capacity water
-    co = 2.5e6xu"J/(K*m^3)" #[J/m^3K]  heat capacity organic
-    cm = 2e6xu"J/(K*m^3)" #[J/m^3K]  heat capacity mineral
-    ca = 0.00125e6xu"J/(K*m^3)" #[J/m^3K]  heat capacity pore space
-    ci = 1.9e6xu"J/(K*m^3)" #[J/m^3K]  heat capacity ice
+@kwdef struct SoilThermalProperties{Tko,Tkm,Tka,Tco,Tcm,Tca} <: HeatConduction.ThermalProperties
+    ko::Tko = Param(0.25, units=u"W/m/K") # organic [Hillel(1982)]
+    km::Tkm = Param(3.8, units=u"W/m/K") # mineral [Hillel(1982)]
+    ka::Tka = Param(0.025, units=u"W/m/K") #air [Hillel(1982)]
+    co::Tco = Param(2.5e6, units=u"J/K/m^3") # heat capacity organic
+    cm::Tcm = Param(2.0e6, units=u"J/K/m^3") # heat capacity mineral
+    ca::Tca = Param(0.00125e6, units=u"J/K/m^3") # heat capacity pore space
 end
 """
 Basic Soil layer.
 """
-@with_kw struct Soil{P<:SoilParameterization,S} <: SubSurface
-    para::P = CharacteristicFractions()
-    tc::SoilTCParams = SoilTCParams()
-    hc::SoilHCParams = SoilHCParams()
-    sp::S = nothing # user-defined specialization
+@kwdef struct Soil{TPara<:SoilParameterization,TProp<:SoilThermalProperties,TSp} <: SubSurface
+    para::TPara = CharacteristicFractions()
+    prop::TProp = SoilThermalProperties()
+    sp::TSp = nothing # user-defined specialization
 end
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))

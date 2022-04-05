@@ -21,8 +21,8 @@ include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export dustrip, duconvert, applyunit
-export structiterate, getscalar, tuplejoin, convert_t, convert_tspan
-export Params
+export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
+export AbstractProperties
 
 # Convenience constants for units
 const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
@@ -70,24 +70,37 @@ function structiterate(obj, state)
 end
 
 """
-Base type for composite parameter types. Permits iteration of struct fields.
+Base type for allowing iteration of struct fields.
 """
-abstract type Params end
-# scalar broadcasting of Params types
-Base.Broadcast.broadcastable(p::Params) = Ref(p)
+abstract type AbstractProperties end
+# scalar broadcasting of AbstractProperties types
+Base.Broadcast.broadcastable(p::AbstractProperties) = Ref(p)
 # provide length and iteration over field names
-Base.length(p::Params) = fieldcount(typeof(p))
-Base.iterate(p::Params) = structiterate(p)
-Base.iterate(p::Params, state) = structiterate(p,state)
+Base.length(p::AbstractProperties) = fieldcount(typeof(p))
+Base.iterate(p::AbstractProperties) = structiterate(p)
+Base.iterate(p::AbstractProperties, state) = structiterate(p,state)
 
+"""
+    tuplejoin([x, y], z...)
+
+Concatenates one or more tuples together; should generally be type stable.
+"""
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
 
+"""
+    getscalar(x)
+    getscalar(x, i)
+
+Helper method for generalizing between arrays and scalars. Without an index, retrieves
+the first element of `x` if `x` is an array, otherwise simply returning `x`. If an index
+`i`, is specified, returns the `i`th value of `x` if `x` is an array, or `x` otherwise.
+"""
 getscalar(x::Number) = x
 getscalar(x::Number, i) = x
-getscalar(a::AbstractArray) = begin @assert length(a) == 1; a[1] end
-getscalar(a::AbstractArray, i) = a[i]
+getscalar(x::AbstractArray) = begin @assert length(x) == 1; x[1] end
+getscalar(x::AbstractArray, i) = x[i]
 
 """
     convert_t(t::DateTime)

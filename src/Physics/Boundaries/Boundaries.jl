@@ -8,7 +8,6 @@ using CryoGrid.Utils
 
 using ConstructionBase
 using Dates
-using Parameters
 using Unitful
 
 import Flatten: flattenable

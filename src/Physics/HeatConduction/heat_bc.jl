@@ -14,7 +14,7 @@ BoundaryStyle(::Type{<:TemperatureGradient}) = Dirichlet()
 BoundaryStyle(::Type{<:TemperatureGradient{<:Damping}}) = Neumann()
 @inline boundaryvalue(bc::TemperatureGradient, l1, p2, l2, s1, s2) = bc.T(s1.t)
 
-@with_kw struct NFactor{W,S} <: BoundaryEffect
+Base.@kwdef struct NFactor{W,S} <: BoundaryEffect
     nf::W = Param(1.0, bounds=(0.0,1.0)) # applied when Tair <= 0
     nt::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
 end

@@ -30,7 +30,7 @@ end
 
 BoundaryStyle(::Type{<:PeriodicBC{S}}) where {S} = S()
 
-@with_kw struct Bias{P} <: BoundaryProcess
+Base.@kwdef struct Bias{P} <: BoundaryProcess
     bias::P = Param(0.0)
 end
 @inline boundaryvalue(bc::Bias,l1,p2,l2,s1,s2) = bc.bias
