@@ -7,7 +7,7 @@ temperature residual: ϵ = T - (H - Lθ(T)) / C(θ(T)) and uses backtracking to 
 jumping over the solution. This prevents convergence issues that arise due to
 discontinuities and strong non-linearity in most common soil freeze curves.
 """
-@with_kw struct SFCCNewtonSolver <: SFCCSolver
+Base.@kwdef struct SFCCNewtonSolver <: SFCCSolver
     maxiter::Int = 100 # maximum number of iterations
     abstol::Float64 = 1e-2 # absolute tolerance for convergence
     reltol::Float64 = 1e-2 # relative tolerance for convergence
@@ -20,34 +20,34 @@ convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed 
 convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size."
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 # Helper function for updating θl, C, and the residual.
-function residual(T, H, θw, θm, θo, L, soil, f, f_args)
+function residual(soil::Soil, heat::Heat, T, H, θw, θm, θo, L, f, f_args)
     args = tuplejoin((T,),f_args)
     θl = f(args...)
-    C = heatcapacity(soil, θw, θl, θm, θo)
+    C = heatcapacity(soil, heat, θw, θl, θm, θo)
     Tres = T - (H - θl*L) / C
     return Tres, θl, C
 end
 # Newton solver implementation
-function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, f, ∇f, f_args, H, L, θw, θm, θo, T₀=nothing)
+function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_args, H, L, θw, θm, θo, T₀=nothing)
     # compute initial guess T by setting θl according to free water scheme
     T = if isnothing(T₀)
         let Lθ = L*θw;
             if H < 0
-                H / heatcapacity(soil,θw,0.0,θm,θo)
+                H / heatcapacity(soil, heat, θw, 0.0, θm, θo)
             elseif H >= 0 && H < Lθ
                 (1.0 - H/Lθ)*0.1
             else
-                (H - Lθ) / heatcapacity(soil,θw,θw,θm,θo)
+                (H - Lθ) / heatcapacity(soil, heat, θw, θw, θm, θo)
             end
         end
     else
         T₀
     end
-    cw = soil.hc.cw # heat capacity of liquid water
+    cw = heat.prop.cw # heat capacity of liquid water
     α₀ = solver.α₀
     τ = solver.τ
     # compute initial residual
-    Tres, θl, C = residual(T, H, θw, θm, θo, L, soil, f, f_args)
+    Tres, θl, C = residual(soil, heat, T, H, θw, θm, θo, L, f, f_args)
     itercount = 0
     @fastmath while abs(Tres) > solver.abstol && abs(Tres) / abs(T) > solver.reltol
         if itercount > solver.maxiter
@@ -66,7 +66,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, f, ∇f, f_args, H, L, 
         T̂ = T - α*Tres
         # do first residual check outside of loop;
         # this way, we don't decrease α unless we have to.
-        T̂res, θl, C = residual(T̂, H, θw, θm, θo, L, soil, f, f_args)
+        T̂res, θl, C = residual(soil, heat, T̂, H, θw, θm, θo, L, f, f_args)
         inneritercount = 0
         # simple backtracking line search to avoid jumping over the solution
         while sign(T̂res) != sign(Tres)
@@ -76,7 +76,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, f, ∇f, f_args, H, L, 
             end
             α = α*τ # decrease step size by τ
             T̂ = T - α*Tres # new guess for T
-            T̂res, θl, C = residual(T̂, H, θw, θm, θo, L, soil, f, f_args)
+            T̂res, θl, C = residual(soil, heat, T̂, H, θw, θm, θo, L, f, f_args)
             inneritercount += 1
         end
         T = T̂ # update T
@@ -100,7 +100,7 @@ function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
             θo = organic(soil, heat, state, i) |> Utils.adstrip, # organic content
             L = heat.L, # specific latent heat of fusion
             f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
-            T, _, _, _ = sfccsolve(solver, soil, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
+            T, _, _, _ = sfccsolve(solver, soil, heat, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
             # Here we apply the optimized result to the state variables;
             # Since we perform the Newton iteration on untracked variables,
             # we need to recompute θl, C, and T here with the tracked variables.
@@ -113,7 +113,7 @@ function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
                 let θl = state.θl[i],
                     H = state.H[i];
                     state.C[i] = heatcapacity(soil,θw,θl,θm,θo)
-                    state.dHdT[i] = state.C[i] + dθdT
+                    state.dHdT[i] = state.C[i] + dθdT*(L + heat.prop.cw)
                     state.T[i] = (H - L*θl) / state.C[i]
                 end
             end
@@ -173,7 +173,7 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
         Tmin = sfcc.solver.Tmin,
         Tmax = Tₘ,
         θ(T) = sfcc.f(T, Tₘ, θres, θsat, θtot, args...),
-        C(T) = heatcapacity(soil, θtot, θ(T), θm, θo),
+        C(T) = heatcapacity(soil, heat, θtot, θ(T), θm, θo),
         Hmin = enthalpy(Tmin, C(Tmin), L, θ(Tmin)),
         Hmax = enthalpy(Tmax, C(Tmax), L, θ(Tmax)),
         dH = sfcc.solver.dH,
@@ -186,7 +186,7 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
         for i in 2:length(Hs)
             Hᵢ = Hs[i]
             T₀ = Ts[i-1] # use previous temperature value as initial guess
-            res = sfccsolve(solver, soil, sfcc.f, sfcc.∇f, params, Hᵢ, L, θtot, θm, θo, T₀)
+            res = sfccsolve(solver, soil, heat, sfcc.f, sfcc.∇f, params, Hᵢ, L, θtot, θm, θo, T₀)
             θs[i] = res.θl
             Ts[i] = res.T
         end
@@ -197,9 +197,14 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
         sfcc.solver.cache.∇f = first ∘ ∇(sfcc.solver.cache.f)
     end
 end
-function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, state, _, _)
+function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC}, state, _, _)
     state.θl .= s.cache.f.(state.H)
     heatcapacity!(soil, heat, state)
     @. state.T = (state.H - heat.L*state.θl) / state.C
-    @. state.dHdT = 1 / s.cache.∇f.(state.H)
+    ∇f_args = tuplejoin((state.T,), sfccparams(heat.freezecurve.f, soil, heat, state))
+    @inbounds for i in 1:length(state.T)
+        ∇f_argsᵢ = Utils.selectat(i, identity, ∇f_args)
+        dθdTᵢ = heat.freezecurve.∇f(∇f_argsᵢ)
+        state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + heat.prop.cw)
+    end
 end

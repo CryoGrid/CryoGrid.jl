@@ -69,9 +69,9 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
             θm = mineral(soil, heat, i)
             θo = organic(soil, heat, i)
             state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, θw, state.θl[i], θm, θo)
+            state.C[i] = heatcapacity(soil, heat, θw, state.θl[i], θm, θo)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.dHdT[i] = L*∇f(f_argsᵢ) + state.C[i]
+            state.dHdT[i] = (L + heat.prop.cw)*∇f(f_argsᵢ) + state.C[i]
         end
     end
     return nothing
@@ -94,7 +94,7 @@ variables(::Soil, ::Heat, s::SFCCSolver) = ()
 
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
-@with_kw struct DallAmico{T,Θ,A,N} <: SFCCFunction
+Base.@kwdef struct DallAmico{T,Θ,A,N} <: SFCCFunction
     Tₘ::T = Param(0.0)
     θres::Θ = Param(0.0, bounds=(0,1))
     α::A = Param(4.0, bounds=(eps(),Inf))
@@ -132,7 +132,7 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
     numerical simulations, benchmarks, and application to freezing in peat bogs. Advances in Water Resources,
     30(4): 966–983. DOI: 10.1016/j.advwatres.2006.08.008.
 """
-@with_kw struct McKenzie{T,Θ,Γ} <: SFCCFunction
+Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
     Tₘ::T = Param(0.0)
     θres::Θ = Param(0.0, bounds=(0,1))
     γ::Γ = Param(0.1, bounds=(eps(),Inf))
@@ -157,7 +157,7 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     wintertime rain events on the thermal regime of permafrost, The Cryosphere, 5, 945–959,
     https://doi.org/10.5194/tc-5-945-2011, 2011. 
 """
-@with_kw struct Westermann{T,Θ,Δ} <: SFCCFunction
+Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
     Tₘ::T = Param(0.0)
     θres::Θ = Param(0.0, bounds=(0,1))
     δ::Δ = Param(0.1, bounds=(eps(),Inf))
