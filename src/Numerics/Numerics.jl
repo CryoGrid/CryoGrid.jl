@@ -17,7 +17,6 @@ using Interpolations
 using IntervalSets
 using LinearAlgebra
 using LoopVectorization
-using Parameters
 using RuntimeGeneratedFunctions
 using Unitful
 using StructTypes

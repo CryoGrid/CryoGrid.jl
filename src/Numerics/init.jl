@@ -26,7 +26,7 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
 function (init::InterpInitializer{var})(state) where var
-    @unpack profile, interp, extrap = init
+    profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(map(knot -> dustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
     z = getproperty(state.grids, var)

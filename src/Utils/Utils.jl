@@ -6,9 +6,11 @@ Common utility functions, constants, and macros used throughout the CryoGrid.jl 
 module Utils
 
 using Dates
+using Flatten
 using ModelParameters
 using Setfield
 using StructTypes
+using Symbolics: Num
 using Unitful
 
 import CryoGrid
@@ -16,13 +18,15 @@ import ExprTools
 import ForwardDiff
 import Unitful
 
+import ModelParameters: stripunits
+
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert, applyunit
-export structiterate, getscalar, tuplejoin, convert_t, convert_tspan
-export Params
+export dustrip, duconvert, applyunit, normalize_temperature
+export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
+export IterableStruct
 
 # Convenience constants for units
 const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
@@ -53,6 +57,14 @@ function applyunit(u::Unitful.Units, x::Number)
 end
 
 """
+    normalize_temperature(x)
+
+Converts temperature `x` to Kelvin. If `x` has units, `uconvert` is used. Otherwise, if `x` a general numeric type, it is assumed that `x` is in celsius.
+"""
+normalize_temperature(x) = x + 273.15
+normalize_temperature(x::TempQuantity) = uconvert(u"K", x)
+
+"""
 Provides implementation of `Base.iterate` for structs.
 """
 function structiterate(obj::A) where {A}
@@ -70,24 +82,37 @@ function structiterate(obj, state)
 end
 
 """
-Base type for composite parameter types. Permits iteration of struct fields.
+Base type for allowing iteration of struct fields.
 """
-abstract type Params end
-# scalar broadcasting of Params types
-Base.Broadcast.broadcastable(p::Params) = Ref(p)
+abstract type IterableStruct end
+# scalar broadcasting of IterableStruct types
+Base.Broadcast.broadcastable(p::IterableStruct) = Ref(p)
 # provide length and iteration over field names
-Base.length(p::Params) = fieldcount(typeof(p))
-Base.iterate(p::Params) = structiterate(p)
-Base.iterate(p::Params, state) = structiterate(p,state)
+Base.length(p::IterableStruct) = fieldcount(typeof(p))
+Base.iterate(p::IterableStruct) = structiterate(p)
+Base.iterate(p::IterableStruct, state) = structiterate(p,state)
 
+"""
+    tuplejoin([x, y], z...)
+
+Concatenates one or more tuples together; should generally be type stable.
+"""
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
 
+"""
+    getscalar(x)
+    getscalar(x, i)
+
+Helper method for generalizing between arrays and scalars. Without an index, retrieves
+the first element of `x` if `x` is an array, otherwise simply returning `x`. If an index
+`i`, is specified, returns the `i`th value of `x` if `x` is an array, or `x` otherwise.
+"""
 getscalar(x::Number) = x
 getscalar(x::Number, i) = x
-getscalar(a::AbstractArray) = begin @assert length(a) == 1; a[1] end
-getscalar(a::AbstractArray, i) = a[i]
+getscalar(x::AbstractArray) = begin @assert length(x) == 1; x[1] end
+getscalar(x::AbstractArray, i) = x[i]
 
 """
     convert_t(t::DateTime)
@@ -185,6 +210,15 @@ function Unitful.uconvert(u::Unitful.Units, p::Param)
     @set! nt.val = ustrip(u, stripparams(p))
     @set! nt.units = u
     return Param(nt)
+end
+"""
+    ModelParameters.stripunits(obj)
+
+Additional override for `stripunits` which reconstructs `obj` with all `AbstractQuantity` fields stripped of units.
+"""
+function ModelParameters.stripunits(obj)
+    values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
+    return Flatten.reconstruct(obj, map(ustrip, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end
 
 end

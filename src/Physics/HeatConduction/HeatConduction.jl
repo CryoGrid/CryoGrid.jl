@@ -10,10 +10,9 @@ using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heaviside
 using CryoGrid.Utils
 
-using Base: @propagate_inbounds
+using Base: @propagate_inbounds, @kwdef
 using IfElse
 using ModelParameters
-using Parameters
 using SimulationLogs
 using Unitful
 
@@ -39,10 +38,29 @@ abstract type HeatImpl end
 struct Enthalpy <: HeatImpl end
 struct Temperature <: HeatImpl end
 
-@with_kw struct Heat{Tfc<:FreezeCurve,Tsp,Tinit} <: SubSurfaceProcess
-    ρ::Float"kg/m^3" = 1000.0xu"kg/m^3" #[kg/m^3]
-    Lsl::Float"J/kg" = 334000.0xu"J/kg" #[J/kg] (latent heat of fusion)
-    L::Float"J/m^3" = ρ*Lsl #[J/m^3] (specific latent heat of fusion)
+"""
+    ThermalProperties
+
+Base type for defining thermal properties.
+"""
+abstract type ThermalProperties <: IterableStruct end
+"""
+    HydroThermalProperties{Tρ,TLsl,Tkw,Tki,Tcw,Tci}
+
+Thermal properties of water used in two-phase heat conduction.
+"""
+@kwdef struct HydroThermalProperties{Tρ,TLsl,Tkw,Tki,Tcw,Tci} <: ThermalProperties
+    ρ::Tρ = Param(1000.0, units=u"kg/m^3") # density of water
+    Lsl::TLsl = Param(334000.0, units=u"J/kg") # latent heat of fusion of water
+    kw::Tkw = Param(0.57, units=u"W/m/K") # thermal conductivity of water [Hillel(1982)]
+    ki::Tki = Param(2.2, units=u"W/m/K") # thermal conductivity of ice [Hillel(1982)]
+    cw::Tcw = Param(4.2e6, units=u"J/K/m^3") # heat capacity of water
+    ci::Tci = Param(1.9e6, units=u"J/K/m^3") # heat capacity of ice
+end
+
+@kwdef struct Heat{Tfc<:FreezeCurve,Tsp,Tinit,TProp<:HydroThermalProperties,TL} <: SubSurfaceProcess
+    prop::TProp = HydroThermalProperties()
+    L::TL = prop.ρ*prop.Lsl # [J/m^3] (specific latent heat of fusion of water)
     freezecurve::Tfc = FreeWater() # freeze curve, defautls to free water fc
     sp::Tsp = Enthalpy() # specialization
     init::Tinit = nothing # optional initialization scheme

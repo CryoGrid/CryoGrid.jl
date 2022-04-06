@@ -4,7 +4,7 @@ abstract type BoundaryEffect end
 
 Generic implementation of bulk conductive damping at the boundary.
 """
-@with_kw struct Damping{D,K} <: BoundaryEffect
+Base.@kwdef struct Damping{D,K} <: BoundaryEffect
     depth::D = t -> 0.0 # function of t -> damping depth; defaults to zero function
     k::K = Param(1.0, bounds=(0.0,Inf)) # conductivity of medium
 end

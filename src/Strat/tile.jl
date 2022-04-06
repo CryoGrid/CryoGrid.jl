@@ -93,7 +93,7 @@ function Tile(
     vars = OrderedDict()
     callbacks = OrderedDict()
     components = OrderedDict()
-    for comp in strat
+    for comp in stripunits(strat)
         name = componentname(comp)
         # build layer
         vars[name] = _collectvars(comp)

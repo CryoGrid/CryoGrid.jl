@@ -19,7 +19,6 @@ using IfElse
 using IntervalSets
 using Lazy: @>>, @>, groupby
 using LinearAlgebra
-using Parameters
 using Unitful
 using Reexport
 using Setfield

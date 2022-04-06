@@ -5,11 +5,11 @@ any necessary additional constants or configuration options. User-specified para
 can either be supplied in the struct or declared as model parameters via the `variables`
 method.
 """
-abstract type SFCCFunction end
+abstract type SFCCFunction <: IterableStruct end
 """
 Abstract type for SFCC H <--> T solvers.
 """
-abstract type SFCCSolver end
+abstract type SFCCSolver <: IterableStruct end
 """
     SFCC{F,∇F,S} <: FreezeCurve
 
@@ -69,9 +69,9 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
             θm = mineral(soil, heat, i)
             θo = organic(soil, heat, i)
             state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, θw, state.θl[i], θm, θo)
+            state.C[i] = heatcapacity(soil, heat, θw, state.θl[i], θm, θo)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.dHdT[i] = L*∇f(f_argsᵢ) + state.C[i]
+            state.dHdT[i] = state.C[i] + (L + heat.prop.cw - heat.prop.ci)*∇f(f_argsᵢ)
         end
     end
     return nothing
@@ -88,37 +88,39 @@ sfccparams(::SFCCFunction, ::Soil, ::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
 variables(::Soil, ::Heat, f::SFCCFunction) = ()
 variables(::Soil, ::Heat, s::SFCCSolver) = ()
-
 """
     DallAmico <: SFCCFunction
 
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
-@with_kw struct DallAmico{T,Θ,A,N} <: SFCCFunction
-    Tₘ::T = Param(0.0)
+Base.@kwdef struct DallAmico{T,Θ,A,N,G} <: SFCCFunction
+    Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
-    α::A = Param(4.0, bounds=(eps(),Inf))
+    α::A = Param(4.0, bounds=(eps(),Inf), units=u"1/L")
     n::N = Param(2.0, bounds=(1,Inf))
+    g::G = 9.80665u"m/s^2" # acceleration due to gravity
     swrc::VanGenuchten = VanGenuchten()
 end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
-    heat.L, # specific latent heat of fusion, L
-    f.α,
-    f.n,
+    f.Tₘ |> stripparams,
+    f.θres |> stripparams,
+    porosity(soil, heat, state) |> stripparams, # θ saturated = porosity
+    totalwater(soil, heat, state) |> stripparams, # total water content
+    heat.L |> stripparams, # specific latent heat of fusion, L
+    f.α |> stripparams,
+    f.n |> stripparams,
 )
 # pressure head at T
 ψ(T,Tstar,ψ₀,L,g) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
+    # in this function, units are applied unconditionally since it's a bit more complex;
+    # this should not have any effect on performance, and the resulting water content is always dimensionless.
     let θsat = max(θtot, θsat),
-        g = 9.80665, # acceleration due to gravity
+        g = f.g,
         m = 1-1/n,
-        Tₘ = Tₘ + 273.15,
+        Tₘ = normalize_temperature(Tₘ),
         ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0),
-        T = T + 273.15,
+        T = normalize_temperature(T),
         Tstar = Tₘ + g*Tₘ/L*ψ₀,
         ψ = ψ(T,Tstar,ψ₀,L,g);
         f.swrc(ψ,θres,θsat,α,n)
@@ -132,21 +134,23 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
     numerical simulations, benchmarks, and application to freezing in peat bogs. Advances in Water Resources,
     30(4): 966–983. DOI: 10.1016/j.advwatres.2006.08.008.
 """
-@with_kw struct McKenzie{T,Θ,Γ} <: SFCCFunction
-    Tₘ::T = Param(0.0)
+Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
+    Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
-    γ::Γ = Param(0.1, bounds=(eps(),Inf))
+    γ::Γ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
-    f.γ,
+    f.Tₘ |> stripparams,
+    f.θres |> stripparams,
+    porosity(soil, heat, state) |> stripparams, # θ saturated = porosity
+    totalwater(soil, heat, state) |> stripparams, # total water content
+    f.γ |> stripparams,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
-    let θsat = max(θtot, θsat);
-        IfElse.ifelse(T<=Tₘ, θres + (θsat-θres)*exp(-(T/γ)^2), θtot)
+    let T = normalize_temperature(T),
+        Tₘ = normalize_temperature(Tₘ),
+        θsat = max(θtot, θsat);
+        IfElse.ifelse(T<=Tₘ, θres + (θsat-θres)*exp(-((T-Tₘ)/γ)^2), θtot)
     end
 end
 
@@ -157,21 +161,23 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
     wintertime rain events on the thermal regime of permafrost, The Cryosphere, 5, 945–959,
     https://doi.org/10.5194/tc-5-945-2011, 2011. 
 """
-@with_kw struct Westermann{T,Θ,Δ} <: SFCCFunction
-    Tₘ::T = Param(0.0)
+Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
+    Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
-    δ::Δ = Param(0.1, bounds=(eps(),Inf))
+    δ::Δ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
-    f.δ,
+    f.Tₘ |> stripparams,
+    f.θres |> stripparams,
+    porosity(soil, heat, state) |> stripparams, # θ saturated = porosity
+    totalwater(soil, heat, state) |> stripparams, # total water content
+    f.δ |> stripparams,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
-    let θsat = max(θtot, θsat);
-        IfElse.ifelse(T<=Tₘ, θres - (θsat-θres)*(δ/(T-δ)), θtot)
+    let T = normalize_temperature(T),
+        Tₘ = normalize_temperature(Tₘ),
+        θsat = max(θtot, θsat);
+        IfElse.ifelse(T<=Tₘ, θres - (θsat-θres)*(δ/(T-Tₘ-δ)), θtot)
     end
 end
 struct SFCCTable{F,I} <: SFCCFunction
@@ -200,9 +206,9 @@ end
 include("sfcc_solvers.jl")
 
 # Generate analytical derivatives during precompilation
-const ∂DallAmico∂T = ∇(DallAmico(), :T)
-const ∂McKenzie∂T = ∇(McKenzie(), :T)
-const ∂Westermann∂T = ∇(Westermann(), :T)
+const ∂DallAmico∂T = ∇(stripunits(DallAmico()), :T)
+const ∂McKenzie∂T = ∇(stripunits(McKenzie()), :T)
+const ∂Westermann∂T = ∇(stripunits(Westermann()), :T)
 SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂DallAmico∂T), solver)
 SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂McKenzie∂T), solver)
 SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂Westermann∂T), solver)

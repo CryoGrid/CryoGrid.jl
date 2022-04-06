@@ -8,12 +8,10 @@ using CryoGrid.Physics.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
-using Parameters
-
 import CryoGrid: BoundaryProcess, BoundaryStyle, Neumann, Top
 import CryoGrid: initialcondition!, variables
 
-@with_kw struct SEBParams <: Params
+Base.@kwdef struct SEBParams <: IterableStruct
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
     α::Float"1" = 0.2xu"1"                          # surface albedo [-]
     ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
