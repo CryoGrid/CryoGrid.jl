@@ -147,7 +147,7 @@ end
 
 Builds the state named tuple for `layername` given an initialized integrator.
 """
-Strat.getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = getstate(Val{layername}(), integrator)
+Strat.getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = Strat.getstate(Val{layername}(), integrator)
 Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Strat.getstate(Tile(integrator), integrator.u, get_du(integrator), integrator.t)
 """
     getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
