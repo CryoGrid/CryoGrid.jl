@@ -90,7 +90,7 @@ Differentiable implementation of heaviside step function, i.e:
 
 ``h(x) = \\begin{cases} 1 & x ≥ 0 \\\\ 0 & x < 0 \\end{cases}``
 """
-heaviside(x) = IfElse.ifelse(x >= 0.0, 1.0, 0.0)
+heaviside(x) = IfElse.ifelse(x >= zero(x), 1.0, 0.0)
 """
     logistic(x)
 
@@ -98,7 +98,7 @@ Numerically stable logistic function.
 
 ``σ(x) = \\begin{cases} \\frac{1}{1+\\exp(-x)} & x ≥ 0 \\\\ \\frac{\\exp(x)}{1+\\exp(x)} & x < 0 \\end{cases}``
 """
-logistic(x) = IfElse.ifelse(x >= 0, 1 / (1 + exp(-x)), exp(x) / (1 + exp(x)))
+logistic(x) = IfElse.ifelse(x >= zero(x), 1 / (1 + exp(-x)), exp(x) / (1 + exp(x)))
 """
     logit(x)
 

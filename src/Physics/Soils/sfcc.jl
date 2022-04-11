@@ -113,15 +113,13 @@ sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
 # pressure head at T
 ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
-    # in this function, units are applied unconditionally since it's a bit more complex;
-    # this should not have any effect on performance, and the resulting water content is always dimensionless.
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0),
-        T = normalize_temperature(T),
+        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0/α),
         Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
+        T = normalize_temperature(T),
         ψ = ψ(T, Tstar, ψ₀, Lf, g);
         f.swrc(ψ, θres, θsat, α, n)
     end
