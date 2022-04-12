@@ -126,6 +126,8 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
 Common variable definitions for all heat implementations.
 """
 basevariables(::Heat) = (
+    Diagnostic(:dH_upper, Float"J/K/m^2", Scalar),
+    Diagnostic(:dH_lower, Float"J/K/m^2", Scalar),
     Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
     Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
@@ -193,26 +195,26 @@ end
 Generic top interaction. Computes flux dH at top cell.
 """
 function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, stop, ssub)
+    Δk = Δ(ssub.grids.k)
     # thermal conductivity at boundary
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
     @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
-    @log dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
-    Δk = Δ(ssub.grids.k)
-    @inbounds ssub.dH[1] += dH_upper / Δk[1]
+    @setscalar state.dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
+    @inbounds ssub.dH[1] += state.dH_upper[1] / Δk[1]
     return nothing # ensure no allocation
 end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
 function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess, ssub, sbot)
+    Δk = Δ(ssub.grids.k)
     # thermal conductivity at boundary
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
     @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
-    @log dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
-    Δk = Δ(ssub.grids.k)
-    @inbounds ssub.dH[end] += dH_lower / Δk[end]
+    @setscalar state.dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @inbounds ssub.dH[end] += state.dH_lower / Δk[end]
     return nothing # ensure no allocation
 end
 """

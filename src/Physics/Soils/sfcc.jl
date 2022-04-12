@@ -96,34 +96,32 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
 Base.@kwdef struct DallAmico{T,Θ,A,N,G} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
-    α::A = Param(4.0, bounds=(eps(),Inf), units=u"1/L")
+    α::A = Param(4.0, bounds=(eps(),Inf), units=u"1/m")
     n::N = Param(2.0, bounds=(1,Inf))
     g::G = 9.80665u"m/s^2" # acceleration due to gravity
     swrc::VanGenuchten = VanGenuchten()
 end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
-    f.Tₘ |> stripparams,
-    f.θres |> stripparams,
-    porosity(soil, heat, state) |> stripparams, # θ saturated = porosity
-    totalwater(soil, heat, state) |> stripparams, # total water content
-    heat.L |> stripparams, # specific latent heat of fusion, L
-    f.α |> stripparams,
-    f.n |> stripparams,
+    f.Tₘ,
+    f.θres,
+    porosity(soil, heat, state), # θ saturated = porosity
+    totalwater(soil, heat, state), # total water content
+    heat.prop.Lf, # specific latent heat of fusion, L
+    f.α,
+    f.n,
 )
 # pressure head at T
-ψ(T,Tstar,ψ₀,L,g) = ψ₀ + L/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
-function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,L,α,n)
-    # in this function, units are applied unconditionally since it's a bit more complex;
-    # this should not have any effect on performance, and the resulting water content is always dimensionless.
+ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
+function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0),
+        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0/α),
+        Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
         T = normalize_temperature(T),
-        Tstar = Tₘ + g*Tₘ/L*ψ₀,
-        ψ = ψ(T,Tstar,ψ₀,L,g);
-        f.swrc(ψ,θres,θsat,α,n)
+        ψ = ψ(T, Tstar, ψ₀, Lf, g);
+        f.swrc(ψ, θres, θsat, α, n)
     end
 end
 
@@ -140,11 +138,11 @@ Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
     γ::Γ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    f.Tₘ |> stripparams,
-    f.θres |> stripparams,
-    porosity(soil, heat, state) |> stripparams, # θ saturated = porosity
-    totalwater(soil, heat, state) |> stripparams, # total water content
-    f.γ |> stripparams,
+    f.Tₘ,
+    f.θres,
+    porosity(soil, heat, state), # θ saturated = porosity
+    totalwater(soil, heat, state), # total water content
+    f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
     let T = normalize_temperature(T),
@@ -167,11 +165,11 @@ Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
     δ::Δ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    f.Tₘ |> stripparams,
-    f.θres |> stripparams,
-    porosity(soil, heat, state) |> stripparams, # θ saturated = porosity
-    totalwater(soil, heat, state) |> stripparams, # total water content
-    f.δ |> stripparams,
+    f.Tₘ,
+    f.θres,
+    porosity(soil, heat, state), # θ saturated = porosity
+    totalwater(soil, heat, state), # total water content
+    f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
     let T = normalize_temperature(T),
