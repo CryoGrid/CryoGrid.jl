@@ -13,7 +13,6 @@ using CryoGrid.Utils
 using Base: @propagate_inbounds, @kwdef
 using IfElse
 using ModelParameters
-using SimulationLogs
 using Unitful
 
 export Heat, TemperatureProfile
