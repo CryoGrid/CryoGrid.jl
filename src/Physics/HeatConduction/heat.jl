@@ -139,6 +139,8 @@ function diagnosticstep!(sub::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
+    @. state.dH_upper = zero(eltype(state.dH_upper))
+    @. state.dH_lower = zero(eltype(state.dH_lower))
     # Evaluate the freeze curve (updates T, C, and θl)
     fc! = freezecurve(heat);
     fc!(sub, heat, state)
@@ -200,8 +202,8 @@ function interact!(top::Top, bc::BoundaryProcess, sub::SubSurface, heat::Heat, s
     # assumes (1) k has already been computed, (2) surface conductivity = cell conductivity
     @inbounds ssub.k[1] = ssub.kc[1]
     # boundary flux
-    @setscalar state.dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
-    @inbounds ssub.dH[1] += state.dH_upper[1] / Δk[1]
+    @setscalar ssub.dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
+    @inbounds ssub.dH[1] += getscalar(ssub.dH_upper) / Δk[1]
     return nothing # ensure no allocation
 end
 """
@@ -213,8 +215,8 @@ function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess
     # assumes (1) k has already been computed, (2) bottom conductivity = cell conductivity
     @inbounds ssub.k[end] = ssub.kc[end]
     # boundary flux
-    @setscalar state.dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
-    @inbounds ssub.dH[end] += state.dH_lower / Δk[end]
+    @setscalar ssub.dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    @inbounds ssub.dH[end] += getscalar(ssub.dH_lower) / Δk[end]
     return nothing # ensure no allocation
 end
 """
@@ -236,6 +238,9 @@ function interact!(::SubSurface, ::Heat, ::SubSurface, ::Heat, s1, s2)
         δ = s2.grids.T[1] - s1.grids.T[end];
         k*(s2.T[1] - s1.T[end]) / δ
     end
+    # diagnostics
+    @setscalar s1.dH_lower = Qᵢ
+    @setscalar s2.dH_upper = -Qᵢ
     # add fluxes scaled by grid cell size
     @inbounds s1.dH[end] += Qᵢ / Δ(s1.grids.k)[end]
     @inbounds s2.dH[1] += -Qᵢ / Δ(s2.grids.k)[1]
