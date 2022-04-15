@@ -65,11 +65,8 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = Utils.selectat(i, identity, f_args)
-            θw = totalwater(soil, heat, state, i)
-            θm = mineral(soil, heat, state, i)
-            θo = organic(soil, heat, state, i)
             state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, heat, θw, state.θl[i], θm, θo)
+            state.C[i] = heatcapacity(soil, heat, state, i)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
             state.dHdT[i] = state.C[i] + (L + heat.prop.cw - heat.prop.ci)*∇f(f_argsᵢ)
         end

@@ -58,13 +58,11 @@ soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
 Soil thermal properties.
 """
-@kwdef struct SoilThermalProperties{Tko,Tkm,Tka,Tco,Tcm,Tca} <: HeatConduction.ThermalProperties
+@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm} <: HeatConduction.ThermalProperties
     ko::Tko = Param(0.25, units=u"W/m/K") # organic [Hillel(1982)]
     km::Tkm = Param(3.8, units=u"W/m/K") # mineral [Hillel(1982)]
-    ka::Tka = Param(0.025, units=u"W/m/K") #air [Hillel(1982)]
     co::Tco = Param(2.5e6, units=u"J/K/m^3") # heat capacity organic
     cm::Tcm = Param(2.0e6, units=u"J/K/m^3") # heat capacity mineral
-    ca::Tca = Param(0.00125e6, units=u"J/K/m^3") # heat capacity pore space
 end
 """
 Basic Soil layer.

@@ -29,14 +29,47 @@ Defaults to using the scalar total water content defined on layer `sub`.
 Retrieves the liquid water content for the given layer at grid cell `i`, if specified.
 Defaults to using the scalar total water content defined on layer `sub`.
 """
-@inline liquidwater(sub::SubSurface, heat::Heat, state) = state.θl
+@inline liquidwater(::SubSurface, ::Heat, state) = state.θl
 @inline liquidwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(liquidwater(sub, heat, state), i)
+"""
+    thermalconductivities(::SubSurface, heat::Heat)
+
+Get thermal conductivities for generic `SubSurface` layer.
+"""
+@inline thermalconductivities(::SubSurface, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka)
+"""
+    heatcapacities(::SubSurface, heat::Heat)
+
+Get heat capacities for generic `SubSurface` layer.
+"""
+@inline heatcapacities(::SubSurface, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca)
+"""
+    volumetricfractions(::SubSurface, heat::Heat)
+
+Get constituent volumetric fractions for generic `SubSurface` layer.
+"""
+@inline function volumetricfractions(soil::SubSurface, heat::Heat, state, i)
+    return let θw = totalwater(soil, heat, state, i),
+        θl = liquidwater(soil, heat, state, i),
+        θa = 1.0 - θw,
+        θi = θw - θl;
+        (θl, θi, θa)
+    end
+end
+
+# Generic heat conduction implementation
+
 """
     heatcapacity(capacities::NTuple{N}, fracs::NTuple{N}) where N
 
 Computes the heat capacity as a weighted average over constituent `capacities` with volumetric fractions `fracs`.
 """
 heatcapacity(capacities::NTuple{N,Any}, fracs::NTuple{N,Any}) where N = sum(map(*, capacities, fracs))
+@inline function heatcapacity(sub::SubSurface, heat::Heat, state, i)
+    θs = volumetricfractions(sub, heat, state, i)
+    cs = heatcapacities(sub, heat)
+    return heatcapacity(cs, θs)
+end
 """
     heatcapacity!(sub::SubSurface, heat::Heat, state)
 
@@ -48,11 +81,16 @@ Computes the heat capacity for the given layer from the current state and stores
     end
 end
 """
-    thermalconductivity(capacities::NTuple{N}, fracs::NTuple{N}) where N
+    thermalconductivity(conductivities::NTuple{N}, fracs::NTuple{N}) where N
 
 Computes the thermal conductivity as a squared weighted sum over constituent `conductivities` with volumetric fractions `fracs`.
 """
 thermalconductivity(conductivities::NTuple{N,Any}, fracs::NTuple{N,Any}) where N = sum(map(*, map(sqrt, conductivities), fracs))^2
+@inline function thermalconductivity(sub::SubSurface, heat::Heat, state, i)
+    θs = volumetricfractions(sub, heat, state, i)
+    ks = thermalconductivities(sub, heat)
+    return thermalconductivity(ks, θs)
+end
 """
     thermalconductivity!(sub::SubSurface, heat::Heat, state)
 

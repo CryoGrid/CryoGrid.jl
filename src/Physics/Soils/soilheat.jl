@@ -32,43 +32,24 @@ Defaults to using the scalar porosity defined on `soil`.
 @inline porosity(soil::Soil, ::Heat, state) = porosity(soil, state)
 @inline porosity(soil::Soil, heat::Heat, state, i) = Utils.getscalar(porosity(soil, heat, state), i)
 # Functions for retrieving constituents and volumetric fractions
-@inline thermalconductivities(soil::Soil, heat::Heat) = (heat.prop.kw, heat.prop.ki, soil.prop.ko, soil.prop.km, soil.prop.ka)
-@inline heatcapacities(soil::Soil, heat::Heat) = (heat.prop.cw, heat.prop.ci, soil.prop.co, soil.prop.cm, soil.prop.ca)
-@inline function volumetricfractions(totalwater, liquidwater, mineral, organic)
-    return let θa = 1.0 - totalwater - mineral - organic,
-        θi = totalwater - liquidwater,
-        θl = liquidwater,
-        θo = organic,
-        θm = mineral;
-        tuple(θl, θi, θo, θm, θa)
+@inline thermalconductivities(soil::Soil, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka, soil.prop.ko, soil.prop.km)
+@inline heatcapacities(soil::Soil, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca, soil.prop.co, soil.prop.cm)
+@inline function volumetricfractions(soil::Soil, heat::Heat, state, i)
+    return let θw = totalwater(soil, heat, state, i),
+        θl = liquidwater(soil, heat, state, i),
+        θm = mineral(soil, heat, state, i),
+        θo = organic(soil, heat, state, i),
+        θa = 1.0 - θw - θm - θo,
+        θi = θw - θl;
+        (θl, θi, θa, θo, θm)
     end
 end
-# Dispatches for heat capacity and thermal conductivity on Soil types
-# TODO: this is a lot of indirection... could it be simplified without giving up generalizability?
-@inline heatcapacity(soil::Soil, heat::Heat, state, i) = heatcapacity(
-    soil,
-    heat,
-    totalwater(soil, heat, state, i),
-    liquidwater(soil, heat, state, i),
-    mineral(soil, heat, state, i),
-    organic(soil, heat, state, i),
-)
-@inline heatcapacity(soil::Soil, heat::Heat, totalwater, liquidwater, mineral, organic) = heatcapacity(
-    heatcapacities(soil, heat),
-    volumetricfractions(totalwater, liquidwater, mineral, organic)
-)
-@inline thermalconductivity(soil::Soil, heat::Heat, state, i) = thermalconductivity(
-    soil,
-    heat,
-    totalwater(soil, heat, state, i),
-    liquidwater(soil, heat, state, i),
-    mineral(soil, heat, state, i),
-    organic(soil, heat, state, i),
-)
-@inline thermalconductivity(soil::Soil, heat::Heat, totalwater, liquidwater, mineral, organic) = thermalconductivity(
-    thermalconductivities(soil, heat),
-    volumetricfractions(totalwater, liquidwater, mineral, organic)
-)
+@inline function heatcapacity(soil::Soil, heat::Heat, θw, θl, θm, θo)
+    let θa = 1.0 - θw - θm - θo,
+        θi = θw - θl;
+        return heatcapacity(heatcapacities(soil, heat), (θl, θi, θa, θo, θm))
+    end
+end
 
 # SFCC
 include("sfcc.jl")
