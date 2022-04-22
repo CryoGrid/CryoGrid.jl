@@ -1,7 +1,7 @@
 module HeatConduction
 
 import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Callback
-import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!, thickness, midpoints
+import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!, thickness, midpoints, volumetricfractions
 
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
@@ -74,7 +74,7 @@ freezecurve(heat::Heat) = heat.freezecurve
 # Default implementation of `variables` for freeze curve
 variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 
-export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, Damping
+export HeatBC, ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")
 
 export heatconduction!, enthalpy, totalwater, liquidwater, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!

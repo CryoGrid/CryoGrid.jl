@@ -37,7 +37,7 @@ Get heat capacities for generic `SubSurface` layer.
 """
 @inline heatcapacities(::SubSurface, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca)
 """
-    volumetricfractions(::SubSurface, heat::Heat)
+    volumetricfractions(::SubSurface, heat::Heat, state, i)
 
 Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
 the only constitutents are liquid water, ice, and air: `(θl,θi,θa)`.
@@ -270,18 +270,15 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
     Δk₁ = thickness(sub1, s1)
     Δk₂ = thickness(sub2, s2)
     # thermal conductivity between cells
-    @inbounds let k₁ = s1.kc[end],
-        k₂ = s2.kc[1],
-        Δ₁ = Δk₁[end],
-        Δ₂ = Δk₂[1];
-        k = harmonicmean(k₁, k₂, Δ₁, Δ₂);
-        s1.k[end] = s2.k[1] = k
-    end
+    k = s1.k[end] = s2.k[1] =
+        @inbounds let k₁ = s1.kc[end],
+            k₂ = s2.kc[1],
+            Δ₁ = Δk₁[end],
+            Δ₂ = Δk₂[1];
+            harmonicmean(k₁, k₂, Δ₁, Δ₂)
+        end
     # calculate heat flux between cells
-    Qᵢ = @inbounds let k₁ = s1.k[end],
-        k₂ = s2.k[1],
-        k = k₁ = k₂,
-        z₁ = midpoints(sub1, s1),
+    Qᵢ = @inbounds let z₁ = midpoints(sub1, s1),
         z₂ = midpoints(sub2, s2),
         δ = z₂[1] - z₁[end];
         k*(s2.T[1] - s1.T[end]) / δ

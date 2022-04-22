@@ -142,3 +142,12 @@ midpoints(::Layer, state) = cells(state.grid)
 Get thickness (m) of layer or all grid cells within the layer.
 """
 thickness(::Layer, state) = Δ(state.grid)
+# Composition
+"""
+    volumetricfractions(::Layer, ::Process, state)
+    volumetricfractions(::Layer, ::Process, state, i)
+
+Get the volumetric fractions of each constituent in the volume (at grid cell `i`, if specificed).
+"""
+volumetricfractions(::Layer, ::Process, state) = ()
+volumetricfractions(::Layer, ::Process, state, i) = ()
