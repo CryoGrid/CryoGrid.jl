@@ -5,11 +5,11 @@ any necessary additional constants or configuration options. User-specified para
 can either be supplied in the struct or declared as model parameters via the `variables`
 method.
 """
-abstract type SFCCFunction <: IterableStruct end
+abstract type SFCCFunction <: Function end
 """
 Abstract type for SFCC H <--> T solvers.
 """
-abstract type SFCCSolver <: IterableStruct end
+abstract type SFCCSolver end
 """
     SFCC{F,∇F,S} <: FreezeCurve
 
@@ -101,8 +101,8 @@ end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
+    porosity(soil, state), # θ saturated = porosity
+    totalwater(soil, state), # total water content
     heat.prop.Lf, # specific latent heat of fusion, L
     f.α,
     f.n,
@@ -137,8 +137,8 @@ end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
+    porosity(soil, state), # θ saturated = porosity
+    totalwater(soil, state), # total water content
     f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
@@ -164,8 +164,8 @@ end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
+    porosity(soil, state), # θ saturated = porosity
+    totalwater(soil, state), # total water content
     f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)

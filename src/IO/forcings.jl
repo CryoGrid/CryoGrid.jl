@@ -1,9 +1,9 @@
 """
-      Forcing{T,N}
+      Forcing{T,N} <: Function
 
 Abstract type representing a generic external boundary condition (i.e. "forcing").
 """
-abstract type Forcing{T,N} end
+abstract type Forcing{T,N} <: Function end
 @inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
 # disable flattening for all fields of forcing types by default

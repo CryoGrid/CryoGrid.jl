@@ -189,6 +189,7 @@ is only executed during compilation and will not appear in the compiled version.
         nlayer = Symbol(n,:layer)
         nprocess = Symbol(n,:process)
         @>> quote
+        diagnosticstep!($nlayer, $nstate)
         diagnosticstep!($nlayer,$nprocess,$nstate)
         end push!(expr.args)
     end

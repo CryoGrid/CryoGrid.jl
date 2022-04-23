@@ -10,6 +10,17 @@ using Lazy: @>>
 using Reexport
 using Unitful
 
+"""
+    totalwater(sub::SubSurface, state)
+    totalwater(sub::SubSurface, state)
+    totalwater(sub::SubSurface, state, i)
+
+Retrieves the total water content for the given layer at grid cell `i`, if specified.
+Defaults to using the scalar total water content defined on layer `sub`.
+"""
+@inline totalwater(sub::SubSurface, state) = state.θw
+@inline totalwater(sub::SubSurface, state, i) = Utils.getscalar(totalwater(sub, state), i)
+
 include("coupled.jl")
 include("Boundaries/Boundaries.jl")
 include("HeatConduction/HeatConduction.jl")

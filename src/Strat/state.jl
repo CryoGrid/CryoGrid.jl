@@ -4,21 +4,22 @@ Enumeration for in-place vs out-of-place mode.
 """
 @enum InPlaceMode inplace ooplace
 """
-    LayerState{iip,TStates,TGrids,Tt,Tz,varnames}
+    LayerState{iip,TGrid,TStates,TGrids,Tt,Tz,varnames}
 
 Represents the state of a single component (layer + processes) in the stratigraphy.
 """
-struct LayerState{iip,TStates,TGrids,Tt,Tz,varnames}
+struct LayerState{iip,TGrid,TStates,TGrids,Tt,Tz,varnames}
+    grid::TGrid
     grids::NamedTuple{varnames,TGrids}
     states::NamedTuple{varnames,TStates}
     bounds::NTuple{2,Tz}
     t::Tt
-    LayerState(grids::NamedTuple{varnames,TG}, states::NamedTuple{varnames,TS}, t::Tt, bounds::NTuple{2,Tz}, ::Val{iip}=Val{inplace}()) where
-        {TG,TS,Tt,Tz,varnames,iip} = new{iip,TS,TG,Tt,Tz,varnames}(grids, states, bounds, t)
+    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, t::Tt, bounds::NTuple{2,Tz}, ::Val{iip}=Val{inplace}()) where
+        {TG,Tvg,Tvs,Tt,Tz,varnames,iip} = new{iip,TG,Tvs,Tvg,Tt,Tz,varnames}(grid, grids, states, bounds, t)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
-    return if sym ∈ (:grids, :states, :t, :z)
+    return if sym ∈ (:grid, :grids, :states, :t, :z)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)
@@ -27,6 +28,7 @@ end
 @inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {layername,iip}
     z_inds = subgridinds(edges(vs.grid), zs[1]..zs[2])
     return LayerState(
+        vs.grid[z_inds],
         _makegrids(Val{layername}(), getproperty(vs.vars, layername), vs, z_inds),
         _makestates(Val{layername}(), getproperty(vs.vars, layername), vs, z_inds, u, du, t),
         t,

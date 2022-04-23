@@ -2,7 +2,8 @@ module Soils
 
 import CryoGrid: SubSurface, Parameterization
 import CryoGrid: initialcondition!, variables
-import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, totalwater, liquidwater, thermalconductivity, heatcapacity
+import CryoGrid.Physics: totalwater
+import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, liquidwater, thermalconductivity, heatcapacity
 
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
@@ -77,15 +78,15 @@ SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
 # Fixed volumetric content methods
-totalwater(soil::Soil, state) = totalwater(SoilComposition(soil), soil, state)
-porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil, state)
-mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil, state)
-organic(soil::Soil, state) = organic(SoilComposition(soil), soil, state)
+totalwater(soil::Soil, state) = totalwater(SoilComposition(soil), soil)
+porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
+mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)
+organic(soil::Soil, state) = organic(SoilComposition(soil), soil)
 ## Homogeneous soils
-totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θw}(), soil.para)
-porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θp}(), soil.para)
-mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θm}(), soil.para)
-organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θo}(), soil.para)
+totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θw}(), soil.para)
+porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
+mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
+organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
 ## Heterogeneous soils
 totalwater(::Heterogeneous, soil::Soil, state) = state.θw   
 porosity(::Heterogeneous, soil::Soil, state) = state.θp

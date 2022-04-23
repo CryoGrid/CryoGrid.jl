@@ -44,7 +44,7 @@ end
 
 Scalar second order Laplacian with non-linear diffusion operator, `k`.
 """
-nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk) = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
+@inline nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk) = (k₂*(x₃ - x₂)/Δx₂ - k₁*(x₂ - x₁)/Δx₁)/Δk
 @propagate_inbounds function nonlineardiffusion!(∂y, x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
     @. ∂y = nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
 end
@@ -59,7 +59,11 @@ end
     Δx₂::AbstractVector{Float64},
     Δk::AbstractVector{Float64},
 )
-    @turbo @. ∂y = nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+    if USE_TURBO
+        @turbo @. ∂y = nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+    else
+        @. ∂y = nonlineardiffusion(x₁, x₂, x₃, k₁, k₂, Δx₁, Δx₂, Δk)
+    end
 end
 
 """
@@ -90,7 +94,7 @@ Differentiable implementation of heaviside step function, i.e:
 
 ``h(x) = \\begin{cases} 1 & x ≥ 0 \\\\ 0 & x < 0 \\end{cases}``
 """
-heaviside(x) = IfElse.ifelse(x >= zero(x), 1.0, 0.0)
+heaviside(x) = IfElse.ifelse(x >= zero(x), one(x), zero(x))
 """
     logistic(x)
 
