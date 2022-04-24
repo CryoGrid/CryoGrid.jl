@@ -22,7 +22,7 @@ convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 # Helper function for updating θl, C, and the residual.
 @inline function residual(soil::Soil, heat::Heat, T, H, L, f, f_args, θw, θm, θo)
     args = tuplejoin((T,), f_args)
-    θl = Utils.fastinvoke(f, args, Float64)
+    θl = Utils.fastinvoke(f, args)
     C = heatcapacity(soil, heat, θw, θl, θm, θo)
     Tres = T - (H - θl*L) / C
     return Tres, θl, C
@@ -105,8 +105,8 @@ function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
                 let θl = state.θl[i],
                     H = state.H[i];
                     state.C[i] = heatcapacity(soil, heat, θw, θl, θm, θo)
-                    state.dHdT[i] = state.C[i] + dθdT*(L + heat.prop.cw - heat.prop.ci)
                     state.T[i] = (H - L*θl) / state.C[i]
+                    state.dHdT[i] = state.C[i] + dθdT*(L + state.T[i]*(heat.prop.cw - heat.prop.ci))
                 end
             end
         end
@@ -207,6 +207,6 @@ function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, he
     @inbounds for i in 1:length(state.T)
         ∇f_argsᵢ = Utils.selectat(i, identity, ∇f_args)
         dθdTᵢ = heat.freezecurve.∇f(∇f_argsᵢ)
-        state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + heat.prop.cw - heat.prop.ci)
+        state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + state.T[i]*(heat.prop.cw - heat.prop.ci))
     end
 end

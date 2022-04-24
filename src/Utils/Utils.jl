@@ -172,11 +172,6 @@ end
     return :(f($(accessors...)))
 end
 
-@inline @generated function fastinvoke(f, args::T, ::Type{R}) where {T<:Tuple,R}
-    accessors = (:(args[$i]) for i in 1:length(T.parameters))
-    return :(f($(accessors...))::R)
-end
-
 """
     ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 

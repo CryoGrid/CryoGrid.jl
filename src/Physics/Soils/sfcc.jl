@@ -68,7 +68,7 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
             state.θl[i] = f(f_argsᵢ...)
             state.C[i] = heatcapacity(soil, heat, state, i)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.dHdT[i] = state.C[i] + (L + heat.prop.cw - heat.prop.ci)*∇f(f_argsᵢ)
+            state.dHdT[i] = state.C[i] + (L + state.T[i]*(heat.prop.cw - heat.prop.ci))*∇f(f_argsᵢ)
         end
     end
     return nothing
