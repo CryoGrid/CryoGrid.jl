@@ -32,18 +32,18 @@ include("../../types.jl")
 		Δk = Δ(x)
 		sub = TestGroundLayer()
 		heat = Heat()
-		bc = ConstantBC(CryoGrid.Dirichlet, 0.0u"°C")
+		bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"W/m^3"
-			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			state = (T=T₀,k=k,dH=∂H,grid=x,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(bc,Top(),heat,sub,state,state) > 0.0u"W/m^2"
 			@test boundaryflux(bc,Bottom(),heat,sub,state,state) < 0.0u"W/m^2"
 		end
 		@testset "top: -, bot: +" begin
 			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"W/m^3"
-			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			state = (T=T₀,k=k,dH=∂H,grid=x,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(bc,Top(),heat,sub,state,state) < 0.0u"W/m^2"
 			@test boundaryflux(bc,Bottom(),heat,sub,state,state) > 0.0u"W/m^2"
 		end
@@ -62,10 +62,10 @@ include("../../types.jl")
 			@test ∂H[end] < 0.0u"W/m^3"
 		end
 		@testset "Neumann boundary" begin
-			bc = ConstantBC(CryoGrid.Neumann, -1.0u"W/m^2")
+			bc = ConstantBC(Heat, CryoGrid.Neumann, -1.0u"W/m^2")
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			∂H = zeros(length(T₀))u"W/m^3"
-			state = (T=T₀,k=k,dH=∂H,grids=(T=xc,k=x),t=0.0)
+			state = (T=T₀,k=k,dH=∂H,grid=x,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"W/m^2"
 		end
 	end
@@ -93,7 +93,7 @@ end
 	f_analytic(x,t) = exp(-t*4π^2)*sin(2.0*π*x)
 	sub = TestGroundLayer()
 	heat = Heat()
-	bc = ConstantBC(CryoGrid.Dirichlet, 0.0u"°C")
+	bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
 	function dTdt(T,p,t)
 		dH = similar(T)u"W/m^3"
 		dH .= zero(eltype(dH))
@@ -101,7 +101,7 @@ end
 		heatconduction!(dH,T_K,ΔT,k,Δk)
 		# compute boundary fluxes;
 		# while not correct in general, for this test case we can just re-use state for both layers.
-		state = (T=T_K,k=k,dH=dH,grids=(T=xc,k=x),t=t)
+		state = (T=T_K,k=k,dH=dH,grid=x,grids=(T=xc,k=x),t=t)
 		dH[1] += boundaryflux(bc,Top(),heat,sub,state,state)/Δk[1]
 		dH[end] += boundaryflux(bc,Bottom(),heat,sub,state,state)/Δk[end]
 		# strip units from dH before returning it to the solver

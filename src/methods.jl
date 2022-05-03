@@ -32,10 +32,12 @@ relevant state variables in `state`.
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
     diagnosticstep!(l::Layer, p::Process, state)
+    diagnosticstep!(l::Layer, state)
 
 Defines the diagnostic update for a Process on a given Layer.
 """
 diagnosticstep!(l::Layer, p::Process, state) = nothing
+diagnosticstep!(l::Layer, state) = nothing
 """
     prognosticstep!(l::Layer, p::Process, state)
 
@@ -127,3 +129,16 @@ for example `Discrete` or `Continuous`.
 """
 CallbackStyle(::C) where {C<:Callback} = CallbackStyle(C)
 CallbackStyle(::Type{<:Callback}) = Discrete()
+# Discretization
+"""
+    midpoints(::Layer, state)
+
+Get midpoint(s) of layer or all grid cells within the layer.
+"""
+midpoints(::Layer, state) = cells(state.grid)
+"""
+    thickness(::Layer, state)
+
+Get thickness (m) of layer or all grid cells within the layer.
+"""
+thickness(::Layer, state) = Δ(state.grid)

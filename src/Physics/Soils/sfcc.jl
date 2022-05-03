@@ -5,11 +5,11 @@ any necessary additional constants or configuration options. User-specified para
 can either be supplied in the struct or declared as model parameters via the `variables`
 method.
 """
-abstract type SFCCFunction <: IterableStruct end
+abstract type SFCCFunction <: Function end
 """
 Abstract type for SFCC H <--> T solvers.
 """
-abstract type SFCCSolver <: IterableStruct end
+abstract type SFCCSolver end
 """
     SFCC{F,∇F,S} <: FreezeCurve
 
@@ -38,7 +38,7 @@ function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choose
     ∇f = ∇(f, dvar; choosefn=choosefn, context_module=context_module)
     # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
     # when applied to runtime generated functions.
-    SFCC(f, Base.splat(∇f), s)
+    SFCC(f, ∇f, s)
 end
 
 # Join the declared state variables of the SFCC function and the solver
@@ -65,13 +65,10 @@ function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
         f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = Utils.selectat(i, identity, f_args)
-            θw = totalwater(soil, heat, state, i)
-            θm = mineral(soil, heat, state, i)
-            θo = organic(soil, heat, state, i)
             state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, heat, θw, state.θl[i], θm, θo)
+            state.C[i] = heatcapacity(soil, heat, state, i)
             state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.dHdT[i] = state.C[i] + (L + heat.prop.cw - heat.prop.ci)*∇f(f_argsᵢ)
+            state.dHdT[i] = state.C[i] + (L + state.T[i]*(heat.prop.cw - heat.prop.ci))*∇f(f_argsᵢ)
         end
     end
     return nothing
@@ -104,20 +101,20 @@ end
 sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
+    porosity(soil, state), # θ saturated = porosity
+    totalwater(soil, state), # total water content
     heat.prop.Lf, # specific latent heat of fusion, L
     f.α,
     f.n,
 )
 # pressure head at T
-ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
+@inline ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0/α),
+        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), zero(1/α)),
         Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
         T = normalize_temperature(T),
         ψ = ψ(T, Tstar, ψ₀, Lf, g);
@@ -140,8 +137,8 @@ end
 sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
+    porosity(soil, state), # θ saturated = porosity
+    totalwater(soil, state), # total water content
     f.γ,
 )
 function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
@@ -167,8 +164,8 @@ end
 sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
-    porosity(soil, heat, state), # θ saturated = porosity
-    totalwater(soil, heat, state), # total water content
+    porosity(soil, state), # θ saturated = porosity
+    totalwater(soil, state), # total water content
     f.δ,
 )
 function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
@@ -204,9 +201,9 @@ end
 include("sfcc_solvers.jl")
 
 # Generate analytical derivatives during precompilation
-const ∂DallAmico∂T = ∇(stripunits(DallAmico()), :T)
-const ∂McKenzie∂T = ∇(stripunits(McKenzie()), :T)
-const ∂Westermann∂T = ∇(stripunits(Westermann()), :T)
-SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂DallAmico∂T), solver)
-SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂McKenzie∂T), solver)
-SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂Westermann∂T), solver)
+const ∂DallAmico∂T = ∇(stripunits(stripparams(DallAmico())), :T)
+const ∂McKenzie∂T = ∇(stripunits(stripparams(McKenzie())), :T)
+const ∂Westermann∂T = ∇(stripunits(stripparams(Westermann())), :T)
+SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂DallAmico∂T, solver)
+SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂McKenzie∂T, solver)
+SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂Westermann∂T, solver)

@@ -28,6 +28,11 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 export GridSpec, Edges, Cells
 export Profile, ProfileKnot
 
+USE_TURBO = true
+function turbo(value::Bool)
+    global USE_TURBO = value
+end
+
 abstract type AbstractDiscretization{Q,N} <: DenseArray{Q,N} end
 
 abstract type GridSpec end

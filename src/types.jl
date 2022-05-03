@@ -35,13 +35,14 @@ such as heat conduction, water infiltration, etc.
 """
 abstract type SubSurfaceProcess <: Process end
 """
-    BoundaryProcess
+    BoundaryProcess{T<:SubSurfaceProcess}
 
 Abstract base type for boundary processes, i.e. processes that operate at the boundaries of the
 subsurface. A `BoundaryProcess` represents the boundary conditions of one or more `SubSurfaceProcess`es
 but may include its own diagnostic (or even prognostic) variables, if necessary.
 """
-abstract type BoundaryProcess <: Process end
+abstract type BoundaryProcess{T<:SubSurfaceProcess} <: Process end
+BoundaryProcess(::Type{T}) where {T<:SubSurfaceProcess} = BoundaryProcess{U} where {T<:U<:SubSurfaceProcess}
 """
     CoupledProcesses{TProcs} <: Process
 

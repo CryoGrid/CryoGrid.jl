@@ -2,7 +2,8 @@ module Soils
 
 import CryoGrid: SubSurface, Parameterization
 import CryoGrid: initialcondition!, variables
-import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, totalwater, liquidwater, thermalconductivity, heatcapacity
+import CryoGrid.Physics: totalwater
+import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, liquidwater, thermalconductivity, heatcapacity
 
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
@@ -58,13 +59,11 @@ soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
 Soil thermal properties.
 """
-@kwdef struct SoilThermalProperties{Tko,Tkm,Tka,Tco,Tcm,Tca} <: HeatConduction.ThermalProperties
+@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm} <: HeatConduction.ThermalProperties
     ko::Tko = Param(0.25, units=u"W/m/K") # organic [Hillel(1982)]
     km::Tkm = Param(3.8, units=u"W/m/K") # mineral [Hillel(1982)]
-    ka::Tka = Param(0.025, units=u"W/m/K") #air [Hillel(1982)]
     co::Tco = Param(2.5e6, units=u"J/K/m^3") # heat capacity organic
     cm::Tcm = Param(2.0e6, units=u"J/K/m^3") # heat capacity mineral
-    ca::Tca = Param(0.00125e6, units=u"J/K/m^3") # heat capacity pore space
 end
 """
 Basic Soil layer.
@@ -79,15 +78,15 @@ SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
 # Fixed volumetric content methods
-totalwater(soil::Soil, state) = totalwater(SoilComposition(soil), soil, state)
-porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil, state)
-mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil, state)
-organic(soil::Soil, state) = organic(SoilComposition(soil), soil, state)
+totalwater(soil::Soil, state) = totalwater(SoilComposition(soil), soil)
+porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
+mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)
+organic(soil::Soil, state) = organic(SoilComposition(soil), soil)
 ## Homogeneous soils
-totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θw}(), soil.para)
-porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θp}(), soil.para)
-mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θm}(), soil.para)
-organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state) = soilcomponent(Val{:θo}(), soil.para)
+totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θw}(), soil.para)
+porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
+mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
+organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
 ## Heterogeneous soils
 totalwater(::Heterogeneous, soil::Soil, state) = state.θw   
 porosity(::Heterogeneous, soil::Soil, state) = state.θp

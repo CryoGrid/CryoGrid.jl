@@ -30,7 +30,7 @@ Base.@kwdef struct SEBParams <: IterableStruct
     cₐ::Float"J/(m^3*K)" = 1005.7xu"J/(kg*K)" * ρₐ  # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 end
 
-struct SurfaceEnergyBalance{F} <: BoundaryProcess
+struct SurfaceEnergyBalance{F} <: BoundaryProcess{Heat}
     forcing::F
     sebparams::SEBParams
     function SurfaceEnergyBalance(

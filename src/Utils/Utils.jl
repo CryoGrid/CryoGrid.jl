@@ -24,7 +24,7 @@ export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setsc
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert, applyunit, normalize_temperature
+export dustrip, duconvert, applyunit, normalize_temperature, deparam
 export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
 
@@ -163,8 +163,13 @@ function `f` is then applied to each element.
 Generated `map` for `Tuple` types. This function is for use in generated functions where
 generators/comprehensions like `map` are not allowed.
 """
-@generated function genmap(f, args::T) where {T<:Tuple}
+@inline @generated function genmap(f, args::T) where {T<:Tuple}
     return Expr(:tuple, (:(f(args[$i])) for i in 1:length(T.parameters))...)
+end
+
+@inline @generated function fastinvoke(f, args::T) where {T<:Tuple}
+    accessors = (:(args[$i]) for i in 1:length(T.parameters))
+    return :(f($(accessors...)))
 end
 
 """
@@ -203,6 +208,16 @@ dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
 dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, uconvert.(u, x))
 
 duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
+
+"""
+    deparam(obj; keep_units=false)
+
+Strips `Param` types and units from `obj`. If `keep_units=true`, then `Param` types will be stripped but units preserved.
+"""
+function deparam(obj; keep_units=false)
+    stripped_obj = ModelParameters.stripparams(obj)
+    return keep_units ? stripped_obj : ModelParameters.stripunits(stripped_obj)
+end
 
 # TODO: this should be in ModelParameters.jl, not here.
 function Unitful.uconvert(u::Unitful.Units, p::Param)

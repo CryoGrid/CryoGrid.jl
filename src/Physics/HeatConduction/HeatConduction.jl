@@ -1,7 +1,7 @@
 module HeatConduction
 
 import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Callback
-import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!
+import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!, thickness, midpoints
 
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
@@ -48,13 +48,15 @@ abstract type ThermalProperties <: IterableStruct end
 
 Thermal properties of water used in two-phase heat conduction.
 """
-@kwdef struct HydroThermalProperties{Tρw,TLf,Tkw,Tki,Tcw,Tci} <: ThermalProperties
+@kwdef struct HydroThermalProperties{Tρw,TLf,Tkw,Tki,Tka,Tcw,Tci,Tca} <: ThermalProperties
     ρw::Tρw = Param(1000.0, units=u"kg/m^3") # density of water
     Lf::TLf = Param(334000.0, units=u"J/kg") # latent heat of fusion of water
     kw::Tkw = Param(0.57, units=u"W/m/K") # thermal conductivity of water [Hillel(1982)]
     ki::Tki = Param(2.2, units=u"W/m/K") # thermal conductivity of ice [Hillel(1982)]
+    ka::Tka = Param(0.025, units=u"W/m/K") # air [Hillel(1982)]
     cw::Tcw = Param(4.2e6, units=u"J/K/m^3") # heat capacity of water
     ci::Tci = Param(1.9e6, units=u"J/K/m^3") # heat capacity of ice
+    ca::Tca = Param(0.00125e6, units=u"J/K/m^3") # heat capacity of air
 end
 
 @kwdef struct Heat{Tfc<:FreezeCurve,Tsp,Tinit,TProp<:HydroThermalProperties,TL} <: SubSurfaceProcess
@@ -74,9 +76,10 @@ variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 # Fallback (error) implementation for freeze curve
 (fc::FreezeCurve)(sub::SubSurface, heat::Heat, state) = error("freeze curve $(typeof(fc)) not implemented for $(typeof(heat)) on layer $(typeof(sub))")
 
-export heatconduction!, enthalpy, totalwater, liquidwater, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
-include("heat.jl")
 export ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor, Damping
 include("heat_bc.jl")
+
+export heatconduction!, enthalpy, totalwater, liquidwater, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
+include("heat.jl")
 
 end
