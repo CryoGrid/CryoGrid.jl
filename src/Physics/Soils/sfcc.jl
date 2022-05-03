@@ -38,7 +38,7 @@ function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choose
     ∇f = ∇(f, dvar; choosefn=choosefn, context_module=context_module)
     # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
     # when applied to runtime generated functions.
-    SFCC(f, Base.splat(∇f), s)
+    SFCC(f, ∇f, s)
 end
 
 # Join the declared state variables of the SFCC function and the solver
@@ -108,13 +108,13 @@ sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.n,
 )
 # pressure head at T
-ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
+@inline ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
 function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), 0/α),
+        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), zero(1/α)),
         Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
         T = normalize_temperature(T),
         ψ = ψ(T, Tstar, ψ₀, Lf, g);
@@ -201,9 +201,9 @@ end
 include("sfcc_solvers.jl")
 
 # Generate analytical derivatives during precompilation
-const ∂DallAmico∂T = ∇(stripunits(DallAmico()), :T)
-const ∂McKenzie∂T = ∇(stripunits(McKenzie()), :T)
-const ∂Westermann∂T = ∇(stripunits(Westermann()), :T)
-SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂DallAmico∂T), solver)
-SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂McKenzie∂T), solver)
-SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, Base.splat(∂Westermann∂T), solver)
+const ∂DallAmico∂T = ∇(stripunits(stripparams(DallAmico())), :T)
+const ∂McKenzie∂T = ∇(stripunits(stripparams(McKenzie())), :T)
+const ∂Westermann∂T = ∇(stripunits(stripparams(Westermann())), :T)
+SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂DallAmico∂T, solver)
+SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂McKenzie∂T, solver)
+SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂Westermann∂T, solver)

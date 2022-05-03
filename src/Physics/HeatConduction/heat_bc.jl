@@ -1,9 +1,9 @@
 # Boundary condition type aliases
-const HeatBC = BoundaryProcess{T} where {Heat<:T<:BoundaryProcess}
+const HeatBC = BoundaryProcess{T} where {Heat<:T<:SubSurfaceProcess}
 const ConstantTemp = ConstantBC{Heat, Dirichlet,Float"°C"}
 ConstantTemp(value::UFloat"K") = ConstantBC(Heat, Dirichlet, dustrip(u"°C", value))
 ConstantTemp(value::UFloat"°C") = ConstantBC(Heat, Dirichlet, dustrip(value))
-const GeothermalHeatFlux = ConstantBC{Heat, Neumann,Float"J/s/m^2"}
+const GeothermalHeatFlux = ConstantBC{Heat, Neumann, Float"J/s/m^2"}
 GeothermalHeatFlux(value::UFloat"J/s/m^2"=0.053xu"J/s/m^2") = ConstantBC(Heat, Neumann, dustrip(value))
 
 struct TemperatureGradient{E,F} <: BoundaryProcess{Heat}

@@ -202,9 +202,9 @@ function prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,Temperature}, sta
     @inbounds @. state.dT = state.dH / state.dHdT
     return nothing
 end
-@inline boundaryflux(::Neumann, bc::BoundaryProcess{Heat}, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
-@inline boundaryflux(::Neumann, bc::BoundaryProcess{Heat}, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
-@inline function boundaryflux(::Dirichlet, bc::BoundaryProcess{Heat}, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
+@inline boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
+@inline boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
+@inline function boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
     Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
     @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
         Tsub=ssub.T[1],
@@ -213,7 +213,7 @@ end
         -k*(Tsub-Tupper)/δ
     end
 end
-@inline function boundaryflux(::Dirichlet, bc::BoundaryProcess{Heat}, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
+@inline function boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
     Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
     @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
@@ -225,7 +225,7 @@ end
 """
 Generic top interaction. Computes flux dH at top cell.
 """
-function interact!(top::Top, bc::BoundaryProcess{Heat}, sub::SubSurface, heat::Heat, stop, ssub)
+function interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::Heat, stop, ssub)
     Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
     # boundary flux
     @setscalar ssub.dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
@@ -235,7 +235,7 @@ end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
-function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::BoundaryProcess{Heat}, ssub, sbot)
+function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::HeatBC, ssub, sbot)
     Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
     # boundary flux
     @setscalar ssub.dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)

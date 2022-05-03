@@ -47,7 +47,6 @@ using Test
             end
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
-                soil
                 T = [5.0]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
@@ -62,7 +61,6 @@ using Test
             end
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
-                soil
                 T = [-0.05]
                 θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
@@ -271,10 +269,11 @@ end;
 #     state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,θw=θw)
 #     params = Utils.selectat(1, identity, Soils.sfccparams(f, soil, heat, state))
 #     f_params = tuplejoin((T[1],), params)
+#     Soils.sfccsolve(solver, soil, heat, sfcc.f, sfcc.∇f, params, H[1], L, θw, θm, θo, 0.0)
 #     # @btime Utils.fastinvoke($sfcc.f, $f_params)
+#     # @btime Utils.fastinvoke($sfcc.∇f, $f_params)
 #     # @btime Soils.residual($soil, $heat, $T[1], $H[1], $L, $sfcc.f, $params, $θw, $θm, $θo)
-#     # Soils.sfccsolve(solver, soil, heat, sfcc.f, sfcc.∇f, params, H[1], L, θw, θm, θo, 0.0)
-#     res = @btime Soils.sfccsolve($solver, $soil, $heat, $sfcc.f, $sfcc.∇f, $params, $H[1], $L, $θw, $θm, $θo)
+#     # res = @btime Soils.sfccsolve($solver, $soil, $heat, $sfcc.f, $sfcc.∇f, $params, $H[1], $L, $θw, $θm, $θo)
 #     @btime $sfcc($soil, $heat, $state)
 #     println("\nsolution: $(state.T[1]), $(state.θl[1])")
 # end
