@@ -68,7 +68,7 @@ function CryoGridProblem(
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
-    getsavestate(model::Tile, u, du) = deepcopy(Strat.getvars(model.state, u, du, savevars...))
+    getsavestate(tile::Tile, u, du) = deepcopy(Strat.getvars(tile.state, Strat.withaxes(u, tile), Strat.withaxes(du, tile), savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Strat.withaxes(u, Tile(integrator)), get_du(integrator))
     # remove units
     tile = stripunits(tile)
