@@ -285,10 +285,14 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
         # initialcondition! is called for layer1 only on the first iteration to avoid duplicate invocations
         if i == 1
             @>> quote
+            initialcondition!($n1layer,$n1state)
+            initialcondition!($n1layer,$n1process)
             initialcondition!($n1layer,$n1process,$n1state)
             end push!(expr.args)
         end
         @>> quote
+        initialcondition!($n2layer,$n2state)
+        initialcondition!($n2process,$n2state)
         initialcondition!($n2layer,$n2process,$n2state)
         initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)

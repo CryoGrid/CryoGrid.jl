@@ -12,8 +12,16 @@ using Unitful
 
 import Flatten: flattenable
 
-export BoundaryEffect, Damping
-include("effects.jl")
+"""
+    BoundaryEffect
+
+Base type for boundary "effects" which modify boundary conditions based on some
+given parameterization.
+"""
+abstract type BoundaryEffect end
+
+export BoundaryEffect
+
 export ConstantBC, PeriodicBC, Bias
 include("bc.jl")
 

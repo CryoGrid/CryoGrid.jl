@@ -19,10 +19,7 @@ state variables in `state`.
 """
 initialcondition!(::Layer, state) = nothing
 initialcondition!(::Process, state) = nothing
-function initialcondition!(layer::Layer, process::Process, state)
-    initialcondition!(layer, state)
-    initialcondition!(process, state)
-end
+initialcondition!(layer::Layer, process::Process, state) = nothing
 """
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
@@ -73,21 +70,24 @@ setup = Tile(stratigraphy, grid, observed=[:meanT])
 ```
 """
 observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
-# Auxiliary functions for generalized boundary implementations
+# Auxiliary functions for generalized boundary implementations;
+# Note that these methods use a different argument order convention than `interact!`. This is intended to
+# faciliate stratigraphy independent implementations of certain boundary conditions (e.g. a simple Dirichlet
+# boundary could be applied in the same manner to both the upper and lower boundary).
 """
-    boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2)
-    boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2)
+    boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
+    boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
 
 Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
 """
-boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, s1, s2)
-boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, s1, s2) = error("missing implementation of $(typeof(b)) $(typeof(s)) boundaryflux for $(typeof(bc)) + $(typeof(p)) on $(typeof(sub))")
+boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, sbc, ssub)
+boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
 """
-    boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub)
+    boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
 
 Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
 """
-boundaryvalue(bc::BoundaryProcess, b, p, layer, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(b)) $(typeof(bc)) on $(typeof(layer)) with $(typeof(p))")
+boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
 """
     BoundaryStyle(::Type{T})
 
