@@ -202,10 +202,9 @@ function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, he
     state.θl .= s.cache.f.(state.H)
     heatcapacity!(soil, heat, state)
     @. state.T = (state.H - heat.L*state.θl) / state.C
-    ∇f_args = tuplejoin((state.T,), sfccparams(heat.freezecurve.f, soil, heat, state))
-    @inbounds for i in 1:length(state.T)
-        ∇f_argsᵢ = Utils.selectat(i, identity, ∇f_args)
-        dθdTᵢ = heat.freezecurve.∇f(∇f_argsᵢ...)
+    ∇f = ∇(s.cache.f)
+    @inbounds for i in 1:length(state.H)
+        dθdTᵢ = ∇f(state.H[i])[1]
         state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + state.T[i]*(heat.prop.cw - heat.prop.ci))
     end
 end
