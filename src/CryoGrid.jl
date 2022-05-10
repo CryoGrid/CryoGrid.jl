@@ -28,7 +28,7 @@ include("Diagnostics/Diagnostics.jl")
 using .Numerics
 export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
 using .Utils
-export convert_t, convert_tspan, deparam, @sym_str
+export convert_t, convert_tspan, pstrip, @sym_str
 # Re-exported submodules
 @reexport using .Physics
 @reexport using .Strat

@@ -24,7 +24,7 @@ export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setsc
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert, applyunit, normalize_temperature, deparam
+export dustrip, duconvert, applyunit, normalize_temperature, pstrip
 export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
 
@@ -210,11 +210,11 @@ dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid
 duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
 
 """
-    deparam(obj; keep_units=false)
+    pstrip(obj; keep_units=false)
 
 Strips `Param` types and units from `obj`. If `keep_units=true`, then `Param` types will be stripped but units preserved.
 """
-function deparam(obj; keep_units=false)
+function pstrip(obj; keep_units=false)
     stripped_obj = ModelParameters.stripparams(obj)
     return keep_units ? stripped_obj : ModelParameters.stripunits(stripped_obj)
 end
