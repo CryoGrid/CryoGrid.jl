@@ -51,29 +51,6 @@ function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
 
-
-"""
-Updates state variables according to the specified SFCC function and solver.
-For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
-For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
-"""
-(sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
-function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
-    @inbounds @fastmath let L = heat.L,
-        f = sfcc.f,
-        ∇f = sfcc.∇f,
-        f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
-        for i in 1:length(state.T)
-            f_argsᵢ = Utils.selectat(i, identity, f_args)
-            state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, heat, state, i)
-            state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.dHdT[i] = state.C[i] + (L + state.T[i]*(heat.prop.cw - heat.prop.ci))*∇f(f_argsᵢ)
-        end
-    end
-    return nothing
-end
-
 """
     sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state)
 

@@ -13,13 +13,10 @@ Discrete inverse enthalpy function given H, C, L, and θ.
 @inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
     liquidwater(sub::SubSurface, heat::Heat, state)
-    liquidwater(sub::SubSurface, heat::Heat, state, i)
 
-Retrieves the liquid water content for the given layer at grid cell `i`, if specified.
-Defaults to using the scalar total water content defined on layer `sub`.
+Retrieves the liquid water content for the given layer.
 """
 @inline liquidwater(::SubSurface, ::Heat, state) = state.θl
-@inline liquidwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(liquidwater(sub, heat, state), i)
 """
     thermalconductivities(::SubSurface, heat::Heat)
 
@@ -35,7 +32,8 @@ Get heat capacities for generic `SubSurface` layer.
 """
     volumetricfractions(::SubSurface, heat::Heat)
 
-Get constituent volumetric fractions for generic `SubSurface` layer.
+Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
+the only constitutents are liquid water, ice, and air: `(θl,θi,θa)`.
 """
 @inline function volumetricfractions(sub::SubSurface, heat::Heat, state, i)
     return let θw = totalwater(sub, state, i),
@@ -48,6 +46,15 @@ end
 
 # Generic heat conduction implementation
 
+"""
+    freezethaw!(sub::SubSurface, heat::Heat, state)
+
+Calculates freezing and thawing effects, including evaluation of the freeze curve.
+In general, this function should compute at least the liquid/frozen water contents
+and the corresponding heat capacity. Other variables such as temperature or enthalpy
+should also be computed depending on the thermal scheme being implemented.
+"""
+freezethaw!(sub::SubSurface, heat::Heat, state) = error("missing implementation of freezethaw!")
 """
     heatcapacity(capacities::NTuple{N}, fracs::NTuple{N}) where N
 
@@ -91,39 +98,6 @@ Computes the thermal conductivity for the given layer from the current state and
     end
 end
 """
-    heatconduction!(∂H,T,ΔT,k,Δk)
-
-1-D heat conduction/diffusion given T, k, and their deltas. Resulting enthalpy gradient is stored in ∂H.
-Note that this function does not perform bounds checking. It is up to the user to ensure that all variables are
-arrays of the correct length.
-"""
-function heatconduction!(∂H,T,ΔT,k,Δk)
-    # upper boundary
-    @inbounds ∂H[1] += let T₂=T[2],
-        T₁=T[1],
-        k=k[2],
-        ϵ=ΔT[1],
-        δ=Δk[1];
-        k*(T₂-T₁)/ϵ/δ
-    end
-    # diffusion on non-boundary cells
-    @inbounds let T = T,
-        k = (@view k[2:end-1]),
-        Δk = (@view Δk[2:end-1]),
-        ∂H = (@view ∂H[2:end-1]);
-        nonlineardiffusion!(∂H, T, ΔT, k, Δk)
-    end
-    # lower boundary
-    @inbounds ∂H[end] += let T₂=T[end],
-        T₁=T[end-1],
-        k=k[end-1],
-        ϵ=ΔT[end],
-        δ=Δk[end];
-        -k*(T₂-T₁)/ϵ/δ
-    end
-    return nothing
-end
-"""
 Variable definitions for heat conduction on any subsurface layer. Joins variables defined on
 `layer` and `heat` individually as well as variables defined by the freeze curve.
 """
@@ -161,16 +135,50 @@ basevariables(::Heat) = (
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
     Diagnostic(:θl, OnGrid(Cells)),
 )
-""" Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
+"""
+    heatconduction!(∂H,T,ΔT,k,Δk)
+
+1-D heat conduction/diffusion given T, k, and their deltas. Resulting enthalpy gradient is stored in ∂H.
+Note that this function does not perform bounds checking. It is up to the user to ensure that all variables are
+arrays of the correct length.
+"""
+function heatconduction!(∂H,T,ΔT,k,Δk)
+    # upper boundary
+    @inbounds ∂H[1] += let T₂=T[2],
+        T₁=T[1],
+        k=k[2],
+        ϵ=ΔT[1],
+        δ=Δk[1];
+        k*(T₂-T₁)/ϵ/δ
+    end
+    # diffusion on non-boundary cells
+    @inbounds let T = T,
+        k = (@view k[2:end-1]),
+        Δk = (@view Δk[2:end-1]),
+        ∂H = (@view ∂H[2:end-1]);
+        nonlineardiffusion!(∂H, T, ΔT, k, Δk)
+    end
+    # lower boundary
+    @inbounds ∂H[end] += let T₂=T[end],
+        T₁=T[end-1],
+        k=k[end-1],
+        ϵ=ΔT[end],
+        δ=Δk[end];
+        -k*(T₂-T₁)/ϵ/δ
+    end
+    return nothing
+end
+"""
+Diagonstic step for heat conduction (all state configurations) on any subsurface layer.
+"""
 function diagnosticstep!(sub::SubSurface, heat::Heat, state)
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
     @. state.dH_upper = zero(eltype(state.dH_upper))
     @. state.dH_lower = zero(eltype(state.dH_lower))
-    # Evaluate the freeze curve (updates T, C, and θl)
-    fc! = freezecurve(heat);
-    fc!(sub, heat, state)
+    # Evaluate freeze/thaw processes
+    freezethaw!(sub, heat, state)
     # Update thermal conductivity
     thermalconductivity!(sub, heat, state)
     # thermal conductivity at boundaries
@@ -184,14 +192,18 @@ function diagnosticstep!(sub::SubSurface, heat::Heat, state)
     end
     return nothing # ensure no allocation
 end
-""" Prognostic step for heat conduction (enthalpy) on subsurface layer. """
+"""
+Prognostic step for heat conduction (enthalpy) on subsurface layer.
+"""
 function prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
     # Diffusion on non-boundary cells
     heatconduction!(state.dH, state.T, ΔT, state.k, Δk)
 end
-""" Prognostic step for heat conduction (temperature) on subsurface layer. """
+"""
+Prognostic step for heat conduction (temperature) on subsurface layer.
+"""
 function prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T)
@@ -202,6 +214,7 @@ function prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,Temperature}, sta
     @inbounds @. state.dT = state.dH / state.dHdT
     return nothing
 end
+# Boundary fluxes
 @inline boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
 @inline boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
 @inline function boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
@@ -274,10 +287,8 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
     return nothing # ensure no allocation
 end
 # Free water freeze curve
-@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = totalwater(sub, state, i),
-        H = state.H[i],
-        C = state.C[i],
+@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, H, C, θw)
+    let θtot = max(1e-8, θw),
         L = heat.L,
         Lθ = L*θtot,
         I_t = H > Lθ,
@@ -285,9 +296,8 @@ end
         (I_t*(H-Lθ) + I_f*H)/C
     end
 end
-@inline function liquidwater(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, totalwater(sub, state, i)),
-        H = state.H[i],
+@inline function liquidwater(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, H, θw)
+    let θtot = max(1e-8, θw),
         L = heat.L,
         Lθ = L*θtot,
         I_t = H > Lθ,
@@ -296,22 +306,24 @@ end
     end
 end
 """
-    (fc::FreeWater)(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
+    freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
 
-Implementation of "free water" freeze curve for any subsurface layer. Assumes that
-'state' contains at least temperature (T), enthalpy (H), heat capacity (C),
+Implementation of "free water" freezing characteristic for any subsurface layer.
+Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θw), and liquid water content (θl).
 """
-@inline function (fc::FreeWater)(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
+@inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
     @inbounds for i in 1:length(state.H)
+        H = state.H[i]
+        θw = state.θw[i]
         # liquid water content = (total water content) * (liquid fraction)
-        state.θl[i] = liquidwater(sub, heat, state, i)
+        state.θl[i] = liquidwater(sub, heat, H, θw)
         # update heat capacity
-        state.C[i] = heatcapacity(sub, heat, state, i)
+        state.C[i] = C = heatcapacity(sub, heat, state, i)
         # enthalpy inverse function
-        state.T[i] = enthalpyinv(sub, heat, state, i)
+        state.T[i] = enthalpyinv(sub, heat, H, C, θw)
         # set dHdT (a.k.a dHdT)
-        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/state.C[i]
+        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/C
     end
     return nothing
 end
