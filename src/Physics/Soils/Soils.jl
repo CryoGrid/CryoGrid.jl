@@ -3,7 +3,7 @@ module Soils
 import CryoGrid: SubSurface, Parameterization
 import CryoGrid: initialcondition!, variables
 import CryoGrid.Physics: totalwater
-import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, liquidwater, thermalconductivity, heatcapacity
+import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, liquidwater, thermalconductivity, heatcapacity, freezethaw!, enthalpyinv
 
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside

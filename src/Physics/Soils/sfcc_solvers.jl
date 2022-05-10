@@ -48,7 +48,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_
         end
         # derivative of freeze curve
         args = tuplejoin((T,),f_args)
-        ∂θ∂T = Utils.fastinvoke(∇f, args)
+        ∂θ∂T = ∇f(args...)
         # derivative of residual by quotient rule;
         # note that this assumes heatcapacity to be a simple weighted average!
         # in the future, it might be a good idea to compute an automatic derivative
@@ -77,40 +77,25 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_
     end
     return (;T, Tres, θl, itercount)
 end
-function (solver::SFCCNewtonSolver)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, f, ∇f)
+function enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,∇F,SFCCNewtonSolver},Enthalpy}, state, i) where {F,∇F}
+    sfcc = freezecurve(heat)
+    f, ∇f = sfcc.f, sfcc.∇f
     # get f arguments; note that this does create some redundancy in the arguments
     # eventually passed to the `residual` function; this is less than ideal but
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
     f_args = sfccparams(f, soil, heat, state)
-    # iterate over each cell and solve the conservation law: H = TC + Lθ
-    for i in 1:length(state.T)
-        @inbounds @fastmath let T₀ = i > 1 ? state.T[i-1] : nothing,
-            H = state.H[i] |> Utils.adstrip, # enthalpy
-            L = heat.L, # specific latent heat of fusion
-            θw = totalwater(soil, state, i) |> Utils.adstrip, # total water content
-            θm = mineral(soil, state, i) |> Utils.adstrip, # mineral content
-            θo = organic(soil, state, i) |> Utils.adstrip, # organic content
-            f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
-            T, _, _, _ = sfccsolve(solver, soil, heat, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
-            # Here we apply the optimized result to the state variables;
-            # Since we perform the Newton iteration on untracked variables,
-            # we need to recompute θl, C, and T here with the tracked variables.
-            # Note that this results in one additional freeze curve function evaluation.
-            let f_argsᵢ = Utils.selectat(i, identity, f_args);
-                # recompute liquid water content with (possibly) tracked variables
-                args = tuplejoin((T,),f_argsᵢ)
-                state.θl[i] = Utils.fastinvoke(f, args)
-                dθdT = Utils.fastinvoke(∇f, args)
-                let θl = state.θl[i],
-                    H = state.H[i];
-                    state.C[i] = heatcapacity(soil, heat, θw, θl, θm, θo)
-                    state.T[i] = (H - L*θl) / state.C[i]
-                    state.dHdT[i] = state.C[i] + dθdT*(L + state.T[i]*(heat.prop.cw - heat.prop.ci))
-                end
-            end
-        end
+    sfcc = freezecurve(heat)
+    solver = sfcc.solver
+    @inbounds let T₀ = i > 1 ? state.T[i-1] : nothing,
+        H = state.H[i] |> Utils.adstrip, # enthalpy
+        L = heat.L, # specific latent heat of fusion
+        θw = totalwater(soil, state, i) |> Utils.adstrip, # total water content
+        θm = mineral(soil, state, i) |> Utils.adstrip, # mineral content
+        θo = organic(soil, state, i) |> Utils.adstrip, # organic content
+        f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
+        T, _, _, _ = sfccsolve(solver, soil, heat, f, ∇f, f_argsᵢ, H, L, θw, θm, θo, T₀)
+        return T
     end
-    return nothing
 end
 """
     SFCCPreSolver{TCache} <: SFCCSolver
@@ -196,15 +181,5 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
         end
         sfcc.solver.cache.f = _build_interpolant(Hs, θs)
         sfcc.solver.cache.∇f = first ∘ ∇(sfcc.solver.cache.f)
-    end
-end
-function (s::SFCCPreSolver)(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC}, state, _, _)
-    state.θl .= s.cache.f.(state.H)
-    heatcapacity!(soil, heat, state)
-    @. state.T = (state.H - heat.L*state.θl) / state.C
-    ∇f = ∇(s.cache.f)
-    @inbounds for i in 1:length(state.H)
-        dθdTᵢ = ∇f(state.H[i])[1]
-        state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + state.T[i]*(heat.prop.cw - heat.prop.ci))
     end
 end

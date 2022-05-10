@@ -35,7 +35,7 @@ Conditional logic can be incorporated via `IfElse.ifelse`. See the documentation
 for more information and technical details.
 """
 function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choosefn=first, context_module=Numerics)
-    ∇f = ∇(f, dvar; choosefn=choosefn, context_module=context_module)
+    ∇f = ∇(pstrip(f), dvar; choosefn=choosefn, context_module=context_module)
     # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
     # when applied to runtime generated functions.
     SFCC(f, ∇f, s)
@@ -86,12 +86,12 @@ sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
 )
 # pressure head at T
 @inline ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
-function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
+@inline function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), zero(1/α)),
+        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1.0)^(1/n), zero(1/α)),
         Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
         T = normalize_temperature(T),
         ψ = ψ(T, Tstar, ψ₀, Lf, g);
