@@ -3,7 +3,7 @@ Driver module SciML diffeq solvers.
 """
 module DiffEq
 
-using ..Drivers
+using CryoGrid.Drivers
 using CryoGrid: Strat, SubSurface, CoupledProcesses, Callback, CallbackStyle, Discrete, Continuous
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
@@ -21,10 +21,12 @@ using IfElse
 using IntervalSets
 using ModelParameters
 using LinearAlgebra
+using LinearSolve
 using Reexport
 using Unitful
 
 using DiffEqBase
+using DiffEqBase.SciMLBase
 using DiffEqCallbacks
 
 @reexport using OrdinaryDiffEq
@@ -34,6 +36,9 @@ export CryoGridProblem
 
 export CFLStepLimiter
 include("steplimiters.jl")
+
+export TDMASolver
+include("solvers.jl")
 
 """
 Specialized problem type for CryoGrid `ODEProblem`s.
@@ -143,12 +148,14 @@ function odefunction(::TridiagJac, setup::Tile, M, u0, p, tspan; kwargs...)
     end
 end
 """
+    getstate(integrator::SciMLBase.DEIntegrator)
     getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
 
 Builds the state named tuple for `layername` given an initialized integrator.
 """
+Strat.getstate(integrator::SciMLBase.DEIntegrator) = Strat.getstate(Tile(integrator), integrator.u, get_du(integrator), integrator.t)
 Strat.getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = Strat.getstate(Val{layername}(), integrator)
-Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Strat.getstate(Tile(integrator), integrator.u, get_du(integrator), integrator.t)
+Strat.getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Strat.getstate(Val{layername}(), Tile(integrator), integrator.u, get_du(integrator), integrator.t)
 """
     getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
 """
