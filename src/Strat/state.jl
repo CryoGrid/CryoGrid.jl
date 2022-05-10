@@ -1,4 +1,4 @@
-using CryoGrid.Numerics: Flux
+using CryoGrid.Numerics: Delta
 """
 Enumeration for in-place vs out-of-place mode.
 """
@@ -78,18 +78,18 @@ end
     end
 end
 # internal method dispatches for type stable construction of state types
-@inline _makegrid(::Var{name,T,<:OnGrid{Cells}}, vs::VarStates, z_inds) where {name,T} = vs.grid[infimum(z_inds)..supremum(z_inds)-1] # subtract one due to account for cell ofset
-@inline _makegrid(::Var{name,T,<:OnGrid{Edges}}, vs::VarStates, z_inds) where {name,T} = vs.grid[z_inds]
+@inline _makegrid(::Var{name,<:OnGrid{Cells}}, vs::VarStates, z_inds) where {name} = vs.grid[infimum(z_inds)..supremum(z_inds)-1] # subtract one due to account for cell ofset
+@inline _makegrid(::Var{name,<:OnGrid{Edges}}, vs::VarStates, z_inds) where {name} = vs.grid[z_inds]
 @inline _makegrid(var::Var, vs::VarStates, z_inds) = 1:dimlength(vardims(var), vs.grid)
-@inline _makestate(::Val, ::Prognostic{name,T,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name,T} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Prognostic{name,T}, vs::VarStates, z_inds, u, du, t) where {name,T} = view(u, Val{name}())
-@inline _makestate(::Val, ::Algebraic{name,T,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name,T} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Algebraic{name,T}, vs::VarStates, z_inds, u, du, t) where {name,T} = view(u, Val{name}())
-@inline _makestate(::Val, ::Flux{dname,name,T,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {dname,name,T} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Flux{dname,name,T}, vs::VarStates, z_inds, u, du, t) where {dname,name,T} = view(du, Val{name}())
-@inline _makestate(::Val, ::Diagnostic{name,T,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name,T} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Diagnostic{name,T,<:OnGrid{Edges}}, vs::VarStates, z_inds, u, du, t) where {name,T} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds))
-@inline _makestate(::Val{layername}, ::Diagnostic{name,T}, vs::VarStates, z_inds, u, du, t) where {name,layername,T} = retrieve(vs.diag[layername][name], u, t)
+@inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Prognostic{name}, vs::VarStates, z_inds, u, du, t) where {name} = view(u, Val{name}())
+@inline _makestate(::Val, ::Algebraic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Algebraic{name}, vs::VarStates, z_inds, u, du, t) where {name} = view(u, Val{name}())
+@inline _makestate(::Val, ::Delta{dname,name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Delta{dname,name}, vs::VarStates, z_inds, u, du, t) where {dname,name} = view(du, Val{name}())
+@inline _makestate(::Val, ::Diagnostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Diagnostic{name,<:OnGrid{Edges}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds))
+@inline _makestate(::Val{layername}, ::Diagnostic{name}, vs::VarStates, z_inds, u, du, t) where {name,layername} = retrieve(vs.diag[layername][name], u, t)
 # these need to be @generated functions in order for the compiler to infer all of the types correctly
 @inline @generated function _makegrids(::Val{layername}, vars::NamedTuple{varnames}, vs::VarStates, z_inds::ClosedInterval) where {layername,varnames}
     quote

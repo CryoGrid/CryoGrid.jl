@@ -136,30 +136,30 @@ variables(sub::SubSurface, heat::Heat) = (
 Variable definitions for heat conduction (enthalpy).
 """
 variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
-    Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:T, Float"°C", OnGrid(Cells)),
+    Prognostic(:H, OnGrid(Cells), u"J/m^3"),
+    Diagnostic(:T, OnGrid(Cells), u"°C"),
     basevariables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
 """
 variables(heat::Heat{<:FreezeCurve,Temperature}) = (
-    Prognostic(:T, Float"°C", OnGrid(Cells)),
-    Diagnostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:dH, Float"W/m^3", OnGrid(Cells)),
+    Prognostic(:T, OnGrid(Cells), u"°C"),
+    Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
+    Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
     basevariables(heat)...,
 )
 """
 Common variable definitions for all heat implementations.
 """
 basevariables(::Heat) = (
-    Diagnostic(:dH_upper, Float"J/K/m^2", Scalar),
-    Diagnostic(:dH_lower, Float"J/K/m^2", Scalar),
-    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:C, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W/m/K", OnGrid(Cells)),
-    Diagnostic(:θl, Float"1", OnGrid(Cells)),
+    Diagnostic(:dH_upper, Scalar, u"J/K/m^2"),
+    Diagnostic(:dH_lower, Scalar, u"J/K/m^2"),
+    Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3"),
+    Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
+    Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
+    Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
+    Diagnostic(:θl, OnGrid(Cells)),
 )
 """ Diagonstic step for heat conduction (all state configurations) on any subsurface layer. """
 function diagnosticstep!(sub::SubSurface, heat::Heat, state)

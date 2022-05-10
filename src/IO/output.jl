@@ -1,18 +1,18 @@
 """
-    CryoGridOutput{TRes}
+    CryoGridOutput{TSol}
 
 Helper type that stores the raw output from a CryoGrid run along with `DimArray` views of all
 logged variables. `CryoGridOutput` overrides `Base.getproperty` to allow for direct dot-syntax
 access of state variables. For example, if your model has a grid variable named `T`, `out.T` returns a `DimArray`
-with indexed time and depth axes. For OrdinaryDiffEq.jl outputs, the `ODESolution` can be accessed via `out.res`,
+with indexed time and depth axes. For OrdinaryDiffEq.jl outputs, the `ODESolution` can be accessed via `out.sol`,
 or for convenience, the continuous solution at time `t` can be computed via `out(t)` which is equivalent to
-`withaxes(out.res(t))`.
+`withaxes(out.sol(t))`.
 """
-struct CryoGridOutput{TRes}
+struct CryoGridOutput{TSol}
     ts::Vector{DateTime}
-    res::TRes
+    sol::TSol
     data::NamedTuple
-    CryoGridOutput(ts::Vector{DateTime}, res::TRes, data::NamedTuple) where TRes = new{TRes}(ts, res, data)
+    CryoGridOutput(ts::Vector{DateTime}, sol::TSol, data::NamedTuple) where TSol = new{TSol}(ts, sol, data)
 end
 # Overrides from Base
 function Base.show(io::IO, out::CryoGridOutput)
@@ -28,8 +28,10 @@ function Base.show(io::IO, out::CryoGridOutput)
         println(io, "   $r")
     end
 end
+Base.keys(out::CryoGridOutput) = Base.propertynames(out)
+Base.propertynames(out::CryoGridOutput) = tuple(fieldnames(typeof(out))..., propertynames(out.data)...)
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
-    if sym in (:res,:ts,:data)
+    if sym in (:sol,:ts,:data)
         getfield(out, sym)
     else
         out.data[sym]

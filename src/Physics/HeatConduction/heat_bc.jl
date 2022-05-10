@@ -15,7 +15,7 @@ BoundaryStyle(::Type{<:TemperatureGradient}) = Dirichlet()
 @inline boundaryvalue(bc::TemperatureGradient, l1, ::Heat, l2, s1, s2) = getscalar(s1.T_ub)
 
 variables(::Top, bc::TemperatureGradient) = (
-    Diagnostic(:T_ub, Float"K", Scalar),
+    Diagnostic(:T_ub, Scalar, u"K"),
 )
 function diagnosticstep!(::Top, bc::TemperatureGradient, state)
     @setscalar state.T_ub = bc.T(state.t)
@@ -26,13 +26,14 @@ Base.@kwdef struct NFactor{W,S} <: BoundaryEffect
     nt::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
 end
 variables(::Top, bc::TemperatureGradient{<:NFactor}) = (
-    Diagnostic(:T_ub, Float"K", Scalar),
-    Diagnostic(:nfactor, Float"1", Scalar),
+    Diagnostic(:T_ub, Scalar, u"K"),
+    Diagnostic(:nfactor, Scalar),
 )
+nfactor(Tair, nfw, nfs) = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs
 function diagnosticstep!(::Top, bc::TemperatureGradient{<:NFactor}, state)
     nfw = bc.effect.nf
     nfs = bc.effect.nt
     Tair = bc.T(state.t)
-    @setscalar state.nfactor = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs
+    @setscalar state.nfactor = nfactor(Tair, nfw, nfs)
     @setscalar state.T_ub = getscalar(state.nfactor)*Tair
 end

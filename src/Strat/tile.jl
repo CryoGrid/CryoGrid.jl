@@ -190,7 +190,7 @@ is only executed during compilation and will not appear in the compiled version.
         nprocess = Symbol(n,:process)
         @>> quote
         diagnosticstep!($nlayer, $nstate)
-        diagnosticstep!($nlayer,$nprocess,$nstate)
+        diagnosticstep!($nlayer, $nprocess, $nstate)
         end push!(expr.args)
     end
     # Interact
@@ -339,11 +339,11 @@ Returns a tuple of all variables defined in the tile.
 """
 variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
 """
-    parameters(tile::Tile)
+    parameters(tile::Tile; kwargs...)
 
 Extracts all parameters from `tile` in a vector.
 """
-parameters(tile::Tile) = CryoGridParams(tile)
+parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
 """
     withaxes(u::AbstractArray, ::Tile)
 
@@ -355,7 +355,7 @@ withaxes(u::ComponentArray, ::Tile) = u
 function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TCallbacks,iip}, _u, _du, t) where {TStrat,TGrid,TStates,TInits,TCallbacks,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
-    return TileState(tile.state, map(b -> ustrip(b.val), boundaries(tile.strat)), u, du, t, Val{iip}())
+    return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, Val{iip}())
 end
 """
     updateparams(tile::Tile, u, p, t)

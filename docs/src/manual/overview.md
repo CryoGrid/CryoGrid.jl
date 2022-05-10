@@ -50,12 +50,12 @@ Notice that, in the example above, it is types such as `Soil`, `Heat`, `SFCC`, e
 ```julia
 """ Variable definitions for heat conduction (enthalpy) on soil layer. """
 variables(soil::Soil, heat::Heat{:H}) = (
-    Prognostic(:H, Float"J/m^3", OnGrid(Cells)),
-    Diagnostic(:T, Float"°C", OnGrid(Cells)),
-    Diagnostic(:C, Float"J//K*/m^3", OnGrid(Cells)),
-    Diagnostic(:dHdT, Float"J/K/m^3", OnGrid(Cells)),
-    Diagnostic(:k, Float"W/m/K", OnGrid(Edges)),
-    Diagnostic(:kc, Float"W//m/K", OnGrid(Cells)),
+    Prognostic(:H, OnGrid(Cells), u"J/m^3"),
+    Diagnostic(:T, OnGrid(Cells), u"°C"),
+    Diagnostic(:C, OnGrid(Cells), u"J//K*/m^3"),
+    Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3"),
+    Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
+    Diagnostic(:kc, OnGrid(Cells), u"W//m/K"),
     # this last line just appends any state variables or parameters
     # defined by the freeze curve to the tuple.
     variables(soil, heat, freezecurve(heat))...,
@@ -82,6 +82,6 @@ end
 
 !!! warning
 
-    Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially important when using higher order or implicit integrators as unexpected changes to the underlying state may destroy the accuracy of their internal interpolators. For modleing discontinuities, use [`Callbacks`](@ref) instead.
+    Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially important when using higher order or implicit integrators as unexpected changes to prognostic state may destroy the accuracy of their internal interpolators. For modeling discontinuities, use [`Callbacks`](@ref) instead.
 
 Note that `state` is of type [`LayerState`](@ref) with fields corresponding to the variables declared by the `variables` function for `Soil` and `Heat`. Additionally, output arrays for the time derivatives are provided (here `dH`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grids` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.

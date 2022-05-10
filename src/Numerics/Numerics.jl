@@ -74,7 +74,7 @@ export Grid, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
 
 export Var, Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
-export varname, vartype, vardims, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
+export varname, vartype, vardims, varunits, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
 export VarStates, DiffCache, retrieve, getvar, getvars

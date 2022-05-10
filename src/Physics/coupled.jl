@@ -1,8 +1,8 @@
 # Default empty implementations of diagnostic_step! and prognostic_step! for boundary layers
-diagnosticstep!(::Top, ::CoupledProcesses, state) = nothing
-prognosticstep!(::Top, ::CoupledProcesses, state) = nothing
-diagnosticstep!(::Bottom, ::CoupledProcesses, state) = nothing
-prognosticstep!(::Bottom, ::CoupledProcesses, state) = nothing
+diagnosticstep!(::Top, ::BoundaryProcess, state) = nothing
+prognosticstep!(::Top, ::BoundaryProcess, state) = nothing
+diagnosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
+prognosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
 variables(ps::CoupledProcesses) = tuplejoin((variables(p) for p in ps.processes)...)
 variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.processes)...)
 callbacks(layer::Layer, ps::CoupledProcesses) = tuplejoin((callbacks(layer,p) for p in ps.processes)...)
