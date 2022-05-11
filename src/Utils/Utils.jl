@@ -167,11 +167,6 @@ generators/comprehensions like `map` are not allowed.
     return Expr(:tuple, (:(f(args[$i])) for i in 1:length(T.parameters))...)
 end
 
-@inline @generated function fastinvoke(f, args::T) where {T<:Tuple}
-    accessors = (:(args[$i]) for i in 1:length(T.parameters))
-    return :(f($(accessors...)))
-end
-
 """
     ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 

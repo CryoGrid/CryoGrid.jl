@@ -5,7 +5,7 @@ any necessary additional constants or configuration options. User-specified para
 can either be supplied in the struct or declared as model parameters via the `variables`
 method.
 """
-abstract type SFCCFunction <: Function end
+abstract type SFCCFunction end
 """
 Abstract type for SFCC H <--> T solvers.
 """

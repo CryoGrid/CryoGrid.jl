@@ -20,9 +20,9 @@ convergencefailure(::Val{:error}, i, maxiter, res) = error("grid cell $i failed 
 convergencefailure(::Val{:warn}, i, maxiter, res) = @warn "grid cell $i failed to converge after $maxiter iterations; residual: $(res); You may want to increase 'maxiter' or decrease your integrator step size."
 convergencefailure(::Val{:ignore}, i, maxiter, res) = nothing
 # Helper function for updating θl, C, and the residual.
-@inline function residual(soil::Soil, heat::Heat, T, H, L, f, f_args, θw, θm, θo)
+@inline function residual(soil::Soil, heat::Heat, T, H, L, f::F, f_args::Fargs, θw, θm, θo) where {F,Fargs}
     args = tuplejoin((T,), f_args)
-    θl = Utils.fastinvoke(f, args)
+    θl = f(args...)
     C = heatcapacity(soil, heat, θw, θl, θm, θo)
     Tres = T - (H - θl*L) / C
     return Tres, θl, C
@@ -32,7 +32,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_
     T₀ = H / heatcapacity(soil, heat, θw, 0.0, θm, θo)
     return sfccsolve(solver, soil, heat, f, ∇f, f_args, H, L, θw, θm, θo, T₀)
 end
-function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_args, H, L, θw, θm, θo, T₀)
+function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, ∇f::∇F, f_args, H, L, θw, θm, θo, T₀) where {F,∇F}
     T = T₀
     cw = heat.prop.cw # heat capacity of liquid water
     ci = heat.prop.ci # heat capacity of ice
@@ -43,12 +43,13 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_
     itercount = 0
     while abs(Tres) > solver.abstol && abs(Tres) / abs(T) > solver.reltol
         if itercount > solver.maxiter
-            # convergencefailure(solver.onfail, i, solver.maxiter, Tres)
+            convergencefailure(solver.onfail, i, solver.maxiter, Tres)
             break
         end
         # derivative of freeze curve
         args = tuplejoin((T,),f_args)
         ∂θ∂T = ∇f(args...)
+        # ∂θ∂T = ForwardDiff.derivative(T -> f(T, f_args...), T)
         # derivative of residual by quotient rule;
         # note that this assumes heatcapacity to be a simple weighted average!
         # in the future, it might be a good idea to compute an automatic derivative
@@ -63,7 +64,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, ∇f, f_
         # simple backtracking line search to avoid jumping over the solution
         while sign(T̂res) != sign(Tres)
             if inneritercount > 100
-                # @warn "Backtracking failed; this should not happen. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
+                @warn "Backtracking failed; this should not happen. Current state: α=$α, T=$T, T̂=$T̂, residual $(T̂res), initial residual: $(Tres)"
                 break
             end
             α = α*τ # decrease step size by τ
@@ -84,7 +85,6 @@ function enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,∇F,SFCCNewtonSolver},Enth
     # eventually passed to the `residual` function; this is less than ideal but
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
     f_args = sfccparams(f, soil, heat, state)
-    sfcc = freezecurve(heat)
     solver = sfcc.solver
     @inbounds let T₀ = i > 1 ? state.T[i-1] : nothing,
         H = state.H[i] |> Utils.adstrip, # enthalpy
