@@ -76,17 +76,17 @@ Base.@kwdef struct DallAmico{T,Θ,A,N,G} <: SFCCFunction
     swrc::VanGenuchten = VanGenuchten()
 end
 sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
     porosity(soil, state), # θ saturated = porosity
     totalwater(soil, state), # total water content
     heat.prop.Lf, # specific latent heat of fusion, L
+    f.θres,
+    f.Tₘ,
     f.α,
     f.n,
 )
 # pressure head at T
 @inline ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
-@inline function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
+@inline function (f::DallAmico)(T, θsat, θtot, Lf, θres=f.θres, Tₘ=f.Tₘ, α=f.α, n=f.n)
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
@@ -112,13 +112,13 @@ Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
     γ::Γ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
 sfccargs(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
     porosity(soil, state), # θ saturated = porosity
     totalwater(soil, state), # total water content
+    f.θres,
+    f.Tₘ,
     f.γ,
 )
-function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
+function (f::McKenzie)(T, θsat, θtot, θres=f.θres, Tₘ=f.Tₘ, γ=f.γ)
     let T = normalize_temperature(T),
         Tₘ = normalize_temperature(Tₘ),
         θsat = max(θtot, θsat);
@@ -139,13 +139,13 @@ Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
     δ::Δ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
 sfccargs(f::Westermann, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
     porosity(soil, state), # θ saturated = porosity
     totalwater(soil, state), # total water content
+    f.θres,
+    f.Tₘ,
     f.δ,
 )
-function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
+function (f::Westermann)(T,θsat,θtot,θres=f.θres,Tₘ=f.Tₘ,δ=f.δ)
     let T = normalize_temperature(T),
         Tₘ = normalize_temperature(Tₘ),
         θsat = max(θtot, θsat);

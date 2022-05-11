@@ -18,9 +18,9 @@ using Test
             let θsat = 0.8,
                 γ = 1.0u"K",
                 Tₘ = 0.0u"°C";
-                @test isapprox(f(-10.0u"°C",Tₘ,θres,θsat,θsat,γ), 0.0, atol=1e-6)
-                @test f(0.0u"°C",Tₘ,θres,θsat,θsat,γ) ≈ θsat
-                θl = f(-0.1u"°C",Tₘ,θres,θsat,θsat,γ)
+                @test isapprox(f(-10.0u"°C",θsat,θsat,θres,Tₘ,γ), 0.0, atol=1e-6)
+                @test f(0.0u"°C",θsat,θsat,θres,Tₘ,γ) ≈ θsat
+                θl = f(-0.1u"°C",θsat,θsat,θres,Tₘ,γ)
                 @test θl > 0.0 && θl < 1.0
             end
         end
@@ -34,10 +34,10 @@ using Test
             L = heat.L
             @testset "Left tail" begin
                 T = [-5.0]
-                θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,θres,Tₘ,γ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+1.0,
-                    θl = f.(T,Tₘ,θres,θp,θw,γ)
+                    θl = f.(T,θp,θw,θres,Tₘ,γ)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -48,10 +48,10 @@ using Test
             @testset "Right tail" begin
                 # set up single-grid-cell state vars
                 T = [5.0]
-                θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,θres,Tₘ,γ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.-1.0,
-                    θl = f.(T,Tₘ,θres,θp,θw,γ)
+                    θl = f.(T,θp,θw,θres,Tₘ,γ)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -62,10 +62,10 @@ using Test
             @testset "Near zero" begin
                 # set up single-grid-cell state vars
                 T = [-0.05]
-                θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,θres,Tₘ,γ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+0.04,
-                    θl = f.(T,Tₘ,θres,θp,θw,γ)
+                    θl = f.(T,θp,θw,θres,Tₘ,γ)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -83,9 +83,9 @@ using Test
             let θtot = 0.8,
                 δ = 0.1u"K",
                 Tₘ = 0.0u"°C";
-                @test isapprox(f(-10.0u"°C",Tₘ,θres,θtot,θtot,δ), 0.0, atol=1e-2)
-                @test f(0.0u"°C",Tₘ,θres,θtot,θtot,δ) ≈ θtot
-                θl = f(-0.1u"°C",Tₘ,θres,θtot,θtot,δ)
+                @test isapprox(f(-10.0u"°C",θtot,θtot,θres,Tₘ,δ), 0.0, atol=1e-2)
+                @test f(0.0u"°C",θtot,θtot,θres,Tₘ,δ) ≈ θtot
+                θl = f(-0.1u"°C",θtot,θtot,θres,Tₘ,δ)
                 @test θl > 0.0 && θl < 1.0
             end
         end
@@ -99,10 +99,10 @@ using Test
             L = heat.L
             @testset "Left tail" begin
                 T = [-5.0]
-                θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,θres,Tₘ,δ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+1.0,
-                    θl = f.(T,Tₘ,θres,θp,θw,δ)
+                    θl = f.(T,θp,θw,θres,Tₘ,δ)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -112,10 +112,10 @@ using Test
             end
             @testset "Right tail" begin
                 T = [5.0]
-                θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,θres,Tₘ,δ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.-1,
-                    θl = f.(T,Tₘ,θres,θp,θw,δ)
+                    θl = f.(T,θp,θw,θres,Tₘ,δ)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -125,10 +125,10 @@ using Test
             end
             @testset "Near zero" begin
                 T = [-0.05]
-                θl = f.(T,Tₘ,θres,θp,θw,δ) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,θres,Tₘ,δ) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+0.04,
-                    θl = f.(T,Tₘ,θres,θp,θw,δ)
+                    θl = f.(T,θp,θw,θres,Tₘ,δ)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -146,9 +146,9 @@ using Test
                 n = 2.0,
                 Tₘ = 0.0u"°C";
                 Lf = stripparams(Heat()).prop.Lf
-                @test isapprox(f(-10.0u"°C",Tₘ,θres,θsat,θsat,Lf,α,n), 0.0, atol=1e-3)
-                @test f(0.0u"°C",Tₘ,θres,θsat,θsat,Lf,α,n) ≈ θsat
-                θl = f(-0.1u"°C",Tₘ,θres,θsat,θsat,Lf,α,n)
+                @test isapprox(f(-10.0u"°C",θsat,θsat,Lf,θres,Tₘ,α,n), 0.0, atol=1e-3)
+                @test f(0.0u"°C",θsat,θsat,Lf,θres,Tₘ,α,n) ≈ θsat
+                θl = f(-0.1u"°C",θsat,θsat,Lf,θres,Tₘ,α,n)
                 @test θl > 0.0 && θl < 1.0
             end
         end
@@ -166,10 +166,10 @@ using Test
             Lf = heat.prop.Lf
             @testset "Left tail" begin
                 T = [-5.0]
-                θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,Lf,θres,Tₘ,α,n) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+1.0,
-                    θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n)
+                    θl = f.(T,θp,θw,Lf,θres,Tₘ,α,n)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -179,10 +179,10 @@ using Test
             end
             @testset "Right tail" begin
                 T = [5.0]
-                θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,Lf,θres,Tₘ,α,n) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.-1.0,
-                    θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n)
+                    θl = f.(T,θp,θw,Lf,θres,Tₘ,α,n)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -192,10 +192,10 @@ using Test
             end
             @testset "Near zero" begin
                 T = [-0.05]
-                θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n) # set liquid water content according to freeze curve
+                θl = f.(T,θp,θw,Lf,θres,Tₘ,α,n) # set liquid water content according to freeze curve
                 C = heatcapacity.(soil,heat,θw,θl,θm,θo)
                 H = let T = T.+0.04,
-                    θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n)
+                    θl = f.(T,θp,θw,Lf,θres,Tₘ,α,n)
                     C = heatcapacity.(soil,heat,θw,θl,θm,θo);
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
@@ -216,12 +216,12 @@ using Test
         heat = @pstrip Heat(freezecurve=sfcc)
         L = heat.L
         T = [-0.1]
-        θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
+        θl = f.(T,θp,θw,θres,Tₘ,γ) # set liquid water content according to freeze curve
         C = heatcapacity.(soil,heat,θw,θl,θm,θo)
         H = enthalpy.(T.+0.09,C,L,θl) # compute enthalpy at +1 degree
         # test gradients
         p = ComponentArray(γ=γ)
-        ∂f∂p = ForwardDiff.gradient(p ->  sum(f.(T,Tₘ,θres,θp,θw,p.γ)), p)
+        ∂f∂p = ForwardDiff.gradient(p ->  sum(f.(T,θp,θw,θres,Tₘ,p.γ)), p)
         @test all(isfinite.(∂f∂p))
         function F(p)
             T_ = similar(T,eltype(p))
