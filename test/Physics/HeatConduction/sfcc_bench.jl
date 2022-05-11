@@ -30,7 +30,7 @@ function benchmarksfcc()
         enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
     end
     state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,θw=θw)
-    params = Utils.selectat(1, identity, Soils.sfccparams(f, soil, heat, state))
+    params = Utils.selectat(1, identity, Soils.sfccargs(f, soil, heat, state))
     f_params = tuplejoin((T[1],), params)
     # @btime $sfcc.f($f_params...)
     # @btime $sfcc.∇f($f_params...)

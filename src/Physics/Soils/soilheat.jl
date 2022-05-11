@@ -75,16 +75,23 @@ function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
 end
 function liquidwater(::SubSurface, heat::Heat{<:SFCC,Temperature}, state, i)
     sfcc = freezecurve(heat)
-    f_args = tuplejoin((state.T,), sfccparams(sfcc.f, soil, heat, state))
+    f_args = tuplejoin((state.T,), sfccargs(sfcc.f, soil, heat, state))
     f_argsᵢ = Utils.selectat(i, identity, f_args)
     return sfcc.f(f_argsᵢ...)
+end
+function liquidwater(sub::SubSurface, heat::Heat{<:SFCC,Enthalpy}, state, i)
+    T = enthalpyinv(sub, heat, state, i)
+    sfcc = freezecurve(heat)
+    f_args = sfccargs(sfcc.f, soil, heat, state)
+    f_argsᵢ = Utils.selectat(i, identity, f_args)
+    return sfcc.f(T, f_argsᵢ...)
 end
 """
     freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
     freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
 
 Updates state variables according to the specified SFCC function and solver.
-For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
+For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
 """
 function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
@@ -92,7 +99,7 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
     @inbounds @fastmath let L = heat.L,
         f = sfcc.f,
         ∇f = sfcc.∇f,
-        f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
+        f_args = tuplejoin((state.T,), sfccargs(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = Utils.selectat(i, identity, f_args)
             state.θl[i] = f(f_argsᵢ...)
@@ -104,7 +111,7 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
 end
 function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,∇F,SFCCNewtonSolver},Enthalpy}, state) where {F,∇F}
     sfcc = freezecurve(heat)
-    f_args = sfccparams(sfcc.f, soil, heat, state)
+    f_args = sfccargs(sfcc.f, soil, heat, state)
     @inbounds for i in 1:length(state.H)
         let f_argsᵢ = Utils.selectat(i, identity, f_args),
             f = sfcc.f,

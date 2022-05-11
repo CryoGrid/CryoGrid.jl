@@ -305,7 +305,7 @@ end
         (I_t*(H-Lθ) + I_f*H)/C
     end
 end
-@inline function liquidwater(::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
+@inline function liquidwater(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
     let θtot = max(1e-8, totalwater(sub, heat, state, i)),
         H = state.H[i],
         L = heat.L,

@@ -46,19 +46,19 @@ variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, 
 # Default SFCC initialization
 function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     L = heat.L
-    state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
+    state.θl .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
 
 """
-    sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state)
+    sfccargs(f::SFCCFunction, soil::Soil, heat::Heat, state)
 
 Retrieves a tuple of values corresponding to each parameter declared by SFCCFunction `f` given the
 Soil layer, Heat process, and model state. The order of parameters *must match* the argument order
 of the freeze curve function `f`.
 """
-sfccparams(::SFCCFunction, ::Soil, ::Heat, state) = ()
+sfccargs(::SFCCFunction, ::Soil, ::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
 variables(::Soil, ::Heat, f::SFCCFunction) = ()
 variables(::Soil, ::Heat, s::SFCCSolver) = ()
@@ -75,7 +75,7 @@ Base.@kwdef struct DallAmico{T,Θ,A,N,G} <: SFCCFunction
     g::G = 9.80665u"m/s^2" # acceleration due to gravity
     swrc::VanGenuchten = VanGenuchten()
 end
-sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
+sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
     porosity(soil, state), # θ saturated = porosity
@@ -111,7 +111,7 @@ Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
     θres::Θ = Param(0.0, bounds=(0,1))
     γ::Γ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
-sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
+sfccargs(f::McKenzie, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
     porosity(soil, state), # θ saturated = porosity
@@ -138,7 +138,7 @@ Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
     θres::Θ = Param(0.0, bounds=(0,1))
     δ::Δ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
-sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
+sfccargs(f::Westermann, soil::Soil, heat::Heat, state) = (
     f.Tₘ,
     f.θres,
     porosity(soil, state), # θ saturated = porosity

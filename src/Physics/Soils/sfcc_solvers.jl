@@ -84,7 +84,7 @@ function enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,∇F,SFCCNewtonSolver},Enth
     # get f arguments; note that this does create some redundancy in the arguments
     # eventually passed to the `residual` function; this is less than ideal but
     # probably shouldn't incur too much of a performance hit, just a few extra stack pointers!
-    f_args = sfccparams(f, soil, heat, state)
+    f_args = sfccargs(f, soil, heat, state)
     solver = sfcc.solver
     @inbounds let T₀ = i > 1 ? state.T[i-1] : nothing,
         H = state.H[i] |> Utils.adstrip, # enthalpy
@@ -142,7 +142,7 @@ function _build_interpolant(Hs, θs)
 end
 function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,∇F,<:SFCCPreSolver}, state) where {F,∇F}
     L = heat.L
-    params = sfccparams(sfcc.f, soil, heat, state)
+    params = sfccargs(sfcc.f, soil, heat, state)
     state.θl .= sfcc.f.(state.T, params...)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
