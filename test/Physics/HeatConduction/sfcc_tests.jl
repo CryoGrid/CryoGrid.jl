@@ -7,14 +7,14 @@ using Test
 @testset "SFCC" begin
     Tₘ = 0.0
     θres = 0.0
-    soil = Soil(para=CharacteristicFractions()) |> stripparams |> stripunits
+    soil = @pstrip Soil(para=Soils.CharacteristicFractions())
     θw = Soils.soilcomponent(Val{:θw}(), soil.para)
     θp = Soils.soilcomponent(Val{:θp}(), soil.para)
     θm = Soils.soilcomponent(Val{:θm}(), soil.para)
     θo = Soils.soilcomponent(Val{:θo}(), soil.para)
     @testset "McKenzie freeze curve" begin
         @testset "Sanity checks" begin
-            f = McKenzie() |> stripparams
+            f = @pstrip McKenzie() keep_units=true
             let θsat = 0.8,
                 γ = 1.0u"K",
                 Tₘ = 0.0u"°C";
@@ -28,9 +28,9 @@ using Test
             abstol = 1e-2
             reltol = 1e-4
             γ = 0.1
-            f = McKenzie() |> stripparams |> stripunits
+            f = @pstrip McKenzie()
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
-            heat = Heat(freezecurve=sfcc) |> stripparams |> stripunits
+            heat = @pstrip Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
                 T = [-5.0]
@@ -42,7 +42,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                sfcc(soil, heat, state)
+                freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Right tail" begin
@@ -56,7 +56,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                sfcc(soil, heat, state)
+                freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Near zero" begin
@@ -70,7 +70,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                sfcc(soil, heat, state)
+                freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
         end
@@ -79,7 +79,7 @@ using Test
     # shared between different freeze curve tests.
     @testset "Westermann freeze curve" begin
         @testset "Sanity checks" begin
-            f = Westermann() |> stripparams
+            f = @pstrip Westermann() keep_units=true
             let θtot = 0.8,
                 δ = 0.1u"K",
                 Tₘ = 0.0u"°C";
@@ -93,9 +93,9 @@ using Test
             abstol = 1e-2
             reltol = 1e-4
             δ = 0.1
-            f = Westermann() |> stripparams |> stripunits
+            f = @pstrip Westermann()
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
-            heat = Heat(freezecurve=sfcc) |> stripparams |> stripunits
+            heat = @pstrip Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
                 T = [-5.0]
@@ -107,7 +107,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                sfcc(soil, heat, state)
+                freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Right tail" begin
@@ -120,7 +120,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                sfcc(soil, heat, state)
+                freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Near zero" begin
@@ -133,14 +133,14 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                sfcc(soil, heat, state)
+                freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
         end
     end
     @testset "Dall'Amico freeze curve" begin
         @testset "Sanity checks" begin
-            f = DallAmico() |> stripparams
+            f = @pstrip DallAmico() keep_units=true
             let θsat = 0.8,
                 α = 4.0u"1/m",
                 n = 2.0,
@@ -159,9 +159,9 @@ using Test
             α = 4.0
             n = 2.0
             Tₘ = 0.0
-            f = DallAmico() |> stripparams |> stripunits
+            f = @pstrip DallAmico()
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
-            heat = Heat(freezecurve=sfcc) |> stripparams |> stripunits
+            heat = @pstrip Heat(freezecurve=sfcc)
             L = heat.L
             Lf = heat.prop.Lf
             @testset "Left tail" begin
@@ -174,7 +174,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                @inferred sfcc(soil, heat, state)
+                @inferred freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Right tail" begin
@@ -187,7 +187,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                @inferred sfcc(soil, heat, state)
+                @inferred freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
             @testset "Near zero" begin
@@ -200,7 +200,7 @@ using Test
                    enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,)
-                @inferred sfcc(soil, heat, state)
+                @inferred freezethaw!(soil, heat, state)
                 @test all(abs.(T.-(H .- L.*θl)./C) .<= abstol)
             end
         end
@@ -211,9 +211,9 @@ using Test
         θres = 0.05
         Tₘ = 0.0
         γ = 0.1
-        f = McKenzie() |> stripparams |> stripunits
+        f = @pstrip McKenzie()
         sfcc = SFCC(f, SFCCNewtonSolver(onfail=:error))
-        heat = Heat(freezecurve=sfcc) |> stripparams |> stripunits
+        heat = @pstrip Heat(freezecurve=sfcc)
         L = heat.L
         T = [-0.1]
         θl = f.(T,Tₘ,θres,θp,θw,γ) # set liquid water content according to freeze curve
@@ -229,8 +229,8 @@ using Test
             C = similar(C,eltype(p))
             θl = similar(θl,eltype(p))
             state = (T=T_,C=C,dHdT=similar(C),H=H,θl=θl,)
-            @set! f.γ = p.γ
-            SFCC(f)(soil, heat, state)
+            @set! heat.freezecurve.f.γ = p.γ
+            freezethaw!(soil, heat, state)
             state.T[1]
         end
         p = ComponentArray(γ=[γ])

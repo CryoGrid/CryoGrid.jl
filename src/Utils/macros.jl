@@ -61,6 +61,16 @@ macro threaded(expr)
     end)
 end
 """
+    @pstrip(expr, kwargs...)
+
+Convenience macro for `Utils.pstrip`; equivalent to `pstrip(expr, kwargs...)`.
+"""
+macro pstrip(expr, kwargs...)
+    expr_esc = esc(expr)
+    kwargs_esc = map(esc, kwargs)
+    return :(pstrip($expr_esc; $(kwargs_esc...)))
+end
+"""
     sym_str(val)
 
 Convenience macro, `sym"val"`, for creating a `Symbol` from `val`. Equivalent to `Symbol(val)`.
