@@ -174,7 +174,7 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
     save_interval = ClosedInterval(tspan...)
     model = sol.prob.f.f # Tile
     ts = model.hist.vals.t # use save callback time points
-    t_mask = ts .∈ save_interval # indices within t interval
+    t_mask = map(∈(save_interval), ts) # indices within t interval
     u_all = reduce(hcat, sol.(ts[t_mask])) # build prognostic state from continuous solution
     pax = ComponentArrays.indexmap(getaxes(model.state.uproto)[1])
     # get saved diagnostic states and timestamps only in given interval

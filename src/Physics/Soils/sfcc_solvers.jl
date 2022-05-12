@@ -150,7 +150,6 @@ function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, hea
         tail_args = args[3:end],
         θm = mineral(soil, state),
         θo = organic(soil, state),
-        θa = 1.0 - θm - θo - θtot,
         L = heat.L,
         Tmin = sfcc.solver.Tmin,
         Tmax = 0.0,

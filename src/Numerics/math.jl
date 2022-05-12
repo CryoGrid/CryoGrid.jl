@@ -1,3 +1,9 @@
+∇(f, x) = ∇(typeof(x), f, x)
+function ∇(::Type{T}, f, x) where {T}
+    res = ForwardDiff.derivative!(ForwardDiff.DiffResult(zero(T), x), f, x)
+    return res.value, res.derivs[1]
+end
+
 """
     finitediff!(∂x::AbstractVector, x::AbstractVector, Δ::AbstractVector)
 

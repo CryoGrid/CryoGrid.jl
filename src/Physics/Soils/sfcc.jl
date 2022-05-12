@@ -20,7 +20,7 @@ an implementation of SFCCSolver which provides the solution to the non-linear ma
 @flattenable struct SFCC{F,S} <: FreezeCurve
     f::F | true # freeze curve function f: (T,...) -> θ
     solver::S | true # solver for H -> T or T -> H
-    SFCC(f::F,s::S) where {F<:SFCCFunction,S<:SFCCSolver} = new{F,S}(f,s)
+    SFCC(f::F, s::S=SFCCPreSolver()) where {F<:SFCCFunction,S<:SFCCSolver} = new{F,S}(f,s)
 end
 
 # Join the declared state variables of the SFCC function and the solver

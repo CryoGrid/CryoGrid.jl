@@ -1,5 +1,5 @@
 """
-    module Utils
+    Utils
 
 Common utility functions, constants, and macros used throughout the CryoGrid.jl codebase.
 """

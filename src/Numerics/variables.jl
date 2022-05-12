@@ -44,7 +44,7 @@ struct Delta{dname,name,S,T,units} <: Var{dname,S,T,units}
     dim::S
     Delta(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
     Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{dname,name,typeof(dims),T,units}(dims)
-    Delta(var::Prognostic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units/u"s"}(dims) end
+    Delta(var::Prognostic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,upreferred(units)/u"s"}(dims) end
     Delta(var::Algebraic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units}(dims) end
 end
 """

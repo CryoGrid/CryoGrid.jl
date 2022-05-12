@@ -128,6 +128,7 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
+    Diagnostic(:dθdT, OnGrid(Cells)),
     basevariables(heat)...,
 )
 """
