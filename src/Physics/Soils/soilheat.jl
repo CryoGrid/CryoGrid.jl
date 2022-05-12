@@ -98,7 +98,6 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
     sfcc = freezecurve(heat)
     @inbounds @fastmath let L = heat.L,
         f = sfcc.f,
-        ∇f = sfcc.∇f,
         f_args = tuplejoin((state.T,), sfccargs(f,soil,heat,state));
         for i in 1:length(state.T)
             f_argsᵢ = Utils.selectat(i, identity, f_args)
@@ -109,22 +108,20 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
         end
     end
 end
-function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,∇F,SFCCNewtonSolver},Enthalpy}, state) where {F,∇F}
+function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}, state) where {F}
     sfcc = freezecurve(heat)
     f_args = sfccargs(sfcc.f, soil, heat, state)
     @inbounds for i in 1:length(state.H)
         let f_argsᵢ = Utils.selectat(i, identity, f_args),
-            f = sfcc.f,
-            ∇f = sfcc.∇f;
+            f = sfcc.f;
             # Evaluate inverse enthalpy function
             T = enthalpyinv(soil, heat, state, i)
             # Here we apply the recovered temperature to the state variables;
             # Since we perform iteration on untracked variables, we need to
             # recompute θl, C, and T here with the tracked variables.
             # Note that this results in one additional freeze curve function evaluation.
-            args = tuplejoin((T,), f_argsᵢ)
-            state.θl[i] = f(args...)
-            dθdT = ∇f(args...)
+            state.θl[i] = f(T, f_argsᵢ...)
+            dθdT = ForwardDiff.derivative(T -> f(T, f_argsᵢ...), T)
             let θl = state.θl[i],
                 H = state.H[i],
                 L = heat.L,
@@ -141,14 +138,15 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,∇F,SFCCNewtonSolver},Enth
         end
     end
 end
-function freezethaw!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC{F,∇F,<:SFCCPreSolver},Enthalpy}, state) where {F,∇F}
+function freezethaw!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC{F,<:SFCCPreSolver},Enthalpy}, state) where {F}
     solver = freezecurve(heat).solver
-    state.θl .= solver.cache.f.(state.H)
+    f = solver.cache.f
+    ∇f = solver.cache.∇f
+    state.θl .= f.(state.H)
     heatcapacity!(soil, heat, state)
     @. state.T = (state.H - heat.L*state.θl) / state.C
-    ∇f = ∇(solver.cache.f)
     @inbounds for i in 1:length(state.H)
-        dθdTᵢ = ∇f(state.H[i])[1]
+        dθdTᵢ = ∇f(state.H[i])
         state.dHdT[i] = state.C[i] + dθdTᵢ*(heat.L + state.T[i]*(heat.prop.cw - heat.prop.ci))
     end
 end

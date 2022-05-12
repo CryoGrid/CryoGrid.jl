@@ -13,6 +13,7 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds, @kwdef
 using IfElse
+using ForwardDiff
 using ModelParameters
 using Unitful
 

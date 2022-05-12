@@ -10,11 +10,9 @@ using Flatten
 using ModelParameters
 using Setfield
 using StructTypes
-using Symbolics: Num
 using Unitful
 
 import CryoGrid
-import ExprTools
 import ForwardDiff
 import Unitful
 
@@ -130,22 +128,6 @@ Convenience method for converting between `Dates.DateTime` and solver time.
 """
 convert_tspan(tspan::NTuple{2,DateTime}) = convert_t.(tspan)
 convert_tspan(tspan::NTuple{2,Float64}) = convert_t.(tspan)
-
-"""
-    argnames(f, choosefn=first)
-
-Retrieves the argument names of function `f` via metaprogramming and `ExprTools`.
-The optional argument `choosefn` allows for customization of which method instance
-of `f` (if there is more than one) is chosen.
-"""
-function argnames(f, choosefn=first)
-    # Parse function parameter names using ExprTools
-    fms = ExprTools.methods(f)
-    symbol(arg::Symbol) = arg
-    symbol(expr::Expr) = expr.args[1]
-    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
-    return argnames
-end
 
 """
     @generated selectat(i::Int, f, args::T) where {T<:Tuple}

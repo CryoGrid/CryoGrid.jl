@@ -6,15 +6,6 @@ struct TestCallable end
 (::TestCallable)(x,y,z) = nothing
 
 @testset "Utils" begin
-    @testset "argnames" begin
-        f(x) = nothing
-        g(x,y) = nothing
-        h(x,y,args...) = nothing
-        @test Utils.argnames(f) == [:x,]
-        @test Utils.argnames(g) == [:x,:y]
-        @test Utils.argnames(h) == [:x,:y,:args]
-        @test Utils.argnames(TestCallable()) == [:x,:y,:z]
-    end
     @testset "convert time" begin
         epoch_date = Dates.epochms2datetime(0.0)
         # solver time is seconds since epoch, so we check that the conversion function does it correctly

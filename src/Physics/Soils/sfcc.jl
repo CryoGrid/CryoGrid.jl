@@ -11,34 +11,16 @@ Abstract type for SFCC H <--> T solvers.
 """
 abstract type SFCCSolver end
 """
-    SFCC{F,∇F,S} <: FreezeCurve
+    SFCC{F,S} <: FreezeCurve
 
 Generic representation of the soil freeze characteristic curve. The shape and parameters
 of the curve are determined by the implementation of SFCCFunction `f`. Also requires
 an implementation of SFCCSolver which provides the solution to the non-linear mapping H <--> T.
 """
-@flattenable struct SFCC{F,∇F,S} <: FreezeCurve
+@flattenable struct SFCC{F,S} <: FreezeCurve
     f::F | true # freeze curve function f: (T,...) -> θ
-    ∇f::∇F | false # derivative of freeze curve function
     solver::S | true # solver for H -> T or T -> H
-    SFCC(f::F,∇f::∇F,s::S) where {F<:SFCCFunction,∇F<:Function,S<:SFCCSolver} = new{F,∇F,S}(f,∇f,s)
-end
-
-"""
-    SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver())
-
-Convenience constructor for SFCC that automatically generates an analytical derivative of the given
-freeze curve function `f` using ModelingToolkit/Symbolics.jl. To avoid symbolic tracing issues, the
-function should 1) be pure (no side effects or non-mathematical behavior) and 2) avoid indeterminate
-control flow such as if-else or while blocks (technically should work but sometimes doesn't...).
-Conditional logic can be incorporated via `IfElse.ifelse`. See the documentation for `Symbolics.jl`
-for more information and technical details.
-"""
-function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choosefn=first, context_module=Numerics)
-    ∇f = ∇(pstrip(f), dvar; choosefn=choosefn, context_module=context_module)
-    # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
-    # when applied to runtime generated functions.
-    SFCC(f, ∇f, s)
+    SFCC(f::F,s::S) where {F<:SFCCFunction,S<:SFCCSolver} = new{F,S}(f,s)
 end
 
 # Join the declared state variables of the SFCC function and the solver
@@ -163,24 +145,5 @@ end
 Produces an `SFCCTable` function which is a tabulation of `f`.
 """
 Numerics.Tabulated(f::SFCCFunction, args...; kwargs...) = SFCCTable(f, Numerics.tabulate(f, args...; kwargs...))
-"""
-    SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
-
-Constructs a SFCC from the precomputed `SFCCTable`. The derivative is generated using the
-`gradient` function provided by `Interpolations`.
-"""
-function SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
-    # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
-    # when applied to runtime generated functions.
-    SFCC(f, Base.splat(first ∘ ∇(f.f_tab)), s)
-end
 
 include("sfcc_solvers.jl")
-
-# Generate analytical derivatives during precompilation
-const ∂DallAmico∂T = ∇(stripunits(stripparams(DallAmico())), :T)
-const ∂McKenzie∂T = ∇(stripunits(stripparams(McKenzie())), :T)
-const ∂Westermann∂T = ∇(stripunits(stripparams(Westermann())), :T)
-SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂DallAmico∂T, solver)
-SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂McKenzie∂T, solver)
-SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂Westermann∂T, solver)
