@@ -29,7 +29,7 @@ using Test
             reltol = 1e-4
             γ = 0.1
             f = @pstrip McKenzie()
-            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
+            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
@@ -94,7 +94,7 @@ using Test
             reltol = 1e-4
             δ = 0.1
             f = @pstrip Westermann()
-            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
+            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
             L = heat.L
             @testset "Left tail" begin
@@ -160,7 +160,7 @@ using Test
             n = 2.0
             Tₘ = 0.0
             f = @pstrip DallAmico()
-            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol, onfail=:error))
+            sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
             L = heat.L
             Lf = heat.prop.Lf
@@ -212,7 +212,7 @@ using Test
         Tₘ = 0.0
         γ = 0.1
         f = @pstrip McKenzie()
-        sfcc = SFCC(f, SFCCNewtonSolver(onfail=:error))
+        sfcc = SFCC(f, SFCCNewtonSolver())
         heat = @pstrip Heat(freezecurve=sfcc)
         L = heat.L
         T = [-0.1]
