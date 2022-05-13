@@ -28,7 +28,8 @@ function Base.show(io::IO, out::CryoGridOutput)
         println(io, "   $r")
     end
 end
-Base.keys(out::CryoGridOutput) = Base.propertynames(out)
+stack(out::CryoGridOutput, var::Symbol, vars::Symbol...) = DimStack((;map(n -> n => getproperty(out, n), tuple(var, vars...))...))
+Base.keys(out::CryoGridOutput) = Base.propertynames(out.data)
 Base.propertynames(out::CryoGridOutput) = tuple(fieldnames(typeof(out))..., propertynames(out.data)...)
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
     if sym in (:sol,:ts,:data)
@@ -37,3 +38,4 @@ function Base.getproperty(out::CryoGridOutput, sym::Symbol)
         out.data[sym]
     end
 end
+Base.Dict(out::CryoGridOutput) = Dict(map(k -> string(k) => getproperty(out, k), keys(out))...)

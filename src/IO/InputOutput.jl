@@ -18,6 +18,8 @@ using Tables
 using TimeSeries
 using Unitful
 
+import DimensionalData: stack
+
 export loadforcings
 
 include("ioutils.jl")
