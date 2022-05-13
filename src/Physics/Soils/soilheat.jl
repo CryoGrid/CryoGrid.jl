@@ -58,16 +58,12 @@ include("sfcc.jl")
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
 function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
-    initialcondition!(soil, state)
-    initialcondition!(heat, state)
     initialcondition!(soil, heat, freezecurve(heat), state)
 end
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ free water freeze curve.
 """
 function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
-    initialcondition!(soil, state)
-    initialcondition!(heat, state)
     L = heat.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
@@ -75,5 +71,87 @@ function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
         state.θl[i] = ifelse(state.T[i] > 0.0, θw, 0.0)
         state.C[i] = heatcapacity(soil, heat, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
+    end
+end
+function liquidwater(::SubSurface, heat::Heat{<:SFCC,Temperature}, state, i)
+    sfcc = freezecurve(heat)
+    f_args = tuplejoin((state.T,), sfccargs(sfcc.f, soil, heat, state))
+    f_argsᵢ = Utils.selectat(i, identity, f_args)
+    return sfcc.f(f_argsᵢ...)
+end
+function liquidwater(sub::SubSurface, heat::Heat{<:SFCC,Enthalpy}, state, i)
+    T = enthalpyinv(sub, heat, state, i)
+    sfcc = freezecurve(heat)
+    f_args = sfccargs(sfcc.f, soil, heat, state)
+    f_argsᵢ = Utils.selectat(i, identity, f_args)
+    return sfcc.f(T, f_argsᵢ...)
+end
+"""
+    freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
+    freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
+
+Updates state variables according to the specified SFCC function and solver.
+For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
+For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
+"""
+function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
+    sfcc = freezecurve(heat)
+    @inbounds @fastmath let L = heat.L,
+        f = sfcc.f,
+        f_args = sfccargs(f,soil,heat,state),
+        f_res = ForwardDiff.DiffResult(zero(eltype(state.T)), zero(eltype(state.T)));
+        for i in 1:length(state.T)
+            T = state.T[i]
+            f_argsᵢ = Utils.selectat(i, identity, f_args)
+            θl, dθdT = ∇(T -> f(T, f_args...), T)
+            state.θl[i] = θl
+            state.dθdT[i] = dθdT
+            state.C[i] = C = heatcapacity(soil, heat, state, i)
+            state.dHdT[i] = C + (L + T*(heat.prop.cw - heat.prop.ci))*dθdT
+            state.H[i] = enthalpy(T, C, L, θl)
+        end
+    end
+end
+function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}, state) where {F}
+    sfcc = freezecurve(heat)
+    f_args = sfccargs(sfcc.f, soil, heat, state)
+    @inbounds for i in 1:length(state.H)
+        let f_argsᵢ = Utils.selectat(i, identity, f_args),
+            f = sfcc.f;
+            # Evaluate inverse enthalpy function
+            T = enthalpyinv(soil, heat, state, i)
+            # Here we apply the recovered temperature to the state variables;
+            # Since we perform iteration on untracked variables, we need to
+            # recompute θl, C, and T here with the tracked variables.
+            # Note that this results in one additional freeze curve function evaluation.
+            state.θl[i] = f(T, f_argsᵢ...)
+            dθdT = ForwardDiff.derivative(T -> f(T, f_argsᵢ...), T)
+            let θl = state.θl[i],
+                H = state.H[i],
+                L = heat.L,
+                cw = heat.prop.cw,
+                ci = heat.prop.ci,
+                θw = totalwater(soil, state, i), # total water content
+                θm = mineral(soil, state, i), # mineral content
+                θo = organic(soil, state, i), # organic content
+                θw = totalwater(soil, state, i);
+                state.C[i] = heatcapacity(soil, heat, θw, θl, θm, θo)
+                state.T[i] = (H - L*θl) / state.C[i]
+                state.dHdT[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, dθdT, cw, ci)
+            end
+        end
+    end
+end
+function freezethaw!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC{F,<:SFCCPreSolver},Enthalpy}, state) where {F}
+    solver = freezecurve(heat).solver
+    f = solver.cache.f
+    ∇f = solver.cache.∇f
+    @inbounds for i in 1:length(state.H)
+        H = state.H[i]
+        state.θl[i] = θl = f(H)
+        state.C[i] = C = heatcapacity(soil, heat, state, i)
+        state.T[i] = T = enthalpyinv(H, C, heat.L, θl)
+        dθdTᵢ = ∇f(state.H[i])
+        state.dHdT[i] = C + dθdTᵢ*(heat.L + T*(heat.prop.cw - heat.prop.ci))
     end
 end

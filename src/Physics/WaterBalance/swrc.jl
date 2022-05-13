@@ -5,26 +5,13 @@ Base type for soil water retention curve SWRC function implementations.
 """
 abstract type SWRCFunction end
 """
-    SWRC{F,∇F}
+    SWRC{F}
 
-Soil water retention curve with function type `F` and derivative `∇F`.
+Soil water retention curve with function type `F`.
 """
-struct SWRC{F,∇F}
+struct SWRC{F}
     f::F # soil water retention curve function f: (ψ,...) -> θ
-    ∇f::∇F # derivative of SWRC function
-    SWRC(f::F,∇f::∇F) where {F<:SWRCFunction,∇F<:Function} = new{F,∇F}(f,∇f)
-end
-"""
-    SWRC(f::SWRCFunction)
-
-Convenience constructor for SWRC that automatically generates an analytical derivative of the given
-retention curve function `f` using ModelingToolkit/Symbolics.jl.
-"""
-function SWRC(f::SWRCFunction; dvar=:ψ, choosefn=first, context_module=Numerics)
-    ∇f = ∇(f, dvar; choosefn=choosefn, context_module=context_module)
-    # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
-    # when applied to runtime generated functions.
-    SWRC(f, Base.splat(∇f), s)
+    SWRC(f::F) where {F<:SWRCFunction} = new{F}(f)
 end
 """
     VanGenuchten <: SWRCFunction

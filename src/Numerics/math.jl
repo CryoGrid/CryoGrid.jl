@@ -1,3 +1,9 @@
+∇(f, x) = ∇(typeof(x), f, x)
+function ∇(::Type{T}, f, x) where {T}
+    res = ForwardDiff.derivative!(ForwardDiff.DiffResult(zero(T), x), f, x)
+    return res.value, res.derivs[1]
+end
+
 """
     finitediff!(∂x::AbstractVector, x::AbstractVector, Δ::AbstractVector)
 
@@ -88,6 +94,38 @@ function harmonicmean!(h::AbstractVector, x::AbstractVector, w::AbstractVector)
 end
 
 """
+    tdma_solve!(x, a, b, c, d)
+
+Tridiagonal matrix solver; borrowed from CryoGridLite. Modifies all input vectors in-place.
+"""
+function tdma_solve!(x, a, b, c, d, factorized=false)
+    #a, b, c are the column vectors for the compressed tridiagonal matrix, d is the right vector
+    n = length(b); # n is the number of rows
+    #x = zeros(n,1);
+    if !factorized
+        # Modify the first-row coefficients
+        c[1] = c[1] / b[1];    # Division by zero risk.
+        d[1] = d[1] / b[1];    # Division by zero would imply a singular matrix.
+
+        @inbounds @fastmath for i = 2:n-1
+            temp = b[i] - a[i] * c[i-1];
+            c[i] = c[i] / temp;
+            d[i] = (d[i] - a[i] * d[i-1]) / temp;
+        end
+
+        d[n] = (d[n] - a[n] * d[n-1])/( b[n] - a[n] * c[n-1]);
+    end
+
+    # Now back substitute.
+    x[n] = d[n];
+    @inbounds @fastmath for i = n-1:-1:1
+        x[i] = d[i] - c[i] * x[i + 1];
+    end
+
+    return x
+end
+
+"""
     heaviside(x)
 
 Differentiable implementation of heaviside step function, i.e:
@@ -132,46 +170,6 @@ softplusinv(x) = let x = clamp(x, eps(), Inf); IfElse.ifelse(x > 34, x, log(exp(
 minusone(x) = x .- one.(x)
 plusone(x) = x .+ one.(x)
 
-# Symbolic differentiation
-"""
-    ∇(f, dvar::Symbol)
-
-Automatically generates an analytical partial derivative of `f` w.r.t `dvar` using Symbolics.jl.
-To avoid symbolic tracing issues, the function should 1) be pure (no side effects or non-mathematical behavior) and 2) avoid
-indeterminate control flow such as if-else or while blocks (technically should work but sometimes doesn't...). Conditional
-logic can be included using `IfElse.ifelse`. Additional argument names are extracted automatically from the method signature
-of `f`. Keyword arg `choosefn` should be a function which selects from available methods of `f` (returned by `methods`); defaults to `first`.
-Note that `∇` uses `RuntimeGeneratedFunction` to produce a fully specialized and compiled Julia function; it may be slow on the first call
-(due to compilation), but should be just as fast as handwriting it on subsequent calls.
-
-Example:
-
-For ``f(x,y) = 2x + xy``, ``\\frac{\\partial f}{\\partial x} = 2 + y``. Using `∇`, we can obtain this automagically:
-
-```jldoctest
-f(x,y) = 2*x + x*y
-∇f_x = ∇(f,:x)
-∇f_x(2.0,3.0)
-
-# output
-
-5.0
-```
-"""
-function ∇(f, dvar::Symbol; choosefn=first, context_module=Numerics)
-    argnames = Utils.argnames(f, choosefn)
-    @assert dvar in argnames "function must have $dvar as an argument"
-    dind = findfirst(s -> s == dvar, argnames)
-    # Convert to symbols
-    argsyms = map(s -> Symbolics.Num(SymbolicUtils.Sym{Real}(s)), argnames)
-    # Generate analytical derivative of f
-    x = argsyms[dind]
-    ∂x = Differential(x)
-    ∇f_expr = build_function(∂x(f(argsyms...)) |> expand_derivatives,argsyms...)
-    ∇f = @RuntimeGeneratedFunction(context_module, ∇f_expr)
-    return ∇f
-end
-
 # Function tabulation
 """
     Tabulated(f, argknots...)
@@ -205,8 +203,4 @@ function tabulate(f, argknots::Pair{Symbol,<:Union{Number,AbstractArray}}...)
     # evaluate function construct interpolant
     f = extrapolate(interpolate(Tuple(knots), map(Base.splat(f), arggrid), map(interp ∘ last, argknots)), map(extrap ∘ last, argknots))
     return f
-end
-function ∇(f::AbstractInterpolation)
-    gradient(args...) = Interpolations.gradient(f, args...)
-    return gradient
 end

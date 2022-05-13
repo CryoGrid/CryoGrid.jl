@@ -190,7 +190,7 @@ is only executed during compilation and will not appear in the compiled version.
         nprocess = Symbol(n,:process)
         @>> quote
         diagnosticstep!($nlayer, $nstate)
-        diagnosticstep!($nlayer,$nprocess,$nstate)
+        diagnosticstep!($nlayer, $nprocess, $nstate)
         end push!(expr.args)
     end
     # Interact
@@ -285,10 +285,14 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
         # initialcondition! is called for layer1 only on the first iteration to avoid duplicate invocations
         if i == 1
             @>> quote
+            initialcondition!($n1layer,$n1state)
+            initialcondition!($n1layer,$n1process)
             initialcondition!($n1layer,$n1process,$n1state)
             end push!(expr.args)
         end
         @>> quote
+        initialcondition!($n2layer,$n2state)
+        initialcondition!($n2process,$n2state)
         initialcondition!($n2layer,$n2process,$n2state)
         initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
         end push!(expr.args)
@@ -335,11 +339,11 @@ Returns a tuple of all variables defined in the tile.
 """
 variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
 """
-    parameters(tile::Tile)
+    parameters(tile::Tile; kwargs...)
 
 Extracts all parameters from `tile` in a vector.
 """
-parameters(tile::Tile) = CryoGridParams(tile)
+parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
 """
     withaxes(u::AbstractArray, ::Tile)
 
@@ -351,7 +355,7 @@ withaxes(u::ComponentArray, ::Tile) = u
 function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TCallbacks,iip}, _u, _du, t) where {TStrat,TGrid,TStates,TInits,TCallbacks,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
-    return TileState(tile.state, map(b -> ustrip(b.val), boundaries(tile.strat)), u, du, t, Val{iip}())
+    return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, Val{iip}())
 end
 """
     updateparams(tile::Tile, u, p, t)

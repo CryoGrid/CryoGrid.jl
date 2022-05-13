@@ -6,7 +6,7 @@ prognostic state vector (`uproto`).
 """
 struct VarStates{names,griddvars,TU,TD,TV,DF,DG}
     uproto::TU # prognostic state vector prototype
-    grid::TD
+    grid::TD # model grid/discretization
     vars::NamedTuple{names,TV} # variable metadata
     diag::NamedTuple{names,DF} # off-grid non-prognostic variables
     griddiag::NamedTuple{griddvars,DG} # on-grid non-prognostic variables
@@ -90,7 +90,7 @@ function VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunks
     progvars = map(group -> filter(isprognostic, group), vars)
     algvars = map(group -> filter(isalgebraic, group), vars)
     # create variables for gradients/fluxes
-    dpvars = map(group -> map(Flux, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
+    dpvars = map(group -> map(Delta, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
     allprogvars = tuplejoin(_flatten(progvars), _flatten(algvars)) # flattened prognostic/algebraic variable group
     # TODO: not a currently necessary use case, but could be supported by partitioning the state array further by layer/group name;
     # this would require passing the name to discretize(...)

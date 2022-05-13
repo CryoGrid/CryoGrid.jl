@@ -12,41 +12,65 @@ dimlength(::Shape{dims}, grid::Grid) where dims = prod(dims)
 dimlength(d::OnGrid{Cells}, grid::Grid) = d.f(length(cells(grid)))
 dimlength(d::OnGrid{Edges}, grid::Grid) = d.f(length(edges(grid)))
 
-abstract type Var{name,T,S<:VarDim} end
-struct Prognostic{name,T,S} <: Var{name,T,S}
+abstract type Var{name,S<:VarDim,T,units} end
+"""
+    Prognostic{name,S,T,units} <: Var{name,S,T,units}
+
+Defines a prognostic (time-integrated) state variable.
+"""
+struct Prognostic{name,S,T,units} <: Var{name,S,T,units}
     dim::S
-    Prognostic(name::Symbol, ::Type{T}, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}) where {T} = new{name, T, typeof(dims)}(dims)
-    Prognostic(::Symbol, ::Type{T}, dims::OnGrid) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
+    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{name,typeof(dims),T,units}(dims)
+    Prognostic(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
-struct Algebraic{name,T,S} <: Var{name,T,S}
+"""
+    Algebraic{name,S,T,units} <: Var{name,S,T,units}
+
+Defines an algebraic (implicit) state variable.
+"""
+struct Algebraic{name,S,T,units} <: Var{name,S,T,units}
     dim::S
     # maybe a mass matrix init function?
-    Algebraic(name::Symbol, ::Type{T}, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}) where {T} = new{name, T, typeof(dims)}(dims)
-    Algebraic(::Symbol, ::Type{T}, dims::OnGrid) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
+    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{name,typeof(dims),T,units}(dims)
+    Algebraic(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
-struct Flux{dname,name,T,S} <: Var{dname,T,S}
+"""
+    Delta{dname,name,S,T,units} <: Var{dname,S,T,units}
+
+Defines a "delta" term `du` for variable `u`, which is the time-derivative or flux for prognostic variables and
+the residual for algebraic variables.
+"""
+struct Delta{dname,name,S,T,units} <: Var{dname,S,T,units}
     dim::S
-    Flux(::Symbol, ::Type{T}, dims::OnGrid) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
-    Flux(dname::Symbol, name::Symbol, ::Type{T}, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}) where {T} = new{dname, name, T, typeof(dims)}(dims)
-    Flux(var::Prognostic{name,T,S}) where {name,T,S} = let dims=vardims(var); new{Symbol(:d,name), name, T, typeof(dims)}(dims) end
-    Flux(var::Algebraic{name,T,S}) where {name,T,S} = let dims=vardims(var); new{Symbol(:d,name), name, T, typeof(dims)}(dims) end
+    Delta(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
+    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{dname,name,typeof(dims),T,units}(dims)
+    Delta(var::Prognostic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,upreferred(units)/u"s"}(dims) end
+    Delta(var::Algebraic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units}(dims) end
 end
-struct Diagnostic{name,T,S} <: Var{name,T,S}
+"""
+    Diagnostic{name,S,T,units} <: Var{name,S,T,units}
+
+Defines a diagnostic variable which is allocated and cached per timestep but not integrated over time.
+"""
+struct Diagnostic{name,S,T,units} <: Var{name,S,T,units}
     dim::S
-    Diagnostic(name::Symbol, ::Type{T}, dims::VarDim) where {T} = new{name, T, typeof(dims)}(dims)
+    Diagnostic(name::Symbol, dims::VarDim, units=NoUnits, ::Type{T}=Float64) where {T} = new{name,typeof(dims),T,units}(dims)
 end
-ConstructionBase.constructorof(::Type{Prognostic{name,T,S}}) where {name,T,S} = s -> Prognostic(name, T, s)
-ConstructionBase.constructorof(::Type{Diagnostic{name,T,S}}) where {name,T,S} = s -> Diagnostic(name, T, s)
-ConstructionBase.constructorof(::Type{Algebraic{name,T,S}}) where {name,T,S} = s -> Algebraic(name, T, s)
-ConstructionBase.constructorof(::Type{Flux{dname,name,T,S}}) where {dname,name,T,S} = s -> Flux(dname, name, T, s)
-==(var1::Var{N1,T1,D1},var2::Var{N2,T2,D2}) where {N1,N2,T1,T2,D1,D2} = (N1==N2) && (T1==T2) && (D1==D2)
+# constructors for Flatten.reconstruct
+ConstructionBase.constructorof(::Type{Prognostic{name,S,T,units}}) where {name,S,T,units} = s -> Prognostic(name, s, T, units)
+ConstructionBase.constructorof(::Type{Diagnostic{name,S,T,units}}) where {name,S,T,units} = s -> Diagnostic(name, s, T, units)
+ConstructionBase.constructorof(::Type{Algebraic{name,S,T,units}}) where {name,S,T,units} = s -> Algebraic(name, s, T, units)
+ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units}}) where {dname,name,S,T,units} = s -> Delta(dname, name, s, T, units)
+==(var1::Var{N1,S1,T1,u1},var2::Var{N2,S2,T2,u2}) where {N1,N2,S1,S2,T1,T2,u1,u2} = (N1==N2) && (S1==S2) && (T1==T2) && (u1 == u2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
-vartype(::Var{name,T}) where {name,T} = T
-vartype(::Type{<:Var{name,T}}) where {name,T} = T
-vardims(var::Var{name,T,S}) where {name,T,S} = var.dim
+vartype(::Var{name,S,T}) where {name,S,T} = T
+vartype(::Type{<:Var{name,S,T}}) where {name,S,T} = T
+varunits(::Var{name,S,T,units}) where {name,S,T,units} = units
+varunits(::Type{<:Var{name,S,T,units}}) where {name,S,T,units} = units
+vardims(var::Var) = var.dim
 isprognostic(::T) where {T<:Var} = T <: Prognostic
 isalgebraic(::T) where {T<:Var} = T <: Algebraic
-isflux(::T) where {T<:Var} = T <: Flux
+isflux(::T) where {T<:Var} = T <: Delta
 isdiagnostic(::T) where {T<:Var} = T <: Diagnostic
-isongrid(::Var{name,T,S}) where {name,T,S} = S <: OnGrid
+isongrid(::Var{name,S}) where {name,S} = S <: OnGrid

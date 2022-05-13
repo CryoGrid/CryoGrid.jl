@@ -40,10 +40,12 @@ function Base.show(io::IO, ::MIME"text/plain", ps::CryoGridParams{T}) where T
 end
 Tables.columns(ps::CryoGridParams) = Tables.columns(ps.table)
 Tables.rows(ps::CryoGridParams) = Tables.rows(ps.table)
-function CryoGridParams(obj)
+function CryoGridParams(obj; full_metadata=false)
     m = Model(obj)
-    m[:idx] = 1:length(m)
-    m = _setparafields(m)
+    if full_metadata
+        m[:idx] = 1:length(m)
+        m = _setparafields(m)
+    end
     return CryoGridParams(m)
 end
 function _setparafields(m::Model)

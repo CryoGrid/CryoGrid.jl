@@ -1,12 +1,12 @@
 variables(top::Top, seb::SurfaceEnergyBalance) = (
-    Diagnostic(:Sout, Float"W/(m^2)", Scalar),    # outgoing shortwave radiation [J/(s*m^2)]
-    Diagnostic(:Lout, Float"W/(m^2)", Scalar),    # outgoing longwave radiation [J/(s*m^2)]
-    Diagnostic(:Qnet, Float"W/(m^2)", Scalar),    # net radiation budget at surface [J/(s*m^2)]
-    Diagnostic(:Qh, Float"W/(m^2)", Scalar),      # sensible heat flux [J/(s*m^2)]
-    Diagnostic(:Qe, Float"W/(m^2)", Scalar),      # latent heat flux [J/(s*m^2)]
-    Diagnostic(:Qg, Float"W/(m^2)", Scalar),      # ground heat flux [J/(s*m^2)]
-    Diagnostic(:Lstar, Float"m", Scalar),         # Obukhov length [m]
-    Diagnostic(:ustar, Float"m/s", Scalar),       # friction velocity [m/s]
+    Diagnostic(:Sout, Scalar, u"W/(m^2)"),    # outgoing shortwave radiation [J/(s*m^2)]
+    Diagnostic(:Lout, Scalar, u"W/(m^2)"),    # outgoing longwave radiation [J/(s*m^2)]
+    Diagnostic(:Qnet, Scalar, u"W/(m^2)"),    # net radiation budget at surface [J/(s*m^2)]
+    Diagnostic(:Qh, Scalar, u"W/(m^2)"),      # sensible heat flux [J/(s*m^2)]
+    Diagnostic(:Qe, Scalar, u"W/(m^2)"),      # latent heat flux [J/(s*m^2)]
+    Diagnostic(:Qg, Scalar, u"W/(m^2)"),      # ground heat flux [J/(s*m^2)]
+    Diagnostic(:Lstar, Scalar, u"m"),         # Obukhov length [m]
+    Diagnostic(:ustar, Scalar, u"m/s"),       # friction velocity [m/s]
 )
 
 function initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)

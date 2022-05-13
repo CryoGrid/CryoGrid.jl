@@ -77,7 +77,11 @@ end
 		tgrad = TemperatureGradient(forcing, NFactor(nf=0.5, nt=1.0))
 		sub = TestGroundLayer()
 		heat = Heat()
-		f1(t) = boundaryvalue(tgrad,Top(),heat,sub,(t=t,),(t=t,))
+		function f1(t)
+			state = (T_ub=[Inf], nfactor=[Inf], t=t)
+			diagnosticstep!(Top(), tgrad, state)
+			return boundaryvalue(tgrad,Top(),heat,sub,state,state)
+		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
 	end

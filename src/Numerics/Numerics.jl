@@ -20,8 +20,6 @@ using LoopVectorization
 using RuntimeGeneratedFunctions
 using Unitful
 using StructTypes
-using Symbolics
-using SymbolicUtils
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -67,14 +65,14 @@ Base.getindex(profile::Profile, i) = Profile(profile.knots[i])
 Base.lastindex(profile::Profile) = lastindex(profile.knots)
 StructTypes.StructType(::Type{<:Profile}) = StructTypes.UnorderedStruct()
 
-export ∇, Tabulated
+export Tabulated, ∇
 include("math.jl")
 
 export Grid, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
 
 export Var, Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
-export varname, vartype, vardims, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
+export varname, vartype, vardims, varunits, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
 export VarStates, DiffCache, retrieve, getvar, getvars

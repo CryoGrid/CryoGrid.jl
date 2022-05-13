@@ -1,5 +1,5 @@
 """
-    module Utils
+    Utils
 
 Common utility functions, constants, and macros used throughout the CryoGrid.jl codebase.
 """
@@ -10,21 +10,19 @@ using Flatten
 using ModelParameters
 using Setfield
 using StructTypes
-using Symbolics: Num
 using Unitful
 
 import CryoGrid
-import ExprTools
 import ForwardDiff
 import Unitful
 
 import ModelParameters: stripunits
 
-export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str
+export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert, applyunit, normalize_temperature, deparam
+export dustrip, duconvert, applyunit, normalize_temperature, pstrip
 export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
 
@@ -132,22 +130,6 @@ convert_tspan(tspan::NTuple{2,DateTime}) = convert_t.(tspan)
 convert_tspan(tspan::NTuple{2,Float64}) = convert_t.(tspan)
 
 """
-    argnames(f, choosefn=first)
-
-Retrieves the argument names of function `f` via metaprogramming and `ExprTools`.
-The optional argument `choosefn` allows for customization of which method instance
-of `f` (if there is more than one) is chosen.
-"""
-function argnames(f, choosefn=first)
-    # Parse function parameter names using ExprTools
-    fms = ExprTools.methods(f)
-    symbol(arg::Symbol) = arg
-    symbol(expr::Expr) = expr.args[1]
-    argnames = map(symbol, ExprTools.signature(choosefn(fms))[:args])
-    return argnames
-end
-
-"""
     @generated selectat(i::Int, f, args::T) where {T<:Tuple}
 
 Helper function for handling mixed vector/scalar arguments to runtime generated functions.
@@ -165,11 +147,6 @@ generators/comprehensions like `map` are not allowed.
 """
 @inline @generated function genmap(f, args::T) where {T<:Tuple}
     return Expr(:tuple, (:(f(args[$i])) for i in 1:length(T.parameters))...)
-end
-
-@inline @generated function fastinvoke(f, args::T) where {T<:Tuple}
-    accessors = (:(args[$i]) for i in 1:length(T.parameters))
-    return :(f($(accessors...)))
 end
 
 """
@@ -210,11 +187,11 @@ dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid
 duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
 
 """
-    deparam(obj; keep_units=false)
+    pstrip(obj; keep_units=false)
 
 Strips `Param` types and units from `obj`. If `keep_units=true`, then `Param` types will be stripped but units preserved.
 """
-function deparam(obj; keep_units=false)
+function pstrip(obj; keep_units=false)
     stripped_obj = ModelParameters.stripparams(obj)
     return keep_units ? stripped_obj : ModelParameters.stripunits(stripped_obj)
 end

@@ -5,40 +5,22 @@ any necessary additional constants or configuration options. User-specified para
 can either be supplied in the struct or declared as model parameters via the `variables`
 method.
 """
-abstract type SFCCFunction <: Function end
+abstract type SFCCFunction end
 """
 Abstract type for SFCC H <--> T solvers.
 """
 abstract type SFCCSolver end
 """
-    SFCC{F,∇F,S} <: FreezeCurve
+    SFCC{F,S} <: FreezeCurve
 
 Generic representation of the soil freeze characteristic curve. The shape and parameters
 of the curve are determined by the implementation of SFCCFunction `f`. Also requires
 an implementation of SFCCSolver which provides the solution to the non-linear mapping H <--> T.
 """
-@flattenable struct SFCC{F,∇F,S} <: FreezeCurve
+@flattenable struct SFCC{F,S} <: FreezeCurve
     f::F | true # freeze curve function f: (T,...) -> θ
-    ∇f::∇F | false # derivative of freeze curve function
     solver::S | true # solver for H -> T or T -> H
-    SFCC(f::F,∇f::∇F,s::S) where {F<:SFCCFunction,∇F<:Function,S<:SFCCSolver} = new{F,∇F,S}(f,∇f,s)
-end
-
-"""
-    SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver())
-
-Convenience constructor for SFCC that automatically generates an analytical derivative of the given
-freeze curve function `f` using ModelingToolkit/Symbolics.jl. To avoid symbolic tracing issues, the
-function should 1) be pure (no side effects or non-mathematical behavior) and 2) avoid indeterminate
-control flow such as if-else or while blocks (technically should work but sometimes doesn't...).
-Conditional logic can be incorporated via `IfElse.ifelse`. See the documentation for `Symbolics.jl`
-for more information and technical details.
-"""
-function SFCC(f::SFCCFunction, s::SFCCSolver=SFCCNewtonSolver(); dvar=:T, choosefn=first, context_module=Numerics)
-    ∇f = ∇(f, dvar; choosefn=choosefn, context_module=context_module)
-    # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
-    # when applied to runtime generated functions.
-    SFCC(f, ∇f, s)
+    SFCC(f::F, s::S=SFCCPreSolver()) where {F<:SFCCFunction,S<:SFCCSolver} = new{F,S}(f,s)
 end
 
 # Join the declared state variables of the SFCC function and the solver
@@ -46,42 +28,19 @@ variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, 
 # Default SFCC initialization
 function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     L = heat.L
-    state.θl .= sfcc.f.(state.T, sfccparams(sfcc.f, soil, heat, state)...)
+    state.θl .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θl)
 end
 
-
 """
-Updates state variables according to the specified SFCC function and solver.
-For heat conduction with enthalpy, this is implemented as a simple passthrough to the non-linear solver.
-For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θl, and H.
-"""
-(sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state) = sfcc.solver(soil, heat, state, sfcc.f, sfcc.∇f)
-function (sfcc::SFCC)(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
-    @inbounds @fastmath let L = heat.L,
-        f = sfcc.f,
-        ∇f = sfcc.∇f,
-        f_args = tuplejoin((state.T,),sfccparams(f,soil,heat,state));
-        for i in 1:length(state.T)
-            f_argsᵢ = Utils.selectat(i, identity, f_args)
-            state.θl[i] = f(f_argsᵢ...)
-            state.C[i] = heatcapacity(soil, heat, state, i)
-            state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θl[i])
-            state.dHdT[i] = state.C[i] + (L + state.T[i]*(heat.prop.cw - heat.prop.ci))*∇f(f_argsᵢ)
-        end
-    end
-    return nothing
-end
-
-"""
-    sfccparams(f::SFCCFunction, soil::Soil, heat::Heat, state)
+    sfccargs(f::SFCCFunction, soil::Soil, heat::Heat, state)
 
 Retrieves a tuple of values corresponding to each parameter declared by SFCCFunction `f` given the
 Soil layer, Heat process, and model state. The order of parameters *must match* the argument order
 of the freeze curve function `f`.
 """
-sfccparams(::SFCCFunction, ::Soil, ::Heat, state) = ()
+sfccargs(::SFCCFunction, ::Soil, ::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
 variables(::Soil, ::Heat, f::SFCCFunction) = ()
 variables(::Soil, ::Heat, s::SFCCSolver) = ()
@@ -98,23 +57,23 @@ Base.@kwdef struct DallAmico{T,Θ,A,N,G} <: SFCCFunction
     g::G = 9.80665u"m/s^2" # acceleration due to gravity
     swrc::VanGenuchten = VanGenuchten()
 end
-sfccparams(f::DallAmico, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
+sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
     totalwater(soil, state), # total water content
     heat.prop.Lf, # specific latent heat of fusion, L
+    f.θres,
+    f.Tₘ,
     f.α,
     f.n,
 )
 # pressure head at T
 @inline ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
-function (f::DallAmico)(T,Tₘ,θres,θsat,θtot,Lf,α,n)
+@inline function (f::DallAmico)(T, θsat, θtot, Lf, θres=f.θres, Tₘ=f.Tₘ, α=f.α, n=f.n)
     let θsat = max(θtot, θsat),
         g = f.g,
         m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1)^(1/n), zero(1/α)),
+        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1.0)^(1/n), zero(1/α)),
         Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
         T = normalize_temperature(T),
         ψ = ψ(T, Tstar, ψ₀, Lf, g);
@@ -134,14 +93,14 @@ Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
     θres::Θ = Param(0.0, bounds=(0,1))
     γ::Γ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
-sfccparams(f::McKenzie, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
+sfccargs(f::McKenzie, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
     totalwater(soil, state), # total water content
+    f.θres,
+    f.Tₘ,
     f.γ,
 )
-function (f::McKenzie)(T,Tₘ,θres,θsat,θtot,γ)
+function (f::McKenzie)(T, θsat, θtot, θres=f.θres, Tₘ=f.Tₘ, γ=f.γ)
     let T = normalize_temperature(T),
         Tₘ = normalize_temperature(Tₘ),
         θsat = max(θtot, θsat);
@@ -161,14 +120,14 @@ Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
     θres::Θ = Param(0.0, bounds=(0,1))
     δ::Δ = Param(0.1, bounds=(eps(),Inf), units=u"K")
 end
-sfccparams(f::Westermann, soil::Soil, heat::Heat, state) = (
-    f.Tₘ,
-    f.θres,
+sfccargs(f::Westermann, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
     totalwater(soil, state), # total water content
+    f.θres,
+    f.Tₘ,
     f.δ,
 )
-function (f::Westermann)(T,Tₘ,θres,θsat,θtot,δ)
+function (f::Westermann)(T,θsat,θtot,θres=f.θres,Tₘ=f.Tₘ,δ=f.δ)
     let T = normalize_temperature(T),
         Tₘ = normalize_temperature(Tₘ),
         θsat = max(θtot, θsat);
@@ -186,24 +145,5 @@ end
 Produces an `SFCCTable` function which is a tabulation of `f`.
 """
 Numerics.Tabulated(f::SFCCFunction, args...; kwargs...) = SFCCTable(f, Numerics.tabulate(f, args...; kwargs...))
-"""
-    SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
-
-Constructs a SFCC from the precomputed `SFCCTable`. The derivative is generated using the
-`gradient` function provided by `Interpolations`.
-"""
-function SFCC(f::SFCCTable, s::SFCCSolver=SFCCNewtonSolver())
-    # we wrap ∇f with Base.splat here to avoid a weird issue with in-place splatting causing allocations
-    # when applied to runtime generated functions.
-    SFCC(f, Base.splat(first ∘ ∇(f.f_tab)), s)
-end
 
 include("sfcc_solvers.jl")
-
-# Generate analytical derivatives during precompilation
-const ∂DallAmico∂T = ∇(stripunits(stripparams(DallAmico())), :T)
-const ∂McKenzie∂T = ∇(stripunits(stripparams(McKenzie())), :T)
-const ∂Westermann∂T = ∇(stripunits(stripparams(Westermann())), :T)
-SFCC(f::DallAmico, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂DallAmico∂T, solver)
-SFCC(f::McKenzie, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂McKenzie∂T, solver)
-SFCC(f::Westermann, solver::SFCCSolver=SFCCNewtonSolver()) = SFCC(f, ∂Westermann∂T, solver)
