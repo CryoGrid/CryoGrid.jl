@@ -296,9 +296,9 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, totalwater(sub, heat, state, i)),
+    let θtot = max(1e-8, totalwater(sub, state, i)),
         H = state.H[i],
-        C = sttate.C[i],
+        C = state.C[i],
         L = heat.L,
         Lθ = L*θtot,
         I_t = H > Lθ,
@@ -307,7 +307,7 @@ end
     end
 end
 @inline function liquidwater(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, totalwater(sub, heat, state, i)),
+    let θtot = max(1e-8, totalwater(sub, state, i)),
         H = state.H[i],
         L = heat.L,
         Lθ = L*θtot,
