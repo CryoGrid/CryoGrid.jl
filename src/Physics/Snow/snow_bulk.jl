@@ -8,7 +8,7 @@ const BulkSnowpack{Tdsn} = Snowpack{<:Bulk{Tdsn}} where {Tdsn}
 const Enthalpy = HeatConduction.Enthalpy
 
 CryoGrid.variables(snow::BulkSnowpack) = (
-    Diagnostic(:θw, OnGrid(Cells)),
+    Diagnostic(:θwi, OnGrid(Cells)),
     Diagnostic(:T_ub, Scalar, u"°C"),
     Diagnostic(:dsn, Scalar, u"m"),
 )
@@ -23,7 +23,7 @@ function CryoGrid.criterion(::SnowFree, snow::BulkSnowpack, heat::Heat, state)
     return dsn - one(dsn)*snow.para.thresh
 end
 function CryoGrid.affect!(::SnowFree, snow::BulkSnowpack, heat::Heat, state)
-    @. state.θw = 0.0
+    @. state.θwi = 0.0
     @. state.H = 0.0
 end
 
@@ -34,7 +34,7 @@ snowdepth(snow::BulkSnowpack{<:Forcing}, state) = snow.para.dsn(state.t)
 function HeatConduction.freezethaw!(snow::Snowpack, heat::Heat{FreeWater,Enthalpy}, state)
     @inbounds for i in 1:length(state.H)
         # liquid water content = (total water content) * (liquid fraction)
-        state.θl[i] = HeatConduction.liquidwater(snow, heat, state, i)
+        state.θw[i] = HeatConduction.liquidwater(snow, heat, state, i)
         # update heat capacity
         state.C[i] = C = snow.prop.csn
         # enthalpy inverse function
@@ -56,12 +56,12 @@ function CryoGrid.diagnosticstep!(snow::BulkSnowpack, state)
 end
 function CryoGrid.diagnosticstep!(snow::BulkSnowpack, heat::Heat{FreeWater,Enthalpy}, state)
     dsn = getscalar(state.dsn)
-    @. state.θw = snow.prop.ρsn / heat.prop.ρw
+    @. state.θwi = snow.prop.ρsn / heat.prop.ρw
     if dsn > snow.para.thresh
-        @. state.θw = snow.prop.ρsn / heat.prop.ρw
+        @. state.θwi = snow.prop.ρsn / heat.prop.ρw
         HeatConduction.freezethaw!(snow, heat, state)
     else
-        @. state.θw = 0.0
+        @. state.θwi = 0.0
         @. state.T = state.T_ub
         @. state.C = heat.prop.ca
     end

@@ -23,7 +23,7 @@ latent heat of fusion, derivative of the freeze curve `dθdT`, and the constitue
 
 Retrieves the liquid water content for the given layer.
 """
-@inline liquidwater(::SubSurface, ::Heat, state) = state.θl
+@inline liquidwater(::SubSurface, ::Heat, state) = state.θw
 """
     thermalconductivities(::SubSurface, heat::Heat)
 
@@ -40,14 +40,14 @@ Get heat capacities for generic `SubSurface` layer.
     volumetricfractions(::SubSurface, heat::Heat, state, i)
 
 Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
-the only constitutents are liquid water, ice, and air: `(θl,θi,θa)`.
+the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
 """
-@inline function volumetricfractions(sub::SubSurface, heat::Heat, state, i)
-    return let θw = totalwater(sub, state, i),
-        θl = state.θl[i],
-        θa = 1.0 - θw,
-        θi = θw - θl;
-        (θl, θi, θa)
+@inline function volumetricfractions(sub::SubSurface, ::Heat, state, i)
+    return let θwi = totalwater(sub, state, i),
+        θw = state.θw[i],
+        θa = 1.0 - θwi,
+        θi = θwi - θw;
+        (θw, θi, θa)
     end
 end
 
@@ -141,7 +141,7 @@ basevariables(::Heat) = (
     Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
-    Diagnostic(:θl, OnGrid(Cells)),
+    Diagnostic(:θw, OnGrid(Cells)),
 )
 """
     heatconduction!(∂H,T,ΔT,k,Δk)
@@ -318,12 +318,12 @@ end
 
 Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
-total water content (θw), and liquid water content (θl).
+total water content (θwi), and liquid water content (θw).
 """
 @inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
     @inbounds for i in 1:length(state.H)
         # liquid water content = (total water content) * (liquid fraction)
-        state.θl[i] = liquidwater(sub, heat, state, i)
+        state.θw[i] = liquidwater(sub, heat, state, i)
         # update heat capacity
         state.C[i] = C = heatcapacity(sub, heat, state, i)
         # enthalpy inverse function

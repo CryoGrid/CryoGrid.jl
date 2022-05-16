@@ -18,7 +18,7 @@ using Unitful
 Retrieves the total water content for the given layer at grid cell `i`, if specified.
 Defaults to using the scalar total water content defined on layer `sub`.
 """
-@inline totalwater(sub::SubSurface, state) = state.θw
+@inline totalwater(sub::SubSurface, state) = state.θwi
 @inline totalwater(sub::SubSurface, state, i) = Utils.getscalar(totalwater(sub, state), i)
 
 include("coupled.jl")

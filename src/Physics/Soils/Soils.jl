@@ -54,7 +54,7 @@ SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pai
 # Helper functions for obtaining soil compositions from characteristic fractions.
 soilcomponent(::Val{var}, para::CharacteristicFractions) where var = soilcomponent(Val{var}(), para.xic, para.por, para.sat, para.org)
 soilcomponent(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
-soilcomponent(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
+soilcomponent(::Val{:θwi}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
 soilcomponent(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
 soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
@@ -84,12 +84,12 @@ porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
 mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)
 organic(soil::Soil, state) = organic(SoilComposition(soil), soil)
 ## Homogeneous soils
-totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θw}(), soil.para)
+totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θwi}(), soil.para)
 porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
 mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
 organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
 ## Heterogeneous soils
-totalwater(::Heterogeneous, soil::Soil, state) = state.θw   
+totalwater(::Heterogeneous, soil::Soil, state) = state.θwi   
 porosity(::Heterogeneous, soil::Soil, state) = state.θp
 mineral(::Heterogeneous, soil::Soil, state) = state.θm
 organic(::Heterogeneous, soil::Soil, state) = state.θo
@@ -97,7 +97,7 @@ organic(::Heterogeneous, soil::Soil, state) = state.θo
 variables(soil::Soil) = variables(SoilComposition(soil), soil)
 variables(::Homogeneous, ::Soil) = ()
 variables(::Heterogeneous, ::Soil) = (
-    Diagnostic(:θw, Float64, OnGrid(Cells)),
+    Diagnostic(:θwi, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
@@ -118,7 +118,7 @@ function initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions
     ϕ = evaluate(soil.para.por)
     θ = evaluate(soil.para.sat)
     ω = evaluate(soil.para.org)
-    @. state.θw = soilcomponent(Val{:θw}(), χ, ϕ, θ, ω)
+    @. state.θwi = soilcomponent(Val{:θwi}(), χ, ϕ, θ, ω)
     @. state.θp = soilcomponent(Val{:θp}(), χ, ϕ, θ, ω)
     @. state.θm = soilcomponent(Val{:θm}(), χ, ϕ, θ, ω)
     @. state.θo = soilcomponent(Val{:θo}(), χ, ϕ, θ, ω)

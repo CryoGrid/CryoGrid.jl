@@ -28,9 +28,9 @@ variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, 
 # Default SFCC initialization
 function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     L = heat.L
-    state.θl .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
+    state.θw .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
     heatcapacity!(soil, heat, state)
-    @. state.H = enthalpy(state.T, state.C, L, state.θl)
+    @. state.H = enthalpy(state.T, state.C, L, state.θw)
 end
 
 """
