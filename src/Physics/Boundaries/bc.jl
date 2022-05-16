@@ -21,7 +21,7 @@ struct PeriodicBC{P,S,T1,T2,T3} <: BoundaryProcess{P}
     period::T1
     amplitude::T2
     phaseshift::T3
-    PeriodicBC(::Type{P}, ::Type{S}, period::T1, amplitude::T2=one(T), phaseshift::T3=one(T)) where
+    PeriodicBC(::Type{P}, ::Type{S}, period::T1, amplitude::T2=1.0, phaseshift::T3=0.0) where
         {P<:SubSurfaceProcess,S<:BoundaryStyle,T1<:TimeQuantity,T2,T3} =
         new{P,S,T1,T2,T3}(period, amplitude, phaseshift)
 end
