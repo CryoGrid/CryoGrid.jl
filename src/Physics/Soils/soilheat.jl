@@ -29,7 +29,7 @@ Defaults to using the scalar porosity defined on `soil`.
 @inline thermalconductivities(soil::Soil, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka, soil.prop.km, soil.prop.ko)
 @inline heatcapacities(soil::Soil, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca, soil.prop.cm, soil.prop.co)
 @inline function volumetricfractions(soil::Soil, heat::Heat, state, i)
-    return let θwi = totalwater(soil, state, i),
+    return let θwi = waterice(soil, state, i),
         θw = liquidwater(soil, heat, state, i),
         θm = mineral(soil, state, i),
         θo = organic(soil, state, i),
@@ -67,24 +67,11 @@ function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
     L = heat.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
-        θwi = totalwater(soil, state, i)
+        θwi = waterice(soil, state, i)
         state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
         state.C[i] = heatcapacity(soil, heat, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
     end
-end
-function liquidwater(::SubSurface, heat::Heat{<:SFCC,Temperature}, state, i)
-    sfcc = freezecurve(heat)
-    f_args = tuplejoin((state.T,), sfccargs(sfcc.f, soil, heat, state))
-    f_argsᵢ = Utils.selectat(i, identity, f_args)
-    return sfcc.f(f_argsᵢ...)
-end
-function liquidwater(sub::SubSurface, heat::Heat{<:SFCC,Enthalpy}, state, i)
-    T = enthalpyinv(sub, heat, state, i)
-    sfcc = freezecurve(heat)
-    f_args = sfccargs(sfcc.f, soil, heat, state)
-    f_argsᵢ = Utils.selectat(i, identity, f_args)
-    return sfcc.f(T, f_argsᵢ...)
 end
 """
     freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
@@ -131,10 +118,10 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}
                 L = heat.L,
                 cw = heat.prop.cw,
                 ci = heat.prop.ci,
-                θwi = totalwater(soil, state, i), # total water content
+                θwi = waterice(soil, state, i), # total water content
                 θm = mineral(soil, state, i), # mineral content
                 θo = organic(soil, state, i), # organic content
-                θwi = totalwater(soil, state, i);
+                θwi = waterice(soil, state, i);
                 state.C[i] = heatcapacity(soil, heat, θwi, θw, θm, θo)
                 state.T[i] = (H - L*θw) / state.C[i]
                 state.dHdT[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, dθdT, cw, ci)

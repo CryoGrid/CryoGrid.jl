@@ -77,7 +77,7 @@ variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 export HeatBC, ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")
 
-export heatconduction!, enthalpy, totalwater, liquidwater, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
+export heatconduction!, enthalpy, waterice, liquidwater, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 include("heat.jl")
 
 end

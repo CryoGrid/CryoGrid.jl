@@ -11,15 +11,14 @@ using Reexport
 using Unitful
 
 """
-    totalwater(sub::SubSurface, state)
-    totalwater(sub::SubSurface, state)
-    totalwater(sub::SubSurface, state, i)
+    waterice(sub::SubSurface, state)
+    waterice(sub::SubSurface, state, i)
 
-Retrieves the total water content for the given layer at grid cell `i`, if specified.
-Defaults to using the scalar total water content defined on layer `sub`.
+Retrieves the total water content (water + ice) for the given layer at grid cell `i`, if specified.
+Defaults to retrieving the state variable `θwi`. 
 """
-@inline totalwater(sub::SubSurface, state) = state.θwi
-@inline totalwater(sub::SubSurface, state, i) = Utils.getscalar(totalwater(sub, state), i)
+@inline waterice(::SubSurface, state) = state.θwi
+@inline waterice(sub::SubSurface, state, i) = Utils.getscalar(waterice(sub, state), i)
 
 include("coupled.jl")
 include("Boundaries/Boundaries.jl")

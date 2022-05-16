@@ -9,8 +9,8 @@ const Enthalpy = HeatConduction.Enthalpy
 
 CryoGrid.variables(snow::BulkSnowpack) = (
     Diagnostic(:θwi, OnGrid(Cells)),
-    Diagnostic(:T_ub, Scalar, u"°C"),
     Diagnostic(:dsn, Scalar, u"m"),
+    Diagnostic(:T_ub, Scalar, u"°C"),
 )
 
 CryoGrid.callbacks(snow::BulkSnowpack, heat::Heat) = (
@@ -30,20 +30,6 @@ end
 snowdepth(snow::BulkSnowpack{<:Number}, state) = snow.para.dsn
 snowdepth(snow::BulkSnowpack{<:Forcing}, state) = snow.para.dsn(state.t)
 
-# HeatConduction methods
-function HeatConduction.freezethaw!(snow::Snowpack, heat::Heat{FreeWater,Enthalpy}, state)
-    @inbounds for i in 1:length(state.H)
-        # liquid water content = (total water content) * (liquid fraction)
-        state.θw[i] = HeatConduction.liquidwater(snow, heat, state, i)
-        # update heat capacity
-        state.C[i] = C = snow.prop.csn
-        # enthalpy inverse function
-        state.T[i] = HeatConduction.enthalpyinv(snow, heat, state, i)
-        # set dHdT (a.k.a dHdT)
-        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/C
-    end
-    return nothing
-end
 @inline HeatConduction.thermalconductivities(snow::Snowpack, ::Heat) = (snow.prop.ksn,)
 @inline HeatConduction.heatcapacities(snow::Snowpack, ::Heat) = (snow.prop.csn,)
 

@@ -37,7 +37,7 @@ export convert_t, convert_tspan, pstrip, @pstrip, @sym_str
 
 # Re-exported packages
 @reexport using Dates: Dates, DateTime
-@reexport using DimensionalData: DimArray, Z, Dim, dims
+@reexport using DimensionalData
 @reexport using IntervalSets
 @reexport using Unitful
 

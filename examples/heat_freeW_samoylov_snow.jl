@@ -29,16 +29,11 @@ tspan = (DateTime(2010,10,30),DateTime(2012,12,30))
 p = parameters(tile)
 u0, du0 = initialcondition!(tile, tspan, p)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(tile,u0,tspan,p,savevars=(:T,:C,:kc))
-# solve with forward Euler, 10-minute time steps
-out = @time solve(prob, Euler(), dt=600.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
+prob = CryoGridProblem(tile,u0,tspan,p,savevars=(:T,))
+# solve with forward Euler, 15-minute time steps
+out = @time solve(prob, Euler(), dt=900.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
-zs = [1,10,20,30,50,100,200,500,1000]u"cm"
+zs = [-100,1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, dpi=150)
 plot(ustrip(out.H[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-
-integrator = init(prob, Euler(), dt=300.0)
-step!(integrator)
-snow_state = getstate(:snowpack, integrator)
-snow_state.kc
