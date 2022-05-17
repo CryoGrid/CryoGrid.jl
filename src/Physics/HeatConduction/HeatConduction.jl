@@ -1,8 +1,6 @@
 module HeatConduction
 
-import CryoGrid: SubSurfaceProcess, BoundaryStyle, Dirichlet, Neumann, BoundaryProcess, Layer, Top, Bottom, SubSurface, Callback
-import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!, thickness, midpoints, volumetricfractions
-
+using CryoGrid: SubSurfaceProcess, BoundaryProcess, Dirichlet, Neumann, Layer, Top, Bottom, SubSurface, Callback
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
@@ -14,6 +12,11 @@ using Base: @propagate_inbounds, @kwdef
 using IfElse
 using ModelParameters
 using Unitful
+
+import CryoGrid
+import CryoGrid: BoundaryStyle
+import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!, thickness, midpoints
+import CryoGrid.Physics
 
 export Heat, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
@@ -70,7 +73,11 @@ end
 Heat(var::Symbol; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(;para=Enthalpy(), kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(;para=Temperature(), kwargs...)
+
+# getter functions
+thermalproperties(heat::Heat) = heat.prop
 freezecurve(heat::Heat) = heat.freezecurve
+
 # Default implementation of `variables` for freeze curve
 variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 

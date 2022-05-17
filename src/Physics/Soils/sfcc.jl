@@ -24,9 +24,9 @@ an implementation of SFCCSolver which provides the solution to the non-linear ma
 end
 
 # Join the declared state variables of the SFCC function and the solver
-variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, sfcc.f), variables(soil, heat, sfcc.solver))
+CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, sfcc.f), variables(soil, heat, sfcc.solver))
 # Default SFCC initialization
-function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     L = heat.L
     state.θw .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
     heatcapacity!(soil, heat, state)
@@ -42,8 +42,8 @@ of the freeze curve function `f`.
 """
 sfccargs(::SFCCFunction, ::Soil, ::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
-variables(::Soil, ::Heat, f::SFCCFunction) = ()
-variables(::Soil, ::Heat, s::SFCCSolver) = ()
+CryoGrid.variables(::Soil, ::Heat, f::SFCCFunction) = ()
+CryoGrid.variables(::Soil, ::Heat, s::SFCCSolver) = ()
 """
     DallAmico <: SFCCFunction
 

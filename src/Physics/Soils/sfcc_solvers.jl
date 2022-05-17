@@ -15,7 +15,7 @@ Base.@kwdef struct SFCCNewtonSolver <: SFCCSolver
     τ::Float64 = 0.7 # step size decay for backtracking
 end
 # Helper function for updating θw, C, and the residual.
-@inline function residual(soil::Soil, heat::Heat, T, H, L, f::F, f_args::Fargs, θwi, θm, θo) where {F,Fargs}
+@inline function sfccresidual(soil::Soil, heat::Heat, T, H, L, f::F, f_args::Fargs, θwi, θm, θo) where {F,Fargs}
     θw = f(T, f_args...)
     C = heatcapacity(soil, heat, θwi, θw, θm, θo)
     Tres = T - (H - θw*L) / C
@@ -34,7 +34,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_arg
     α₀ = solver.α₀
     τ = solver.τ
     # compute initial residual
-    Tres, θw, C = residual(soil, heat, T, H, L, f, f_args, θwi, θm, θo)
+    Tres, θw, C = sfccresidual(soil, heat, T, H, L, f, f_args, θwi, θm, θo)
     itercount = 0
     T_converged = false
     while abs(Tres) > solver.abstol && abs(Tres) / abs(T) > solver.reltol
@@ -52,7 +52,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_arg
         T̂ = T - α*Tres
         # do first residual check outside of loop;
         # this way, we don't decrease α unless we have to.
-        T̂res, θw, C = residual(soil, heat, T̂, H, L, f, f_args, θwi, θm, θo)
+        T̂res, θw, C = sfccresidual(soil, heat, T̂, H, L, f, f_args, θwi, θm, θo)
         inneritercount = 0
         # simple backtracking line search to avoid jumping over the solution
         while sign(T̂res) != sign(Tres)
@@ -62,7 +62,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_arg
             end
             α = α*τ # decrease step size by τ
             T̂ = T - α*Tres # new guess for T
-            T̂res, θw, C = residual(soil, heat, T̂, H, L, f, f_args, θwi, θm, θo)
+            T̂res, θw, C = sfccresidual(soil, heat, T̂, H, L, f, f_args, θwi, θm, θo)
             inneritercount += 1
         end
         T = T̂ # update T
@@ -72,7 +72,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_arg
     T_converged = true
     return (;T, Tres, θw, itercount, T_converged)
 end
-function enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}, state, i) where {F}
+function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}, state, i) where {F}
     sfcc = freezecurve(heat)
     f = sfcc.f
     # get f arguments; note that this does create some redundancy in the arguments
@@ -135,7 +135,7 @@ function _build_interpolant(Hs, θs)
         Interpolations.Flat()
     )
 end
-function initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,<:SFCCPreSolver}, state) where {F}
+function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,<:SFCCPreSolver}, state) where {F}
     L = heat.L
     args = sfccargs(sfcc.f, soil, heat, state)
     state.θw .= sfcc.f.(state.T, args...)

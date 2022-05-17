@@ -10,16 +10,9 @@ using Lazy: @>>
 using Reexport
 using Unitful
 
-"""
-    waterice(sub::SubSurface, state)
-    waterice(sub::SubSurface, state, i)
+export waterice
 
-Retrieves the total water content (water + ice) for the given layer at grid cell `i`, if specified.
-Defaults to retrieving the state variable `θwi`. 
-"""
-@inline waterice(::SubSurface, state) = state.θwi
-@inline waterice(sub::SubSurface, state, i) = Utils.getscalar(waterice(sub, state), i)
-
+include("common.jl")
 include("coupled.jl")
 include("Boundaries/Boundaries.jl")
 include("HeatConduction/HeatConduction.jl")

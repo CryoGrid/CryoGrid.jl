@@ -38,13 +38,16 @@ Get thermal conductivities for generic `SubSurface` layer.
 Get heat capacities for generic `SubSurface` layer.
 """
 @inline heatcapacities(::SubSurface, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca)
+
+# Generic heat conduction implementation
+
 """
     volumetricfractions(::SubSurface, heat::Heat, state, i)
 
 Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
 the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
 """
-@inline function volumetricfractions(sub::SubSurface, ::Heat, state, i)
+@inline function Physics.volumetricfractions(sub::SubSurface, ::Heat, state, i)
     let θwi = waterice(sub, state, i),
         θw = state.θw[i],
         θa = 1.0 - θwi,
@@ -52,9 +55,6 @@ the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
         return (θw, θi, θa)
     end
 end
-
-# Generic heat conduction implementation
-
 """
     freezethaw!(sub::SubSurface, heat::Heat, state)
 

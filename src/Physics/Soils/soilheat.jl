@@ -1,3 +1,6 @@
+const Enthalpy = HeatConduction.Enthalpy
+const Temperature = HeatConduction.Temperature
+
 # === Thermal properties ===
 # We use methods with optional index arguments `i` to allow for implementations both
 # where these variables are treated as constants and as state variables.
@@ -26,9 +29,9 @@ Defaults to using the scalar porosity defined on `soil`.
 """
 @inline porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
 # Functions for retrieving constituents and volumetric fractions
-@inline thermalconductivities(soil::Soil, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka, soil.prop.km, soil.prop.ko)
-@inline heatcapacities(soil::Soil, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca, soil.prop.cm, soil.prop.co)
-@inline function volumetricfractions(soil::Soil, heat::Heat, state, i)
+@inline HeatConduction.thermalconductivities(soil::Soil, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka, soil.prop.km, soil.prop.ko)
+@inline HeatConduction.heatcapacities(soil::Soil, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca, soil.prop.cm, soil.prop.co)
+@inline function Physics.volumetricfractions(soil::Soil, heat::Heat, state, i)
     return let θwi = waterice(soil, state, i),
         θw = liquidwater(soil, heat, state, i),
         θm = mineral(soil, state, i),
@@ -38,13 +41,15 @@ Defaults to using the scalar porosity defined on `soil`.
         (θw, θi, θa, θm, θo)
     end
 end
-@inline function heatcapacity(soil::Soil, heat::Heat, θwi, θw, θm, θo)
+# These dispatches are provided only for convenience when needing to evaluate the heat capacity
+# or thermal conductivity on arbitrary composition values.
+@inline function HeatConduction.heatcapacity(soil::Soil, heat::Heat, θwi, θw, θm, θo)
     let θa = 1.0 - θwi - θm - θo,
         θi = θwi - θw;
         return heatcapacity(heatcapacities(soil, heat), (θw, θi, θa, θm, θo))
     end
 end
-@inline function thermalconductivity(soil::Soil, heat::Heat, θwi, θw, θm, θo)
+@inline function HeatConduction.thermalconductivity(soil::Soil, heat::Heat, θwi, θw, θm, θo)
     let θa = 1.0 - θwi - θm - θo,
         θi = θwi - θw;
         return thermalconductivity(thermalconductivities(soil, heat), (θw, θi, θa, θm, θo))
@@ -57,13 +62,11 @@ include("sfcc.jl")
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
-function initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
-    initialcondition!(soil, heat, freezecurve(heat), state)
-end
+CryoGrid.initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state) = CryoGrid.initialcondition!(soil, heat, freezecurve(heat), state)
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ free water freeze curve.
 """
-function initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
     L = heat.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
@@ -81,7 +84,7 @@ Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θw, and H.
 """
-function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
+function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
     sfcc = freezecurve(heat)
     @inbounds @fastmath let L = heat.L,
         f = sfcc.f,
@@ -99,7 +102,7 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
         end
     end
 end
-function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}, state) where {F}
+function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}, state) where {F}
     sfcc = freezecurve(heat)
     f_args = sfccargs(sfcc.f, soil, heat, state)
     @inbounds for i in 1:length(state.H)
@@ -129,7 +132,7 @@ function freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSolver},Enthalpy}
         end
     end
 end
-function freezethaw!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC{F,<:SFCCPreSolver},Enthalpy}, state) where {F}
+function HeatConduction.freezethaw!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC{F,<:SFCCPreSolver},Enthalpy}, state) where {F}
     solver = freezecurve(heat).solver
     f = solver.cache.f
     ∇f = solver.cache.∇f

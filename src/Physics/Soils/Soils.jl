@@ -1,10 +1,6 @@
 module Soils
 
-import CryoGrid: SubSurface, Parameterization
-import CryoGrid: initialcondition!, variables, volumetricfractions
-import CryoGrid.Physics: waterice
-import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, liquidwater, thermalconductivity, heatcapacity, freezethaw!, enthalpyinv, heatcapacities, thermalconductivities
-
+using CryoGrid: SubSurface, Parameterization
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
 using CryoGrid.Physics.HeatConduction
@@ -13,11 +9,15 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds, @kwdef
 using IfElse
+using Interpolations: Interpolations
 using ForwardDiff
 using ModelParameters
 using Unitful
 
-import Interpolations
+import CryoGrid
+import CryoGrid.Physics
+import CryoGrid.Physics.HeatConduction
+
 import Flatten: @flattenable, flattenable
 
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
@@ -74,44 +74,45 @@ Basic Soil layer.
     prop::TProp = SoilThermalProperties()
     sp::TSp = nothing # user-defined specialization
 end
+HeatConduction.thermalproperties(soil::Soil) = soil.prop
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
 # Fixed volumetric content methods
-waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil)
+Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil)
 porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
 mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)
 organic(soil::Soil, state) = organic(SoilComposition(soil), soil)
 ## Homogeneous soils
-waterice(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θwi}(), soil.para)
+Physics.waterice(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θwi}(), soil.para)
 porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
 mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
 organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
 ## Heterogeneous soils
-waterice(::Heterogeneous, soil::Soil, state) = state.θwi   
+Physics.waterice(::Heterogeneous, soil::Soil, state) = state.θwi   
 porosity(::Heterogeneous, soil::Soil, state) = state.θp
 mineral(::Heterogeneous, soil::Soil, state) = state.θm
 organic(::Heterogeneous, soil::Soil, state) = state.θo
 
-variables(soil::Soil) = variables(SoilComposition(soil), soil)
-variables(::Homogeneous, ::Soil) = ()
-variables(::Heterogeneous, ::Soil) = (
+CryoGrid.variables(soil::Soil) = variables(SoilComposition(soil), soil)
+CryoGrid.variables(::Homogeneous, ::Soil) = ()
+CryoGrid.variables(::Heterogeneous, ::Soil) = (
     Diagnostic(:θwi, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
 )
 
-initialcondition!(soil::Soil, state) = initialcondition!(SoilComposition(soil), soil, state)
-initialcondition!(::Homogeneous, ::Soil, state) = nothing
+CryoGrid.initialcondition!(soil::Soil, state) = CryoGrid.initialcondition!(SoilComposition(soil), soil, state)
+CryoGrid.initialcondition!(::Homogeneous, ::Soil, state) = nothing
 """
     initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
 
 Default implementation of initialcondition! for heterogeneous soils parameterized by characteristic fractions.
 Fields of `soil.para` may be either numbers (including `Param`s) or `Function`s of the form `f(::Soil, state)::AbstractVector`.
 """
-function initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
+function CryoGrid.initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
     evaluate(x::Number) = x
     evaluate(f::Function) = f(soil, state)
     χ = evaluate(soil.para.xic)

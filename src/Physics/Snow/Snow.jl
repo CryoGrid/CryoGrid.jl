@@ -7,6 +7,7 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 import CryoGrid
+import CryoGrid.Physics
 import CryoGrid.Physics.HeatConduction
 
 using Unitful
