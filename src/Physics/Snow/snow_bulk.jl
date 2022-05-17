@@ -29,10 +29,7 @@ end
 
 snowdepth(snow::BulkSnowpack{<:Number}, state) = snow.para.dsn
 snowdepth(snow::BulkSnowpack{<:Forcing}, state) = snow.para.dsn(state.t)
-
-Physics.volumetricfractions(::BulkSnowpack, ::Heat, state, i) = (1.0,)
-HeatConduction.thermalconductivities(snow::Snowpack, ::Heat) = (snow.prop.ksn,)
-HeatConduction.heatcapacities(snow::Snowpack, ::Heat) = (snow.prop.csn,)
+snowdensity(snow::BulkSnowpack, state) = snow.para.ρsn
 
 # CryoGrid methods
 CryoGrid.thickness(::BulkSnowpack, state) = getscalar(state.dsn)
@@ -42,12 +39,14 @@ function CryoGrid.diagnosticstep!(snow::BulkSnowpack, state)
 end
 function CryoGrid.diagnosticstep!(snow::BulkSnowpack, heat::Heat{FreeWater,Enthalpy}, state)
     dsn = getscalar(state.dsn)
-    @. state.θwi = snow.prop.ρsn / heat.prop.ρw
+    ρsn = snowdensity(snow, state)
+    @. state.θwi = ρsn / heat.prop.ρw
     if dsn > snow.para.thresh
         @. state.θwi = snow.prop.ρsn / heat.prop.ρw
         HeatConduction.freezethaw!(snow, heat, state)
     else
         @. state.θwi = 0.0
+        @. state.θw = 0.0
         @. state.T = state.T_ub
         @. state.C = heat.prop.ca
     end
