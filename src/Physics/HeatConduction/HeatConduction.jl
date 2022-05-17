@@ -29,13 +29,13 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    HeatImpl
+    HeatParameterization
 
 Base type for different numerical formulations of two-phase heat diffusion.
 """
-abstract type HeatImpl end
-struct Enthalpy <: HeatImpl end
-struct Temperature <: HeatImpl end
+abstract type HeatParameterization end
+struct Enthalpy <: HeatParameterization end
+struct Temperature <: HeatParameterization end
 
 """
     ThermalProperties
@@ -59,17 +59,17 @@ Thermal properties of water used in two-phase heat conduction.
     ca::Tca = Param(0.00125e6, units=u"J/K/m^3") # heat capacity of air
 end
 
-@kwdef struct Heat{Tfc<:FreezeCurve,Tsp,Tinit,TProp<:HydroThermalProperties,TL} <: SubSurfaceProcess
+@kwdef struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tinit,TProp,TL} <: SubSurfaceProcess
+    para::TPara = Enthalpy()
     prop::TProp = HydroThermalProperties()
     L::TL = prop.ρw*prop.Lf # [J/m^3] (specific latent heat of fusion of water)
     freezecurve::Tfc = FreeWater() # freeze curve, defautls to free water fc
-    sp::Tsp = Enthalpy() # specialization
     init::Tinit = nothing # optional initialization scheme
 end
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol; kwargs...) = Heat(Val{var}(); kwargs...)
-Heat(::Val{:H}; kwargs...) = Heat(;sp=Enthalpy(), kwargs...)
-Heat(::Val{:T}; kwargs...) = Heat(;sp=Temperature(), kwargs...)
+Heat(::Val{:H}; kwargs...) = Heat(;para=Enthalpy(), kwargs...)
+Heat(::Val{:T}; kwargs...) = Heat(;para=Temperature(), kwargs...)
 freezecurve(heat::Heat) = heat.freezecurve
 # Default implementation of `variables` for freeze curve
 variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
