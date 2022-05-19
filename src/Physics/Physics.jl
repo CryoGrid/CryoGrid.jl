@@ -10,7 +10,7 @@ using Lazy: @>>
 using Reexport
 using Unitful
 
-export waterice
+export volumetricfractions, waterice
 
 include("common.jl")
 include("coupled.jl")

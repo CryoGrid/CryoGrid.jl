@@ -31,9 +31,9 @@ end
 SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile, init; grid=grid, freezecurve=freezecurve)
 
 Forcings = (
-    Samoylov_ERA5_fitted_daily_1979_2020 = Resource("samoylov_era5_fitted_daily_1979-2020", "json", "https://nextcloud.awi.de/s/DSx3BWsfjCdy9MF"),
-    Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044 = Resource("Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044", "json", "https://nextcloud.awi.de/s/dp74KC2ceQKaG43"),
-    Samoylov_ERA_MkL3_CCSM4_long_term = Resource("Samoylov_ERA_MkL3_CCSM4_long_term", "json", "https://nextcloud.awi.de/s/gyoMTy9jpk2pMxL"),
+    Samoylov_ERA5_fitted_daily_1979_2020 = Resource("samoylov_era5_fitted_daily_1979-2020", "json", "https://nextcloud.awi.de/s/WJtT7CS7HtcoRDz/download/samoylov_era5_fitted_daily_1979-2020.json"),
+    Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044 = Resource("Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044", "json", "https://nextcloud.awi.de/s/dp74KC2ceQKaG43/download/samoylov_ERA_obs_fitted_1979_2014_spinup_extended2044.json"),
+    Samoylov_ERA_MkL3_CCSM4_long_term = Resource("Samoylov_ERA_MkL3_CCSM4_long_term", "json", "https://nextcloud.awi.de/s/gyoMTy9jpk2pMxL/download/FORCING_ULC_126_72.json"),
 )
 Parameters = (
     # Faroux et al. doi:10.1109/IGARSS.2007.4422971

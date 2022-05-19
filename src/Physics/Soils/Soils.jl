@@ -95,7 +95,7 @@ porosity(::Heterogeneous, soil::Soil, state) = state.θp
 mineral(::Heterogeneous, soil::Soil, state) = state.θm
 organic(::Heterogeneous, soil::Soil, state) = state.θo
 
-CryoGrid.variables(soil::Soil) = variables(SoilComposition(soil), soil)
+CryoGrid.variables(soil::Soil) = CryoGrid.variables(SoilComposition(soil), soil)
 CryoGrid.variables(::Homogeneous, ::Soil) = ()
 CryoGrid.variables(::Heterogeneous, ::Soil) = (
     Diagnostic(:θwi, Float64, OnGrid(Cells)),

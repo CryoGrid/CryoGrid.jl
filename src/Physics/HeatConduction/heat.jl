@@ -123,7 +123,7 @@ Variable definitions for heat conduction (enthalpy).
 variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
-    basevariables(heat)...,
+    heatvariables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
@@ -133,12 +133,12 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
     Diagnostic(:dθdT, OnGrid(Cells)),
-    basevariables(heat)...,
+    heatvariables(heat)...,
 )
 """
 Common variable definitions for all heat implementations.
 """
-basevariables(::Heat) = (
+heatvariables(::Heat) = (
     Diagnostic(:dH_upper, Scalar, u"J/K/m^2"),
     Diagnostic(:dH_lower, Scalar, u"J/K/m^2"),
     Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3"),

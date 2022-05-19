@@ -1,10 +1,11 @@
 using CryoGrid
 using Plots
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_1979_2020, :Tair => u"°C", :Dsn => u"m"; spec=JsonSpec{2});
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_1979_2020, :Tair => u"°C", :swe => u"m", :ρsn => u"kg/m^3"; spec=JsonSpec{2});
 # use air temperature as upper boundary forcing;
 tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
-snowdepth = TimeSeriesForcing(ustrip.(forcings.data.Dsn), forcings.timestamps, :Dsn);
+swe = TimeSeriesForcing(ustrip.(forcings.data.swe), forcings.timestamps, :swe);
+ρsn = TimeSeriesForcing(ustrip.(forcings.data.ρsn), forcings.timestamps, :ρsn);
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
@@ -15,7 +16,7 @@ z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
 strat = @Stratigraphy(
     z_top => top(TemperatureGradient(tair)),
-    z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk(dsn=snowdepth)), Heat(:H)),
+    z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk()), SnowMassBalance(para=Snow.Prescribed(swe=swe, ρsn=ρsn)), Heat(:H)),
     z_sub[1] => subsurface(:topsoil1, Soil(para=soilprofile[1].value), Heat(:H)),
     z_sub[2] => subsurface(:topsoil2, Soil(para=soilprofile[2].value), Heat(:H)),
     z_sub[3] => subsurface(:sediment1, Soil(para=soilprofile[3].value), Heat(:H)),
@@ -30,6 +31,7 @@ p = parameters(tile)
 u0, du0 = initialcondition!(tile, tspan, p)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile,u0,tspan,p,savevars=(:T,))
+tile(du0,u0,collect(p),prob.tspan[1])
 # solve with forward Euler, 15-minute time steps
 out = @time solve(prob, Euler(), dt=900.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

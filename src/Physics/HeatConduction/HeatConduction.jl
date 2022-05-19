@@ -47,12 +47,11 @@ Base type for defining thermal properties.
 """
 abstract type ThermalProperties <: IterableStruct end
 """
-    HydroThermalProperties{Tρ,TLf,Tkw,Tki,Tcw,Tci}
+    HydroThermalProperties{TLf,Tkw,Tki,Tcw,Tci}
 
 Thermal properties of water used in two-phase heat conduction.
 """
-@kwdef struct HydroThermalProperties{Tρw,TLf,Tkw,Tki,Tka,Tcw,Tci,Tca} <: ThermalProperties
-    ρw::Tρw = Param(1000.0, units=u"kg/m^3") # density of water
+@kwdef struct HydroThermalProperties{TLf,Tkw,Tki,Tka,Tcw,Tci,Tca} <: ThermalProperties
     Lf::TLf = Param(334000.0, units=u"J/kg") # latent heat of fusion of water
     kw::Tkw = Param(0.57, units=u"W/m/K") # thermal conductivity of water [Hillel(1982)]
     ki::Tki = Param(2.2, units=u"W/m/K") # thermal conductivity of ice [Hillel(1982)]
