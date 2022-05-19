@@ -1,7 +1,7 @@
-# Water balance
+# Hydrology
 
 ```@autodocs
-Modules = [WaterBalance]
+Modules = [Hydrology]
 Private = false
 Order = [:type, :function, :macro]
 ```

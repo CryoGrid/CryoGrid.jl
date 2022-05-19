@@ -16,7 +16,7 @@ include("common.jl")
 include("coupled.jl")
 include("Boundaries/Boundaries.jl")
 include("HeatConduction/HeatConduction.jl")
-include("WaterBalance/WaterBalance.jl")
+include("Hydrology/Hydrology.jl")
 include("Snow/Snow.jl")
 include("Soils/Soils.jl")
 include("SEB/SEB.jl")
@@ -24,7 +24,7 @@ include("Sources/Sources.jl")
 
 @reexport using .Boundaries
 @reexport using .HeatConduction
-@reexport using .WaterBalance
+@reexport using .Hydrology
 @reexport using .Snow
 @reexport using .Soils
 @reexport using .SEB

@@ -4,7 +4,7 @@ using CryoGrid: SubSurface, Parameterization
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
 using CryoGrid.Physics.HeatConduction
-using CryoGrid.Physics.WaterBalance
+using CryoGrid.Physics.Hydrology
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds, @kwdef
