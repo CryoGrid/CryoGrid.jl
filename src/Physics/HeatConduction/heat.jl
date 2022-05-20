@@ -47,8 +47,8 @@ Get heat capacities for generic `SubSurface` layer.
 Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
 the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
 """
-@inline function Physics.volumetricfractions(sub::SubSurface, ::Heat, state, i)
-    let θwi = waterice(sub, state, i),
+@inline function Physics.volumetricfractions(sub::SubSurface, heat::Heat, state, i)
+    let θwi = waterice(sub, heat, state, i),
         θw = state.θw[i],
         θa = 1.0 - θwi,
         θi = θwi - θw;
@@ -297,7 +297,7 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, waterice(sub, state, i)),
+    let θtot = max(1e-8, waterice(sub, heat, state, i)),
         H = state.H[i],
         L = heat.L,
         Lθ = L*θtot,

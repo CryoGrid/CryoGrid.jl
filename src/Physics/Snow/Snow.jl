@@ -12,9 +12,6 @@ import CryoGrid.Physics.HeatConduction
 
 using Unitful
 
-struct SnowFree <: CryoGrid.Callback end
-CryoGrid.CallbackStyle(::Type{SnowFree}) = CryoGrid.Continuous()
-
 export Snowpack
 include("snowpack.jl")
 export SnowMassBalance, Snowfall

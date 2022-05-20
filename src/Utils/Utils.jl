@@ -196,11 +196,12 @@ end
 """
     ModelParameters.stripunits(obj)
 
-Additional override for `stripunits` which reconstructs `obj` with all `AbstractQuantity` fields stripped of units.
+Additional override for `stripunits` which reconstructs `obj` with all fields that have unitful quantity
+types converted to base SI units and then stripped to be unit free.
 """
 function ModelParameters.stripunits(obj)
     values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
-    return Flatten.reconstruct(obj, map(ustrip, values), Unitful.AbstractQuantity, Flatten.IGNORE)
+    return Flatten.reconstruct(obj, map(ustrip ∘ upreferred, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end
 
 end

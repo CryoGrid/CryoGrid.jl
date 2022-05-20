@@ -79,7 +79,7 @@ HeatConduction.thermalproperties(soil::Soil) = soil.prop
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
-# Fixed volumetric content methods
+# Volumetric fraction methods
 Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil)
 porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
 mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)

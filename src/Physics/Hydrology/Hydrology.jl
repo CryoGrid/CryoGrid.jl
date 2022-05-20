@@ -7,6 +7,8 @@ using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!
 
 using IfElse
+using ModelParameters
+using Unitful
 
 export SWRC, VanGenuchten
 

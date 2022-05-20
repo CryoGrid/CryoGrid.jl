@@ -1,5 +1,7 @@
-abstract type SnowMeltScheme end
-struct InstantaneousRunoff <: SnowMeltScheme end
+abstract type SnowAblationScheme end
+struct ConstantAblation <: SnowAblationScheme
+    rate::Trate = 2.0u"mm/hr"
+end
 
 abstract type SnowAccumulationScheme end
 struct LinearAccumulation <: SnowAccumulationScheme end
@@ -15,14 +17,19 @@ Base.@kwdef struct Prescribed{Tswe,Tρsn} <: SnowMassParameterization
     ρsn::Tρsn = 250.0u"kg/m^3" # snow density [kg m^-3]
 end
 Base.@kwdef struct Dynamic{TAcc,TMelt,TDensity} <: SnowMassParameterization
-    acc::TAcc = LinearAccumulation()
-    melt::TMelt = InstantaneousRunoff()
+    accumulation::TAcc = LinearAccumulation()
+    ablation::TMelt = InstantaneousRunoff()
     density::TDensity = ConstantDensity()
 end
 
 Base.@kwdef struct SnowMassBalance{Tpara} <: CryoGrid.SubSurfaceProcess
     para::Tpara = Dynamic()
 end
+
+snowvariables(::Snowpack, ::SnowMassBalance) = (
+    Diagnostic(:dsn, Scalar, u"m"),
+    Diagnostic(:T_ub, Scalar, u"°C"),
+)
 
 snow_water_equivalent(::Snowpack, ::SnowMassBalance, state) = state.swe
 snow_water_equivalent(::Snowpack, smb::SnowMassBalance{<:Prescribed}, state) = smb.para.swe

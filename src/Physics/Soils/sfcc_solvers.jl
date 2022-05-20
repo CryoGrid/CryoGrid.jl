@@ -83,7 +83,7 @@ function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSo
     @inbounds let T₀ = i > 1 ? state.T[i-1] : nothing,
         H = state.H[i] |> Utils.adstrip, # enthalpy
         L = heat.L, # specific latent heat of fusion
-        θwi = waterice(soil, state, i) |> Utils.adstrip, # total water content
+        θwi = waterice(soil, heat, state, i) |> Utils.adstrip, # total water content
         θm = mineral(soil, state, i) |> Utils.adstrip, # mineral content
         θo = organic(soil, state, i) |> Utils.adstrip, # organic content
         f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);

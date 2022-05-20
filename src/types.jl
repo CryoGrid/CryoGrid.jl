@@ -60,18 +60,18 @@ Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 """
     Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
-Represents an explicitly coupled pair processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
+Represents an explicitly coupled pair of processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
 const Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 """
-    Coupled(p1,p2)
+    Coupled(ps::Process...)
 
-Alias for `CoupledProcesses(p1,p2)`.
+Alias for `CoupledProcesses(ps...)`.
 """
-Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CoupledProcesses(p1,p2)
+Coupled(ps::Process...) = CoupledProcesses(ps...)
 # Base methods
-Base.show(io::IO, ps::CoupledProcesses{T}) where T = print(io, "$T")
+Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.parameters, " with ")))")
 @propagate_inbounds @inline Base.getindex(ps::CoupledProcesses, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)

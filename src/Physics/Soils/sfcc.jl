@@ -60,7 +60,7 @@ Base.@kwdef struct DallAmico{T,Θ,A,N,G,Tvg} <: SFCCFunction
 end
 sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
-    waterice(soil, state), # total water content
+    waterice(soil, heat, state), # total water content
     heat.prop.Lf, # specific latent heat of fusion, L
     f.θres,
     f.Tₘ,
@@ -95,7 +95,7 @@ Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
 end
 sfccargs(f::McKenzie, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
-    waterice(soil, state), # total water content
+    waterice(soil, heat, state), # total water content
     f.θres,
     f.Tₘ,
     f.γ,
@@ -122,7 +122,7 @@ Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
 end
 sfccargs(f::Westermann, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
-    waterice(soil, state), # total water content
+    waterice(soil, heat, state), # total water content
     f.θres,
     f.Tₘ,
     f.δ,

@@ -20,7 +20,7 @@ end
 van Genuchten MT, 1980. A closed-form equation for predicting the hydraulic conductivity of unsaturated soils.
     Soil Science Society of America Journal, 44(5): 892–898. DOI: 10.2136/sssaj 1980.03615995004400050002x.
 """
-struct VanGenuchten{Tα,Tn} <: SWRCFunction
+Base.@kwdef struct VanGenuchten{Tα,Tn} <: SWRCFunction
     α::Tα = Param(1.0, units=u"1/m")
     n::Tn = Param(2.0)
 end
