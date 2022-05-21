@@ -5,7 +5,7 @@ diagnosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
 prognosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
 variables(ps::CoupledProcesses) = tuplejoin((variables(p) for p in ps.processes)...)
 variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.processes)...)
-callbacks(layer::Layer, ps::CoupledProcesses) = tuplejoin((callbacks(layer,p) for p in ps.processes)...)
+events(layer::Layer, ps::CoupledProcesses) = tuplejoin((events(layer,p) for p in ps.processes)...)
 """
     interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 
@@ -90,6 +90,46 @@ Default implementation of `initialcondition!` for multi-process types. Calls eac
     for (i,j) in crossprocesses
         @>> quote
         initialcondition!(l1,ps1[$i],l2,ps2[$j],s1,s2)
+        end push!(expr.args)
+    end
+    return expr
+end
+@generated function criterion(ev::ContinuousEvent, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
+    expr = Expr(:block)
+    push!(expr.args, :(value = 1.0))
+    for i in 1:length(P.parameters)
+        @>> quote
+        value *= criterion(ev,l,ps[$i],state)
+        end push!(expr.args)
+    end
+    push!(expr.args, :(return value))
+    return expr
+end
+@generated function criterion(ev::DiscreteEvent, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
+    expr = Expr(:block)
+    push!(expr.args, :(value = true))
+    for i in 1:length(P.parameters)
+        @>> quote
+        value *= criterion(ev,l,ps[$i],state)
+        end push!(expr.args)
+    end
+    push!(expr.args, :(return value))
+    return expr
+end
+@generated function trigger!(ev::Event, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
+    expr = Expr(:block)
+    for i in 1:length(P.parameters)
+        @>> quote
+        trigger!(ev,l,ps[$i],state)
+        end push!(expr.args)
+    end
+    return expr
+end
+@generated function trigger!(ev::ContinuousEvent, tr::ContinuousTrigger, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
+    expr = Expr(:block)
+    for i in 1:length(P.parameters)
+        @>> quote
+        trigger!(ev,tr,l,ps[$i],state)
         end push!(expr.args)
     end
     return expr

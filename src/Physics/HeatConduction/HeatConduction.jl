@@ -1,6 +1,6 @@
 module HeatConduction
 
-using CryoGrid: SubSurfaceProcess, BoundaryProcess, Dirichlet, Neumann, Layer, Top, Bottom, SubSurface, Callback
+using CryoGrid: SubSurfaceProcess, BoundaryProcess, Dirichlet, Neumann, Layer, Top, Bottom, SubSurface
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
@@ -15,7 +15,7 @@ using Unitful
 
 import CryoGrid
 import CryoGrid: BoundaryStyle
-import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, callbacks, criterion, affect!, thickness, midpoints
+import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, thickness, midpoint
 import CryoGrid.Physics
 
 export Heat, TemperatureProfile
@@ -40,30 +40,21 @@ abstract type HeatParameterization end
 struct Enthalpy <: HeatParameterization end
 struct Temperature <: HeatParameterization end
 
-"""
-    ThermalProperties
-
-Base type for defining thermal properties.
-"""
-abstract type ThermalProperties <: IterableStruct end
-"""
-    HydroThermalProperties{TLf,Tkw,Tki,Tcw,Tci}
-
-Thermal properties of water used in two-phase heat conduction.
-"""
-@kwdef struct HydroThermalProperties{TLf,Tkw,Tki,Tka,Tcw,Tci,Tca} <: ThermalProperties
-    Lf::TLf = Param(334000.0, units=u"J/kg") # latent heat of fusion of water
-    kw::Tkw = Param(0.57, units=u"W/m/K") # thermal conductivity of water [Hillel(1982)]
-    ki::Tki = Param(2.2, units=u"W/m/K") # thermal conductivity of ice [Hillel(1982)]
-    ka::Tka = Param(0.025, units=u"W/m/K") # air [Hillel(1982)]
-    cw::Tcw = Param(4.2e6, units=u"J/K/m^3") # heat capacity of water
-    ci::Tci = Param(1.9e6, units=u"J/K/m^3") # heat capacity of ice
-    ca::Tca = Param(0.00125e6, units=u"J/K/m^3") # heat capacity of air
-end
+ThermalProperties(
+    consts=Physics.Constants();
+    ρw = consts.ρw,
+    Lf = consts.Lf,
+    kw = Param(0.57, units=u"W/m/K"), # thermal conductivity of water [Hillel(1982)]
+    ki = Param(2.2, units=u"W/m/K"), # thermal conductivity of ice [Hillel(1982)]
+    ka = Param(0.025, units=u"W/m/K"), # air [Hillel(1982)]
+    cw = Param(4.2e6, units=u"J/K/m^3"), # heat capacity of water
+    ci = Param(1.9e6, units=u"J/K/m^3"), # heat capacity of ice
+    ca = Param(0.00125e6, units=u"J/K/m^3"), # heat capacity of air
+) = (; ρw, Lf, kw, ki, ka, cw, ci, ca)
 
 @kwdef struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tinit,TProp,TL} <: SubSurfaceProcess
     para::TPara = Enthalpy()
-    prop::TProp = HydroThermalProperties()
+    prop::TProp = ThermalProperties()
     L::TL = prop.ρw*prop.Lf # [J/m^3] (specific latent heat of fusion of water)
     freezecurve::Tfc = FreeWater() # freeze curve, defautls to free water fc
     init::Tinit = nothing # optional initialization scheme

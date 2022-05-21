@@ -230,20 +230,20 @@ end
 @inline boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
 @inline boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
 @inline function boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
         Tsub=ssub.T[1],
         k=ssub.k[1],
-        δ=Δk[1]/2; # distance to boundary
+        δ=Δk/2; # distance to boundary
         -k*(Tsub-Tupper)/δ
     end
 end
 @inline function boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
     @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
         k=ssub.k[end],
-        δ=Δk[end]/2; # distance to boundary
+        δ=Δk/2; # distance to boundary
         -k*(Tsub-Tlower)/δ
     end
 end
@@ -251,28 +251,28 @@ end
 Generic top interaction. Computes flux dH at top cell.
 """
 function interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::Heat, stop, ssub)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     # boundary flux
     @setscalar ssub.dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
-    @inbounds ssub.dH[1] += getscalar(ssub.dH_upper) / Δk[1]
+    @inbounds ssub.dH[1] += getscalar(ssub.dH_upper) / Δk
     return nothing # ensure no allocation
 end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
 function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::HeatBC, ssub, sbot)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
     # boundary flux
     @setscalar ssub.dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
-    @inbounds ssub.dH[end] += getscalar(ssub.dH_lower) / Δk[end]
+    @inbounds ssub.dH[end] += getscalar(ssub.dH_lower) / Δk
     return nothing # ensure no allocation
 end
 """
 Generic subsurface interaction. Computes flux dH at boundary between subsurface layers.
 """
 function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
-    Δk₁ = thickness(sub1, s1)
-    Δk₂ = thickness(sub2, s2)
+    Δk₁ = thickness(sub1, s1, first)
+    Δk₂ = thickness(sub2, s2, last)
     # thermal conductivity between cells
     k = s1.k[end] = s2.k[1] =
         @inbounds let k₁ = s1.kc[end],
@@ -282,9 +282,9 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
             harmonicmean(k₁, k₂, Δ₁, Δ₂)
         end
     # calculate heat flux between cells
-    Qᵢ = @inbounds let z₁ = midpoints(sub1, s1),
-        z₂ = midpoints(sub2, s2),
-        δ = z₂[1] - z₁[end];
+    Qᵢ = @inbounds let z₁ = midpoint(sub1, s1, last),
+        z₂ = midpoint(sub2, s2, first),
+        δ = z₂ - z₁;
         k*(s2.T[1] - s1.T[end]) / δ
     end
     # diagnostics

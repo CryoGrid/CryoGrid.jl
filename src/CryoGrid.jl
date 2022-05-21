@@ -11,28 +11,27 @@ using Reexport
 
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
-export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses, Coupled
+export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
+export Coupled, Coupled2, Coupled3, Coupled4
 include("types.jl")
 export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
-export boundaryflux, boundaryvalue, criterion, affect!, observe
+export boundaryflux, boundaryvalue, criterion, trigger!, observe
 include("methods.jl")
 
 # Submodules
 include("Utils/Utils.jl")
-include("Numerics/Numerics.jl")
-include("IO/InputOutput.jl")
-include("Physics/Physics.jl")
-include("Strat/Strat.jl")
-include("Diagnostics/Diagnostics.jl")
-
-using .Numerics
-export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
 using .Utils
 export convert_t, convert_tspan, pstrip, @pstrip, @sym_str
-# Re-exported submodules
-@reexport using .Physics
-@reexport using .Strat
+include("Numerics/Numerics.jl")
+using .Numerics
+export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
+include("IO/InputOutput.jl")
 @reexport using .InputOutput
+include("Physics/Physics.jl")
+@reexport using .Physics
+include("Strat/Strat.jl")
+@reexport using .Strat
+include("Diagnostics/Diagnostics.jl")
 @reexport using .Diagnostics
 
 # Re-exported packages

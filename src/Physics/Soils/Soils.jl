@@ -60,16 +60,16 @@ soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
 Soil thermal properties.
 """
-@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm} <: HeatConduction.ThermalProperties
-    ko::Tko = Param(0.25, units=u"W/m/K") # organic [Hillel(1982)]
-    km::Tkm = Param(3.8, units=u"W/m/K") # mineral [Hillel(1982)]
-    co::Tco = Param(2.5e6, units=u"J/K/m^3") # heat capacity organic
-    cm::Tcm = Param(2.0e6, units=u"J/K/m^3") # heat capacity mineral
-end
+SoilThermalProperties(;
+    ko = Param(0.25, units=u"W/m/K"), # organic [Hillel(1982)]
+    km = Param(3.8, units=u"W/m/K"), # mineral [Hillel(1982)]
+    co = Param(2.5e6, units=u"J/K/m^3"), # heat capacity organic
+    cm = Param(2.0e6, units=u"J/K/m^3"), # heat capacity mineral
+) = (; ko, km, co, cm)
 """
 Basic Soil layer.
 """
-@kwdef struct Soil{TPara<:SoilParameterization,TProp<:SoilThermalProperties,TSp} <: SubSurface
+@kwdef struct Soil{TPara<:SoilParameterization,TProp,TSp} <: SubSurface
     para::TPara = CharacteristicFractions()
     prop::TProp = SoilThermalProperties()
     sp::TSp = nothing # user-defined specialization

@@ -94,19 +94,28 @@ struct Dirichlet <: BoundaryStyle end
 """
 struct Neumann <: BoundaryStyle end
 """
-    Callback
+    Event{name}
 
-Base type for callback implementations.
+Base type for integration "events" (i.e. callbacks). `name` should be a `Symbol`
+or type which identifies the event for the purposes of dispatch on `criterion` and `trigger!`.
 """
-abstract type Callback end
+abstract type Event{name} end
+struct DiscreteEvent{name} <: Event{name}
+    DiscreteEvent(name::Symbol) = new{name}()
+end
+struct ContinuousEvent{name} <: Event{name}
+    ContinuousEvent(name::Symbol) = new{name}()
+end
 """
-    CallbackStyle
+    ContinuousTrigger
 
-Trait for callback types.
+Base type for continuous trigger flags, `Increasing` and `Decreasing`, which indicate
+an upcrossing of the function root (negative to positive) and a downcrossing (positive to negative)
+respectively.
 """
-abstract type CallbackStyle end
-struct Discrete <: CallbackStyle end
-struct Continuous <: CallbackStyle end
+abstract type ContinuousTrigger end
+struct Increasing <: ContinuousTrigger end
+struct Decreasing <: ContinuousTrigger end
 """
     Parameterization
 

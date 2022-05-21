@@ -101,44 +101,51 @@ where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
 BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
 BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
-# Callbacks
+# Events
 """
-    callbacks(::Layer, ::Process)
+    events(::Layer, ::Process)
 
-Defines callbacks for a given Process on the given Layer. Implementations should return a `Tuple` or `Callback`s.
+Defines "events" for a given Process on the given Layer. Implementations should return a `Tuple` of `Event`s.
 """
-callbacks(::Layer, ::Process) = ()
+events(::Layer, ::Process) = ()
 """
-    criterion(c::Callback, ::Layer, ::Process, state)
+    criterion(::Event, ::Layer, ::Process, state)
 
-Callback criterion/condition. Should return a `Bool` for discrete callbacks and a real number for continuous callbacks.
+Event criterion/condition. Should return a `Bool` for discrete events and a real number for continuous events.
 """
-criterion(c::Callback, ::Layer, ::Process, state) = error("missing implementation of criterion for $(typeof(c))")
+criterion(ev::Event, ::Layer, ::Process, state) = error("missing implementation of criterion for $(typeof(ev))")
 """
-    affect!(c::Callback, ::Layer, ::Process, state)
+    trigger!(::Event, ::Layer, ::Process, state)
+    trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) where {name}
 
-Callback action executed when `criterion` is met (boolean condition for discrete callbacks, zero for continuous callbacks).
+Event action executed when `criterion` is met.
 """
-affect!(c::Callback, ::Layer, ::Process, state) = error("missing implementation of affect! for $(typeof(c))")
-"""
-    CallbackStyle(::C)
-    CallbackStyle(::Type{<:Callback})
-
-Trait implementation that defines the "style" or type of the given callback as any subtype of `CallbackStyle`,
-for example `Discrete` or `Continuous`.
-"""
-CallbackStyle(::C) where {C<:Callback} = CallbackStyle(C)
-CallbackStyle(::Type{<:Callback}) = Discrete()
+trigger!(ev::Event, ::Layer, ::Process, state) = error("missing implementation of trigger! for $(typeof(ev))")
+trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = error("missing implementation of trigger! for $(typeof(ev))")
 # Discretization
 """
-    midpoints(::Layer, state)
+    midpoint(::Layer, state)
+    midpoint(::Layer, state, i)
+    midpoint(::Layer, state, ::typeof(first))
+    midpoint(::Layer, state, ::typeof(last))
 
-Get midpoint(s) of layer or all grid cells within the layer.
+Get midpoint (m) of layer or grid cell `i`.
 """
-midpoints(::Layer, state) = cells(state.grid)
+midpoint(::Layer, state) = (state.grid[end] - state.grid[1])/2
+midpoint(::Layer, state, i) = cells(state.grid)[i]
+midpoint(l::Layer, state, ::typeof(first)) = midpoint(l, state, 1)
+midpoint(l::Layer, state, ::typeof(last)) = midpoint(l, state, lastindex(state.grid)-1)
+midpoint(::Union{Top,Bottom}, state) = Inf
 """
     thickness(::Layer, state)
+    thickness(::Layer, state, i)
+    thickness(l::Layer, state, ::typeof(first))
+    thickness(l::Layer, state, ::typeof(last))
 
-Get thickness (m) of layer or all grid cells within the layer.
+Get thickness (m) of layer or grid cell `i`.
 """
-thickness(::Layer, state) = Δ(state.grid)
+thickness(::Layer, state) = state.grid[end] - state.grid[1]
+thickness(::Layer, state, i) = Δ(state.grid)[i]
+thickness(l::Layer, state, ::typeof(first)) = thickness(l, state, 1)
+thickness(l::Layer, state, ::typeof(last)) = thickness(l, state, lastindex(state.grid)-1)
+thickness(::Union{Top,Bottom}, state) = Inf

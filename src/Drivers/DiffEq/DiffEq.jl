@@ -3,15 +3,16 @@ Driver module SciML diffeq solvers.
 """
 module DiffEq
 
+using CryoGrid
+using CryoGrid: Event, ContinuousEvent, DiscreteEvent, ContinuousTrigger, Increasing, Decreasing
 using CryoGrid.Drivers
-using CryoGrid: Strat, SubSurface, CoupledProcesses, Callback, CallbackStyle, Discrete, Continuous
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
+using CryoGrid.Strat: Stratigraphy, StratComponent
 using CryoGrid.Utils
 
-import CryoGrid: variables, callbacks, criterion, affect!
-import CryoGrid.Strat: Tile, Stratigraphy, StratComponent
+import CryoGrid.Strat
 
 using ComponentArrays
 using Dates
@@ -221,52 +222,54 @@ Evaluates the continuous solution at time `t`.
 (out::CryoGridOutput{<:ODESolution})(t::Real) = withaxes(out.res(t), out.res.prob.f.f)
 (out::CryoGridOutput{<:ODESolution})(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 # callback building functions
-function _criterionfunc(::Val{name}, i_layer, i_proc, i_cb) where name
+function _criterionfunc(::Val{name}, i_layer, i_ev) where name
     function _condition(u,t,integrator)
         let tile = Tile(integrator),
             comp = tile.strat[i_layer],
             layer = comp.layer,
-            process = comp.processes[i_proc],
-            cb = tile.callbacks[name][i_cb],
+            process = comp.processes,
+            ev = tile.events[name][i_ev],
             u = Strat.withaxes(u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
             t = t;
-            criterion(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+            criterion(ev, layer, process, Strat.getstate(Val{name}(), tile, u, du, t, integrator.dt))
         end
     end
 end
-function _affectfunc(::Val{name}, i_layer, i_proc, i_cb) where name
-    function _affect!(integrator)
+function _triggerfunc(::Val{name}, trig, i_layer, i_ev) where name
+    _invoke_trigger!(ev, ::Nothing, layer, process, state) = trigger!(ev, layer, process, state)
+    _invoke_trigger!(ev, trig::ContinuousTrigger, layer, process, state) = trigger!(ev, trig, layer, process, state)
+    function _trigger!(integrator)
         let tile=Tile(integrator),
             comp = tile.strat[i_layer],
             layer = comp.layer,
-            process = comp.processes[i_proc],
-            cb = tile.callbacks[name][i_cb],
+            process = comp.processes,
+            ev = tile.events[name][i_ev],
             u = Strat.withaxes(integrator.u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
-            t = integrator.t;
-            affect!(cb, layer, process, Strat.getstate(Val{name}(), tile, u, du, t))
+            t = integrator.t,
+            state = Strat.getstate(Val{name}(), tile, u, du, t, integrator.dt);
+            _invoke_trigger!(ev, trig, layer, process, state)
         end
     end
 end
-_diffeqcallback(::Discrete, ::Val{name}, i_layer, i_proc, i_cb) where name = DiffEqCallbacks.DiscreteCallback(
-    _criterionfunc(Val{name}(), i_layer, i_proc, i_cb),
-    _affectfunc(Val{name}(), i_layer, i_proc, i_cb),
+_diffeqcallback(::DiscreteEvent, ::Val{name}, i_layer, i_ev) where name = DiffEqCallbacks.DiscreteCallback(
+    _criterionfunc(Val{name}(), i_layer, i_ev),
+    _triggerfunc(Val{name}(), nothing, i_layer, i_ev);
     # todo: initialize and finalize?
 )
-_diffeqcallback(::Continuous, ::Val{name}, i_layer, i_proc, i_cb) where name = DiffEqCallbacks.ContinuousCallback(
-    _criterionfunc(Val{name}(), i_layer, i_proc, i_cb),
-    _affectfunc(Val{name}(), i_layer, i_proc, i_cb),
+_diffeqcallback(::ContinuousEvent, ::Val{name}, i_layer, i_ev) where name = DiffEqCallbacks.ContinuousCallback(
+    _criterionfunc(Val{name}(), i_layer, i_ev),
+    _triggerfunc(Val{name}(), Increasing(), i_layer, i_ev);
+    affect_neg! = _triggerfunc(Val{name}(), Decreasing(), i_layer, i_ev),
     # todo: initialize and finalize?
 )
 function _makecallbacks(component::StratComponent{L,P,name}, i_layer) where {L,P,name}
     cbs = []
-    i_cb = 1
-    for (i_proc, proc) in enumerate(component.processes)
-        for callback in callbacks(component.layer, proc)
-            push!(cbs, _diffeqcallback(CallbackStyle(callback), Val{name}(), i_layer, i_proc, i_cb))
-            i_cb += 1
-        end
+    i_ev = 1
+    for ev in CryoGrid.events(component.layer, component.processes)
+        push!(cbs, _diffeqcallback(ev, Val{name}(), i_layer, i_ev))
+        i_ev += 1
     end
     return Tuple(cbs)
 end
