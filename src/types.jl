@@ -58,12 +58,14 @@ end
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 """
-    Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
+    Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
 Represents an explicitly coupled pair of processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
-const Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
+const Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
+const Coupled3{P1,P2,P3} = CoupledProcesses{Tuple{T1,T2,T3}} where {T1,T2,T3}
+const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,T3,T4}
 """
     Coupled(ps::Process...)
 
