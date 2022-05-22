@@ -74,13 +74,14 @@ end
 @propagate_inbounds Base.getindex(grid::Grid, i::AbstractRange) = grid[grid[first(i)]..grid[last(i)]]
 @propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = grid[subgridinds(grid, interval)]
 @propagate_inbounds Base.getindex(grid::Grid, interval::Interval{L,R,Int}) where {L,R} = Grid(grid, first(grid.bounds)+interval.left-1..first(grid.bounds)+interval.right-1)
-Base.setindex!(::Grid, args...) = error("setindex! is not allowed for Grid types")
+Base.setindex!(grid::Grid{Edges}, val, i...) = setindex!(values(grid), val, i...)
+Base.setindex!(::Grid{Cells}, args...) = error("setindex! is permitted only for edge grids; use `edges(grid)` and call `updategrid!` directly after.")
 """
-    updategrid!(grid::Grid{Edges,G,Q}, vals::Q) where {G,Q}
+    updategrid!(grid::Grid{Edges,G,Q}, vals::Q=grid) where {G,Q}
 
 Overwrites `grid` edges with `vals`, and recomputes grid centers/deltas to be consistent with the new grid.
 """
-function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}) where {G,Q}
+function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where {G,Q}
     z_edges = values(grid)
     z_cells = values(cells(grid))
     Δz_edges = Δ(grid)
