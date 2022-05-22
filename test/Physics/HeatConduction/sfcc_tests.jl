@@ -31,14 +31,15 @@ using Test
             f = @pstrip McKenzie()
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
+            heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
             L = heat.L
             @testset "Left tail" begin
                 T = [-5.0]
                 θw = f.(T,θp,θwi,θres,Tₘ,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.+1.0,
                     θw = f.(T,θp,θwi,θres,Tₘ,γ)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -49,10 +50,10 @@ using Test
                 # set up single-grid-cell state vars
                 T = [5.0]
                 θw = f.(T,θp,θwi,θres,Tₘ,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.-1.0,
                     θw = f.(T,θp,θwi,θres,Tₘ,γ)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -63,10 +64,10 @@ using Test
                 # set up single-grid-cell state vars
                 T = [-0.05]
                 θw = f.(T,θp,θwi,θres,Tₘ,γ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.+0.04,
                     θw = f.(T,θp,θwi,θres,Tₘ,γ)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -96,14 +97,15 @@ using Test
             f = @pstrip Westermann()
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
+            heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
             L = heat.L
             @testset "Left tail" begin
                 T = [-5.0]
                 θw = f.(T,θp,θwi,θres,Tₘ,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.+1.0,
                     θw = f.(T,θp,θwi,θres,Tₘ,δ)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -113,10 +115,10 @@ using Test
             @testset "Right tail" begin
                 T = [5.0]
                 θw = f.(T,θp,θwi,θres,Tₘ,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.-1,
                     θw = f.(T,θp,θwi,θres,Tₘ,δ)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -126,10 +128,10 @@ using Test
             @testset "Near zero" begin
                 T = [-0.05]
                 θw = f.(T,θp,θwi,θres,Tₘ,δ) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.+0.04,
                     θw = f.(T,θp,θwi,θres,Tₘ,δ)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -162,15 +164,16 @@ using Test
             f = @pstrip DallAmico()
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
+            heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
             L = heat.L
             Lf = heat.prop.Lf
             @testset "Left tail" begin
                 T = [-5.0]
                 θw = f.(T,θp,θwi,Lf,θres,Tₘ,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.+1.0,
                     θw = f.(T,θp,θwi,Lf,θres,Tₘ,α,n)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -180,10 +183,10 @@ using Test
             @testset "Right tail" begin
                 T = [5.0]
                 θw = f.(T,θp,θwi,Lf,θres,Tₘ,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.-1.0,
                     θw = f.(T,θp,θwi,Lf,θres,Tₘ,α,n)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -193,10 +196,10 @@ using Test
             @testset "Near zero" begin
                 T = [-0.05]
                 θw = f.(T,θp,θwi,Lf,θres,Tₘ,α,n) # set liquid water content according to freeze curve
-                C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+                C = heatcap.(θw)
                 H = let T = T.+0.04,
                     θw = f.(T,θp,θwi,Lf,θres,Tₘ,α,n)
-                    C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+                    C = heatcap.(θw);
                    enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
                 end
                 state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,)
@@ -214,10 +217,11 @@ using Test
         f = @pstrip McKenzie()
         sfcc = SFCC(f, SFCCNewtonSolver())
         heat = @pstrip Heat(freezecurve=sfcc)
+        heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
         L = heat.L
         T = [-0.1]
         θw = f.(T,θp,θwi,θres,Tₘ,γ) # set liquid water content according to freeze curve
-        C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
+        C = heatcap.(θw)
         H = enthalpy.(T.+0.09,C,L,θw) # compute enthalpy at +1 degree
         # test gradients
         p = ComponentArray(γ=γ)

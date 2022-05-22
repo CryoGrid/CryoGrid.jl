@@ -11,24 +11,23 @@ using Lazy: @>>
 using Reexport
 using Unitful
 
-export volumetricfractions, waterice
+export volumetricfractions, waterice, liquidwater, partial
 
 include("common.jl")
 include("coupled.jl")
 include("Boundaries/Boundaries.jl")
-include("HeatConduction/HeatConduction.jl")
-include("Hydrology/Hydrology.jl")
-include("Snow/Snow.jl")
-include("Soils/Soils.jl")
-include("SEB/SEB.jl")
-include("Sources/Sources.jl")
-
 @reexport using .Boundaries
+include("HeatConduction/HeatConduction.jl")
 @reexport using .HeatConduction
+include("Hydrology/Hydrology.jl")
 @reexport using .Hydrology
+include("Snow/Snow.jl")
 @reexport using .Snow
+include("Soils/Soils.jl")
 @reexport using .Soils
+include("SEB/SEB.jl")
 @reexport using .SEB
+include("Sources/Sources.jl")
 @reexport using .Sources
 
 end

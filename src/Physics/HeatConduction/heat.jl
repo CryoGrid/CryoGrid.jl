@@ -19,14 +19,6 @@ latent heat of fusion, derivative of the freeze curve `dθdT`, and the constitue
 """
 @inline C_eff(T, C, L, dθdT, cw, ci) = C + dθdT*(L + T*(cw - ci))
 """
-    liquidwater(sub::SubSurface, heat::Heat, state)
-    liquidwater(sub::SubSurface, heat::Heat, state, i)
-
-Retrieves the liquid water content for the given layer.
-"""
-@inline liquidwater(::SubSurface, ::Heat, state) = state.θw
-@inline liquidwater(sub::SubSurface, heat::Heat, state, i) = Utils.getscalar(liquidwater(sub, heat, state), i)
-"""
     thermalconductivities(::SubSurface, heat::Heat)
 
 Get thermal conductivities for generic `SubSurface` layer.
@@ -49,7 +41,7 @@ the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
 """
 @inline function Physics.volumetricfractions(sub::SubSurface, heat::Heat, state, i)
     let θwi = waterice(sub, heat, state, i),
-        θw = state.θw[i],
+        θw = liquidwater(sub, heat, state, i),
         θa = 1.0 - θwi,
         θi = θwi - θw;
         return (θw, θi, θa)
@@ -65,16 +57,13 @@ should also be computed depending on the thermal scheme being implemented.
 """
 freezethaw!(sub::SubSurface, heat::Heat, state) = error("missing implementation of freezethaw!")
 """
-    heatcapacity(capacities, fracs)
+    heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
 
-Computes the heat capacity as a weighted average over constituent `capacities` with volumetric fractions `fracs`.
+Computes the heat capacity as a weighted average over constituent capacities with volumetric fractions `θfracs`.
 """
-heatcapacity(capacities, fracs) = sum(map(*, capacities, fracs))
-heatcapacity(c::NTuple{1}, ::NTuple{1}) = c[1]
-@inline function heatcapacity(sub::SubSurface, heat::Heat, state, i)
-    θs = volumetricfractions(sub, heat, state, i)
+@inline function heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
     cs = heatcapacities(sub, heat)
-    return heatcapacity(cs, θs)
+    return sum(map(*, cs, θfracs))
 end
 """
     heatcapacity!(sub::SubSurface, heat::Heat, state)
@@ -83,20 +72,18 @@ Computes the heat capacity for the given layer from the current state and stores
 """
 @inline function heatcapacity!(sub::SubSurface, heat::Heat, state)
     @inbounds for i in 1:length(state.T)
-        state.C[i] = heatcapacity(sub, heat, state, i)
+        θfracs = volumetricfractions(sub, heat, state, i)
+        state.C[i] = heatcapacity(sub, heat, state, θfracs...)
     end
 end
 """
-    thermalconductivity(conductivities, fracs)
+    thermalconductivity(sub::SubSurface, heat::Heat, θfracs...)
 
-Computes the thermal conductivity as a squared weighted sum over constituent `conductivities` with volumetric fractions `fracs`.
+Computes the thermal conductivity as a squared weighted sum over constituent conductivities with volumetric fractions `θfracs`.
 """
-thermalconductivity(conductivities, fracs) = sum(map(*, map(sqrt, conductivities), fracs))^2
-thermalconductivity(k::NTuple{1}, ::NTuple{1}) = k[1]
-@inline function thermalconductivity(sub::SubSurface, heat::Heat, state, i)
-    θs = volumetricfractions(sub, heat, state, i)
+@inline function thermalconductivity(sub::SubSurface, heat::Heat, θfracs...)
     ks = thermalconductivities(sub, heat)
-    return thermalconductivity(ks, θs)
+    return sum(map(*, map(sqrt, ks), θfracs))^2
 end
 """
     thermalconductivity!(sub::SubSurface, heat::Heat, state)
@@ -105,7 +92,8 @@ Computes the thermal conductivity for the given layer from the current state and
 """
 @inline function thermalconductivity!(sub::SubSurface, heat::Heat, state)
     @inbounds for i in 1:length(state.T)
-        state.kc[i] = thermalconductivity(sub, heat, state, i)
+        θfracs = volumetricfractions(sub, heat, state, i)
+        state.kc[i] = thermalconductivity(sub, heat, θfracs...)
     end
 end
 """
@@ -297,16 +285,18 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, waterice(sub, heat, state, i)),
-        H = state.H[i],
-        L = heat.L,
+    f_hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
+    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], heat.L, f_hc.θwi)
+end
+@inline function enthalpyinv(::FreeWater, f_hc::Function, H, L, θtot)
+    let θtot = max(1e-8, θtot),
         Lθ = L*θtot,
         I_t = H > Lθ,
         I_f = H <= 0.0,
         I_c = (H > 0.0) && (H <= Lθ);
         # compute liquid water content -> heat capacity -> temperature
         θw = (I_c*(H/Lθ) + I_t)θtot
-        C = heatcapacity(sub, heat, state, i)
+        C = f_hc(θw)
         T = (I_t*(H-Lθ) + I_f*H)/C
         return T, θw, C
     end

@@ -15,26 +15,28 @@ Base.@kwdef struct SFCCNewtonSolver <: SFCCSolver
     τ::Float64 = 0.7 # step size decay for backtracking
 end
 # Helper function for updating θw, C, and the residual.
-@inline function sfccresidual(soil::Soil, heat::Heat, T, H, L, f::F, f_args::Fargs, θwi, θm, θo) where {F,Fargs}
+@inline function sfccresidual(soil::Soil, heat::Heat, f::F, f_args::Fargs, f_hc, T, H) where {F,Fargs}
+    L = heat.L
     θw = f(T, f_args...)
-    C = heatcapacity(soil, heat, θwi, θw, θm, θo)
+    C = f_hc(θw)
     Tres = T - (H - θw*L) / C
     return Tres, θw, C
 end
 # Newton solver implementation
-function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, f_args, H, L, θwi, θm, θo, T₀::Nothing=nothing)
-    T₀ = H / heatcapacity(soil, heat, θwi, 0.0, θm, θo)
-    return sfccsolve(solver, soil, heat, f, f_args, H, L, θwi, θm, θo, T₀)
+function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f, f_args, f_hc, H, T₀::Nothing=nothing)
+    T₀ = IfElse.ifelse(H < zero(H), H / f_hc(0.0), zero(H))
+    return sfccsolve(solver, soil, heat, f, f_args, f_hc, H, T₀)
 end
 using ForwardDiff
-function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_args, H, L, θwi, θm, θo, T₀) where {F}
+function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_args, f_hc, H, T₀) where {F}
     T = T₀
+    L = heat.L
     cw = heat.prop.cw # heat capacity of liquid water
     ci = heat.prop.ci # heat capacity of ice
     α₀ = solver.α₀
     τ = solver.τ
     # compute initial residual
-    Tres, θw, C = sfccresidual(soil, heat, T, H, L, f, f_args, θwi, θm, θo)
+    Tres, θw, C = sfccresidual(soil, heat, f, f_args, f_hc, T, H)
     itercount = 0
     T_converged = false
     while abs(Tres) > solver.abstol && abs(Tres) / abs(T) > solver.reltol
@@ -52,7 +54,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_arg
         T̂ = T - α*Tres
         # do first residual check outside of loop;
         # this way, we don't decrease α unless we have to.
-        T̂res, θw, C = sfccresidual(soil, heat, T̂, H, L, f, f_args, θwi, θm, θo)
+        T̂res, θw, C = sfccresidual(soil, heat, f, f_args, f_hc, T̂, H)
         inneritercount = 0
         # simple backtracking line search to avoid jumping over the solution
         while sign(T̂res) != sign(Tres)
@@ -62,7 +64,7 @@ function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_arg
             end
             α = α*τ # decrease step size by τ
             T̂ = T - α*Tres # new guess for T
-            T̂res, θw, C = sfccresidual(soil, heat, T̂, H, L, f, f_args, θwi, θm, θo)
+            T̂res, θw, C = sfccresidual(soil, heat, f, f_args, f_hc, T̂, H)
             inneritercount += 1
         end
         T = T̂ # update T
@@ -82,12 +84,9 @@ function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSo
     solver = sfcc.solver
     @inbounds let T₀ = i > 1 ? state.T[i-1] : nothing,
         H = state.H[i] |> Utils.adstrip, # enthalpy
-        L = heat.L, # specific latent heat of fusion
-        θwi = waterice(soil, heat, state, i) |> Utils.adstrip, # total water content
-        θm = mineral(soil, state, i) |> Utils.adstrip, # mineral content
-        θo = organic(soil, state, i) |> Utils.adstrip, # organic content
+        f_hc = partial(heatcapacity, liquidwater, soil, heat, state, i),
         f_argsᵢ = Utils.selectat(i, Utils.adstrip, f_args);
-        T, _, _, _, _ = sfccsolve(solver, soil, heat, f, f_argsᵢ, H, L, θwi, θm, θo, T₀)
+        T, _, _, _, _ = sfccsolve(solver, soil, heat, f, f_argsᵢ, f_hc, H, T₀)
         return T
     end
 end
@@ -150,11 +149,12 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFracti
         tail_args = args[3:end],
         θm = mineral(soil, state),
         θo = organic(soil, state),
+        θa = 1-θm-θo-θtot,
         L = heat.L,
         Tmin = sfcc.solver.Tmin,
         Tmax = 0.0,
         θ(T) = sfcc.f(T, θsat, θtot, tail_args...),
-        C(θw) = heatcapacity(soil, heat, θtot, θw, θm, θo),
+        C(θw) = heatcapacity(soil, heat, θw, θtot-θw, θa, θm, θo),
         Hmin = enthalpy(Tmin, C(θ(Tmin)), L, θ(Tmin)),
         Hmax = enthalpy(Tmax, C(θ(Tmax)), L, θ(Tmax)),
         dH = sfcc.solver.dH,
@@ -167,7 +167,7 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFracti
         for i in 2:length(Hs)
             Hᵢ = Hs[i]
             T₀ = Ts[i-1] # use previous temperature value as initial guess
-            res = sfccsolve(solver, soil, heat, sfcc.f, args, Hᵢ, L, θtot, θm, θo, T₀)
+            res = sfccsolve(solver, soil, heat, sfcc.f, args, C, Hᵢ, T₀)
             @assert res.T_converged "solver failed to converge after $(res.itercount) iterations: H=$Hᵢ, T₀=$T₀, T=$(res.T), Tres=$(res.Tres), θw=$(res.θw)"
             θs[i] = res.θw
             Ts[i] = res.T

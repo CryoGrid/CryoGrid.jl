@@ -41,20 +41,6 @@ Defaults to using the scalar porosity defined on `soil`.
         (θw, θi, θa, θm, θo)
     end
 end
-# These dispatches are provided only for convenience when needing to evaluate the heat capacity
-# or thermal conductivity on arbitrary composition values.
-@inline function HeatConduction.heatcapacity(soil::Soil, heat::Heat, θwi, θw, θm, θo)
-    let θa = 1.0 - θwi - θm - θo,
-        θi = θwi - θw;
-        return heatcapacity(heatcapacities(soil, heat), (θw, θi, θa, θm, θo))
-    end
-end
-@inline function HeatConduction.thermalconductivity(soil::Soil, heat::Heat, θwi, θw, θm, θo)
-    let θa = 1.0 - θwi - θm - θo,
-        θi = θwi - θw;
-        return thermalconductivity(thermalconductivities(soil, heat), (θw, θi, θa, θm, θo))
-    end
-end
 
 # SFCC
 include("sfcc.jl")
@@ -72,7 +58,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
     @inbounds for i in 1:length(state.T)
         θwi = waterice(soil, heat, state, i)
         state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
-        state.C[i] = heatcapacity(soil, heat, state, i)
+        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
     end
 end
@@ -96,7 +82,7 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, 
             θw, dθdT = ∇(T -> f(T, f_args...), T)
             state.θw[i] = θw
             state.dθdT[i] = dθdT
-            state.C[i] = C = heatcapacity(soil, heat, state, i)
+            state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
             state.dHdT[i] = C + (L + T*(heat.prop.cw - heat.prop.ci))*dθdT
             state.H[i] = enthalpy(T, C, L, θw)
         end
@@ -116,15 +102,13 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSo
             # Note that this results in one additional freeze curve function evaluation.
             state.θw[i] = f(T, f_argsᵢ...)
             dθdT = ForwardDiff.derivative(T -> f(T, f_argsᵢ...), T)
-            let θw = state.θw[i],
-                H = state.H[i],
+            let H = state.H[i],
                 L = heat.L,
                 cw = heat.prop.cw,
                 ci = heat.prop.ci,
-                θm = mineral(soil, state, i), # mineral content
-                θo = organic(soil, state, i), # organic content
-                θwi = waterice(soil, heat, state, i);
-                state.C[i] = heatcapacity(soil, heat, θwi, θw, θm, θo)
+                θw = state.θw[i],
+                (_, θi, θa, θm, θo) = volumetricfractions(soil, heat, state, i);
+                state.C[i] = heatcapacity(soil, heat, θw, θi, θa, θm, θo)
                 state.T[i] = (H - L*θw) / state.C[i]
                 state.dHdT[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, dθdT, cw, ci)
             end
@@ -138,7 +122,7 @@ function HeatConduction.freezethaw!(soil::Soil{<:HomogeneousCharacteristicFracti
     @inbounds for i in 1:length(state.H)
         H = state.H[i]
         state.θw[i] = θw = f(H)
-        state.C[i] = C = heatcapacity(soil, heat, state, i)
+        state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
         state.T[i] = T = enthalpyinv(H, C, heat.L, θw)
         dθdTᵢ = ∇f(state.H[i])
         state.dHdT[i] = C + dθdTᵢ*(heat.L + T*(heat.prop.cw - heat.prop.ci))
