@@ -32,14 +32,22 @@ end
     end
 end
 function getvars(vs::VarStates{layers,gridvars,TU}, u::ComponentVector, du::ComponentVector, vals::Union{Symbol,<:Pair{Symbol}}...) where {layers,gridvars,T,A,pax,TU<:ComponentVector{T,A,Tuple{Axis{pax}}}}
-    vars = map(filter(n -> n ∉ keys(pax), vals)) do val # map over given variable names, ignoring prognostic variables
+    # case 1: grid variable (no layer specified)
+    isprognostic(name::Symbol) = name ∈ keys(pax)
+    # case 2: non-grid variable on specific layer; ignore here, defer until handled below
+    isprognostic(other) = false
+    symbols(name::Symbol) = tuple(name)
+    symbols(names::NTuple{N,Symbol}) where N = names
+    vars = map(filter(!(isprognostic), vals)) do val # map over given variable names, ignoring prognostic variables
         if val ∈ gridvars
             val => getvar(Val{val}(), vs, u, du)
         elseif val ∈ map(n -> Symbol(:d,n), keys(pax))
             val => du[val]
         else
-            nestedvals = isa(vals[val], Tuple) ? vals[val] : tuple(vals[val])
-            first(val) => (;map(n -> n => retrieve(getproperty(vs.diag[first(val)], n)), nestedvals)...)
+            layername = val[1]
+            # handle either a single variable name or multiple, also filtering out prognostic variables
+            layervars = filter(!(isprognostic), symbols(val[2]))
+            layername => (;map(n -> n => retrieve(getproperty(vs.diag[layername], n)), layervars)...)
         end
     end
     return (;vars...)
@@ -65,7 +73,7 @@ function Prealloc.get_tmp(dc::Prealloc.DiffCache, ::Type{T}) where {T<:ForwardDi
     nelem = div(sizeof(T), sizeof(eltype(dc.dual_du)))*length(dc.du)
     Prealloc.ArrayInterface.restructure(dc.du, reinterpret(T, view(dc.dual_du, 1:nelem)))
 end
-retrieve(dc::DiffCache) = dc.du
+retrieve(dc::DiffCache) = dc.cache.du
 # for matching chunk sizes, retrieve from cache
 retrieve(dc::DiffCache{N}, ::Type{T}) where {tag,U,N,T<:ForwardDiff.Dual{tag,U,N}} = Prealloc.get_tmp(dc.cache, T)
 # otherwise, create new DiffCache on demand
