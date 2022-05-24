@@ -202,11 +202,18 @@ is only executed during compilation and will not appear in the compiled version.
     # downward direction and add a check to each one.
     for i in 1:N-1
         for j in i+1:N
-            innerchecks = j > i+1 ? map(k -> :(can_interact[$k]), i+1:j-1) : :(false)
-            quote
-            if can_interact[$i] && can_interact[$j] && !any(tuple($(innerchecks...)))
+            if (i == 1 && j == 2) || (i == N-1 && j == N)
+                # always apply top and bottom interactions
+                quote
                 interact!($(layers[i]),$(procs[i]),$(layers[j]),$(procs[j]),$(states[i]),$(states[j]))
-            end
+                end
+            else
+                innerchecks = j > i+1 ? map(k -> :(can_interact[$k]), i+1:j-1) : :(false)
+                quote
+                if can_interact[$i] && can_interact[$j] && !any(tuple($(innerchecks...)))
+                    interact!($(layers[i]),$(procs[i]),$(layers[j]),$(procs[j]),$(states[i]),$(states[j]))
+                end
+                end
             end |> Base.Fix1(push!, expr.args)
         end
     end
