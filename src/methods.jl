@@ -113,15 +113,15 @@ events(::Layer, ::Process) = ()
 
 Event criterion/condition. Should return a `Bool` for discrete events and a real number for continuous events.
 """
-criterion(ev::Event, ::Layer, ::Process, state) = error("missing implementation of criterion for $(typeof(ev))")
+criterion(ev::Event, ::Layer, ::Process, state) = true
 """
     trigger!(::Event, ::Layer, ::Process, state)
     trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) where {name}
 
 Event action executed when `criterion` is met.
 """
-trigger!(ev::Event, ::Layer, ::Process, state) = error("missing implementation of trigger! for $(typeof(ev))")
-trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = error("missing implementation of trigger! for $(typeof(ev))")
+trigger!(ev::Event, ::Layer, ::Process, state) = nothing
+trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
 # Discretization
 """
     midpoint(::Layer, state)
