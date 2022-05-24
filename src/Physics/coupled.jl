@@ -28,7 +28,7 @@ lack a definition of `interact!` should be automatically omitted by the compiler
     end
     return expr
 end
-@generated function CryoGrid.interact!(l1::Layer, p1::Process, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
+@generated function CryoGrid.interact!(l1::Layer, p1::Process, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P2}
     expr = Expr(:block)
     for i in 1:length(P2.parameters)
         @>> quote
@@ -37,7 +37,7 @@ end
     end
     return expr
 end
-@generated function CryoGrid.interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, p2::Process, s1, s2) where {P1,P2}
+@generated function CryoGrid.interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, p2::Process, s1, s2) where {P1}
     expr = Expr(:block)
     for i in 1:length(P1.parameters)
         @>> quote
