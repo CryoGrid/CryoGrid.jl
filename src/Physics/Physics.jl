@@ -2,10 +2,10 @@ module Physics
 
 using CryoGrid: Process, SubSurfaceProcess, CoupledProcesses, BoundaryProcess, Coupled, Layer, Top, Bottom, SubSurface
 using CryoGrid: Event, DiscreteEvent, ContinuousEvent, ContinuousTrigger
-import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, events, observe
-
 using CryoGrid.Numerics
 using CryoGrid.Utils
+
+import CryoGrid
 
 using Lazy: @>>
 using Reexport
