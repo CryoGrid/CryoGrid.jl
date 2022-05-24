@@ -15,7 +15,7 @@ using IfElse
 using ModelParameters
 using Unitful
 
-export Snowpack, SnowProperties
+export Snowpack, SnowProperties, SnowMassBalance, Snowfall
 
 SnowProperties(
     consts=Physics.Constants();
