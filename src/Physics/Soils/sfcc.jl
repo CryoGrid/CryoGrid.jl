@@ -24,13 +24,13 @@ an implementation of SFCCSolver which provides the solution to the non-linear ma
 end
 
 # Join the declared state variables of the SFCC function and the solver
-variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, sfcc.f), variables(soil, heat, sfcc.solver))
+CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, sfcc.f), variables(soil, heat, sfcc.solver))
 # Default SFCC initialization
-function initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     L = heat.L
-    state.θl .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
+    state.θw .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
     heatcapacity!(soil, heat, state)
-    @. state.H = enthalpy(state.T, state.C, L, state.θl)
+    @. state.H = enthalpy(state.T, state.C, L, state.θw)
 end
 
 """
@@ -42,24 +42,25 @@ of the freeze curve function `f`.
 """
 sfccargs(::SFCCFunction, ::Soil, ::Heat, state) = ()
 # Fallback implementation of variables for SFCCFunction
-variables(::Soil, ::Heat, f::SFCCFunction) = ()
-variables(::Soil, ::Heat, s::SFCCSolver) = ()
+CryoGrid.variables(::Soil, ::Heat, f::SFCCFunction) = ()
+CryoGrid.variables(::Soil, ::Heat, s::SFCCSolver) = ()
 """
     DallAmico <: SFCCFunction
 
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
-Base.@kwdef struct DallAmico{T,Θ,A,N,G} <: SFCCFunction
+Base.@kwdef struct DallAmico{T,Θ,A,N,G,Tvg} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
+    # TODO: remove α and n from here since they are now in VanGenuchten
     α::A = Param(4.0, bounds=(eps(),Inf), units=u"1/m")
     n::N = Param(2.0, bounds=(1,Inf))
     g::G = 9.80665u"m/s^2" # acceleration due to gravity
-    swrc::VanGenuchten = VanGenuchten()
+    swrc::Tvg = VanGenuchten()
 end
 sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
-    totalwater(soil, state), # total water content
+    waterice(soil, heat, state), # total water content
     heat.prop.Lf, # specific latent heat of fusion, L
     f.θres,
     f.Tₘ,
@@ -71,9 +72,8 @@ sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
 @inline function (f::DallAmico)(T, θsat, θtot, Lf, θres=f.θres, Tₘ=f.Tₘ, α=f.α, n=f.n)
     let θsat = max(θtot, θsat),
         g = f.g,
-        m = 1-1/n,
         Tₘ = normalize_temperature(Tₘ),
-        ψ₀ = IfElse.ifelse(θtot < θsat, -1/α*(((θtot-θres)/(θsat-θres))^(-1/m)-1.0)^(1/n), zero(1/α)),
+        ψ₀ = f.swrc(inv, θtot, θres, θsat, α, n),
         Tstar = Tₘ + g*Tₘ/Lf*ψ₀,
         T = normalize_temperature(T),
         ψ = ψ(T, Tstar, ψ₀, Lf, g);
@@ -95,7 +95,7 @@ Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
 end
 sfccargs(f::McKenzie, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
-    totalwater(soil, state), # total water content
+    waterice(soil, heat, state), # total water content
     f.θres,
     f.Tₘ,
     f.γ,
@@ -122,7 +122,7 @@ Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
 end
 sfccargs(f::Westermann, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
-    totalwater(soil, state), # total water content
+    waterice(soil, heat, state), # total water content
     f.θres,
     f.Tₘ,
     f.δ,

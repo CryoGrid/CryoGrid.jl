@@ -18,28 +18,28 @@ function benchmarksfcc()
     Lf = heat.prop.Lf
     # set up multi-grid-cell state vars
     T = [-5.0 for i in 1:10]
-    θw = Soils.soilcomponent(Val{:θw}(), soil.para)
+    θwi = Soils.soilcomponent(Val{:θwi}(), soil.para)
     θp = Soils.soilcomponent(Val{:θp}(), soil.para)
     θm = Soils.soilcomponent(Val{:θm}(), soil.para)
     θo = Soils.soilcomponent(Val{:θo}(), soil.para)
-    θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n) # set liquid water content according to freeze curve
-    C = heatcapacity.(soil,heat,θw,θl,θm,θo)
+    θw = f.(T,Tₘ,θres,θp,θwi,Lf,α,n) # set liquid water content according to freeze curve
+    C = heatcapacity.(soil,heat,θwi,θw,θm,θo)
     H = let T = T .+ 4.99,
-            θl = f.(T,Tₘ,θres,θp,θw,Lf,α,n),
-            C = heatcapacity.(soil,heat,θw,θl,θm,θo);
-        enthalpy.(T,C,L,θl) # compute enthalpy at "true" temperature
+            θw = f.(T,Tₘ,θres,θp,θwi,Lf,α,n),
+            C = heatcapacity.(soil,heat,θwi,θw,θm,θo);
+        enthalpy.(T,C,L,θw) # compute enthalpy at "true" temperature
     end
-    state = (T=T,C=C,dHdT=similar(C),H=H,θl=θl,θw=θw)
+    state = (T=T,C=C,dHdT=similar(C),H=H,θw=θw,θwi=θwi)
     params = Utils.selectat(1, identity, Soils.sfccargs(f, soil, heat, state))
     f_params = tuplejoin((T[1],), params)
     # @btime $sfcc.f($f_params...)
     # @btime $sfcc.∇f($f_params...)
-    # @btime Soils.residual($soil, $heat, $T[1], $H[1], $L, $sfcc.f, $params, $θw, $θm, $θo)
+    # @btime Soils.residual($soil, $heat, $T[1], $H[1], $L, $sfcc.f, $params, $θwi, $θm, $θo)
     # @code_warntype HeatConduction.enthalpyinv(soil, heat, state, 1)
-    # Soils.sfccsolve(solver, soil, heat, sfcc.f, sfcc.∇f, params, H[1], L, θw, θm, θo, 0.0)
-    @btime Soils.sfccsolve($solver, $soil, $heat, $sfcc.f, $sfcc.∇f, $params, $H[1], $L, $θw, $θm, $θo, 0.0)
-    # @btime Soils.residual($soil, $heat, $T[1], $H[1], $L, $sfcc.f, $params, $θw, $θm, $θo)
-    # res = @btime Soils.sfccsolve($solver, $soil, $heat, $sfcc.f, $sfcc.∇f, $params, $H[1], $L, $θw, $θm, $θo)
+    # Soils.sfccsolve(solver, soil, heat, sfcc.f, sfcc.∇f, params, H[1], L, θwi, θm, θo, 0.0)
+    @btime Soils.sfccsolve($solver, $soil, $heat, $sfcc.f, $sfcc.∇f, $params, $H[1], $L, $θwi, $θm, $θo, 0.0)
+    # @btime Soils.residual($soil, $heat, $T[1], $H[1], $L, $sfcc.f, $params, $θwi, $θm, $θo)
+    # res = @btime Soils.sfccsolve($solver, $soil, $heat, $sfcc.f, $sfcc.∇f, $params, $H[1], $L, $θwi, $θm, $θo)
     @btime freezethaw!($soil, $heat, $state)
-    println("\nsolution: $(state.T[1]), $(state.θl[1])")
+    println("\nsolution: $(state.T[1]), $(state.θw[1])")
 end

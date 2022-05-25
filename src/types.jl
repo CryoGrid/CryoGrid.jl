@@ -58,20 +58,22 @@ end
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 """
-    Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
+    Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
-Represents an explicitly coupled pair processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
+Represents an explicitly coupled pair of processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
-const Coupled{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
+const Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
+const Coupled3{P1,P2,P3} = CoupledProcesses{Tuple{T1,T2,T3}} where {T1,T2,T3}
+const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,T3,T4}
 """
-    Coupled(p1,p2)
+    Coupled(ps::Process...)
 
-Alias for `CoupledProcesses(p1,p2)`.
+Alias for `CoupledProcesses(ps...)`.
 """
-Coupled(p1::P1, p2::P2) where {P1<:Process,P2<:Process} = CoupledProcesses(p1,p2)
+Coupled(ps::Process...) = CoupledProcesses(ps...)
 # Base methods
-Base.show(io::IO, ps::CoupledProcesses{T}) where T = print(io, "$T")
+Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.parameters, " with ")))")
 @propagate_inbounds @inline Base.getindex(ps::CoupledProcesses, i) = ps.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
@@ -92,19 +94,28 @@ struct Dirichlet <: BoundaryStyle end
 """
 struct Neumann <: BoundaryStyle end
 """
-    Callback
+    Event{name}
 
-Base type for callback implementations.
+Base type for integration "events" (i.e. callbacks). `name` should be a `Symbol`
+or type which identifies the event for the purposes of dispatch on `criterion` and `trigger!`.
 """
-abstract type Callback end
+abstract type Event{name} end
+struct DiscreteEvent{name} <: Event{name}
+    DiscreteEvent(name::Symbol) = new{name}()
+end
+struct ContinuousEvent{name} <: Event{name}
+    ContinuousEvent(name::Symbol) = new{name}()
+end
 """
-    CallbackStyle
+    ContinuousTrigger
 
-Trait for callback types.
+Base type for continuous trigger flags, `Increasing` and `Decreasing`, which indicate
+an upcrossing of the function root (negative to positive) and a downcrossing (positive to negative)
+respectively.
 """
-abstract type CallbackStyle end
-struct Discrete <: CallbackStyle end
-struct Continuous <: CallbackStyle end
+abstract type ContinuousTrigger end
+struct Increasing <: ContinuousTrigger end
+struct Decreasing <: ContinuousTrigger end
 """
     Parameterization
 

@@ -4,18 +4,19 @@ Enumeration for in-place vs out-of-place mode.
 """
 @enum InPlaceMode inplace ooplace
 """
-    LayerState{iip,TGrid,TStates,TGrids,Tt,Tz,varnames}
+    LayerState{iip,TGrid,TStates,TGrids,Tt,Tdt,Tz,varnames}
 
 Represents the state of a single component (layer + processes) in the stratigraphy.
 """
-struct LayerState{iip,TGrid,TStates,TGrids,Tt,Tz,varnames}
+struct LayerState{iip,TGrid,TStates,TGrids,Tt,Tdt,Tz,varnames}
     grid::TGrid
     grids::NamedTuple{varnames,TGrids}
     states::NamedTuple{varnames,TStates}
     bounds::NTuple{2,Tz}
     t::Tt
-    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, t::Tt, bounds::NTuple{2,Tz}, ::Val{iip}=Val{inplace}()) where
-        {TG,Tvg,Tvs,Tt,Tz,varnames,iip} = new{iip,TG,Tvs,Tvg,Tt,Tz,varnames}(grid, grids, states, bounds, t)
+    dt::Tdt
+    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, bounds::NTuple{2,Tz}, t::Tt, dt::Tdt=nothing, ::Val{iip}=Val{inplace}()) where
+        {TG,Tvg,Tvs,Tt,Tdt,Tz,varnames,iip} = new{iip,TG,Tvs,Tvg,Tt,Tdt,Tz,varnames}(grid, grids, states, bounds, t, dt)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
@@ -25,30 +26,32 @@ function Base.getproperty(state::LayerState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {layername,iip}
+@inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {layername,iip}
     z_inds = subgridinds(edges(vs.grid), zs[1]..zs[2])
     return LayerState(
         vs.grid[z_inds],
         _makegrids(Val{layername}(), getproperty(vs.vars, layername), vs, z_inds),
         _makestates(Val{layername}(), getproperty(vs.vars, layername), vs, z_inds, u, du, t),
-        t,
         zs,
+        t,
+        dt,
         Val{iip}(),
     )
 end
 
 """
-    TileState{iip,TGrid,TStates,Tt,names}
+    TileState{iip,TGrid,TStates,Tt,Tdt,names}
 
 Represents the instantaneous state of a CryoGrid `Tile`.
 """
-struct TileState{iip,TGrid,TStates,Tt,names}
+struct TileState{iip,TGrid,TStates,Tt,Tdt,names}
     grid::TGrid
     states::NamedTuple{names,TStates}
     t::Tt
-    TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, ::Val{iip}=Val{inplace}()) where
-        {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,names,iip} =
-            new{iip,TGrid,TS,Tt,names}(grid, states, t)
+    dt::Tdt
+    TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, dt::Tdt=nothing, ::Val{iip}=Val{inplace}()) where
+        {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,Tdt,names,iip} =
+            new{iip,TGrid,TS,Tt,Tdt,names}(grid, states, t, dt)
 end
 Base.getindex(state::TileState, sym::Symbol) = Base.getproperty(state, sym)
 Base.getindex(state::TileState, i::Int) = state.states[i]
@@ -59,11 +62,11 @@ function Base.getproperty(state::TileState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, ::Val{iip}=Val{inplace}()) where {names,iip}
+@inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, dt=nothing, ::Val{iip}=Val{inplace}()) where {names,iip}
     layerstates = (
         quote
             bounds_i = (ustrip(bounds[$i][1]), ustrip(bounds[$i][2]))
-            LayerState(vs, bounds_i, u, du, t, Val{$(QuoteNode(names[i]))}(), Val{iip}())
+            LayerState(vs, bounds_i, u, du, t, dt, Val{$(QuoteNode(names[i]))}(), Val{iip}())
         end
         for i in 1:length(names)
     )
@@ -73,6 +76,7 @@ end
             vs.grid,
             NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),
             t,
+            dt,
             Val{iip}(),
         )
     end

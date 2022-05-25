@@ -18,10 +18,10 @@ function discretize(::Type{A}, grid::Grid, pvars::Union{<:Prognostic,<:Algebraic
     Np = length(pointvar_ns) > 0 ? sum(pointvar_ns) : 0
     # build axis indices;
     # non-grid prognostic variables get collected at the top of the vector, in the order provided
-    pointvar_ax = (;(varname(p) => i:(i+n) for (p,n,i) in zip(pointvars, pointvar_ns, cumsum(vcat([1],collect(pointvar_ns[1:end-1])))))...)
+    pointvar_ax = (;(varname(p) => i:(i+n-1) for (p,n,i) in zip(pointvars, pointvar_ns, cumsum(vcat([1],collect(pointvar_ns[1:end-1])))))...)
     # grid variables get interlaced throughout the rest of the vector; i.e. for variable i, its grid points are:
     # i:k:kn where k is the number of grid variables and n is the length of the grid.
-    gridvar_ax = (;(varname(p) => st:length(gridvars):Ng for (p,st) in zip(gridvars, (Np+1):(1+Np+length(gridvars))))...)
+    gridvar_ax = (;(varname(p) => st:length(gridvars):(Ng+Np) for (p,st) in zip(gridvars, (Np+1):(1+Np+length(gridvars))))...)
     # allocate component array; assumes all variables have (and should!) have the same type
     u = zero(similar(A{vartype(first(pvars))}, Ng+Np))
     ComponentVector(u, (Axis(merge(pointvar_ax, gridvar_ax)),))

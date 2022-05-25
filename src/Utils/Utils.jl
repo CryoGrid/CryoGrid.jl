@@ -106,6 +106,10 @@ Concatenates one or more tuples together; should generally be type stable.
 Helper method for generalizing between arrays and scalars. Without an index, retrieves
 the first element of `x` if `x` is an array, otherwise simply returning `x`. If an index
 `i`, is specified, returns the `i`th value of `x` if `x` is an array, or `x` otherwise.
+Note that this method is not strictly necessary since Julia allows for scalar quantities
+to be accessed at the first index like an array; however, the point is to make it
+expliclty clear in scalar-typed code that a state variable is treated as such and is
+not a vector valued quantity.
 """
 getscalar(x::Number) = x
 getscalar(x::Number, i) = x
@@ -119,7 +123,7 @@ getscalar(x::AbstractArray, i) = x[i]
 Convenience method for converting between `Dates.DateTime` and solver time.
 """
 convert_t(t::DateTime) = Dates.datetime2epochms(t) / 1000
-convert_t(t::Float64) = Dates.epochms2datetime(1000t)
+convert_t(t::Float64) = Dates.epochms2datetime(floor(1000t))
 """
     convert_tspan(tspan::Tuple{DateTime,DateTime})
     convert_tspan(tspan::Tuple{Float64,Float64})
@@ -138,16 +142,6 @@ We use a generated function to expand the arguments into an explicitly defined t
 function `f` is then applied to each element.
 """
 @generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
-
-"""
-    @generated genmap(f, args::T) where {T<:Tuple}
-
-Generated `map` for `Tuple` types. This function is for use in generated functions where
-generators/comprehensions like `map` are not allowed.
-"""
-@inline @generated function genmap(f, args::T) where {T<:Tuple}
-    return Expr(:tuple, (:(f(args[$i])) for i in 1:length(T.parameters))...)
-end
 
 """
     ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
@@ -206,11 +200,12 @@ end
 """
     ModelParameters.stripunits(obj)
 
-Additional override for `stripunits` which reconstructs `obj` with all `AbstractQuantity` fields stripped of units.
+Additional override for `stripunits` which reconstructs `obj` with all fields that have unitful quantity
+types converted to base SI units and then stripped to be unit free.
 """
 function ModelParameters.stripunits(obj)
     values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
-    return Flatten.reconstruct(obj, map(ustrip, values), Unitful.AbstractQuantity, Flatten.IGNORE)
+    return Flatten.reconstruct(obj, map(ustrip ∘ upreferred, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end
 
 end

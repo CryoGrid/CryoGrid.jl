@@ -1,4 +1,4 @@
-module WaterBalance
+module Hydrology
 
 import CryoGrid: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
 
@@ -7,6 +7,8 @@ using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!
 
 using IfElse
+using ModelParameters
+using Unitful
 
 export SWRC, VanGenuchten
 

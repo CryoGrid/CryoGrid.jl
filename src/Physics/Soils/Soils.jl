@@ -1,23 +1,24 @@
 module Soils
 
-import CryoGrid: SubSurface, Parameterization
-import CryoGrid: initialcondition!, variables
-import CryoGrid.Physics: totalwater
-import CryoGrid.Physics.HeatConduction: Enthalpy, Temperature, liquidwater, thermalconductivity, heatcapacity, freezethaw!, enthalpyinv
-
+using CryoGrid: SubSurface, Parameterization
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
+using CryoGrid.Physics
 using CryoGrid.Physics.HeatConduction
-using CryoGrid.Physics.WaterBalance
+using CryoGrid.Physics.Hydrology
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds, @kwdef
 using IfElse
+using Interpolations: Interpolations
 using ForwardDiff
 using ModelParameters
 using Unitful
 
-import Interpolations
+import CryoGrid
+import CryoGrid.Physics
+import CryoGrid.Physics.HeatConduction
+
 import Flatten: @flattenable, flattenable
 
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
@@ -54,71 +55,72 @@ SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pai
 # Helper functions for obtaining soil compositions from characteristic fractions.
 soilcomponent(::Val{var}, para::CharacteristicFractions) where var = soilcomponent(Val{var}(), para.xic, para.por, para.sat, para.org)
 soilcomponent(::Val{:θp}, χ, ϕ, θ, ω) = (1-χ)*ϕ
-soilcomponent(::Val{:θw}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
+soilcomponent(::Val{:θwi}, χ, ϕ, θ, ω) = χ + (1-χ)*ϕ*θ
 soilcomponent(::Val{:θm}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*(1-ω)
 soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
 Soil thermal properties.
 """
-@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm} <: HeatConduction.ThermalProperties
-    ko::Tko = Param(0.25, units=u"W/m/K") # organic [Hillel(1982)]
-    km::Tkm = Param(3.8, units=u"W/m/K") # mineral [Hillel(1982)]
-    co::Tco = Param(2.5e6, units=u"J/K/m^3") # heat capacity organic
-    cm::Tcm = Param(2.0e6, units=u"J/K/m^3") # heat capacity mineral
-end
+SoilThermalProperties(;
+    ko = Param(0.25, units=u"W/m/K"), # organic [Hillel(1982)]
+    km = Param(3.8, units=u"W/m/K"), # mineral [Hillel(1982)]
+    co = Param(2.5e6, units=u"J/K/m^3"), # heat capacity organic
+    cm = Param(2.0e6, units=u"J/K/m^3"), # heat capacity mineral
+) = (; ko, km, co, cm)
 """
 Basic Soil layer.
 """
-@kwdef struct Soil{TPara<:SoilParameterization,TProp<:SoilThermalProperties,TSp} <: SubSurface
+@kwdef struct Soil{TPara<:SoilParameterization,TProp,TSp} <: SubSurface
     para::TPara = CharacteristicFractions()
     prop::TProp = SoilThermalProperties()
     sp::TSp = nothing # user-defined specialization
 end
+HeatConduction.thermalproperties(soil::Soil) = soil.prop
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
-# Fixed volumetric content methods
-totalwater(soil::Soil, state) = totalwater(SoilComposition(soil), soil)
+# Volumetric fraction methods
+Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil)
 porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
 mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)
 organic(soil::Soil, state) = organic(SoilComposition(soil), soil)
 ## Homogeneous soils
-totalwater(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θw}(), soil.para)
+Physics.waterice(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θwi}(), soil.para)
 porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
 mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
 organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
 ## Heterogeneous soils
-totalwater(::Heterogeneous, soil::Soil, state) = state.θw   
+Physics.waterice(::Heterogeneous, soil::Soil, state) = state.θwi   
 porosity(::Heterogeneous, soil::Soil, state) = state.θp
 mineral(::Heterogeneous, soil::Soil, state) = state.θm
 organic(::Heterogeneous, soil::Soil, state) = state.θo
 
-variables(soil::Soil) = variables(SoilComposition(soil), soil)
-variables(::Homogeneous, ::Soil) = ()
-variables(::Heterogeneous, ::Soil) = (
-    Diagnostic(:θw, Float64, OnGrid(Cells)),
+CryoGrid.variables(soil::Soil) = CryoGrid.variables(SoilComposition(soil), soil)
+CryoGrid.variables(::Homogeneous, ::Soil) = ()
+CryoGrid.variables(::Heterogeneous, ::Soil) = (
+    Diagnostic(:θwi, Float64, OnGrid(Cells)),
     Diagnostic(:θp, Float64, OnGrid(Cells)),
     Diagnostic(:θm, Float64, OnGrid(Cells)),
     Diagnostic(:θo, Float64, OnGrid(Cells)),
 )
 
-initialcondition!(soil::Soil, state) = initialcondition!(SoilComposition(soil), soil, state)
-initialcondition!(::Homogeneous, ::Soil, state) = nothing
+CryoGrid.initialcondition!(soil::Soil, state) = CryoGrid.initialcondition!(SoilComposition(soil), soil, state)
+CryoGrid.initialcondition!(::Homogeneous, ::Soil, state) = nothing
 """
     initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
 
 Default implementation of initialcondition! for heterogeneous soils parameterized by characteristic fractions.
 Fields of `soil.para` may be either numbers (including `Param`s) or `Function`s of the form `f(::Soil, state)::AbstractVector`.
 """
-function initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
+function CryoGrid.initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
     evaluate(x::Number) = x
     evaluate(f::Function) = f(soil, state)
     χ = evaluate(soil.para.xic)
     ϕ = evaluate(soil.para.por)
     θ = evaluate(soil.para.sat)
     ω = evaluate(soil.para.org)
-    @. state.θw = soilcomponent(Val{:θw}(), χ, ϕ, θ, ω)
+    @. state.θwi = soilcomponent(Val{:θwi}(), χ, ϕ, θ, ω)
     @. state.θp = soilcomponent(Val{:θp}(), χ, ϕ, θ, ω)
     @. state.θm = soilcomponent(Val{:θm}(), χ, ϕ, θ, ω)
     @. state.θo = soilcomponent(Val{:θo}(), χ, ϕ, θ, ω)

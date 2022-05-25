@@ -1,39 +1,33 @@
 module Physics
 
-import CryoGrid: Process, CoupledProcesses, BoundaryProcess, Coupled, Layer, Top, Bottom, SubSurface
-import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables, callbacks, observe
-
+using CryoGrid: Process, SubSurfaceProcess, CoupledProcesses, BoundaryProcess, Coupled, Layer, Top, Bottom, SubSurface
+using CryoGrid: Event, DiscreteEvent, ContinuousEvent, ContinuousTrigger
 using CryoGrid.Numerics
 using CryoGrid.Utils
+
+import CryoGrid
 
 using Lazy: @>>
 using Reexport
 using Unitful
 
-"""
-    totalwater(sub::SubSurface, state)
-    totalwater(sub::SubSurface, state)
-    totalwater(sub::SubSurface, state, i)
+export volumetricfractions, waterice, liquidwater, partial
 
-Retrieves the total water content for the given layer at grid cell `i`, if specified.
-Defaults to using the scalar total water content defined on layer `sub`.
-"""
-@inline totalwater(sub::SubSurface, state) = state.θw
-@inline totalwater(sub::SubSurface, state, i) = Utils.getscalar(totalwater(sub, state), i)
-
+include("common.jl")
 include("coupled.jl")
 include("Boundaries/Boundaries.jl")
-include("HeatConduction/HeatConduction.jl")
-include("WaterBalance/WaterBalance.jl")
-include("Soils/Soils.jl")
-include("SEB/SEB.jl")
-include("Sources/Sources.jl")
-
 @reexport using .Boundaries
+include("HeatConduction/HeatConduction.jl")
 @reexport using .HeatConduction
-@reexport using .WaterBalance
+include("Hydrology/Hydrology.jl")
+@reexport using .Hydrology
+include("Snow/Snow.jl")
+@reexport using .Snow
+include("Soils/Soils.jl")
 @reexport using .Soils
+include("SEB/SEB.jl")
 @reexport using .SEB
+include("Sources/Sources.jl")
 @reexport using .Sources
 
 end

@@ -19,12 +19,6 @@ latent heat of fusion, derivative of the freeze curve `dθdT`, and the constitue
 """
 @inline C_eff(T, C, L, dθdT, cw, ci) = C + dθdT*(L + T*(cw - ci))
 """
-    liquidwater(sub::SubSurface, heat::Heat, state)
-
-Retrieves the liquid water content for the given layer.
-"""
-@inline liquidwater(::SubSurface, ::Heat, state) = state.θl
-"""
     thermalconductivities(::SubSurface, heat::Heat)
 
 Get thermal conductivities for generic `SubSurface` layer.
@@ -36,23 +30,23 @@ Get thermal conductivities for generic `SubSurface` layer.
 Get heat capacities for generic `SubSurface` layer.
 """
 @inline heatcapacities(::SubSurface, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca)
-"""
-    volumetricfractions(::SubSurface, heat::Heat)
-
-Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
-the only constitutents are liquid water, ice, and air: `(θl,θi,θa)`.
-"""
-@inline function volumetricfractions(sub::SubSurface, heat::Heat, state, i)
-    return let θw = totalwater(sub, state, i),
-        θl = state.θl[i],
-        θa = 1.0 - θw,
-        θi = θw - θl;
-        (θl, θi, θa)
-    end
-end
 
 # Generic heat conduction implementation
 
+"""
+    volumetricfractions(::SubSurface, heat::Heat, state, i)
+
+Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
+the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
+"""
+@inline function Physics.volumetricfractions(sub::SubSurface, heat::Heat, state, i)
+    let θwi = waterice(sub, heat, state, i),
+        θw = liquidwater(sub, heat, state, i),
+        θa = 1.0 - θwi,
+        θi = θwi - θw;
+        return (θw, θi, θa)
+    end
+end
 """
     freezethaw!(sub::SubSurface, heat::Heat, state)
 
@@ -63,15 +57,13 @@ should also be computed depending on the thermal scheme being implemented.
 """
 freezethaw!(sub::SubSurface, heat::Heat, state) = error("missing implementation of freezethaw!")
 """
-    heatcapacity(capacities::NTuple{N}, fracs::NTuple{N}) where N
+    heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
 
-Computes the heat capacity as a weighted average over constituent `capacities` with volumetric fractions `fracs`.
+Computes the heat capacity as a weighted average over constituent capacities with volumetric fractions `θfracs`.
 """
-heatcapacity(capacities::NTuple{N,Any}, fracs::NTuple{N,Any}) where N = sum(map(*, capacities, fracs))
-@inline function heatcapacity(sub::SubSurface, heat::Heat, state, i)
-    θs = volumetricfractions(sub, heat, state, i)
+@inline function heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
     cs = heatcapacities(sub, heat)
-    return heatcapacity(cs, θs)
+    return sum(map(*, cs, θfracs))
 end
 """
     heatcapacity!(sub::SubSurface, heat::Heat, state)
@@ -80,19 +72,18 @@ Computes the heat capacity for the given layer from the current state and stores
 """
 @inline function heatcapacity!(sub::SubSurface, heat::Heat, state)
     @inbounds for i in 1:length(state.T)
-        state.C[i] = heatcapacity(sub, heat, state, i)
+        θfracs = volumetricfractions(sub, heat, state, i)
+        state.C[i] = heatcapacity(sub, heat, state, θfracs...)
     end
 end
 """
-    thermalconductivity(conductivities::NTuple{N}, fracs::NTuple{N}) where N
+    thermalconductivity(sub::SubSurface, heat::Heat, θfracs...)
 
-Computes the thermal conductivity as a squared weighted sum over constituent `conductivities` with volumetric fractions `fracs`.
+Computes the thermal conductivity as a squared weighted sum over constituent conductivities with volumetric fractions `θfracs`.
 """
-thermalconductivity(conductivities::NTuple{N,Any}, fracs::NTuple{N,Any}) where N = sum(map(*, map(sqrt, conductivities), fracs))^2
-@inline function thermalconductivity(sub::SubSurface, heat::Heat, state, i)
-    θs = volumetricfractions(sub, heat, state, i)
+@inline function thermalconductivity(sub::SubSurface, heat::Heat, θfracs...)
     ks = thermalconductivities(sub, heat)
-    return thermalconductivity(ks, θs)
+    return sum(map(*, map(sqrt, ks), θfracs))^2
 end
 """
     thermalconductivity!(sub::SubSurface, heat::Heat, state)
@@ -101,7 +92,8 @@ Computes the thermal conductivity for the given layer from the current state and
 """
 @inline function thermalconductivity!(sub::SubSurface, heat::Heat, state)
     @inbounds for i in 1:length(state.T)
-        state.kc[i] = thermalconductivity(sub, heat, state, i)
+        θfracs = volumetricfractions(sub, heat, state, i)
+        state.kc[i] = thermalconductivity(sub, heat, θfracs...)
     end
 end
 """
@@ -119,7 +111,7 @@ Variable definitions for heat conduction (enthalpy).
 variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
-    basevariables(heat)...,
+    heatvariables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
@@ -129,19 +121,19 @@ variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
     Diagnostic(:dθdT, OnGrid(Cells)),
-    basevariables(heat)...,
+    heatvariables(heat)...,
 )
 """
 Common variable definitions for all heat implementations.
 """
-basevariables(::Heat) = (
+heatvariables(::Heat) = (
     Diagnostic(:dH_upper, Scalar, u"J/K/m^2"),
     Diagnostic(:dH_lower, Scalar, u"J/K/m^2"),
     Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
-    Diagnostic(:θl, OnGrid(Cells)),
+    Diagnostic(:θw, OnGrid(Cells)),
 )
 """
     heatconduction!(∂H,T,ΔT,k,Δk)
@@ -226,20 +218,20 @@ end
 @inline boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
 @inline boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
 @inline function boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
         Tsub=ssub.T[1],
         k=ssub.k[1],
-        δ=Δk[1]/2; # distance to boundary
+        δ=Δk/2; # distance to boundary
         -k*(Tsub-Tupper)/δ
     end
 end
 @inline function boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
     @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
         k=ssub.k[end],
-        δ=Δk[end]/2; # distance to boundary
+        δ=Δk/2; # distance to boundary
         -k*(Tsub-Tlower)/δ
     end
 end
@@ -247,43 +239,40 @@ end
 Generic top interaction. Computes flux dH at top cell.
 """
 function interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::Heat, stop, ssub)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     # boundary flux
     @setscalar ssub.dH_upper = boundaryflux(bc, top, heat, sub, stop, ssub)
-    @inbounds ssub.dH[1] += getscalar(ssub.dH_upper) / Δk[1]
+    @inbounds ssub.dH[1] += getscalar(ssub.dH_upper) / Δk
     return nothing # ensure no allocation
 end
 """
 Generic bottom interaction. Computes flux dH at bottom cell.
 """
 function interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::HeatBC, ssub, sbot)
-    Δk = thickness(sub, ssub) # using `thickness` allows for generic layer implementations
+    Δk = thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
     # boundary flux
     @setscalar ssub.dH_lower = boundaryflux(bc, bot, heat, sub, sbot, ssub)
-    @inbounds ssub.dH[end] += getscalar(ssub.dH_lower) / Δk[end]
+    @inbounds ssub.dH[end] += getscalar(ssub.dH_lower) / Δk
     return nothing # ensure no allocation
 end
 """
 Generic subsurface interaction. Computes flux dH at boundary between subsurface layers.
 """
 function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
-    Δk₁ = thickness(sub1, s1)
-    Δk₂ = thickness(sub2, s2)
+    Δk₁ = thickness(sub1, s1, first)
+    Δk₂ = thickness(sub2, s2, last)
     # thermal conductivity between cells
-    @inbounds let k₁ = s1.kc[end],
-        k₂ = s2.kc[1],
-        Δ₁ = Δk₁[end],
-        Δ₂ = Δk₂[1];
-        k = harmonicmean(k₁, k₂, Δ₁, Δ₂);
-        s1.k[end] = s2.k[1] = k
-    end
+    k = s1.k[end] = s2.k[1] =
+        @inbounds let k₁ = s1.kc[end],
+            k₂ = s2.kc[1],
+            Δ₁ = Δk₁[end],
+            Δ₂ = Δk₂[1];
+            harmonicmean(k₁, k₂, Δ₁, Δ₂)
+        end
     # calculate heat flux between cells
-    Qᵢ = @inbounds let k₁ = s1.k[end],
-        k₂ = s2.k[1],
-        k = k₁ = k₂,
-        z₁ = midpoints(sub1, s1),
-        z₂ = midpoints(sub2, s2),
-        δ = z₂[1] - z₁[end];
+    Qᵢ = @inbounds let z₁ = midpoint(sub1, s1, last),
+        z₂ = midpoint(sub2, s2, first),
+        δ = z₂ - z₁;
         k*(s2.T[1] - s1.T[end]) / δ
     end
     # diagnostics
@@ -296,24 +285,20 @@ function interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, totalwater(sub, state, i)),
-        H = state.H[i],
-        C = state.C[i],
-        L = heat.L,
-        Lθ = L*θtot,
-        I_t = H > Lθ,
-        I_f = H <= 0.0;
-        (I_t*(H-Lθ) + I_f*H)/C
-    end
+    f_hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
+    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], heat.L, f_hc.θwi)
 end
-@inline function liquidwater(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    let θtot = max(1e-8, totalwater(sub, state, i)),
-        H = state.H[i],
-        L = heat.L,
+@inline function enthalpyinv(::FreeWater, f_hc::Function, H, L, θtot)
+    let θtot = max(1e-8, θtot),
         Lθ = L*θtot,
         I_t = H > Lθ,
+        I_f = H <= 0.0,
         I_c = (H > 0.0) && (H <= Lθ);
-        (I_c*(H/Lθ) + I_t)θtot
+        # compute liquid water content -> heat capacity -> temperature
+        θw = (I_c*(H/Lθ) + I_t)θtot
+        C = f_hc(θw)
+        T = (I_t*(H-Lθ) + I_f*H)/C
+        return T, θw, C
     end
 end
 """
@@ -321,18 +306,14 @@ end
 
 Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
-total water content (θw), and liquid water content (θl).
+total water content (θwi), and liquid water content (θw).
 """
 @inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
     @inbounds for i in 1:length(state.H)
-        # liquid water content = (total water content) * (liquid fraction)
-        state.θl[i] = liquidwater(sub, heat, state, i)
-        # update heat capacity
-        state.C[i] = C = heatcapacity(sub, heat, state, i)
-        # enthalpy inverse function
-        state.T[i] = enthalpyinv(sub, heat, state, i)
+        # update T, θw, C
+        state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)
         # set dHdT (a.k.a dHdT)
-        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/C
+        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/state.C[i]
     end
     return nothing
 end
