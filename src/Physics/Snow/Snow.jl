@@ -32,15 +32,6 @@ Base type for snowpack paramterization schemes.
 abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 """
-    Bulk{Tthresh} <: SnowpackParameterization
-
-Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
-"""
-Base.@kwdef struct Bulk{Tthresh} <: SnowpackParameterization
-    thresh::Tthresh = 0.02u"m" # snow threshold
-end
-
-"""
     Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
 
 Generic representation of a ground surface snow pack.

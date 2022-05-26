@@ -1,4 +1,13 @@
 """
+    Bulk{Tthresh} <: SnowpackParameterization
+
+Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
+"""
+Base.@kwdef struct Bulk{Tthresh} <: SnowpackParameterization
+    thresh::Tthresh = 0.02u"m" # snow threshold
+end
+
+"""
     BulkSnowpack = Snowpack{<:Bulk}
 
 Type alias for Snowpack with `Bulk` parameterization.
