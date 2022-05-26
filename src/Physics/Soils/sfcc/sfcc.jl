@@ -49,12 +49,9 @@ CryoGrid.variables(::Soil, ::Heat, s::SFCCSolver) = ()
 
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
-Base.@kwdef struct DallAmico{T,Θ,A,N,G,Tvg} <: SFCCFunction
+Base.@kwdef struct DallAmico{T,Θ,A,N,G,Tvg<:VanGenuchten} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
-    # TODO: remove α and n from here since they are now in VanGenuchten
-    α::A = Param(4.0, bounds=(eps(),Inf), units=u"1/m")
-    n::N = Param(2.0, bounds=(1,Inf))
     g::G = 9.80665u"m/s^2" # acceleration due to gravity
     swrc::Tvg = VanGenuchten()
 end
@@ -64,12 +61,12 @@ sfccargs(f::DallAmico, soil::Soil, heat::Heat, state) = (
     heat.prop.Lf, # specific latent heat of fusion, L
     f.θres,
     f.Tₘ,
-    f.α,
-    f.n,
+    f.swrc.α,
+    f.swrc.n,
 )
 # pressure head at T
 @inline ψ(T,Tstar,ψ₀,Lf,g) = ψ₀ + Lf/(g*Tstar)*(T-Tstar)*heaviside(Tstar-T)
-@inline function (f::DallAmico)(T, θsat, θtot, Lf, θres=f.θres, Tₘ=f.Tₘ, α=f.α, n=f.n)
+@inline function (f::DallAmico)(T, θsat, θtot, Lf, θres=f.θres, Tₘ=f.Tₘ, α=f.swrc.α, n=f.swrc.n)
     let θsat = max(θtot, θsat),
         g = f.g,
         Tₘ = normalize_temperature(Tₘ),

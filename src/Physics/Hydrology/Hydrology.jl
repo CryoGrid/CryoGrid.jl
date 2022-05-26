@@ -10,10 +10,6 @@ using IfElse
 using ModelParameters
 using Unitful
 
-export SWRC, VanGenuchten
-
-include("swrc.jl")
-
-# TODO: implement water fluxes
+include("water_bucket.jl")
 
 end

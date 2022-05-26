@@ -24,6 +24,9 @@ import Flatten: @flattenable, flattenable
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
 export soilcomponent, porosity, mineral, organic
 
+const Enthalpy = HeatConduction.Enthalpy
+const Temperature = HeatConduction.Temperature
+
 """
     SoilComposition
 
@@ -126,7 +129,32 @@ function CryoGrid.initialcondition!(::Heterogeneous, soil::Soil{<:Characteristic
     @. state.θo = soilcomponent(Val{:θo}(), χ, ϕ, θ, ω)
 end
 
+"""
+    mineral(soil::Soil, state, i)
+
+Retrieves the mineral content for the given layer at grid cell `i`, if provided.
+Defaults to using the scalar mineral content defined on `soil`.
+"""
+@inline mineral(soil::Soil, state, i) = Utils.getscalar(mineral(soil, state), i)
+"""
+    organic(soil::Soil, state, i)
+
+Retrieves the organic content for the given layer at grid cell `i`, if provided.
+Defaults to using the scalar organic content defined on `soil`.
+"""
+@inline organic(soil::Soil, state, i) = Utils.getscalar(organic(soil, state), i)
+"""
+    porosity(soil::Soil, state, i)
+
+Retrieves the porosity for the given layer at grid cell `i`, if provided.
+Defaults to using the scalar porosity defined on `soil`.
+"""
+@inline porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
+
+export SWRC, VanGenuchten
+include("sfcc/swrc.jl")
 export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver, SFCCPreSolver
+include("sfcc/sfcc.jl")
 include("soilheat.jl")
 
 end
