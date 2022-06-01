@@ -61,6 +61,7 @@ Converts temperature `x` to Kelvin. If `x` has units, `uconvert` is used. Otherw
 """
 normalize_temperature(x) = x + 273.15
 normalize_temperature(x::TempQuantity) = uconvert(u"K", x)
+normalize_temperature(x::Param) = stripparams(x) |> normalize_temperature
 
 """
 Provides implementation of `Base.iterate` for structs.

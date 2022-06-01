@@ -24,7 +24,7 @@ an implementation of SFCCSolver which provides the solution to the non-linear ma
 end
 
 # Join the declared state variables of the SFCC function and the solver
-CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(variables(soil, heat, sfcc.f), variables(soil, heat, sfcc.solver))
+CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(CryoGrid.variables(soil, heat, sfcc.f), CryoGrid.variables(soil, heat, sfcc.solver))
 # Default SFCC initialization
 function CryoGrid.initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
     L = heat.L
@@ -49,7 +49,7 @@ CryoGrid.variables(::Soil, ::Heat, s::SFCCSolver) = ()
 
 Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D. Thesis, University of Trento, pp. 43.
 """
-Base.@kwdef struct DallAmico{T,Θ,A,N,G,Tvg<:VanGenuchten} <: SFCCFunction
+Base.@kwdef struct DallAmico{T,Θ,G,Tvg<:VanGenuchten} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
     θres::Θ = Param(0.0, bounds=(0,1))
     g::G = 9.80665u"m/s^2" # acceleration due to gravity

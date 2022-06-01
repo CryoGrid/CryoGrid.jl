@@ -73,7 +73,7 @@ Computes the heat capacity for the given layer from the current state and stores
 @inline function heatcapacity!(sub::SubSurface, heat::Heat, state)
     @inbounds for i in 1:length(state.T)
         θfracs = volumetricfractions(sub, heat, state, i)
-        state.C[i] = heatcapacity(sub, heat, state, θfracs...)
+        state.C[i] = heatcapacity(sub, heat, θfracs...)
     end
 end
 """
