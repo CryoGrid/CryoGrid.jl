@@ -1,6 +1,6 @@
 module HeatConduction
 
-using CryoGrid: SubSurfaceProcess, BoundaryProcess, Dirichlet, Neumann, Layer, Top, Bottom, SubSurface
+using CryoGrid
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
@@ -14,8 +14,6 @@ using ModelParameters
 using Unitful
 
 import CryoGrid
-import CryoGrid: BoundaryStyle
-import CryoGrid: diagnosticstep!, prognosticstep!, interact!, initialcondition!, boundaryflux, boundaryvalue, variables, thickness, midpoint
 import CryoGrid.Physics
 
 export Heat, TemperatureProfile
@@ -40,6 +38,11 @@ abstract type HeatParameterization end
 struct Enthalpy <: HeatParameterization end
 struct Temperature <: HeatParameterization end
 
+abstract type StepLimiter end
+@kwdef struct CFL <: StepLimiter
+    fallback_dt::Float64 = 60.0 # fallback dt [s]
+end
+
 ThermalProperties(
     consts=Physics.Constants();
     ρw = consts.ρw,
@@ -52,11 +55,12 @@ ThermalProperties(
     ca = Param(0.00125e6, units=u"J/K/m^3"), # heat capacity of air
 ) = (; ρw, Lf, kw, ki, ka, cw, ci, ca)
 
-@kwdef struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tinit,TProp,TL} <: SubSurfaceProcess
+@kwdef struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp,TL} <: SubSurfaceProcess
     para::TPara = Enthalpy()
     prop::TProp = ThermalProperties()
     L::TL = prop.ρw*prop.Lf # [J/m^3] (specific latent heat of fusion of water)
     freezecurve::Tfc = FreeWater() # freeze curve, defautls to free water fc
+    dtlim::Tdt = CFL()
     init::Tinit = nothing # optional initialization scheme
 end
 # convenience constructors for specifying prognostic variable as symbol
@@ -69,7 +73,7 @@ thermalproperties(heat::Heat) = heat.prop
 freezecurve(heat::Heat) = heat.freezecurve
 
 # Default implementation of `variables` for freeze curve
-variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
+CryoGrid.variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 
 export HeatBC, ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")

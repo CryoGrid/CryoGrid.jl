@@ -6,7 +6,6 @@ using CryoGrid.Utils
 
 import CryoGrid
 
-using Lazy: @>>
 using Reexport
 using Unitful
 

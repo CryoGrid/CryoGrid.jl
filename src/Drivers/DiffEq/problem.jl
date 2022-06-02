@@ -19,6 +19,9 @@ function CryoGridProblem(
     save_everystep=false,
     save_start=true,
     save_end=true,
+    step_limiter=CryoGrid.timestep,
+    safety_factor=0.5,
+    max_step=true,
     callback=nothing,
     kwargs...
 )
@@ -41,9 +44,13 @@ function CryoGridProblem(
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
     savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_start=save_start, save_end=save_end, save_everystep=save_everystep)
+    # add step limiter to default callbacks, if defined
+    defaultcallbacks = isnothing(step_limiter) ? (savingcallback,) : (savingcallback, StepsizeLimiter(step_limiter; safety_factor, max_step))
+    # build layer callbacks
     layercallbacks = DiffEq.makecallbacks(tile)
+    # add user callbacks
     usercallbacks = isnothing(callback) ? () : callback
-    callbacks = CallbackSet(savingcallback, layercallbacks..., usercallbacks...)
+    callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
     tile.hist.vals = savevals
     # set up default mass matrix, M:

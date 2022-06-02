@@ -35,8 +35,6 @@ import DiffEqCallbacks
 @reexport using OrdinaryDiffEq
 @reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
 
-export CFLStepLimiter
-include("steplimiters.jl")
 export TDMASolver
 include("solvers.jl")
 include("callbacks.jl")

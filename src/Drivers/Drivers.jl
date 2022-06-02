@@ -30,18 +30,6 @@ JacobianStyle(::Type{<:Tile}) = DefaultJac()
 const HeatOnlyTile = Tile{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:StratComponent{<:SubSurface, <:CoupledProcesses{<:Tuple{<:Heat}}},TBot}}}}} where {N,TTop,TBot}
 JacobianStyle(::Type{<:HeatOnlyTile}) = TridiagJac()
 
-# CFL conditions
-"""
-    cfl(::Type{<:SubSurfaceProcess})
-    cfl!(::Type{<:SubSurfaceProcess})
-
-Returns a function of the form (Δx, args...) -> Δt (or in-place, (Δt, Δx, args...) -> Δt)
-which comptues the CFL condition with process-specific parameters `args`.
-"""
-cfl(::Type{<:SubSurfaceProcess}) = error("not implemented")
-cfl(::Type{<:Heat}) = (Δx, dHdT, kc) -> Utils.adstrip(Δx^2 * dHdT / kc)
-cfl!(::Type{T}) where {T<:SubSurfaceProcess} = (Δt, Δx, dHdT, kc) -> @. Δt = cfl(T)(Δx, dHdT, kc)
-
 # DiffEq/SciML driver (possibly should be a soft dependency with Requires.jl)
 include("DiffEq/DiffEq.jl")
 @reexport using .DiffEq

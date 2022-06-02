@@ -12,32 +12,32 @@ lack a definition of `interact!` should be automatically omitted by the compiler
 @generated function interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
     expr = Expr(:block)
     for i in 1:length(P1.parameters)
-        @>> quote
+        quote
         interact!(l1,ps1[$i],l2,ps2,s1,s2)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     for i in 1:length(P2.parameters)
-        @>> quote
+        quote
         interact!(l1,ps1,l2,ps2[$i],s1,s2)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
 @generated function interact!(l1::Layer, p1::Process, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P2}
     expr = Expr(:block)
     for i in 1:length(P2.parameters)
-        @>> quote
+        quote
         interact!(l1,p1,l2,ps2[$i],s1,s2)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
 @generated function interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, p2::Process, s1, s2) where {P1}
     expr = Expr(:block)
     for i in 1:length(P1.parameters)
-        @>> quote
+        quote
         interact!(l1,ps1[$i],l2,p2,s1,s2)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
@@ -49,9 +49,9 @@ Default implementation of `diagnosticstep!` for coupled process types. Calls eac
 @generated function diagnosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         diagnosticstep!(l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
@@ -63,9 +63,9 @@ Default implementation of `prognosticstep!` for coupled process types. Calls eac
 @generated function prognosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         prognosticstep!(l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
@@ -77,18 +77,18 @@ Default implementation of `initialcondition!` for coupled process types. Calls e
 @generated function initialcondition!(ps::CoupledProcesses{P}, state) where {P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         initialcondition!(ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
 @generated function initialcondition!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         initialcondition!(l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
@@ -103,9 +103,9 @@ Default implementation of `initialcondition!` for coupled process types. Calls e
     crossprocesses = [(i,j) for (i,p1) in enumerate(p1types) for (j,p2) in enumerate(p2types)]
     expr = Expr(:block)
     for (i,j) in crossprocesses
-        @>> quote
+        quote
         initialcondition!(l1,ps1[$i],l2,ps2[$j],s1,s2)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
@@ -113,9 +113,9 @@ end
     expr = Expr(:block)
     push!(expr.args, :(value = 1.0))
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         value *= criterion(ev,l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     push!(expr.args, :(return value))
     return expr
@@ -124,9 +124,9 @@ end
     expr = Expr(:block)
     push!(expr.args, :(value = true))
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         value *= criterion(ev,l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     push!(expr.args, :(return value))
     return expr
@@ -134,18 +134,18 @@ end
 @generated function trigger!(ev::Event, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         trigger!(ev,l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
 @generated function trigger!(ev::ContinuousEvent, tr::ContinuousTrigger, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         trigger!(ev,tr,l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end
@@ -158,9 +158,9 @@ Default implementation of `timestep` for coupled process types. Calls each proce
     expr = Expr(:block)
     push!(expr.args, :(dtmax = Inf))
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         dtmax = min(dtmax, timestep(l,ps[$i],state))
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     push!(expr.args, :(return dtmax))
     return expr
@@ -173,9 +173,9 @@ Default implementation of `observe` for coupled process types. Calls each proces
 @generated function observe(val::Val{name}, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
     expr = Expr(:block)
     for i in 1:length(P.parameters)
-        @>> quote
+        quote
         observe(val,l,ps[$i],state)
-        end push!(expr.args)
+        end |> Base.Fix1(push!, expr.args)
     end
     return expr
 end

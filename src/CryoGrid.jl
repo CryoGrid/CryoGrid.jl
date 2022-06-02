@@ -14,7 +14,7 @@ export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 include("types.jl")
-export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
+export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, trigger!, observe
 include("methods.jl")
 

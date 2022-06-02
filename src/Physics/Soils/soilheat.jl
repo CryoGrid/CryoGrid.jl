@@ -23,6 +23,7 @@ Initial condition for heat conduction (all state configurations) on soil layer w
 """
 function CryoGrid.initialcondition!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
     HeatConduction.initialcondition!(soil, heat, freezecurve(heat), state)
+    CryoGrid.diagnosticstep!(soil, heat, state)
 end
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ free water freeze curve.
