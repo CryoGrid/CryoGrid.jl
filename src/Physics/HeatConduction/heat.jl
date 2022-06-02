@@ -120,7 +120,7 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
-    Diagnostic(:dθdT, OnGrid(Cells)),
+    Diagnostic(:dθdT, OnGrid(Cells), domain=0..Inf),
     heatvariables(heat)...,
 )
 """
@@ -129,11 +129,11 @@ Common variable definitions for all heat implementations.
 heatvariables(::Heat) = (
     Diagnostic(:dH_upper, Scalar, u"J/K/m^2"),
     Diagnostic(:dH_lower, Scalar, u"J/K/m^2"),
-    Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3"),
+    Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
     Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
-    Diagnostic(:θw, OnGrid(Cells)),
+    Diagnostic(:θw, OnGrid(Cells), domain=0..1),
 )
 """
     heatconduction!(∂H,T,ΔT,k,Δk)

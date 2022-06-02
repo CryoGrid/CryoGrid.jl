@@ -11,6 +11,7 @@ using CryoGrid.Utils
 using Base: @propagate_inbounds, @kwdef
 using IfElse
 using Interpolations: Interpolations
+using IntervalSets
 using ForwardDiff
 using ModelParameters
 using Unitful
@@ -102,10 +103,10 @@ organic(::Heterogeneous, soil::Soil, state) = state.θo
 CryoGrid.variables(soil::Soil) = CryoGrid.variables(SoilComposition(soil), soil)
 CryoGrid.variables(::Homogeneous, ::Soil) = ()
 CryoGrid.variables(::Heterogeneous, ::Soil) = (
-    Diagnostic(:θwi, Float64, OnGrid(Cells)),
-    Diagnostic(:θp, Float64, OnGrid(Cells)),
-    Diagnostic(:θm, Float64, OnGrid(Cells)),
-    Diagnostic(:θo, Float64, OnGrid(Cells)),
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θp, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θm, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θo, OnGrid(Cells), domain=0..1),
 )
 
 CryoGrid.initialcondition!(soil::Soil, state) = CryoGrid.initialcondition!(SoilComposition(soil), soil, state)

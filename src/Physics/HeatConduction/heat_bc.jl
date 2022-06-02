@@ -24,8 +24,8 @@ function CryoGrid.diagnosticstep!(::Top, bc::TemperatureGradient, state)
 end
 
 Base.@kwdef struct NFactor{W,S} <: BoundaryEffect
-    nf::W = Param(1.0, bounds=(0.0,1.0)) # applied when Tair <= 0
-    nt::S = Param(1.0, bounds=(0.0,1.0)) # applied when Tair > 0
+    nf::W = Param(1.0, domain=0..1) # applied when Tair <= 0
+    nt::S = Param(1.0, domain=0..1) # applied when Tair > 0
 end
 CryoGrid.variables(::Top, bc::TemperatureGradient{<:NFactor}) = (
     Diagnostic(:T_ub, Scalar, u"K"),

@@ -89,9 +89,9 @@ end
 # ==== Dynamic bulk snow scheme ==== #
 
 CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
-    Prognostic(:swe, Scalar, u"m"),
-    Diagnostic(:ρsn, Scalar, u"kg/m^3"),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3"), 
+    Prognostic(:swe, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
+    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1), 
     snowvariables(snow, smb)...,
 )
 function CryoGrid.diagnosticstep!(
@@ -164,9 +164,9 @@ end
 
 # Snow mass balance
 CryoGrid.variables(snow::BulkSnowpack, smb::PrescribedSnowMassBalance) = (
-    Diagnostic(:swe, Scalar, u"m"),
-    Diagnostic(:ρsn, Scalar, u"kg/m^3"),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3"),
+    Diagnostic(:swe, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
+    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1),
     snowvariables(snow, smb)...,
 )
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:PrescribedSnowMassBalance,<:Heat}) = (

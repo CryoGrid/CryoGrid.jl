@@ -17,11 +17,8 @@ using Interpolations
 using IntervalSets
 using LinearAlgebra
 using LoopVectorization
-using RuntimeGeneratedFunctions
 using Unitful
 using StructTypes
-
-RuntimeGeneratedFunctions.init(@__MODULE__)
 
 export GridSpec, Edges, Cells
 export Profile, ProfileKnot
@@ -68,7 +65,7 @@ export Grid, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
 
 export Var, Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
-export varname, vartype, vardims, varunits, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
+export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
 export VarStates, DiffCache, retrieve, getvar, getvars

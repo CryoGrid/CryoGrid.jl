@@ -51,7 +51,7 @@ Dall'Amico M, 2010. Coupled water and heat transfer in permafrost modeling. Ph.D
 """
 Base.@kwdef struct DallAmico{T,Θ,G,Tvg<:VanGenuchten} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
-    θres::Θ = Param(0.0, bounds=(0,1))
+    θres::Θ = Param(0.0, domain=0..1)
     g::G = 9.80665u"m/s^2" # acceleration due to gravity
     swrc::Tvg = VanGenuchten()
 end
@@ -87,8 +87,8 @@ McKenzie JM, Voss CI, Siegel DI, 2007. Groundwater flow with energy transport an
 """
 Base.@kwdef struct McKenzie{T,Θ,Γ} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
-    θres::Θ = Param(0.0, bounds=(0,1))
-    γ::Γ = Param(0.1, bounds=(eps(),Inf), units=u"K")
+    θres::Θ = Param(0.0, domain=0..1)
+    γ::Γ = Param(0.1, domain=0..Inf, units=u"K")
 end
 sfccargs(f::McKenzie, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
@@ -114,8 +114,8 @@ Westermann, S., Boike, J., Langer, M., Schuler, T. V., and Etzelmüller, B.: Mod
 """
 Base.@kwdef struct Westermann{T,Θ,Δ} <: SFCCFunction
     Tₘ::T = Param(0.0, units=u"°C")
-    θres::Θ = Param(0.0, bounds=(0,1))
-    δ::Δ = Param(0.1, bounds=(eps(),Inf), units=u"K")
+    θres::Θ = Param(0.0, domain=0..1)
+    δ::Δ = Param(0.1, domain=0..Inf, units=u"K")
 end
 sfccargs(f::Westermann, soil::Soil, heat::Heat, state) = (
     porosity(soil, state), # θ saturated = porosity
