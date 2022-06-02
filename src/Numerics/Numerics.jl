@@ -52,10 +52,6 @@ struct Profile{N,TKnots}
     Profile(pairs::Tuple{Vararg{<:Pair}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
     Profile(pairs::Pair...) = Profile(pairs)
 end
-Flatten.flattenable(::Type{<:ProfileKnot}, ::Type{Val{:depth}}) = false
-Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:Number} = false
-Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:depth}}) where {D<:ModelParameters.Param,T} = true
-Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:ModelParameters.Param} = true
 Base.length(::Profile{N}) where N = N
 Base.iterate(profile::Profile) = iterate(profile.knots)
 Base.iterate(profile::Profile, state) = iterate(profile.knots, state)

@@ -369,14 +369,16 @@ end
 Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
 Subsequently evaluates and replaces all nested `DynamicParameterization`s.
 """
-function updateparams(tile::Tile, u, p, t)
-    tile_updated = Flatten.reconstruct(tile, p, ModelParameters.AbstractParam, Flatten.IGNORE)
-    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
+function updateparams(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
+    # unfortunately, reconstruct causes allocations due to a mystern dynamic dispatch when returning the result of _reconstruct;
+    # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct directly soooo....
+    tile_updated = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, Union{TGrid,TStates,StateHistory},1)[1]
+    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory})
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
     # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
     dynamic_values = map(d -> d(u, t), dynamic_ps)
-    return Flatten.reconstruct(tile_updated, dynamic_values, DynamicParameterization, Flatten.IGNORE)
+    return Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory},1)[1]
 end
 """
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.

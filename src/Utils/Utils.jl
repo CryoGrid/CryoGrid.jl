@@ -205,8 +205,11 @@ Additional override for `stripunits` which reconstructs `obj` with all fields th
 types converted to base SI units and then stripped to be unit free.
 """
 function ModelParameters.stripunits(obj)
+    # special case: make sure temperatures are in °C
+    normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)
+    normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
     values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
-    return Flatten.reconstruct(obj, map(ustrip ∘ upreferred, values), Unitful.AbstractQuantity, Flatten.IGNORE)
+    return Flatten.reconstruct(obj, map(ustrip ∘ normalize_units, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end
 
 end

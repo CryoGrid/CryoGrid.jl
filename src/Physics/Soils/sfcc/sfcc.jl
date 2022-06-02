@@ -17,9 +17,9 @@ Generic representation of the soil freeze characteristic curve. The shape and pa
 of the curve are determined by the implementation of SFCCFunction `f`. Also requires
 an implementation of SFCCSolver which provides the solution to the non-linear mapping H <--> T.
 """
-@flattenable struct SFCC{F,S} <: FreezeCurve
-    f::F | true # freeze curve function f: (T,...) -> θ
-    solver::S | true # solver for H -> T or T -> H
+struct SFCC{F,S} <: FreezeCurve
+    f::F # freeze curve function f: (T,...) -> θ
+    solver::S # solver for H -> T or T -> H
     SFCC(f::F, s::S=SFCCPreSolver()) where {F<:SFCCFunction,S<:SFCCSolver} = new{F,S}(f,s)
 end
 

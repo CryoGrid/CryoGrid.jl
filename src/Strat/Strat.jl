@@ -11,7 +11,6 @@ using CryoGrid.Physics
 using CryoGrid.Utils
 
 using ComponentArrays
-using ConstructionBase
 using DataStructures: OrderedDict
 using Dates
 using DimensionalData
@@ -26,6 +25,7 @@ using Setfield
 @reexport using ModelParameters
 @reexport using SimulationLogs
 
+import ConstructionBase
 import Flatten
 import ModelParameters: update
 
