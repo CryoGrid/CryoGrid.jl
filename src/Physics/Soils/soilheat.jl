@@ -29,7 +29,7 @@ end
 Initial condition for heat conduction (all state configurations) on soil layer w/ free water freeze curve.
 """
 function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
-    L = heat.L
+    L = heat.prop.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
         θwi = waterice(soil, heat, state, i)
@@ -48,7 +48,7 @@ For heat conduction with temperature, we can simply evaluate the freeze curve to
 """
 function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
     sfcc = freezecurve(heat)
-    @inbounds @fastmath let L = heat.L,
+    @inbounds @fastmath let L = heat.prop.L,
         f = sfcc.f,
         f_args = sfccargs(f,soil,heat,state),
         f_res = ForwardDiff.DiffResult(zero(eltype(state.T)), zero(eltype(state.T)));
@@ -79,7 +79,7 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSo
             state.θw[i] = f(T, f_argsᵢ...)
             dθdT = ForwardDiff.derivative(T -> f(T, f_argsᵢ...), T)
             let H = state.H[i],
-                L = heat.L,
+                L = heat.prop.L,
                 cw = heat.prop.cw,
                 ci = heat.prop.ci,
                 θw = state.θw[i],
@@ -99,8 +99,8 @@ function HeatConduction.freezethaw!(soil::Soil{<:HomogeneousCharacteristicFracti
         H = state.H[i]
         state.θw[i] = θw = f(H)
         state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-        state.T[i] = T = enthalpyinv(H, C, heat.L, θw)
+        state.T[i] = T = enthalpyinv(H, C, heat.prop.L, θw)
         dθdTᵢ = ∇f(state.H[i])
-        state.dHdT[i] = C + dθdTᵢ*(heat.L + T*(heat.prop.cw - heat.prop.ci))
+        state.dHdT[i] = C + dθdTᵢ*(heat.prop.L + T*(heat.prop.cw - heat.prop.ci))
     end
 end

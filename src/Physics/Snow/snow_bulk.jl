@@ -112,7 +112,7 @@ function CryoGrid.diagnosticstep!(
     # but capping the liquid fraction according to the 'max_unfrozen' parameter.
     max_unfrozen = ablation(smb).max_unfrozen
     θwi_cap = θwi*max_unfrozen
-    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), heat.L, θwi_cap)
+    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), heat.prop.L, θwi_cap)
     # do not allow temperature to exceed 0°C
     @. state.T = min(T, zero(T))
     @. state.θw = θw

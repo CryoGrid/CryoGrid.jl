@@ -32,7 +32,7 @@ using Test
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
             heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
-            L = heat.L
+            L = heat.prop.L
             @testset "Left tail" begin
                 T = [-5.0]
                 θw = f.(T,θp,θwi,θres,Tₘ,γ) # set liquid water content according to freeze curve
@@ -98,7 +98,7 @@ using Test
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
             heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
-            L = heat.L
+            L = heat.prop.L
             @testset "Left tail" begin
                 T = [-5.0]
                 θw = f.(T,θp,θwi,θres,Tₘ,δ) # set liquid water content according to freeze curve
@@ -165,7 +165,7 @@ using Test
             sfcc = SFCC(f, SFCCNewtonSolver(abstol=abstol, reltol=reltol))
             heat = @pstrip Heat(freezecurve=sfcc)
             heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
-            L = heat.L
+            L = heat.prop.L
             Lf = heat.prop.Lf
             @testset "Left tail" begin
                 T = [-5.0]
@@ -218,7 +218,7 @@ using Test
         sfcc = SFCC(f, SFCCNewtonSolver())
         heat = @pstrip Heat(freezecurve=sfcc)
         heatcap = θw -> heatcapacity(soil, heat, θw, θwi - θw, 1-θwi-θm-θo, θm, θo)
-        L = heat.L
+        L = heat.prop.L
         T = [-0.1]
         θw = f.(T,θp,θwi,θres,Tₘ,γ) # set liquid water content according to freeze curve
         C = heatcap.(θw)

@@ -14,7 +14,7 @@ function benchmarksfcc()
     sfcc = SFCC(f, solver)
     soil = Soil() |> stripparams |> stripunits
     heat = Heat(freezecurve=sfcc) |> stripparams |> stripunits
-    L = heat.L
+    L = heat.prop.L
     Lf = heat.prop.Lf
     # set up multi-grid-cell state vars
     T = [-5.0 for i in 1:10]

@@ -47,26 +47,28 @@ ThermalProperties(
     consts=Physics.Constants();
     ρw = consts.ρw,
     Lf = consts.Lf,
+    L = consts.ρw*consts.Lf,
     kw = Param(0.57, units=u"W/m/K"), # thermal conductivity of water [Hillel(1982)]
     ki = Param(2.2, units=u"W/m/K"), # thermal conductivity of ice [Hillel(1982)]
     ka = Param(0.025, units=u"W/m/K"), # air [Hillel(1982)]
     cw = Param(4.2e6, units=u"J/K/m^3"), # heat capacity of water
     ci = Param(1.9e6, units=u"J/K/m^3"), # heat capacity of ice
     ca = Param(0.00125e6, units=u"J/K/m^3"), # heat capacity of air
-) = (; ρw, Lf, kw, ki, ka, cw, ci, ca)
+) = (; ρw, Lf, L, kw, ki, ka, cw, ci, ca)
 
-@kwdef struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp,TL} <: SubSurfaceProcess
-    para::TPara = Enthalpy()
-    prop::TProp = ThermalProperties()
-    L::TL = prop.ρw*prop.Lf # [J/m^3] (specific latent heat of fusion of water)
-    freezecurve::Tfc = FreeWater() # freeze curve, defautls to free water fc
-    dtlim::Tdt = CFL()
-    init::Tinit = nothing # optional initialization scheme
+struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp} <: SubSurfaceProcess
+    para::TPara
+    prop::TProp
+    freezecurve::Tfc
+    dtlim::Tdt  # timestep limiter
+    init::Tinit # optional initialization scheme
 end
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol; kwargs...) = Heat(Val{var}(); kwargs...)
-Heat(::Val{:H}; kwargs...) = Heat(;para=Enthalpy(), kwargs...)
-Heat(::Val{:T}; kwargs...) = Heat(;para=Temperature(), kwargs...)
+Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
+Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
+Heat(para::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(para, prop, freezecurve, dtlim, init)
+Heat(para::Temperature; freezecurve, prop=ThermalProperties(), dtlim=CFL(), init=nothing) = Heat(para, prop, freezecurve, dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop

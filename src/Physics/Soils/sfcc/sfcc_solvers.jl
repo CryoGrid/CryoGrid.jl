@@ -16,7 +16,7 @@ Base.@kwdef struct SFCCNewtonSolver <: SFCCSolver
 end
 # Helper function for updating θw, C, and the residual.
 @inline function sfccresidual(soil::Soil, heat::Heat, f::F, f_args::Fargs, f_hc, T, H) where {F,Fargs}
-    L = heat.L
+    L = heat.prop.L
     θw = f(T, f_args...)
     C = f_hc(θw)
     Tres = T - (H - θw*L) / C
@@ -30,7 +30,7 @@ end
 using ForwardDiff
 function sfccsolve(solver::SFCCNewtonSolver, soil::Soil, heat::Heat, f::F, f_args, f_hc, H, T₀) where {F}
     T = T₀
-    L = heat.L
+    L = heat.prop.L
     cw = heat.prop.cw # heat capacity of liquid water
     ci = heat.prop.ci # heat capacity of ice
     α₀ = solver.α₀
@@ -135,7 +135,7 @@ function _build_interpolant(Hs, θs)
     )
 end
 function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat, sfcc::SFCC{F,<:SFCCPreSolver}, state) where {F}
-    L = heat.L
+    L = heat.prop.L
     args = sfccargs(sfcc.f, soil, heat, state)
     state.θw .= sfcc.f.(state.T, args...)
     heatcapacity!(soil, heat, state)
@@ -150,7 +150,7 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFracti
         θm = mineral(soil, state),
         θo = organic(soil, state),
         θa = 1-θm-θo-θtot,
-        L = heat.L,
+        L = heat.prop.L,
         Tmin = sfcc.solver.Tmin,
         Tmax = 0.0,
         θ(T) = sfcc.f(T, θsat, θtot, tail_args...),

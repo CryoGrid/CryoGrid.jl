@@ -27,7 +27,7 @@ end
 CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(CryoGrid.variables(soil, heat, sfcc.f), CryoGrid.variables(soil, heat, sfcc.solver))
 # Default SFCC initialization
 function CryoGrid.initialcondition!(soil::Soil, heat::Heat, sfcc::SFCC, state)
-    L = heat.L
+    L = heat.prop.L
     state.θw .= sfcc.f.(state.T, sfccargs(sfcc.f, soil, heat, state)...)
     heatcapacity!(soil, heat, state)
     @. state.H = enthalpy(state.T, state.C, L, state.θw)

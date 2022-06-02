@@ -284,13 +284,13 @@ end
     end
 end
 """
-    timestep(::SubSurface, ::Heat{<:SFCC,TPara,CFL}, state) where {TPara}
+    timestep(::SubSurface, ::Heat{Tfc,TPara,CFL}, state) where {TPara}
 
 Implementation of `timestep` for `Heat` using the Courant-Fredrichs-Lewy condition
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `dHdT / kc`.
 """
-@inline function CryoGrid.timestep(::SubSurface, heat::Heat{<:SFCC,TPara,CFL}, state) where {TPara}
+@inline function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TPara,CFL}, state) where {Tfc,TPara}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in 1:length(Δx)
@@ -306,7 +306,7 @@ end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
     f_hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
-    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], heat.L, f_hc.θwi)
+    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], heat.prop.L, f_hc.θwi)
 end
 @inline function enthalpyinv(::FreeWater, f_hc::Function, H, L, θtot)
     let θtot = max(1e-8, θtot),
@@ -333,7 +333,7 @@ total water content (θwi), and liquid water content (θw).
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)
         # set dHdT (a.k.a dHdT)
-        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e8 : 1/state.C[i]
+        state.dHdT[i] = state.T[i] ≈ 0.0 ? 1e6 : 1/state.C[i]
     end
     return nothing
 end
