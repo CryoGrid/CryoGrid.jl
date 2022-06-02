@@ -35,6 +35,8 @@ Defines the diagnostic update for a Process on a given Layer.
 """
 diagnosticstep!(l::Layer, p::Process, state) = nothing
 diagnosticstep!(l::Layer, state) = nothing
+diagnosticstep!(::Top, ::BoundaryProcess, state) = nothing
+diagnosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
 """
     prognosticstep!(l::Layer, p::Process, state)
 
@@ -42,6 +44,8 @@ Defines the prognostic update for a Process on a given layer. Note that an insta
 for all non-boundary (subsurface) processes/layers.
 """
 prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined for $(typeof(l)) with $(typeof(p))")
+prognosticstep!(::Top, ::BoundaryProcess, state) = nothing
+prognosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
 """
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
@@ -50,6 +54,14 @@ follows decreasing depth, i.e. the first layer/process is always on top of the s
 and separate dispatches must be provided for interactions in reverse order.
 """
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+"""
+    timestep(::Layer, ::Process, state)
+
+Retrieves the maximum permissible timestep for the given `Process` defined on the given `Layer`.
+The default implementation returns `Inf` which indicates no maximum timestep is required. The
+actual chosen timestep will depend on the integrator being used and other user configuration options.
+"""
+timestep(::Layer, ::Process, state) = Inf
 """
     observe(::Val{name}, ::Layer, ::Process, state1)
 

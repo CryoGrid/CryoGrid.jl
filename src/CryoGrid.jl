@@ -34,6 +34,9 @@ include("Strat/Strat.jl")
 include("Diagnostics/Diagnostics.jl")
 @reexport using .Diagnostics
 
+# Coupling
+include("coupling.jl")
+
 # Re-exported packages
 @reexport using Dates: Dates, DateTime
 @reexport using DimensionalData

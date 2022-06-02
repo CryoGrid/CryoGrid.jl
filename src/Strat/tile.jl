@@ -144,12 +144,14 @@ end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 """
+    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
+
 Generated step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
-in sequence, i.e for each layer 1 < i < N:
+in sequence, i.e for each layer 1 <= i <= N:
 
 diagnosticstep!(layer i, ...)
-interact!(layer i-1, ...)
+interact!(layer i, ..., layer i+1, ...)
 prognosticstep!(layer i, ...)
 
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
@@ -308,6 +310,45 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
     end push!(expr.args)
     return expr
 end
+@generated function timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+    nodetyps = componenttypes(TStrat)
+    N = length(nodetyps)
+    expr = Expr(:block)
+    # Declare variables
+    quote
+    _du .= zero(eltype(_du))
+    du = ComponentArray(_du, getaxes(_tile.state.uproto))
+    u = ComponentArray(_u, getaxes(_tile.state.uproto))
+    tile = updateparams(_tile, u, p, t)
+    strat = tile.strat
+    state = TileState(tile.state, boundaries(strat), u, du, t, Val{iip}())
+    end |> Base.Fix1(push!, expr.args)
+    # Generate identifiers for each component
+    names = map(i -> componentname(nodetyps[i]), 1:N)
+    comps = map(n -> Symbol(n,:comp), names)
+    states = map(n -> Symbol(n,:state), names)
+    layers = map(n -> Symbol(n,:layer), names)
+    procs = map(n -> Symbol(n,:process), names)
+    # Initialize variables for all layers
+    for i in 1:N
+        quote
+        $(states[i]) = state.$(names[i])
+        $(comps[i]) = components(strat)[$i]
+        $(layers[i]) = $(comps[i]).layer
+        $(procs[i]) = $(comps[i]).processes
+        end |> Base.Fix1(push!, expr.args)
+    end
+    push!(expr.args, :(dtmax = Inf))
+    # Retrieve minimum timesteps
+    for i in 1:N
+        quote
+        dtmax = min(dtmax, timestep($(layers[i]), $(procs[i]), $(states[i])))
+        end |> Base.Fix1(push!, expr.args)
+    end
+    push!(expr.args, :(return dtmax))
+    # emit generated expression block
+    return expr
+end
 """
     getvar(name::Symbol, tile::Tile, u)
     getvar(::Val{name}, tile::Tile, u)
@@ -370,7 +411,7 @@ Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possib
 Subsequently evaluates and replaces all nested `DynamicParameterization`s.
 """
 function updateparams(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
-    # unfortunately, reconstruct causes allocations due to a mystern dynamic dispatch when returning the result of _reconstruct;
+    # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct directly soooo....
     tile_updated = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, Union{TGrid,TStates,StateHistory},1)[1]
     dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory})

@@ -1,7 +1,6 @@
 module Physics
 
-using CryoGrid: Process, SubSurfaceProcess, CoupledProcesses, BoundaryProcess, Coupled, Layer, Top, Bottom, SubSurface
-using CryoGrid: Event, DiscreteEvent, ContinuousEvent, ContinuousTrigger
+using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
@@ -14,7 +13,6 @@ using Unitful
 export volumetricfractions, waterice, liquidwater, partial
 
 include("common.jl")
-include("coupled.jl")
 include("Boundaries/Boundaries.jl")
 @reexport using .Boundaries
 include("HeatConduction/HeatConduction.jl")
