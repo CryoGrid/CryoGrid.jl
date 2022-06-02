@@ -57,10 +57,8 @@ struct Stratigraphy{N,TComponents,TBoundaries}
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         names = map(componentname, map(last, sub))
         @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
-        boundary(x) = x
-        boundary(x::DistQuantity) = Param(ustrip(u"m", x), units=u"m", bounds=(0.0,Inf), layer=:strat)
-        boundaries = Tuple(map(boundary ∘ first, (top, sub..., bot)))
-        @assert issorted(filter(Base.Fix2(isa, Param), boundaries), by=p -> p.val) "Stratigraphy boundary locations must be in strictly increasing order."
+        boundaries = Tuple(map(first, (top, sub..., bot)))
+        @assert issorted(boundaries) "Stratigraphy boundary locations must be in strictly increasing order."
         # get components
         components = Tuple(map(last, (top, sub..., bot)))
         # construct type
