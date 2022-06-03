@@ -28,6 +28,13 @@ Abstract base type for all dynamical processes.
 """
 abstract type Process end
 """
+    isless(::Process, ::Process)
+
+Defines an ordering between processes, which can be useful for automatically enforcing
+order constraints when coupling processes together.
+"""
+Base.isless(::Process, ::Process) = false
+"""
     SubSurfaceProcess <: Process
 
 Abstract base type for subsurface processes, i.e. processes that operate at or below the surface,
@@ -51,9 +58,9 @@ of other processes.
 """
 struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
-    CoupledProcesses(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
-    CoupledProcesses(processes::SubSurfaceProcess...) = new{typeof(processes)}(processes)
-    CoupledProcesses(processes::BoundaryProcess...) = new{typeof(processes)}(processes)
+    CoupledProcesses(processes::SubSurfaceProcess...) = CoupledProcesses(processes)
+    CoupledProcesses(processes::BoundaryProcess...) = CoupledProcesses(processes)
+    CoupledProcesses(processes::Tuple{Vararg{Process}}) new{typeof(processes)}(processes)
 end
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)

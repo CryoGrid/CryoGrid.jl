@@ -8,7 +8,15 @@ Represents a single component (layer + processes) in the stratigraphy.
 struct StratComponent{TLayer,TProcesses,name}
     layer::TLayer
     processes::TProcesses
-    StratComponent(name::Symbol, layer::TLayer, processes::TProcesses) where {TLayer<:Layer,TProcesses<:CoupledProcesses} = new{TLayer,TProcesses,name}(layer,processes)
+    function StratComponent(name::Symbol, layer::TLayer, processes::TProcesses; ignore_order=false) where {TLayer<:Layer,TProcesses<:CoupledProcesses}
+        # check coupling order
+        if !issorted(processes.processes) && !ignore_order
+            processes = CoupledProcesses(sort(processes.processes))
+            @warn "The ordering of the given coupled processes is inconsistent with the defined rules and has been automatically corrected: $(map(p -> typeof(p).name.wrapper, processes.processes)).
+            If this was on purpose, you can override the defined ordering and suppress this warning with `ignore_order=true` or define `isless` on your process types to explicitly declare the intended ordering."
+        end
+        new{TLayer,TProcesses,name}(layer,processes)
+    end
 end
 ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcesses,name}}) where {TLayer,TProcesses,name} = (layer,processes) -> StratComponent(name, layer, processes)
 """
@@ -21,11 +29,11 @@ componentnameval(::StratComponent{L,P,name}) where {L,P,name} = Val{name}
 Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
-top(bcs::BoundaryProcess...) = StratComponent(:top, Top(), CoupledProcesses(bcs...))
-bottom(bcs::BoundaryProcess...) = StratComponent(:bottom, Bottom(), CoupledProcesses(bcs...))
-function subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...)
+top(bcs::BoundaryProcess...; ignore_order=false) = StratComponent(:top, Top(), CoupledProcesses(bcs...); ignore_order)
+bottom(bcs::BoundaryProcess...; ignore_order=false) = StratComponent(:bottom, Bottom(), CoupledProcesses(bcs...); ignore_order)
+function subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...; ignore_order=false)
     @assert name ∉ RESERVED_COMPONENT_NAMES "layer identifier $name is reserved"
-    return StratComponent(name, sub, CoupledProcesses(processes...))
+    return StratComponent(name, sub, CoupledProcesses(processes...); ignore_order)
 end
 
 """
