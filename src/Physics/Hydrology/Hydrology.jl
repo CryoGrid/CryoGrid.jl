@@ -1,8 +1,9 @@
 module Hydrology
 
-import CryoGrid: BoundaryStyle, diagnosticstep!, prognosticstep!, interact!, initialcondition!, variables
+import CryoGrid
 
-using ..Physics
+using CryoGrid
+using CryoGrid.Physics
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!
 
@@ -10,10 +11,14 @@ using IfElse
 using ModelParameters
 using Unitful
 
-export SWRC, VanGenuchten
+abstract type WaterFlowParameterization end
 
-include("swrc.jl")
+Base.@kwdef struct WaterFlow{TPara<:WaterFlowParameterization,Tinit,TProp} <: CryoGrid.SubSurfaceProcess
+    para::TPara = BucketScheme()
+    prop::TProp = HydrologicalProperties()
+    init::Tinit = nothing # optional initialization scheme
+end
 
-# TODO: implement water fluxes
+include("water_bucket.jl")
 
 end

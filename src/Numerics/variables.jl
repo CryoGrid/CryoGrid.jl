@@ -12,62 +12,64 @@ dimlength(::Shape{dims}, grid::Grid) where dims = prod(dims)
 dimlength(d::OnGrid{Cells}, grid::Grid) = d.f(length(cells(grid)))
 dimlength(d::OnGrid{Edges}, grid::Grid) = d.f(length(edges(grid)))
 
-abstract type Var{name,S<:VarDim,T,units} end
+abstract type Var{name,S<:VarDim,T,units,domain} end
 """
-    Prognostic{name,S,T,units} <: Var{name,S,T,units}
+    Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 
 Defines a prognostic (time-integrated) state variable.
 """
-struct Prognostic{name,S,T,units} <: Var{name,S,T,units}
+struct Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
-    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{name,typeof(dims),T,units}(dims)
-    Prognostic(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
+    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{name,typeof(dims),T,units,domain}(dims)
+    Prognostic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
 """
-    Algebraic{name,S,T,units} <: Var{name,S,T,units}
+    Algebraic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 
 Defines an algebraic (implicit) state variable.
 """
-struct Algebraic{name,S,T,units} <: Var{name,S,T,units}
+struct Algebraic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
     # maybe a mass matrix init function?
-    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{name,typeof(dims),T,units}(dims)
-    Algebraic(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
+    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{name,typeof(dims),T,units,domain}(dims)
+    Algebraic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
 """
-    Delta{dname,name,S,T,units} <: Var{dname,S,T,units}
+    Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
 
 Defines a "delta" term `du` for variable `u`, which is the time-derivative or flux for prognostic variables and
 the residual for algebraic variables.
 """
-struct Delta{dname,name,S,T,units} <: Var{dname,S,T,units}
+struct Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     dim::S
-    Delta(::Symbol, dims::OnGrid, args...) where {T} = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
-    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64) where {T} = new{dname,name,typeof(dims),T,units}(dims)
-    Delta(var::Prognostic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,upreferred(units)/u"s"}(dims) end
-    Delta(var::Algebraic{name,S,T,units}) where {name,S,T,units} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units}(dims) end
+    Delta(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
+    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{dname,name,typeof(dims),T,units,domain}(dims)
+    Delta(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
+    Delta(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units,domain}(dims) end
 end
 """
-    Diagnostic{name,S,T,units} <: Var{name,S,T,units}
+    Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 
 Defines a diagnostic variable which is allocated and cached per timestep but not integrated over time.
 """
-struct Diagnostic{name,S,T,units} <: Var{name,S,T,units}
+struct Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
-    Diagnostic(name::Symbol, dims::VarDim, units=NoUnits, ::Type{T}=Float64) where {T} = new{name,typeof(dims),T,units}(dims)
+    Diagnostic(name::Symbol, dims::VarDim, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{name,typeof(dims),T,units,domain}(dims)
 end
 # constructors for Flatten.reconstruct
-ConstructionBase.constructorof(::Type{Prognostic{name,S,T,units}}) where {name,S,T,units} = s -> Prognostic(name, s, T, units)
-ConstructionBase.constructorof(::Type{Diagnostic{name,S,T,units}}) where {name,S,T,units} = s -> Diagnostic(name, s, T, units)
-ConstructionBase.constructorof(::Type{Algebraic{name,S,T,units}}) where {name,S,T,units} = s -> Algebraic(name, s, T, units)
-ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units}}) where {dname,name,S,T,units} = s -> Delta(dname, name, s, T, units)
-==(var1::Var{N1,S1,T1,u1},var2::Var{N2,S2,T2,u2}) where {N1,N2,S1,S2,T1,T2,u1,u2} = (N1==N2) && (S1==S2) && (T1==T2) && (u1 == u2)
+ConstructionBase.constructorof(::Type{Prognostic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Prognostic(name, s, units, T; domain)
+ConstructionBase.constructorof(::Type{Diagnostic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Diagnostic(name, s, units, T; domain)
+ConstructionBase.constructorof(::Type{Algebraic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Algebraic(name, s, units, T; domain)
+ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units,domain}}) where {dname,name,S,T,units,domain} = s -> Delta(dname, name, s, units, T; domain)
+==(::Var{N1,S1,T1,u1,d1},::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
 vartype(::Var{name,S,T}) where {name,S,T} = T
 vartype(::Type{<:Var{name,S,T}}) where {name,S,T} = T
 varunits(::Var{name,S,T,units}) where {name,S,T,units} = units
 varunits(::Type{<:Var{name,S,T,units}}) where {name,S,T,units} = units
+vardomain(::Var{name,S,T,units,domain}) where {name,S,T,units,domain} = domain
+vardomain(::Type{<:Var{name,S,T,units,domain}}) where {name,S,T,units,domain} = domain
 vardims(var::Var) = var.dim
 isprognostic(::T) where {T<:Var} = T <: Prognostic
 isalgebraic(::T) where {T<:Var} = T <: Algebraic

@@ -17,11 +17,8 @@ using Interpolations
 using IntervalSets
 using LinearAlgebra
 using LoopVectorization
-using RuntimeGeneratedFunctions
 using Unitful
 using StructTypes
-
-RuntimeGeneratedFunctions.init(@__MODULE__)
 
 export GridSpec, Edges, Cells
 export Profile, ProfileKnot
@@ -52,10 +49,6 @@ struct Profile{N,TKnots}
     Profile(pairs::Tuple{Vararg{<:Pair}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
     Profile(pairs::Pair...) = Profile(pairs)
 end
-Flatten.flattenable(::Type{<:ProfileKnot}, ::Type{Val{:depth}}) = false
-Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:Number} = false
-Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:depth}}) where {D<:ModelParameters.Param,T} = true
-Flatten.flattenable(::Type{ProfileKnot{D,T}}, ::Type{Val{:value}}) where {D,T<:ModelParameters.Param} = true
 Base.length(::Profile{N}) where N = N
 Base.iterate(profile::Profile) = iterate(profile.knots)
 Base.iterate(profile::Profile, state) = iterate(profile.knots, state)
@@ -72,7 +65,7 @@ export Grid, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
 
 export Var, Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
-export varname, vartype, vardims, varunits, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
+export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
 export VarStates, DiffCache, retrieve, getvar, getvars

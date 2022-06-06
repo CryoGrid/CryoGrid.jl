@@ -65,13 +65,13 @@ end
 @inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, dt=nothing, ::Val{iip}=Val{inplace}()) where {names,iip}
     layerstates = (
         quote
-            bounds_i = (ustrip(bounds[$i][1]), ustrip(bounds[$i][2]))
+            bounds_i = (bounds[$i][1], bounds[$i][2])
             LayerState(vs, bounds_i, u, du, t, dt, Val{$(QuoteNode(names[i]))}(), Val{iip}())
         end
         for i in 1:length(names)
     )
     quote
-        bounds = boundarypairs(zs, convert(eltype(zs), vs.grid[end]))
+        bounds = boundarypairs(map(ustrip, zs), vs.grid[end])
         return TileState(
             vs.grid,
             NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),

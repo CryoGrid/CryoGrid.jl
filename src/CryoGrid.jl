@@ -14,7 +14,7 @@ export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 include("types.jl")
-export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!
+export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, trigger!, observe
 include("methods.jl")
 
@@ -33,6 +33,9 @@ include("Strat/Strat.jl")
 @reexport using .Strat
 include("Diagnostics/Diagnostics.jl")
 @reexport using .Diagnostics
+
+# Coupling
+include("coupling.jl")
 
 # Re-exported packages
 @reexport using Dates: Dates, DateTime

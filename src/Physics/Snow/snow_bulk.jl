@@ -1,4 +1,13 @@
 """
+    Bulk{Tthresh} <: SnowpackParameterization
+
+Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
+"""
+Base.@kwdef struct Bulk{Tthresh} <: SnowpackParameterization
+    thresh::Tthresh = 0.02u"m" # snow threshold
+end
+
+"""
     BulkSnowpack = Snowpack{<:Bulk}
 
 Type alias for Snowpack with `Bulk` parameterization.
@@ -80,9 +89,9 @@ end
 # ==== Dynamic bulk snow scheme ==== #
 
 CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
-    Prognostic(:swe, Scalar, u"m"),
-    Diagnostic(:ρsn, Scalar, u"kg/m^3"),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3"), 
+    Prognostic(:swe, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
+    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1), 
     snowvariables(snow, smb)...,
 )
 function CryoGrid.diagnosticstep!(
@@ -103,7 +112,7 @@ function CryoGrid.diagnosticstep!(
     # but capping the liquid fraction according to the 'max_unfrozen' parameter.
     max_unfrozen = ablation(smb).max_unfrozen
     θwi_cap = θwi*max_unfrozen
-    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), heat.L, θwi_cap)
+    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), heat.prop.L, θwi_cap)
     # do not allow temperature to exceed 0°C
     @. state.T = min(T, zero(T))
     @. state.θw = θw
@@ -155,9 +164,9 @@ end
 
 # Snow mass balance
 CryoGrid.variables(snow::BulkSnowpack, smb::PrescribedSnowMassBalance) = (
-    Diagnostic(:swe, Scalar, u"m"),
-    Diagnostic(:ρsn, Scalar, u"kg/m^3"),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3"),
+    Diagnostic(:swe, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
+    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1),
     snowvariables(snow, smb)...,
 )
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:PrescribedSnowMassBalance,<:Heat}) = (

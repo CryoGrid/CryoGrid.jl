@@ -1,9 +1,8 @@
 module Strat
 
 import CryoGrid
-import CryoGrid: variables, initialcondition!, prognosticstep!, diagnosticstep!, interact!, observe
 
-using CryoGrid: Layer, Top, Bottom, SubSurface, Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
+using CryoGrid
 using CryoGrid: Parameterization, DynamicParameterization
 using CryoGrid.InputOutput: Forcing, CryoGridParams
 using CryoGrid.Numerics
@@ -11,7 +10,6 @@ using CryoGrid.Physics
 using CryoGrid.Utils
 
 using ComponentArrays
-using ConstructionBase
 using DataStructures: OrderedDict
 using Dates
 using DimensionalData
@@ -26,6 +24,7 @@ using Setfield
 @reexport using ModelParameters
 @reexport using SimulationLogs
 
+import ConstructionBase
 import Flatten
 import ModelParameters: update
 

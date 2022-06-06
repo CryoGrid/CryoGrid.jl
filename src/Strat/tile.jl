@@ -144,12 +144,14 @@ end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 """
+    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
+
 Generated step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
-in sequence, i.e for each layer 1 < i < N:
+in sequence, i.e for each layer 1 <= i <= N:
 
 diagnosticstep!(layer i, ...)
-interact!(layer i-1, ...)
+interact!(layer i, ..., layer i+1, ...)
 prognosticstep!(layer i, ...)
 
 Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
@@ -243,8 +245,8 @@ end
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-@generated function initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), p)
+@generated function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
     nodetyps = componenttypes(TStrat)
     N = length(nodetyps)
     expr = Expr(:block)
@@ -308,6 +310,68 @@ initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args
     end push!(expr.args)
     return expr
 end
+@generated function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+    nodetyps = componenttypes(TStrat)
+    N = length(nodetyps)
+    expr = Expr(:block)
+    # Declare variables
+    quote
+    du = ComponentArray(_du, getaxes(_tile.state.uproto))
+    u = ComponentArray(_u, getaxes(_tile.state.uproto))
+    tile = updateparams(_tile, u, p, t)
+    strat = tile.strat
+    state = TileState(tile.state, boundaries(strat), u, du, t, Val{iip}())
+    end |> Base.Fix1(push!, expr.args)
+    # Generate identifiers for each component
+    names = map(i -> componentname(nodetyps[i]), 1:N)
+    comps = map(n -> Symbol(n,:comp), names)
+    states = map(n -> Symbol(n,:state), names)
+    layers = map(n -> Symbol(n,:layer), names)
+    procs = map(n -> Symbol(n,:process), names)
+    # Initialize variables for all layers
+    for i in 1:N
+        quote
+        $(states[i]) = state.$(names[i])
+        $(comps[i]) = components(strat)[$i]
+        $(layers[i]) = $(comps[i]).layer
+        $(procs[i]) = $(comps[i]).processes
+        end |> Base.Fix1(push!, expr.args)
+    end
+    push!(expr.args, :(dtmax = Inf))
+    # Retrieve minimum timesteps
+    for i in 1:N
+        quote
+        dtmax = min(dtmax, timestep($(layers[i]), $(procs[i]), $(states[i])))
+        end |> Base.Fix1(push!, expr.args)
+    end
+    push!(expr.args, :(return dtmax))
+    # emit generated expression block
+    return expr
+end
+"""
+    domain(tile::Tile)
+
+Returns a function `isoutofdomain(u,p,t)` which checks whether any prognostic variable values
+in `u` are outside of their respective domains. Only variables which have at least one finite
+domain endpoint are checked; variables with unbounded domains are ignored.
+"""
+function domain(tile::Tile)
+    # select only variables which have a finite domain
+    vars = filter(x -> any(map(isfinite, extrema(vardomain(x)))), filter(isprognostic, variables(tile)))
+    function isoutofdomain(_u,p,t)::Bool
+        u = withaxes(_u, tile)
+        for var in vars
+            domain = vardomain(var)
+            uvar = getproperty(u, varname(var))
+            @inbounds for i in 1:length(uvar)
+                if uvar[i] ∉ domain
+                    return true
+                end 
+            end
+        end
+        return false
+    end
+end
 """
     getvar(name::Symbol, tile::Tile, u)
     getvar(::Val{name}, tile::Tile, u)
@@ -343,7 +407,7 @@ end
 
 Returns a tuple of all variables defined in the tile.
 """
-variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
+CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
 """
     parameters(tile::Tile; kwargs...)
 
@@ -369,14 +433,16 @@ end
 Replaces all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
 Subsequently evaluates and replaces all nested `DynamicParameterization`s.
 """
-function updateparams(tile::Tile, u, p, t)
-    tile_updated = Flatten.reconstruct(tile, p, ModelParameters.AbstractParam, Flatten.IGNORE)
-    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Flatten.IGNORE)
+function updateparams(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
+    # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
+    # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct directly soooo....
+    tile_updated = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, Union{TGrid,TStates,StateHistory},1)[1]
+    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory})
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
     # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
     dynamic_values = map(d -> d(u, t), dynamic_ps)
-    return Flatten.reconstruct(tile_updated, dynamic_values, DynamicParameterization, Flatten.IGNORE)
+    return Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory},1)[1]
 end
 """
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.

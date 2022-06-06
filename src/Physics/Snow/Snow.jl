@@ -32,15 +32,6 @@ Base type for snowpack paramterization schemes.
 abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 """
-    Bulk{Tthresh} <: SnowpackParameterization
-
-Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
-"""
-Base.@kwdef struct Bulk{Tthresh} <: SnowpackParameterization
-    thresh::Tthresh = 0.02u"m" # snow threshold
-end
-
-"""
     Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
 
 Generic representation of a ground surface snow pack.
@@ -59,7 +50,7 @@ end
 
 abstract type SnowAccumulationScheme end
 Base.@kwdef struct LinearAccumulation{S} <: SnowAccumulationScheme
-    rate_scale::S = Param(1.0, bounds=(0,Inf)) # scaling factor for snowfall rate
+    rate_scale::S = Param(1.0, domain=0..Inf) # scaling factor for snowfall rate
 end
 
 abstract type SnowDensityScheme end
@@ -95,7 +86,7 @@ const PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{Prescribed{Tswe,T�
 const DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{Dynamic{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
 
 snowvariables(::Snowpack, ::SnowMassBalance) = (
-    Diagnostic(:dsn, Scalar, u"m"),
+    Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
     Diagnostic(:T_ub, Scalar, u"°C"),
 )
 
