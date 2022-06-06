@@ -64,7 +64,7 @@ struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp} <: Sub
     init::Tinit # optional initialization scheme
 end
 # convenience constructors for specifying prognostic variable as symbol
-Heat(var::Symbol; kwargs...) = Heat(Val{var}(); kwargs...)
+Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
 Heat(para::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(para, prop, freezecurve, dtlim, init)
