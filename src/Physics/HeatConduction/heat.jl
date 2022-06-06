@@ -283,6 +283,8 @@ end
         -k*(Tsub-Tlower)/δ
     end
 end
+# CFL not defined for free-water freeze curve
+CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,CFL}, state) = Inf
 """
     timestep(::SubSurface, ::Heat{Tfc,TPara,CFL}, state) where {TPara}
 
