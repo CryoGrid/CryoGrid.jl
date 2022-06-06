@@ -349,6 +349,30 @@ end
     return expr
 end
 """
+    domain(tile::Tile)
+
+Returns a function `isoutofdomain(u,p,t)` which checks whether any prognostic variable values
+in `u` are outside of their respective domains. Only variables which have at least one finite
+domain endpoint are checked; variables with unbounded domains are ignored.
+"""
+function domain(tile::Tile)
+    # select only variables which have a finite domain
+    vars = filter(x -> any(map(isfinite, extrema(vardomain(x)))), filter(isprognostic, variables(tile)))
+    function isoutofdomain(_u,p,t)::Bool
+        u = withaxes(_u, tile)
+        for var in vars
+            domain = vardomain(var)
+            uvar = getproperty(u, varname(var))
+            @inbounds for i in 1:length(uvar)
+                if uvar[i] ∉ domain
+                    return true
+                end 
+            end
+        end
+        return false
+    end
+end
+"""
     getvar(name::Symbol, tile::Tile, u)
     getvar(::Val{name}, tile::Tile, u)
 

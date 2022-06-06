@@ -57,8 +57,8 @@ interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
     timestep(::Layer, ::Process, state)
 
-Retrieves the maximum permissible timestep for the given `Process` defined on the given `Layer`.
-The default implementation returns `Inf` which indicates no maximum timestep is required. The
+Retrieves the recommended timestep for the given `Process` defined on the given `Layer`.
+The default implementation returns `Inf` which indicates no timestep restriction. The
 actual chosen timestep will depend on the integrator being used and other user configuration options.
 """
 timestep(::Layer, ::Process, state) = Inf

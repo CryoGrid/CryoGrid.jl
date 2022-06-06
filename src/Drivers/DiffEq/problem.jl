@@ -23,6 +23,7 @@ function CryoGridProblem(
     safety_factor=0.5,
     max_step=true,
     callback=nothing,
+    isoutofdomain=Strat.domain(tile),
     kwargs...
 )
     # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
@@ -72,7 +73,7 @@ function CryoGridProblem(
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
 	func = odefunction(tile, M, u0, p, tspan; kwargs...)
-	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, kwargs...)
+	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, isoutofdomain, kwargs...)
 end
 """
     CryoGridProblem(setup::Tile, tspan::NTuple{2,DateTime}, args...;kwargs...)

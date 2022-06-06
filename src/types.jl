@@ -60,7 +60,7 @@ struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
     CoupledProcesses(processes::SubSurfaceProcess...) = CoupledProcesses(processes)
     CoupledProcesses(processes::BoundaryProcess...) = CoupledProcesses(processes)
-    CoupledProcesses(processes::Tuple{Vararg{Process}}) new{typeof(processes)}(processes)
+    CoupledProcesses(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
 end
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
