@@ -48,10 +48,10 @@ abstract type SoilParameterization <: Parameterization end
 Represents uniform composition of a soil volume in terms of fractions: excess ice, natural porosity, saturation, and organic solid fraction.
 """
 Base.@kwdef struct CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
-    xic::P1 = 0.0 # excess ice fraction
-    por::P2 = 0.5 # natural porosity
-    sat::P3 = 1.0 # saturation
-    org::P4 = 0.0 # organic fraction of solid; mineral fraction is 1-org
+    xic::P1 = Param(0.0, domain=0..1) # excess ice fraction
+    por::P2 = Param(0.5, domain=0..1) # natural porosity
+    sat::P3 = Param(1.0, domain=0..1) # saturation
+    org::P4 = Param(0.0, domain=0..1) # organic fraction of solid; mineral fraction is 1-org
 end
 # Type alias for CharacteristicFractions with all scalar/numeric constituents
 const HomogeneousCharacteristicFractions = CharacteristicFractions{<:Number,<:Number,<:Number,<:Number}
