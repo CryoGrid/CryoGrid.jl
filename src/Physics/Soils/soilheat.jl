@@ -50,12 +50,11 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, 
     sfcc = freezecurve(heat)
     @inbounds @fastmath let L = heat.prop.L,
         f = sfcc.f,
-        f_args = sfccargs(f,soil,heat,state),
-        f_res = ForwardDiff.DiffResult(zero(eltype(state.T)), zero(eltype(state.T)));
+        f_args = sfccargs(f,soil,heat,state);
         for i in 1:length(state.T)
             T = state.T[i]
             f_argsᵢ = Utils.selectat(i, identity, f_args)
-            θw, dθdT = ∇(T -> f(T, f_args...), T)
+            θw, dθdT = ∇(T -> f(T, f_argsᵢ...), T)
             state.θw[i] = θw
             state.dθdT[i] = dθdT
             state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)

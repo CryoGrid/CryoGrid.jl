@@ -49,7 +49,7 @@ u0, du0 = initialcondition!(model, tspan, p)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 # solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution
-out = @time solve(prob, Euler(), dt=2*60.0, callback=CFLStepLimiter(model), saveat=24*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Euler(), dt=2*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);

@@ -67,8 +67,8 @@ end
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
-Heat(para::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(para, prop, freezecurve, dtlim, init)
-Heat(para::Temperature; freezecurve, prop=ThermalProperties(), dtlim=CFL(), init=nothing) = Heat(para, prop, freezecurve, dtlim, init)
+Heat(para::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
+Heat(para::Temperature; freezecurve, prop=ThermalProperties(), dtlim=CFL(), init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop

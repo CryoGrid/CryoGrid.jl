@@ -1,3 +1,5 @@
+using NLsolve
+
 """
     SFCCNewtonSolver <: SFCCSolver
 
@@ -100,20 +102,18 @@ produce incorrect results otherwise.
 @flattenable struct SFCCPreSolver{TCache} <: SFCCSolver
     cache::TCache | false
     Tmin::Float64 | false
-    dH::Float64 | false
-    SFCCPreSolver(cache, Tmin, dH) = new{typeof(cache)}(cache, Tmin, dH)
+    errtol::Float64 | false
+    SFCCPreSolver(cache, Tmin, errtol) = new{typeof(cache)}(cache, Tmin, errtol)
     """
-        SFCCPreSolver(Tmin=-50.0, dH=2e5)
+        SFCCPreSolver(Tmin=-60.0, errtol=1e-4)
 
     Constructs a new `SFCCPreSolver` with minimum temperature `Tmin` and integration step `dH`.
     Enthalpy values below `H(Tmin)` under the given freeze curve will be extrapolated with a
-    constant/flat function. `dH` determines the step size used when integrating `dθdH`; smaller
-    values will produce a more accurate interpolant at the cost of storing more knots and slower
-    initialization. The default value of `dH=2e5` should be sufficient for most use-cases.
+    constant/flat function. `errtol` determines the permitted local error in the interpolant.
     """
-    function SFCCPreSolver(;Tmin=-50.0, dH=2e5)
+    function SFCCPreSolver(;Tmin=-60.0, errtol=1e-4)
         cache = SFCCPreSolverCache()
-        new{typeof(cache)}(cache, Tmin, dH)
+        new{typeof(cache)}(cache, Tmin, errtol)
     end
 end
 mutable struct SFCCPreSolverCache{F,∇F}
@@ -153,26 +153,57 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFracti
         L = heat.prop.L,
         Tmin = sfcc.solver.Tmin,
         Tmax = 0.0,
-        θ(T) = sfcc.f(T, θsat, θtot, tail_args...),
+        f(T) = sfcc.f(T, θsat, θtot, tail_args...),
         C(θw) = heatcapacity(soil, heat, θw, θtot-θw, θa, θm, θo),
-        Hmin = enthalpy(Tmin, C(θ(Tmin)), L, θ(Tmin)),
-        Hmax = enthalpy(Tmax, C(θ(Tmax)), L, θ(Tmax)),
-        dH = sfcc.solver.dH,
-        Hs = Hmin:dH:Hmax;
-        θs = Vector{eltype(state.θw)}(undef, length(Hs))
-        θs[1] = θ(Tmin)
-        Ts = Vector{eltype(state.T)}(undef, length(Hs))
-        Ts[1] = Tmin
-        solver = SFCCNewtonSolver(abstol=1e-3, reltol=1e-3, maxiter=100)
-        for i in 2:length(Hs)
-            Hᵢ = Hs[i]
-            T₀ = Ts[i-1] # use previous temperature value as initial guess
-            res = sfccsolve(solver, soil, heat, sfcc.f, args, C, Hᵢ, T₀)
-            @assert res.T_converged "solver failed to converge after $(res.itercount) iterations: H=$Hᵢ, T₀=$T₀, T=$(res.T), Tres=$(res.Tres), θw=$(res.θw)"
-            θs[i] = res.θw
-            Ts[i] = res.T
+        Hmin = enthalpy(Tmin, C(f(Tmin)), L, f(Tmin)),
+        Hmax = enthalpy(Tmax, C(f(Tmax)), L, f(Tmax));
+        sfccsolver = SFCCNewtonSolver(abstol=sfcc.solver.errtol, reltol=sfcc.solver.errtol, maxiter=100)
+        # residual as a function of T and H
+        resid(T,H) = sfccresidual(soil, heat, sfcc.f, args, C, T, H)
+        function solve(H,T₀)
+            opt = sfccsolve(sfccsolver, soil, heat, sfcc.f, args, C, H, T₀)
+            @assert opt.T_converged "solver failed to converge after $(opt.itercount) iterations: H=$H, T₀=$T₀, T=$(opt.T), Tres=$(opt.Tres), θw=$(opt.θw)"
+            return opt
         end
-        sfcc.solver.cache.f = _build_interpolant(Hs, θs)
+        function deriv(T) # implicit partial derivative w.r.t H as a function of T
+            θw, ∂θ∂T = ∇(f, T)
+            # get C_eff, i.e. dHdT
+            ∂H∂T = HeatConduction.C_eff(T, C(θw), heat.prop.L, ∂θ∂T, heat.prop.cw, heat.prop.ci)
+            # valid by chain rule and inverse function theorem
+            return ∂θ∂T / ∂H∂T
+        end
+        function step(ΔH, H, θ, ∂θ∂H, T₀)
+            # get first order estimate
+            θest = θ + ΔH*∂θ∂H
+            # get true θ at H + ΔH
+            θsol = solve(H + ΔH, T₀).θw
+            err = abs(θsol - θest)
+            # return residual of error with target error
+            return err
+        end
+        T = [Tmin]
+        H = [Hmin]
+        θ = [f(T[1])]
+        ∂θ∂H = [deriv(T[1])]
+        @assert isfinite(H[1]) && isfinite(θ[1]) "H=$H, θ=$θ"
+        while H[end] < Hmax
+            # find the optimal step size
+            ϵ = Inf
+            ΔH = heat.prop.L/2 # initially set to large value
+            while abs(ϵ) > sfcc.solver.errtol
+                ϵ = step(ΔH, H[end], θ[end], ∂θ∂H[end], T[end])
+                # iteratively halve the step size until error tolerance is satisfied
+                ΔH *= 0.5
+            end
+            Hnew = H[end] + ΔH
+            @assert isfinite(Hnew) "isfinite(ΔH) failed; H=$(H[end]), T=$(T[end]), ΔH=$ΔH"
+            opt = solve(Hnew, T[end])
+            push!(H, Hnew)
+            push!(θ, opt.θw)
+            push!(T, opt.T)
+            push!(∂θ∂H, deriv(opt.T))
+        end
+        sfcc.solver.cache.f = _build_interpolant(H, θ)
         sfcc.solver.cache.∇f = first ∘ _interpgrad(sfcc.solver.cache.f)
     end
 end
