@@ -23,7 +23,7 @@ import CryoGrid.Physics.HeatConduction
 import Flatten: @flattenable, flattenable
 
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
-export soilcomponent, porosity, mineral, organic
+export soilparameters, soilcomponent, porosity, mineral, organic
 
 const Enthalpy = HeatConduction.Enthalpy
 const Temperature = HeatConduction.Temperature
@@ -41,7 +41,7 @@ struct Heterogeneous <: SoilComposition end
 
 Abstract base type for parameterizations of soil properties.
 """
-abstract type SoilParameterization <: Parameterization end
+abstract type SoilParameterization end
 """
     CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
 
@@ -53,6 +53,7 @@ Base.@kwdef struct CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
     sat::P3 = Param(1.0, domain=0..1) # saturation
     org::P4 = Param(0.0, domain=0..1) # organic fraction of solid; mineral fraction is 1-org
 end
+soilparameters(::Type{CharacteristicFractions}=CharacteristicFractions; xic, por, sat, org) = CharacteristicFractions(xic=Param(xic, domain=0..1), por=Param(por, domain=0..1), sat=Param(sat, domain=0..1), org=Param(org, domain=0..1))
 # Type alias for CharacteristicFractions with all scalar/numeric constituents
 const HomogeneousCharacteristicFractions = CharacteristicFractions{<:Number,<:Number,<:Number,<:Number}
 SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
