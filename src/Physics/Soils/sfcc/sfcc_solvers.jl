@@ -157,13 +157,12 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFracti
         C(θw) = heatcapacity(soil, heat, θw, θtot-θw, θa, θm, θo),
         Hmin = enthalpy(Tmin, C(f(Tmin)), L, f(Tmin)),
         Hmax = enthalpy(Tmax, C(f(Tmax)), L, f(Tmax));
-        sfccsolver = SFCCNewtonSolver(abstol=sfcc.solver.errtol, reltol=sfcc.solver.errtol, maxiter=100)
         # residual as a function of T and H
         resid(T,H) = sfccresidual(soil, heat, sfcc.f, args, C, T, H)
         function solve(H,T₀)
-            opt = sfccsolve(sfccsolver, soil, heat, sfcc.f, args, C, H, T₀)
-            @assert opt.T_converged "solver failed to converge after $(opt.itercount) iterations: H=$H, T₀=$T₀, T=$(opt.T), Tres=$(opt.Tres), θw=$(opt.θw)"
-            return opt
+            local T = nlsolve(T -> resid(T[1],H)[1], [T₀]).zero[1]
+            θw = f(T)
+            return (; T, θw)
         end
         function deriv(T) # implicit partial derivative w.r.t H as a function of T
             θw, ∂θ∂T = ∇(f, T)
