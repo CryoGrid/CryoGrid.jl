@@ -189,7 +189,7 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousCharacteristicFracti
         while H[end] < Hmax
             # find the optimal step size
             ϵ = Inf
-            ΔH = heat.prop.L/2 # initially set to large value
+            ΔH = heat.prop.L*θtot/10 # initially set to large value
             while abs(ϵ) > sfcc.solver.errtol
                 ϵ = step(ΔH, H[end], θ[end], ∂θ∂H[end], T[end])
                 # iteratively halve the step size until error tolerance is satisfied
