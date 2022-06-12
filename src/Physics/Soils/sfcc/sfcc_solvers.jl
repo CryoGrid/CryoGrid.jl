@@ -105,13 +105,13 @@ produce incorrect results otherwise.
     errtol::Float64 | false
     SFCCPreSolver(cache, Tmin, errtol) = new{typeof(cache)}(cache, Tmin, errtol)
     """
-        SFCCPreSolver(Tmin=-60.0, errtol=1e-4)
+        SFCCPreSolver(Tmin=-60.0, errtol=1e-5)
 
     Constructs a new `SFCCPreSolver` with minimum temperature `Tmin` and integration step `dH`.
     Enthalpy values below `H(Tmin)` under the given freeze curve will be extrapolated with a
     constant/flat function. `errtol` determines the permitted local error in the interpolant.
     """
-    function SFCCPreSolver(;Tmin=-60.0, errtol=1e-4)
+    function SFCCPreSolver(;Tmin=-60.0, errtol=1e-5)
         cache = SFCCPreSolverCache()
         new{typeof(cache)}(cache, Tmin, errtol)
     end
