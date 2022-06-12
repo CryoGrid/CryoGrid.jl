@@ -216,8 +216,8 @@ end
 Generic subsurface interaction. Computes flux dH at boundary between subsurface layers.
 """
 function CryoGrid.interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
-    Δk₁ = CryoGrid.thickness(sub1, s1, first)
-    Δk₂ = CryoGrid.thickness(sub2, s2, last)
+    Δk₁ = CryoGrid.thickness(sub1, s1, last)
+    Δk₂ = CryoGrid.thickness(sub2, s2, first)
     # thermal conductivity between cells
     k = s1.k[end] = s2.k[1] =
         @inbounds let k₁ = s1.kc[end],
@@ -297,8 +297,8 @@ is taken to be the diffusivity: `dHdT / kc`.
     dtmax = Inf
     @inbounds for i in 1:length(Δx)
         dtmax = let u = state.dHdT[i] / state.kc[i],
-            Δx = Δx[i];
-            Δt = Δx^2*u
+            Δx = Δx[i],
+            Δt = 0.5*u*Δx^2;
             min(dtmax, Δt)
         end
     end

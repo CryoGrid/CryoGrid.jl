@@ -21,14 +21,11 @@ end
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
-function CryoGrid.initialcondition!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
-    HeatConduction.initialcondition!(soil, heat, freezecurve(heat), state)
-    CryoGrid.diagnosticstep!(soil, heat, state)
-end
+CryoGrid.initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state) = HeatConduction.initialcondition!(soil, heat, freezecurve(heat), state)
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ free water freeze curve.
 """
-function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater,Enthalpy}, state)
     L = heat.prop.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
@@ -48,17 +45,17 @@ For heat conduction with temperature, we can simply evaluate the freeze curve to
 """
 function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, state)
     sfcc = freezecurve(heat)
-    @inbounds @fastmath let L = heat.prop.L,
+    let L = heat.prop.L,
         f = sfcc.f,
         f_args = sfccargs(f,soil,heat,state);
-        for i in 1:length(state.T)
+        @inbounds @fastmath for i in 1:length(state.T)
             T = state.T[i]
             f_argsᵢ = Utils.selectat(i, identity, f_args)
             θw, dθdT = ∇(T -> f(T, f_argsᵢ...), T)
             state.θw[i] = θw
             state.dθdT[i] = dθdT
             state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-            state.dHdT[i] = C + (L + T*(heat.prop.cw - heat.prop.ci))*dθdT
+            state.dHdT[i] = HeatConduction.C_eff(T, C, L, dθdT, heat.prop.cw, heat.prop.ci)
             state.H[i] = enthalpy(T, C, L, θw)
         end
     end
@@ -75,8 +72,7 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSo
             # Since we perform iteration on untracked variables, we need to
             # recompute θw, C, and T here with the tracked variables.
             # Note that this results in one additional freeze curve function evaluation.
-            state.θw[i] = f(T, f_argsᵢ...)
-            dθdT = ForwardDiff.derivative(T -> f(T, f_argsᵢ...), T)
+            state.θw[i], dθdT = ∇(T -> f(T, f_argsᵢ...), T)
             let H = state.H[i],
                 L = heat.prop.L,
                 cw = heat.prop.cw,
@@ -92,14 +88,14 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC{F,SFCCNewtonSo
 end
 function HeatConduction.freezethaw!(soil::Soil{<:HomogeneousCharacteristicFractions}, heat::Heat{<:SFCC{F,<:SFCCPreSolver},Enthalpy}, state) where {F}
     solver = freezecurve(heat).solver
-    f = solver.cache.f
-    ∇f = solver.cache.∇f
+    f_H = solver.cache.f_H
+    ∇f_T = solver.cache.∇f_T
+    L, cw, ci = heat.prop.L, heat.prop.cw, heat.prop.ci
     @inbounds for i in 1:length(state.H)
         H = state.H[i]
-        state.θw[i] = θw = f(H)
+        state.θw[i] = θw = f_H(H)
         state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
         state.T[i] = T = enthalpyinv(H, C, heat.prop.L, θw)
-        dθdTᵢ = ∇f(state.H[i])
-        state.dHdT[i] = C + dθdTᵢ*(heat.prop.L + T*(heat.prop.cw - heat.prop.ci))
+        state.dHdT[i] = HeatConduction.C_eff(T, C, L, ∇f_T(T), cw, ci)
     end
 end
