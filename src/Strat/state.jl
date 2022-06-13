@@ -20,7 +20,7 @@ struct LayerState{iip,TGrid,TStates,TGrids,Tt,Tdt,Tz,varnames}
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
-    return if sym ∈ (:grid, :grids, :states, :t, :z)
+    return if sym ∈ (:grid, :grids, :states, :bounds, :t, :dt, :z)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)
@@ -56,7 +56,7 @@ end
 Base.getindex(state::TileState, sym::Symbol) = Base.getproperty(state, sym)
 Base.getindex(state::TileState, i::Int) = state.states[i]
 function Base.getproperty(state::TileState, sym::Symbol)
-    return if sym ∈ (:grid,:states,:t)
+    return if sym ∈ (:grid,:states,:t,:dt)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)
