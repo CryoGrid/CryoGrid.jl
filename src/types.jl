@@ -62,8 +62,6 @@ struct CoupledProcesses{TProcs} <: Process
     CoupledProcesses(processes::BoundaryProcess...) = CoupledProcesses(processes)
     CoupledProcesses(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
 end
-Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
-Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 """
     Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
@@ -81,7 +79,9 @@ Alias for `CoupledProcesses(ps...)`.
 Coupled(ps::Process...) = CoupledProcesses(ps...)
 # Base methods
 Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.parameters, " with ")))")
-@propagate_inbounds @inline Base.getindex(ps::CoupledProcesses, i) = ps.processes[i]
+Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.process)
+Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
+@propagate_inbounds Base.getindex(cp::CoupledProcesses, i) = cp.processes[i]
 # allow broadcasting of Process types
 Base.Broadcast.broadcastable(p::Process) = Ref(p)
 

@@ -1,24 +1,25 @@
 const RESERVED_COMPONENT_NAMES = (:top, :bottom, :strat, :init)
 
 """
-    StratComponent{TLayer,TProcess,name}
+    StratComponent{TLayer,TProc,name}
 
-Represents a single component (layer + processes) in the stratigraphy.
+Represents a single component (layer + process(es)) in the stratigraphy.
 """
-struct StratComponent{TLayer,TProcesses,name}
+struct StratComponent{TLayer,TProc,name}
     layer::TLayer
-    processes::TProcesses
-    function StratComponent(name::Symbol, layer::TLayer, processes::TProcesses; ignore_order=false) where {TLayer<:Layer,TProcesses<:CoupledProcesses}
+    process::TProc
+    StratComponent(name::Symbol, layer::TLayer, proc::TProc) where {TLayer<:Layer,TProc<:Process} = new{TLayer,TProc,name}(layer, proc)
+    function StratComponent(name::Symbol, layer::TLayer, procs::CoupledProcesses; ignore_order=false) where {TLayer<:Layer}
         # check coupling order
-        if !issorted(processes.processes) && !ignore_order
-            processes = CoupledProcesses(sort(processes.processes))
-            @warn "The ordering of the given coupled processes is inconsistent with the defined rules and has been automatically corrected: $(map(p -> typeof(p).name.wrapper, processes.processes)).
+        if !issorted(procs.processes) && !ignore_order
+            procs = CoupledProcesses(sort(procs.processes))
+            @warn "The ordering of the given coupled processes is inconsistent with the defined rules and has been automatically corrected: $(map(p -> typeof(p).name.wrapper, procs.processes)).
             If this was on purpose, you can override the defined ordering and suppress this warning with `ignore_order=true` or define `isless` on your process types to explicitly declare the intended ordering."
         end
-        new{TLayer,TProcesses,name}(layer,processes)
+        new{TLayer,typeof(procs),name}(layer,procs)
     end
 end
-ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProcesses,name}}) where {TLayer,TProcesses,name} = (layer,processes) -> StratComponent(name, layer, processes)
+ConstructionBase.constructorof(::Type{StratComponent{TLayer,TProc,name}}) where {TLayer,TProc,name} = (layer,process) -> StratComponent(name, layer, process)
 """
 Get the name of the given stratigraphy node.
 """
@@ -29,11 +30,17 @@ componentnameval(::StratComponent{L,P,name}) where {L,P,name} = Val{name}
 Base.show(io::IO, node::StratComponent{L,P,name}) where {L,P,name} = print(io, "$name($L,$P)")
 
 # Constructors for stratigraphy nodes
+top(bc::BoundaryProcess) = StratComponent(:top, Top(), bc)
 top(bcs::BoundaryProcess...; ignore_order=false) = StratComponent(:top, Top(), CoupledProcesses(bcs...); ignore_order)
+bottom(bc::BoundaryProcess) = StratComponent(:bottom, Bottom(), bc)
 bottom(bcs::BoundaryProcess...; ignore_order=false) = StratComponent(:bottom, Bottom(), CoupledProcesses(bcs...); ignore_order)
-function subsurface(name::Symbol, sub::SubSurface, processes::SubSurfaceProcess...; ignore_order=false)
+function subsurface(name::Symbol, sub::SubSurface, proc::SubSurfaceProcess)
     @assert name ∉ RESERVED_COMPONENT_NAMES "layer identifier $name is reserved"
-    return StratComponent(name, sub, CoupledProcesses(processes...); ignore_order)
+    return StratComponent(name, sub, proc)
+end
+function subsurface(name::Symbol, sub::SubSurface, procs::SubSurfaceProcess...; ignore_order=false)
+    @assert name ∉ RESERVED_COMPONENT_NAMES "layer identifier $name is reserved"
+    return StratComponent(name, sub, CoupledProcesses(procs...); ignore_order)
 end
 
 """
