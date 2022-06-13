@@ -71,7 +71,7 @@ Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::DiffCache) = show(io,
 function Prealloc.get_tmp(dc::Prealloc.DiffCache, ::Type{T}) where {T<:ForwardDiff.Dual}
     # this part is copied from PreallocationTools source code
     nelem = div(sizeof(T), sizeof(eltype(dc.dual_du)))*length(dc.du)
-    Prealloc.ArrayInterface.restructure(dc.du, reinterpret(T, view(dc.dual_du, 1:nelem)))
+    Prealloc.ArrayInterfaceCore.restructure(dc.du, reinterpret(T, view(dc.dual_du, 1:nelem)))
 end
 retrieve(dc::DiffCache) = dc.cache.du
 # for matching chunk sizes, retrieve from cache

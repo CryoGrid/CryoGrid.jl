@@ -2,7 +2,7 @@
 function makecallbacks(component::StratComponent{L,P,name}, i_layer) where {L,P,name}
     cbs = []
     i_ev = 1
-    for ev in CryoGrid.events(component.layer, component.processes)
+    for ev in CryoGrid.events(component.layer, component.process)
         push!(cbs, _diffeqcallback(ev, Val{name}(), i_layer, i_ev))
         i_ev += 1
     end
@@ -17,7 +17,7 @@ function _criterionfunc(::Val{name}, i_layer, i_ev) where name
         let tile = Tile(integrator),
             comp = tile.strat[i_layer],
             layer = comp.layer,
-            process = comp.processes,
+            process = comp.process,
             ev = tile.events[name][i_ev],
             u = Strat.withaxes(u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
@@ -33,7 +33,7 @@ function _triggerfunc(::Val{name}, trig, i_layer, i_ev) where name
         let tile=Tile(integrator),
             comp = tile.strat[i_layer],
             layer = comp.layer,
-            process = comp.processes,
+            process = comp.process,
             ev = tile.events[name][i_ev],
             u = Strat.withaxes(integrator.u, tile),
             du = Strat.withaxes(get_du(integrator), tile),

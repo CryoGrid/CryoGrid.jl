@@ -107,7 +107,7 @@ function Tile(
             components[name] = comp
         end
         # events
-        cbs = CryoGrid.events(comp.layer, comp.processes)
+        cbs = CryoGrid.events(comp.layer, comp.process)
         cbparams = ModelParameters.params(cbs)
         if length(cbparams) > 0
             m_cbs = Model(cbs)
@@ -182,7 +182,7 @@ is only executed during compilation and will not appear in the compiled version.
         $(states[i]) = state.$(names[i])
         $(comps[i]) = components(strat)[$i]
         $(layers[i]) = $(comps[i]).layer
-        $(procs[i]) = $(comps[i]).processes
+        $(procs[i]) = $(comps[i]).process
         end |> Base.Fix1(push!, expr.args)
     end
     # Diagnostic step
@@ -285,9 +285,9 @@ CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVec
         $n1state = state.$n1
         $n2state = state.$n2
         $n1layer = components(strat)[$i].layer
-        $n1process = components(strat)[$i].processes
+        $n1process = components(strat)[$i].process
         $n2layer = components(strat)[$(i+1)].layer
-        $n2process = components(strat)[$(i+1)].processes
+        $n2process = components(strat)[$(i+1)].process
         end push!(expr.args)
         # invoke initialcondition! for each layer, then for both (similar to interact!);
         # initialcondition! is called for layer1 only on the first iteration to avoid duplicate invocations
@@ -334,7 +334,7 @@ end
         $(states[i]) = state.$(names[i])
         $(comps[i]) = components(strat)[$i]
         $(layers[i]) = $(comps[i]).layer
-        $(procs[i]) = $(comps[i]).processes
+        $(procs[i]) = $(comps[i]).process
         end |> Base.Fix1(push!, expr.args)
     end
     push!(expr.args, :(dtmax = Inf))
@@ -448,7 +448,7 @@ end
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.
 """
 function _collectvars(@nospecialize(comp::StratComponent))
-    layer, process = comp.layer, comp.processes
+    layer, process = comp.layer, comp.process
     declared_vars = variables(layer, process)
     nested_vars = Flatten.flatten(comp, Flatten.flattenable, Var)
     all_vars = tuplejoin(declared_vars, nested_vars)
