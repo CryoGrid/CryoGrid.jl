@@ -1,6 +1,6 @@
 variables(ps::CoupledProcesses) = tuplejoin((variables(p) for p in ps.process)...)
-variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.process)...)
-events(layer::Layer, ps::CoupledProcesses) = tuplejoin((events(layer,p) for p in ps.process)...)
+variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.processes)...)
+events(layer::Layer, ps::CoupledProcesses) = tuplejoin((events(layer,p) for p in ps.processes)...)
 """
     interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 

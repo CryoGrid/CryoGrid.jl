@@ -79,7 +79,7 @@ Alias for `CoupledProcesses(ps...)`.
 Coupled(ps::Process...) = CoupledProcesses(ps...)
 # Base methods
 Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.parameters, " with ")))")
-Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.process)
+Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 @propagate_inbounds Base.getindex(cp::CoupledProcesses, i) = cp.processes[i]
 # allow broadcasting of Process types

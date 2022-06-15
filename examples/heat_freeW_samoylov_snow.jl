@@ -39,9 +39,8 @@ tile = Tile(strat, modelgrid, initT)
 tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
 p = parameters(tile)
 u0, du0 = initialcondition!(tile, tspan, p)
-prob = CryoGridProblem(tile,u0,tspan,p,savevars=(:T,:snowpack => (:dsn,:T_ub)))
-# solve with forward Euler, 5-minute time steps
-sol = @time solve(prob, Euler(), dt=300.0, saveat=24*3600.0, progress=true);
+prob = CryoGridProblem(tile,u0,tspan,p,step_limiter=nothing,savevars=(:T,:snowpack => (:dsn,:T_ub)))
+sol = @time solve(prob, SSPRK22(), dt=300.0, saveat=24*3600.0, progress=true);
 out = CryoGridOutput(sol)
 # Plot it!
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
