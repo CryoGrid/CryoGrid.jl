@@ -87,14 +87,14 @@ SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
 # Volumetric fraction methods
 Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil)
-porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil)
-mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil)
-organic(soil::Soil, state) = organic(SoilComposition(soil), soil)
+porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil, state)
+mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil, state)
+organic(soil::Soil, state) = organic(SoilComposition(soil), soil, state)
 ## Homogeneous soils
-Physics.waterice(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θwi}(), soil.para)
-porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θp}(), soil.para)
-mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θm}(), soil.para)
-organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}) = soilcomponent(Val{:θo}(), soil.para)
+Physics.waterice(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
+porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θp}(), soil.para)
+mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θm}(), soil.para)
+organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θo}(), soil.para)
 ## Heterogeneous soils
 Physics.waterice(::Heterogeneous, soil::Soil, state) = state.θwi   
 porosity(::Heterogeneous, soil::Soil, state) = state.θp
