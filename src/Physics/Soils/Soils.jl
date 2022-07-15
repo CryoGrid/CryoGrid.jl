@@ -86,7 +86,7 @@ SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
 # Volumetric fraction methods
-Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil)
+Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil, state)
 porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil, state)
 mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil, state)
 organic(soil::Soil, state) = organic(SoilComposition(soil), soil, state)
