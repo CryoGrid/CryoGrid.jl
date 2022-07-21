@@ -271,10 +271,11 @@ CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVec
     for i in 1:N
         for j in 1:length(TInits.parameters)
             @>> quote
-            let layerstate = state[$i],
+            let layer = strat[$i].layer,
+                layerstate = state[$i],
                 init! = tile.inits[$j];
                 if haskey(layerstate.states, varname(init!))
-                    init!(layerstate)
+                    init!(layer, layerstate)
                 end
             end
             end push!(expr.args)

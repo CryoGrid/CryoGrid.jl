@@ -25,7 +25,7 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     extrap::E
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
-function (init::InterpInitializer{var})(state) where var
+function (init::InterpInitializer{var})(layer, state) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(map(knot -> dustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
@@ -51,6 +51,6 @@ Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpIn
 
 Convenience constructor for `VarInitializer` that selects the appropriate initializer type based on the arguments.
 """
-initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, state -> getproperty(state, varname) .= x)
+initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, (layer,state) -> getproperty(state, varname) .= x)
 initializer(varname::Symbol, f::Function) = FunctionInitializer(varname, f)
 initializer(varname::Symbol, profile::Profile, interp=Linear(), extrap=Flat()) = InterpInitializer(varname, profile, interp, extrap)
