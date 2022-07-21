@@ -17,13 +17,14 @@ import ForwardDiff
 import FreezeCurves
 import Unitful
 
+import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert, applyunits, normalize_temperature, pstrip
+export dustrip, duconvert, applyunits, normalize_units, normalize_temperature, pstrip
 export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
 
@@ -55,7 +56,11 @@ function applyunits(u::Unitful.Units, x::Number)
     end
 end
 
-FreezeCurves.normalize_temperature(x::Param) = stripparams(x) |> FreezeCurve.normalize_temperature
+# special case: make sure temperatures are in °C
+normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)
+normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
+# Add method dispatch for normalize_temperature in FreezeCurves.jl
+normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 
 """
 Provides implementation of `Base.iterate` for structs.
@@ -148,11 +153,11 @@ dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
 dustrip(x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, x)
 dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
 dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, uconvert.(u, x))
-
+"""
+Debug uconvert.
+"""
 duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
 
-param(x::Number, kwargs...) = Param(x, kwargs...)
-param(x::Unitful.AbstractQuantity, kwargs...) = Param(ustrip(x), units=units(x), kwargs...)
 """
     pstrip(obj; keep_units=false)
 
@@ -177,9 +182,6 @@ Additional override for `stripunits` which reconstructs `obj` with all fields th
 types converted to base SI units and then stripped to be unit free.
 """
 function ModelParameters.stripunits(obj)
-    # special case: make sure temperatures are in °C
-    normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)
-    normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
     values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
     return Flatten.reconstruct(obj, map(ustrip ∘ normalize_units, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end

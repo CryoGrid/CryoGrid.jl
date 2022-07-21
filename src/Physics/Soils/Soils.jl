@@ -19,6 +19,7 @@ using Setfield
 using Unitful
 
 import CryoGrid
+import CryoGrid.InputOutput
 import CryoGrid.Physics
 import CryoGrid.Physics.HeatConduction
 
@@ -53,12 +54,19 @@ abstract type SoilParameterization end
 Represents uniform composition of a soil volume in terms of fractions: excess ice, natural porosity, saturation, and organic solid fraction.
 """
 Base.@kwdef struct CharacteristicFractions{P1,P2,P3,P4} <: SoilParameterization
-    xic::P1 = Param(0.0, domain=0..1) # excess ice fraction
-    por::P2 = Param(0.5, domain=0..1) # natural porosity
-    sat::P3 = Param(1.0, domain=0..1) # saturation
-    org::P4 = Param(0.0, domain=0..1) # organic fraction of solid; mineral fraction is 1-org
+    xic::P1 = 0.0 # excess ice fraction
+    por::P2 = 0.5 # natural porosity
+    sat::P3 = 1.0 # saturation
+    org::P4 = 0.0 # organic fraction of solid; mineral fraction is 1-org
 end
-soilparameters(::Type{CharacteristicFractions}=CharacteristicFractions; xic, por, sat, org) = CharacteristicFractions(xic=Param(xic, domain=0..1), por=Param(por, domain=0..1), sat=Param(sat, domain=0..1), org=Param(org, domain=0..1))
+function soilparameters(::Type{CharacteristicFractions}=CharacteristicFractions; xic, por, sat, org)
+    CharacteristicFractions(
+        xic=Param(xic, domain=0..1),
+        por=Param(por, domain=0..1),
+        sat=Param(sat, domain=0..1),
+        org=Param(org, domain=0..1)
+    )
+end
 # Type alias for CharacteristicFractions with all scalar/numeric constituents
 const HomogeneousCharacteristicFractions = CharacteristicFractions{<:Number,<:Number,<:Number,<:Number}
 SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
@@ -71,12 +79,12 @@ soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 """
 Soil thermal properties.
 """
-SoilThermalProperties(;
-    ko = Param(0.25, units=u"W/m/K"), # organic [Hillel(1982)]
-    km = Param(3.8, units=u"W/m/K"), # mineral [Hillel(1982)]
-    co = Param(2.5e6, units=u"J/K/m^3"), # heat capacity organic
-    cm = Param(2.0e6, units=u"J/K/m^3"), # heat capacity mineral
-) = (; ko, km, co, cm)
+Base.@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm}
+    ko::Tko = 0.25u"W/m/K" # organic [Hillel(1982)]
+    km::Tkm = 3.8u"W/m/K" # mineral [Hillel(1982)]
+    co::Tco = 2.5e6u"J/K/m^3" # heat capacity organic
+    cm::Tcm = 2.0e6u"J/K/m^3" # heat capacity mineral
+end
 """
 Basic Soil layer.
 """
@@ -85,6 +93,7 @@ Basic Soil layer.
     prop::TProp = SoilThermalProperties()
     sp::TSp = nothing # user-defined specialization
 end
+InputOutput.parameterize(soil::Soil; fields...) = Soil(para=InputOutput.parameterize(soil.para; fields...), prop=soil.prop, sp=soil.sp)
 HeatConduction.thermalproperties(soil::Soil) = soil.prop
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))

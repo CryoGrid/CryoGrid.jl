@@ -1,6 +1,7 @@
 module Strat
 
 import CryoGrid
+import CryoGrid.InputOutput
 
 using CryoGrid
 using CryoGrid: Parameterization, DynamicParameterization

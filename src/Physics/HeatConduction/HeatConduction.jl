@@ -41,18 +41,16 @@ abstract type StepLimiter end
     fallback_dt::Float64 = 60.0 # fallback dt [s]
 end
 
-ThermalProperties(
-    consts=Physics.Constants();
-    ρw = consts.ρw,
-    Lsl = consts.Lsl,
-    L = consts.ρw*consts.Lsl,
-    kw = Param(0.57, units=u"W/m/K"), # thermal conductivity of water [Hillel(1982)]
-    ki = Param(2.2, units=u"W/m/K"), # thermal conductivity of ice [Hillel(1982)]
-    ka = Param(0.025, units=u"W/m/K"), # air [Hillel(1982)]
-    cw = Param(4.2e6, units=u"J/K/m^3"), # heat capacity of water
-    ci = Param(1.9e6, units=u"J/K/m^3"), # heat capacity of ice
-    ca = Param(0.00125e6, units=u"J/K/m^3"), # heat capacity of air
-) = (; ρw, Lsl, L, kw, ki, ka, cw, ci, ca)
+@Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
+    consts::Tconsts = Physics.Constants()
+    L::TL = consts.ρw*consts.Lsl
+    kw::Tkw = 0.57u"W/m/K" # thermal conductivity of water [Hillel(1982)]
+    ki::Tki = 2.2u"W/m/K" # thermal conductivity of ice [Hillel(1982)]
+    ka::Tka = 0.025u"W/m/K" # air [Hillel(1982)]
+    cw::Tcw = 4.2e6u"J/K/m^3" # heat capacity of water
+    ci::Tci = 1.9e6u"J/K/m^3" # heat capacity of ice
+    ca::Tca = 0.00125e6u"J/K/m^3" # heat capacity of air
+end
 
 struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp} <: SubSurfaceProcess
     para::TPara

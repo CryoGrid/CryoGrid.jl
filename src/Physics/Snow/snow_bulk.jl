@@ -215,7 +215,7 @@ function CryoGrid.diagnosticstep!(
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
-    ρw = heat.prop.ρw
+    ρw = heat.prop.consts.ρw
     if new_dsn > threshold(snow)
         # if new snow depth is above threshold, set state variables
         @setscalar state.swe = new_swe

@@ -8,6 +8,7 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 import CryoGrid
+import CryoGrid.InputOutput
 import CryoGrid.Physics
 import CryoGrid.Physics.HeatConduction
 
@@ -20,8 +21,8 @@ export Snowpack, SnowProperties, SnowMassBalance, Snowfall
 SnowProperties(
     consts=Physics.Constants();
     ρw = consts.ρw,
-    ρsn_new = Param(250.0, units=u"kg/m^3"),
-    ρsn_old = Param(500.0, units=u"kg/m^3"),
+    ρsn_new = 250.0u"kg/m^3",
+    ρsn_old = 500.0u"kg/m^3",
 ) = (; ρw, ρsn_new, ρsn_old)
 
 """
@@ -50,8 +51,9 @@ end
 
 abstract type SnowAccumulationScheme end
 Base.@kwdef struct LinearAccumulation{S} <: SnowAccumulationScheme
-    rate_scale::S = Param(1.0, domain=0..Inf) # scaling factor for snowfall rate
+    rate_scale::S = 1.0 # scaling factor for snowfall rate
 end
+InputOutput.parameterize(acc::LinearAccumulation{<:Real}; fields...) = LinearAccumulation(Param(acc.rate_sacle; domain=0..Inf, fields...))
 
 abstract type SnowDensityScheme end
 # constant density (using Snowpack properties)
