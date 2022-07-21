@@ -92,4 +92,5 @@ function parameterize(x::T; fields...) where {T}
     return ctor(new_fields...)
 end
 parameterize(x::Number; fields...) = Param(x; fields...)
-parameterize(p::Param; ignored...) = p
+parameterize(x::Param; ignored...) = x
+parameterize(x::AbstractArray; ignored...) = x
