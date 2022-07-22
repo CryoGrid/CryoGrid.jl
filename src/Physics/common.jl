@@ -3,7 +3,12 @@ Constants() = (
     Lsl = 3.34e5u"J/kg", # specific latent heat of fusion of water [J/kg]
     g = 9.80665u"m/s^2", # gravitational constant
 )
-# Composition
+# Generic step limiter types
+abstract type StepLimiter end
+Base.@kwdef struct CFL <: StepLimiter
+    fallback_dt::Float64 = 60.0 # fallback dt [s]
+end
+# Volume material composition
 """
     volumetricfractions(::SubSurface, ::SubSurfaceProcess, state)
     volumetricfractions(::SubSurface, ::SubSurfaceProcess, state, i)

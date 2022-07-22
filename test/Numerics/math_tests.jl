@@ -1,36 +1,27 @@
-using CryoGrid.Numerics: finitediff!, lineardiffusion!, nonlineardiffusion!
+using CryoGrid.Numerics
+using CryoGrid.Numerics: flux!, divergence!, nonlineardiffusion!
 using Test
 
 include("../testutils.jl")
 
-@testset "finitediff!" begin
-	f(x) = (1/2)x^2 # function to differntiate
-	df(x) = x # analytical 2nd derivative
-	x = exp.(0.0:0.001:0.05)
-	y = f.(x)
-	dy = df.(x[1:end-1])
-	δ = x[2:end] .- x[1:end-1]
-	∂y = zeros(length(y)-1)
-	finitediff!(∂y,y,δ)
-	@test allfinite(∂y)
-	@test allequal(∂y,dy,atol=0.01)
+@inline function test_flux!_and_divergence!()
+	x = 0.0:0.25:1.0
+	xc = (x[1:end-1] .+ x[2:end])./2
+	Δx = x[2:end] .- x[1:end-1]
+	Δxc = xc[2:end] .- xc[1:end-1]
+	y = [0.0,1.0,0.0]
+	k = ones(length(x))
+	jy = zeros(length(x))
+	flux!(jy, y, Δxc, k)
+	@test jy[1] == jy[end] == zero(eltype(jy))
+	@test jy[2] ≈ -1/0.25
+	@test jy[3] ≈ 1/0.25
+	div = zeros(length(y))
+	divergence!(div, jy, Δx)
+	@test allequal(div, [1/0.25^2,-2/0.25^2,1/0.25^2])
 end
 
-@testset "lineardiffusion!" begin
-	f(x) = (1/6)x^3 # function to differntiate
-	d2f(x) = x # analytical 2nd derivative
-	x = exp.(0.0:0.001:0.05)
-	y = f.(x)
-	d2y = d2f.(x[2:end-1])
-	k = 2.0 # constant diffusion
-	δ = x[2:end] .- x[1:end-1]
-	∂²y = zeros(length(y)-2)
-	lineardiffusion!(∂²y,y,δ,k)
-	@test allfinite(∂²y)
-	@test allequal(∂²y,k*d2y,atol=0.01)
-end
-
-@testset "nonlineardiffusion!" begin
+@inline function test_nonlineardiffusion!()
 	f(x) = (1/6)x^3 # function to differntiate
 	df(x) = (1/2)x^2 # analytical 1st derivative
 	d2f(x) = x # analytical 2nd derivative
@@ -40,12 +31,25 @@ end
 	x = exp.(0.0:0.001:0.05)
 	xc = (x[1:end-1].+x[2:end])/2
 	y = f.(xc)
-	kₓ = k.(x)[2:end-1]
-	d2y = d2kf.(xc[2:end-1]) # analytical solution
-	δx = x[2:end] .- x[1:end-1]
-	δxc = xc[2:end] .- xc[1:end-1]
-	out = zeros(length(y)-2)
-	nonlineardiffusion!(out,y,δxc,kₓ,δx[2:end-1])
-	@test allfinite(out)
-	@test allequal(out,d2y,atol=0.01)
+	kₓ = k.(x)
+	d2y = d2kf.(xc) # analytical solution
+	Δx = x[2:end] .- x[1:end-1]
+	jy = zeros(length(x))
+	# manually set boundary fluxes
+	jy[1] = -kₓ[1]*df(x[1])
+	jy[end] = -kₓ[end]*df(x[end])
+	Δxc = xc[2:end] .- xc[1:end-1]
+	div = zeros(length(y))
+	nonlineardiffusion!(div, jy, y, Δxc, kₓ, Δx)
+	@test allfinite(div)
+	@test allequal(div, d2y, atol=0.01)
+end
+
+@testset "Math" begin
+	@testset "flux! and divergence!" begin
+		test_flux!_and_divergence!()
+	end
+	@testset "Non-linear diffusion" begin
+		test_nonlineardiffusion!()
+	end
 end

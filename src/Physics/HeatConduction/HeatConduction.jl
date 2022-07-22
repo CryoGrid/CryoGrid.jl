@@ -36,11 +36,6 @@ abstract type HeatParameterization end
 struct Enthalpy <: HeatParameterization end
 struct Temperature <: HeatParameterization end
 
-abstract type StepLimiter end
-@kwdef struct CFL <: StepLimiter
-    fallback_dt::Float64 = 60.0 # fallback dt [s]
-end
-
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
     L::TL = consts.ρw*consts.Lsl
@@ -64,7 +59,7 @@ Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
 Heat(para::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
-Heat(para::Temperature; freezecurve, prop=ThermalProperties(), dtlim=CFL(), init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
+Heat(para::Temperature; freezecurve, prop=ThermalProperties(), dtlim=Physics.CFL(), init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop

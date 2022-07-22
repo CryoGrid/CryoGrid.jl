@@ -81,8 +81,7 @@ function CryoGrid.interact!(::CryoGrid.Dirichlet, top::Top, bc::HeatBC, snow::Bu
         @setscalar ssnow.T = getscalar(ssnow.T_ub)
     end
     # boundary flux
-    @setscalar ssnow.dH_upper = CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
-    @inbounds ssnow.dH[1] += getscalar(ssnow.dH_upper) / Δk[1]
+    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
     return nothing # ensure no allocation
 end
 
@@ -101,6 +100,7 @@ function CryoGrid.diagnosticstep!(
 ) where {TAcc,TAbl<:DegreeDayMelt,TDen<:ConstantDensity}
     smb, heat = procs
     ρsn = snow.prop.ρsn_new
+    HeatConduction.resetfluxes!(snow, heat, state)
     @setscalar state.θwi = θwi = ρsn / snow.prop.ρw
     @setscalar state.ρsn = ρsn
     dsn = getscalar(state.swe) / θwi
@@ -120,6 +120,7 @@ function CryoGrid.diagnosticstep!(
     # compute thermal conductivity
     HeatConduction.thermalconductivity!(snow, heat, state)
     @. state.k = state.kc
+    return nothing
 end
 # snowfall upper boundary
 function CryoGrid.interact!(
@@ -147,15 +148,15 @@ function CryoGrid.prognosticstep!(
     end
     if getscalar(state.swe) > 0.0 && getscalar(state.T_ub) > 0.0
         ddf = ablation(smb).factor # [m/K/s]
-        dH_upper = getscalar(state.dH_upper) # [J/m^3]
+        jH_upper = state.jH[1] # [J/m^3]
         T_ub = getscalar(state.T_ub) # upper boundary temperature
         Tref = 0.0*unit(T_ub) # just in case T_ub has units
         # calculate the melt rate per second via the degree day model
-        dmelt = max(ddf*(T_ub-Tref), zero(dH_upper)) # [m/s]
+        dmelt = max(ddf*(T_ub-Tref), zero(eltype(state.dswe))) # [m/s]
         @. state.dswe += -dmelt
         # remove upper heat flux from dH if dmelt > 0;
         # this is due to the energy being "consumed" to melt the snow
-        @. state.dH += -dH_upper*(dmelt > zero(dmelt))
+        @. state.dH += -jH_upper*(dmelt > zero(dmelt))
     end
     return nothing
 end
@@ -212,6 +213,7 @@ function CryoGrid.diagnosticstep!(
 )
     smb, heat = procs
     ρw = snow.prop.ρw
+    HeatConduction.resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
@@ -242,10 +244,14 @@ end
 # this will actually result in an ambiguous dispatch error before this error is thrown.
 CryoGrid.prognosticstep!(snow::BulkSnowpack, heat::Heat, state) = error("prognosticstep! not implemented for $(typeof(heat)) on $(typeof(snow))")
 # prognosticstep! for free water, enthalpy based Heat on snow layer
-function CryoGrid.prognosticstep!(snow::BulkSnowpack, ::Heat{FreeWater,Enthalpy}, state)
+function CryoGrid.prognosticstep!(snow::BulkSnowpack, ps::Coupled2{<:SnowMassBalance,<:Heat{FreeWater,Enthalpy}}, state)
+    _, heat = ps
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
-        # set energy flux to zero if there is no snow
+        # set divergence to zero if there is no snow
         @. state.dH = zero(eltype(state.H))
+    else
+        # otherwise call prognosticstep! for heat
+        prognosticstep!(snow, heat, state)
     end
 end

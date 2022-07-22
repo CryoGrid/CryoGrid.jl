@@ -5,7 +5,7 @@ import CryoGrid
 using CryoGrid
 using CryoGrid.Physics
 using CryoGrid.Numerics
-using CryoGrid.Numerics: nonlineardiffusion!
+using CryoGrid.Numerics: flux!, divergence!
 
 using IfElse
 using ModelParameters
