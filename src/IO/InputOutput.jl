@@ -1,10 +1,13 @@
 module InputOutput
 
 import CryoGrid
+
 using CryoGrid.Numerics
+using CryoGrid.Utils
 
 using Base: @propagate_inbounds
 using ComponentArrays
+using ConstructionBase
 using DataStructures: DefaultDict
 using Dates
 using DimensionalData
@@ -23,10 +26,10 @@ import DimensionalData: stack
 export loadforcings
 
 include("ioutils.jl")
+export CryoGridParams, parameterize
+include("params.jl")
 export Forcing, TimeSeriesForcing
 include("forcings.jl")
-export CryoGridParams
-include("params.jl")
 export CryoGridOutput
 include("output.jl")
 

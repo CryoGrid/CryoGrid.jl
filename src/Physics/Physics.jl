@@ -1,10 +1,10 @@
 module Physics
 
+import CryoGrid
+
 using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
-
-import CryoGrid
 
 using Reexport
 using Unitful

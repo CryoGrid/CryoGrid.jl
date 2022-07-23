@@ -97,8 +97,10 @@ function VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunks
     diagvars = map(group -> filter(isdiagnostic, group), vars)
     progvars = map(group -> filter(isprognostic, group), vars)
     algvars = map(group -> filter(isalgebraic, group), vars)
-    # create variables for gradients/fluxes
+    # create variables for time delta variables (divergence/residual)
     dpvars = map(group -> map(Delta, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
+    # create variables for fluxes (spatial gradients)
+    jpvars = map(group -> map(Flux, filter(var -> isprognostic(var) && isongrid(var), group)), vars)
     allprogvars = tuplejoin(_flatten(progvars), _flatten(algvars)) # flattened prognostic/algebraic variable group
     # TODO: not a currently necessary use case, but could be supported by partitioning the state array further by layer/group name;
     # this would require passing the name to discretize(...)
@@ -111,9 +113,9 @@ function VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunks
     freediagvars = map(group -> filter(!isongrid, group), diagvars)
     freediagstate = map(group -> (;map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunksize), group)...), freediagvars)
     # build gridded diagnostic state vectors
-    griddiagvars = filter(isongrid, _flatten(diagvars))
+    griddiagvars = Tuple(unique(filter(isongrid, _flatten(map(tuplejoin, diagvars,  jpvars)))))
     griddiagstate = map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunksize), griddiagvars)
-    # join prognostic variables with flux variables, then build nested named tuples in each group with varnames as keys
-    allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
+    # join prognostic variables with delta and flux variables, then build nested named tuples in each group with varnames as keys
+    allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars, jpvars))
     VarStates(uproto, D, allvars, (;freediagstate...), (;griddiagstate...))
 end

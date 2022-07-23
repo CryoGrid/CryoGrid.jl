@@ -37,15 +37,24 @@ end
 """
     Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
 
-Defines a "delta" term `du` for variable `u`, which is the time-derivative or flux for prognostic variables and
+Defines a "delta" term `du` for variable `u`, which is the time-derivative/divergence for prognostic variables and
 the residual for algebraic variables.
 """
 struct Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     dim::S
-    Delta(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
     Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{dname,name,typeof(dims),T,units,domain}(dims)
     Delta(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
     Delta(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units,domain}(dims) end
+end
+"""
+    Flux{jname,name,S,T,units,domain} <: Var{jname,S,T,units,domain}
+
+Defines a "flux" term `ju` for prognostic variable `u`, which is typically a function of the gradient w.r.t space.
+"""
+struct Flux{jname,name,S,T,units,domain} <: Var{jname,S,T,units,domain}
+    dim::S
+    Flux(jname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{jname,name,typeof(dims),T,units,domain}(dims)
+    Flux(var::Prognostic{name,OnGrid{Cells,typeof(identity)},T,units,domain}) where {name,T,units,domain} = let dims=OnGrid(Edges, vardims(var).f); new{Symbol(:j,name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
 end
 """
     Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
@@ -61,6 +70,7 @@ ConstructionBase.constructorof(::Type{Prognostic{name,S,T,units,domain}}) where 
 ConstructionBase.constructorof(::Type{Diagnostic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Diagnostic(name, s, units, T; domain)
 ConstructionBase.constructorof(::Type{Algebraic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Algebraic(name, s, units, T; domain)
 ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units,domain}}) where {dname,name,S,T,units,domain} = s -> Delta(dname, name, s, units, T; domain)
+ConstructionBase.constructorof(::Type{Flux{jname,name,S,T,units,domain}}) where {jname,name,S,T,units,domain} = s -> Flux(jname, name, s, units, T; domain)
 ==(::Var{N1,S1,T1,u1,d1},::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name

@@ -60,6 +60,14 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} =
     (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip, obsv)
+InputOutput.parameterize(tile::T) where {T<:Tile} = ConstructionBase.constructorof(T)(
+    InputOutput.parameterize(tile.strat),
+    tile.grid,
+    tile.state,
+    InputOutput.parameterize(tile.inits, layer=:init),
+    InputOutput.parameterize(tile.events, layer=:event),
+    tile.hist,
+)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -263,10 +271,11 @@ CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVec
     for i in 1:N
         for j in 1:length(TInits.parameters)
             @>> quote
-            let layerstate = state[$i],
+            let layer = strat[$i].layer,
+                layerstate = state[$i],
                 init! = tile.inits[$j];
                 if haskey(layerstate.states, varname(init!))
-                    init!(layerstate)
+                    init!(layer, layerstate)
                 end
             end
             end push!(expr.args)

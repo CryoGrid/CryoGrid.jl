@@ -8,6 +8,7 @@ abstract type Forcing{T,N} end
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
 # disable flattening for all fields of forcing types by default
 Flatten.flattenable(::Type{<:Forcing}, ::Type) = false
+InputOutput.parameterize(f::Forcing; fields...) = f
 
 """
       TimeSeriesForcing{T,A,I}

@@ -23,7 +23,7 @@ abstract type SourceTerm end
 Parametric source term that is constant through time and space.
 """
 Base.@kwdef struct Constant{S} <: SourceTerm
-    S₀::S = Param(0.0)
+    S₀::S = 0.0
 end
 """
     Periodic <: SourceTerm
@@ -31,10 +31,10 @@ end
 Parametric source term that is periodic through time and constant through space.
 """
 Base.@kwdef struct Periodic{A,F,S,L} <: SourceTerm
-    amp::A = Param(1.0)
-    freq::F = Param(1.0/(3600*24))
-    shift::S = Param(0.0)
-    level::L = Param(0.0)
+    amp::A = 1.0
+    freq::F = 1.0/(3600*24)
+    shift::S = 0.0
+    level::L = 0.0
 end
 """
     Source{P,T,S} <: SubSurfaceProcess
