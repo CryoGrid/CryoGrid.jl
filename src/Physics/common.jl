@@ -1,6 +1,6 @@
 Constants() = (
     ρw = 1000.0u"kg/m^3", # density of water at standard conditions
-    Lf = 3.34e5u"J/kg", # specific latent heat of fusion of water [J/kg]
+    Lsl = 3.34e5u"J/kg", # specific latent heat of fusion of water [J/kg]
     g = 9.80665u"m/s^2", # gravitational constant
 )
 # Composition

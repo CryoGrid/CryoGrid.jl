@@ -10,6 +10,7 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds, @kwdef
 using IfElse
+using FreezeCurves: FreezeCurves, FreezeCurve, FreeWater
 using ModelParameters
 using Unitful
 
@@ -18,9 +19,6 @@ import CryoGrid.Physics
 
 export Heat, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
-
-abstract type FreezeCurve end
-struct FreeWater <: FreezeCurve end
 
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
@@ -46,15 +44,15 @@ end
 ThermalProperties(
     consts=Physics.Constants();
     ρw = consts.ρw,
-    Lf = consts.Lf,
-    L = consts.ρw*consts.Lf,
+    Lsl = consts.Lsl,
+    L = consts.ρw*consts.Lsl,
     kw = Param(0.57, units=u"W/m/K"), # thermal conductivity of water [Hillel(1982)]
     ki = Param(2.2, units=u"W/m/K"), # thermal conductivity of ice [Hillel(1982)]
     ka = Param(0.025, units=u"W/m/K"), # air [Hillel(1982)]
     cw = Param(4.2e6, units=u"J/K/m^3"), # heat capacity of water
     ci = Param(1.9e6, units=u"J/K/m^3"), # heat capacity of ice
     ca = Param(0.00125e6, units=u"J/K/m^3"), # heat capacity of air
-) = (; ρw, Lf, L, kw, ki, ka, cw, ci, ca)
+) = (; ρw, Lsl, L, kw, ki, ka, cw, ci, ca)
 
 struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp} <: SubSurfaceProcess
     para::TPara

@@ -308,16 +308,10 @@ end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
     f_hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
-    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], heat.prop.L, f_hc.θwi)
+    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], f_hc.θwi, heat.prop.L)
 end
-@inline function enthalpyinv(::FreeWater, f_hc::Function, H, L, θtot)
-    let θtot = max(1e-8, θtot),
-        Lθ = L*θtot,
-        I_t = H > Lθ,
-        I_f = H <= 0.0,
-        I_c = (H > 0.0) && (H <= Lθ);
-        # compute liquid water content -> heat capacity -> temperature
-        θw = (I_c*(H/Lθ) + I_t)θtot
+@inline function enthalpyinv(::FreeWater, f_hc::F, H, θwi, L) where {F}
+    let θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
         C = f_hc(θw)
         T = (I_t*(H-Lθ) + I_f*H)/C
         return T, θw, C

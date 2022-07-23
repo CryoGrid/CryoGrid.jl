@@ -13,7 +13,9 @@ using IfElse
 using Interpolations: Interpolations
 using IntervalSets
 using ForwardDiff
+using FreezeCurves
 using ModelParameters
+using Setfield
 using Unitful
 
 import CryoGrid
@@ -24,6 +26,9 @@ import Flatten: @flattenable, flattenable
 
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
 export soilparameters, soilcomponent, porosity, mineral, organic
+
+# from FreezeCurves
+export SFCC, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten
 
 const Enthalpy = HeatConduction.Enthalpy
 const Temperature = HeatConduction.Temperature
@@ -153,10 +158,6 @@ Defaults to using the scalar porosity defined on `soil`.
 """
 @inline porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
 
-export SWRC, VanGenuchten
-include("sfcc/swrc.jl")
-export SFCC, DallAmico, Westermann, McKenzie, SFCCNewtonSolver, SFCCPreSolver
-include("sfcc/sfcc.jl")
 include("soilheat.jl")
 
 end

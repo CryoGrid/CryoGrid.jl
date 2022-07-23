@@ -14,6 +14,7 @@ using Unitful
 
 import CryoGrid
 import ForwardDiff
+import FreezeCurves
 import Unitful
 
 import ModelParameters: stripunits
@@ -22,7 +23,7 @@ export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setsc
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
-export dustrip, duconvert, applyunit, normalize_temperature, pstrip
+export dustrip, duconvert, applyunits, normalize_temperature, pstrip
 export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
 
@@ -40,12 +41,12 @@ StructTypes.lowertype(value::Type{<:Quantity}) = String
 StructTypes.construct(::Type{Q}, value::String) where {Q<:Quantity} = uconvert(Q, uparse(replace(value, " " => "")))
 
 """
-    applyunit(u::Unitful.Units, x::Number)
+    applyunits(u::Unitful.Units, x::Number)
 
 Conditionally applies unit `u` to `x` if and only if `x` is a unit-free quantity.
 If `x` is a unitful quantity, asserts that the unit matches `u`.
 """
-function applyunit(u::Unitful.Units, x::Number)
+function applyunits(u::Unitful.Units, x::Number)
     if typeof(unit(x)) <: Unitful.FreeUnits{(), NoDims, nothing}
        return  x*u
     else
@@ -54,14 +55,7 @@ function applyunit(u::Unitful.Units, x::Number)
     end
 end
 
-"""
-    normalize_temperature(x)
-
-Converts temperature `x` to Kelvin. If `x` has units, `uconvert` is used. Otherwise, if `x` a general numeric type, it is assumed that `x` is in celsius.
-"""
-normalize_temperature(x) = x + 273.15
-normalize_temperature(x::TempQuantity) = uconvert(u"K", x)
-normalize_temperature(x::Param) = stripparams(x) |> normalize_temperature
+FreezeCurves.normalize_temperature(x::Param) = stripparams(x) |> FreezeCurve.normalize_temperature
 
 """
 Provides implementation of `Base.iterate` for structs.
@@ -73,7 +67,6 @@ function structiterate(obj::A) where {A}
     (val,state) = iterate(gen)
     (val, (gen,state))
 end
-
 function structiterate(obj, state)
     gen, genstate = state
     nextitr = iterate(gen,genstate)
@@ -135,16 +128,6 @@ convert_tspan(tspan::NTuple{2,DateTime}) = convert_t.(tspan)
 convert_tspan(tspan::NTuple{2,Float64}) = convert_t.(tspan)
 
 """
-    @generated selectat(i::Int, f, args::T) where {T<:Tuple}
-
-Helper function for handling mixed vector/scalar arguments to runtime generated functions.
-select calls getindex(i) for all array-typed arguments leaves non-array arguments as-is.
-We use a generated function to expand the arguments into an explicitly defined tuple to preserve type-stability (i.e. it's an optmization);
-function `f` is then applied to each element.
-"""
-@generated selectat(i::Int, f, args::T) where {T<:Tuple} = :(tuple($([typ <: AbstractArray ?  :(f(args[$k][i])) : :(f(args[$k])) for (k,typ) in enumerate(Tuple(T.parameters))]...)))
-
-"""
     ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 
 Forward fills missing values in vector `x`.
@@ -159,19 +142,6 @@ function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 end
 
 """
-    adstrip(x::Number)
-    adstrip(x::ForwardDiff.Dual)
-    adstrip(x::ReverseDiff.TrackedReal)
-
-adstrip extracts the underlying numeric value from `x` if `x` is a tracked value from
-an autodiff library (e.g. ForwardDiff or ReverseDiff). If `x` is not an AD type, then
-`adstrip` simply returns `x` as-is.
-"""
-adstrip(x::Number) = x
-adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x) |> adstrip
-adstrip(x::Param{T}) where {T<:ForwardDiff.Dual} = Param(NamedTuple{Tuple(keys(x))}((adstrip(x.val), Base.tail(parent(x))...)))
-
-"""
 Debug ustrip. Remove units if and only if debug mode is NOT enabled.
 """
 dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
@@ -181,6 +151,8 @@ dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid
 
 duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
 
+param(x::Number, kwargs...) = Param(x, kwargs...)
+param(x::Unitful.AbstractQuantity, kwargs...) = Param(ustrip(x), units=units(x), kwargs...)
 """
     pstrip(obj; keep_units=false)
 
