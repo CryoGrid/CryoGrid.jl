@@ -271,15 +271,14 @@ is taken to be the diffusivity: `dHdT / kc`.
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    f_hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
-    return enthalpyinv(heat.freezecurve, f_hc, state.H[i], f_hc.θwi, heat.prop.L)
+    hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
+    return enthalpyinv(heat.freezecurve, hc, state.H[i], hc.θwi, heat.prop.L)
 end
-@inline function enthalpyinv(::FreeWater, f_hc::F, H, θwi, L) where {F}
-    let θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
-        C = f_hc(θw)
-        T = (I_t*(H-Lθ) + I_f*H)/C
-        return T, θw, C
-    end
+@inline function enthalpyinv(::FreeWater, hc::F, H, θwi, L) where {F}
+    θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, L, θwi)
+    C = hc(θw)
+    T = (I_t*(H-Lθ) + I_f*H)/C
+    return T, θw, C
 end
 """
     freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)

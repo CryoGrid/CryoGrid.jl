@@ -86,8 +86,11 @@ end
 @inline _makegrid(::Var{name,<:OnGrid{Edges}}, vs::VarStates, z_inds) where {name} = vs.grid[z_inds]
 @inline _makegrid(var::Var, vs::VarStates, z_inds) = 1:dimlength(vardims(var), vs.grid)
 @inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Prognostic{name,<:Shape}, vs::VarStates, z_inds, u, du, t) where {name} = view(u, Val{name}())
 @inline _makestate(::Val, ::Algebraic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Algebraic{name,<:Shape}, vs::VarStates, z_inds, u, du, t) where {name} = view(u, Val{name}())
 @inline _makestate(::Val, ::Delta{dname,name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val, ::Delta{dname,name,<:Shape}, vs::VarStates, z_inds, u, du, t) where {dname,name} = view(du, Val{name}())
 @inline _makestate(::Val, ::Flux{jname,name,<:OnGrid{Edges}}, vs::VarStates, z_inds, u, du, t) where {jname,name} = view(retrieve(vs.griddiag[jname], u, t), infimum(z_inds):supremum(z_inds))
 @inline _makestate(::Val, ::Diagnostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1)
 @inline _makestate(::Val, ::Diagnostic{name,<:OnGrid{Edges}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds))

@@ -75,7 +75,6 @@ end
 # heat upper boundary (for all bulk implementations)
 CryoGrid.interact!(top::Top, bc::HeatBC, snow::BulkSnowpack, heat::Heat, stop, ssnow) = CryoGrid.interact!(CryoGrid.BoundaryStyle(bc), top, bc, snow, heat, stop, ssnow)
 function CryoGrid.interact!(::CryoGrid.Dirichlet, top::Top, bc::HeatBC, snow::BulkSnowpack, heat::Heat, stop, ssnow)
-    Δk = CryoGrid.thickness(snow, ssnow) # using `thickness` allows for generic layer implementations
     @setscalar ssnow.T_ub = CryoGrid.boundaryvalue(bc, top, heat, snow, stop, ssnow)
     if getscalar(ssnow.dsn) < threshold(snow)
         @setscalar ssnow.T = getscalar(ssnow.T_ub)
@@ -112,7 +111,7 @@ function CryoGrid.diagnosticstep!(
     # but capping the liquid fraction according to the 'max_unfrozen' parameter.
     max_unfrozen = ablation(smb).max_unfrozen
     θwi_cap = θwi*max_unfrozen
-    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), heat.prop.L, θwi_cap)
+    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), θwi_cap, heat.prop.L)
     # do not allow temperature to exceed 0°C
     @. state.T = min(T, zero(T))
     @. state.θw = θw
@@ -154,9 +153,9 @@ function CryoGrid.prognosticstep!(
         # calculate the melt rate per second via the degree day model
         dmelt = max(ddf*(T_ub-Tref), zero(eltype(state.dswe))) # [m/s]
         @. state.dswe += -dmelt
-        # remove upper heat flux from dH if dmelt > 0;
-        # this is due to the energy being "consumed" to melt the snow
-        @. state.dH += -jH_upper*(dmelt > zero(dmelt))
+        # set upper heat flux to zero if dmelt > 0;
+        # this is due to the energy being (theoretically) "consumed" to melt the snow
+        state.jH[1] *= 1 - (dmelt > zero(dmelt))
     end
     return nothing
 end
@@ -240,12 +239,10 @@ function CryoGrid.diagnosticstep!(
         @setscalar state.kc = heat.prop.ka
     end
 end
-# override prognosticstep! for incompatible heat types to prevent incorrect usage;
-# this will actually result in an ambiguous dispatch error before this error is thrown.
-CryoGrid.prognosticstep!(snow::BulkSnowpack, heat::Heat, state) = error("prognosticstep! not implemented for $(typeof(heat)) on $(typeof(snow))")
 # prognosticstep! for free water, enthalpy based Heat on snow layer
 function CryoGrid.prognosticstep!(snow::BulkSnowpack, ps::Coupled2{<:SnowMassBalance,<:Heat{FreeWater,Enthalpy}}, state)
-    _, heat = ps
+    smb, heat = ps
+    prognosticstep!(snow, smb, state)
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set divergence to zero if there is no snow
@@ -255,3 +252,4 @@ function CryoGrid.prognosticstep!(snow::BulkSnowpack, ps::Coupled2{<:SnowMassBal
         prognosticstep!(snow, heat, state)
     end
 end
+``
