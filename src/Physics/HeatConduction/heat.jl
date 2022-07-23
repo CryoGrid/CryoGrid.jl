@@ -275,7 +275,7 @@ end
     return enthalpyinv(heat.freezecurve, hc, state.H[i], hc.θwi, heat.prop.L)
 end
 @inline function enthalpyinv(::FreeWater, hc::F, H, θwi, L) where {F}
-    θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, L, θwi)
+    θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
     C = hc(θw)
     T = (I_t*(H-Lθ) + I_f*H)/C
     return T, θw, C
