@@ -12,17 +12,9 @@ soilprofile = SoilProfile(
     0.4u"m" => soilparameters(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
     3.0u"m" => soilparameters(xic=0.0,por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
     10.0u"m" => soilparameters(xic=0.0,por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
-),
+);
 # mid-winter temperature profile
-tempprofile = TemperatureProfile(
-    0.01u"m" => -15.9u"°C",
-    0.05u"m" => -15.49u"°C",
-    0.10u"m" => -15.32u"°C",
-    0.20u"m" => -14.44u"°C",
-    0.30u"m" => -14.18u"°C",
-    0.40u"m" => -13.50u"°C",
-    1000.0u"m" => 10.2u"°C",
-)
+tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
 Tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
 # assume other forcings don't (yet) have units
@@ -36,22 +28,23 @@ tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 strat = Stratigraphy(
-    -2.0u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
-    Tuple(z => subsurface(:soil1, Soil(para=para), Heat(:H, freezecurve=SFCC(DallAmico()))) for (z,para) in soilprofile),
+    -z*u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z,solscheme=Analytical(),stabfun=Businger())),
+    Tuple(knot.depth => subsurface(Symbol(:soil,i), Soil(para=knot.value), Heat(:H, freezecurve=SFCC(DallAmico()))) for (i,knot) in enumerate(soilprofile)),
     1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 grid = Grid(gridvals);
-model = Tile(strat, grid, initT);
+tile = Tile(strat, grid, initT);
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = parameters(model)
-u0, du0 = initialcondition!(model, tspan, p)
+p = parameters(tile)
+u0, du0 = initialcondition!(tile, tspan, p)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
+prob = CryoGridProblem(tile,u0,tspan,p,step_limiter=nothing,savevars=(:T,))
 # solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=2*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
-zs = [1:10...,20:10:100...]
+zs = [1,5,10,15,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+plot(ustrip.(out.H[Z(zs)]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(ustrip.(out.T[Z(zs)]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+
