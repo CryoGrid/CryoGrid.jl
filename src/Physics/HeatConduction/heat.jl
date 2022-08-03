@@ -127,6 +127,7 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,Temperature}) = (
 Common variable definitions for all heat implementations.
 """
 heatvariables(::Heat) = (
+    Diagnostic(:jH, OnGrid(Edges), u"W/m^2"),    
     Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
     Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),

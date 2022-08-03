@@ -28,13 +28,13 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    HeatParameterization
+    HeatImplementation
 
 Base type for different numerical formulations of two-phase heat diffusion.
 """
-abstract type HeatParameterization end
-struct Enthalpy <: HeatParameterization end
-struct Temperature <: HeatParameterization end
+abstract type HeatImplementation end
+struct Enthalpy <: HeatImplementation end
+struct Temperature <: HeatImplementation end
 
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
@@ -47,8 +47,8 @@ struct Temperature <: HeatParameterization end
     ca::Tca = 0.00125e6u"J/K/m^3" # heat capacity of air
 end
 
-struct Heat{Tfc<:FreezeCurve,TPara<:HeatParameterization,Tdt,Tinit,TProp} <: SubSurfaceProcess
-    para::TPara
+struct Heat{Tfc<:FreezeCurve,TImpl<:HeatImplementation,Tdt,Tinit,TProp} <: SubSurfaceProcess
+    impl::TImpl
     prop::TProp
     freezecurve::Tfc
     dtlim::Tdt  # timestep limiter
@@ -58,8 +58,8 @@ end
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
-Heat(para::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
-Heat(para::Temperature; freezecurve, prop=ThermalProperties(), dtlim=Physics.CFL(), init=nothing) = Heat(para, prop, deepcopy(freezecurve), dtlim, init)
+Heat(impl::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
+Heat(impl::Temperature; freezecurve, prop=ThermalProperties(), dtlim=Physics.CFL(), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop
