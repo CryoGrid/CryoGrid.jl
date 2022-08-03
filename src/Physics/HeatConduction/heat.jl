@@ -95,6 +95,15 @@ Computes the thermal conductivity for the given layer from the current state and
         θfracs = volumetricfractions(sub, heat, state, i)
         state.kc[i] = thermalconductivity(sub, heat, θfracs...)
     end
+    # thermal conductivity at boundaries
+    # assumes boundary conductivities = cell conductivities
+    @inbounds state.k[1] = state.kc[1]
+    @inbounds state.k[end] = state.kc[end]
+    # Harmonic mean of inner conductivities
+    @inbounds let k = (@view state.k[2:end-1]),
+        Δk = Δ(state.grids.k);
+        harmonicmean!(k, state.kc, Δk)
+    end
 end
 """
 Variable definitions for heat conduction on any subsurface layer. Joins variables defined on
@@ -149,15 +158,6 @@ function CryoGrid.diagnosticstep!(sub::SubSurface, heat::Heat, state)
     freezethaw!(sub, heat, state)
     # Update thermal conductivity
     thermalconductivity!(sub, heat, state)
-    # thermal conductivity at boundaries
-    # assumes boundary conductivities = cell conductivities
-    @inbounds state.k[1] = state.kc[1]
-    @inbounds state.k[end] = state.kc[end]
-    # Harmonic mean of inner conductivities
-    @inbounds let k = (@view state.k[2:end-1]),
-        Δk = Δ(state.grids.k);
-        harmonicmean!(k, state.kc, Δk)
-    end
     return nothing # ensure no allocation
 end
 """
