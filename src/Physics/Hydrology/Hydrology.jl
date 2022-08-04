@@ -11,14 +11,19 @@ using IfElse
 using ModelParameters
 using Unitful
 
-abstract type WaterFlowParameterization end
+export WaterFluxes
 
-Base.@kwdef struct WaterFlow{TPara<:WaterFlowParameterization,Tinit,TProp} <: CryoGrid.SubSurfaceProcess
-    para::TPara = BucketScheme()
-    prop::TProp = HydrologicalProperties()
-    init::Tinit = nothing # optional initialization scheme
+abstract type WaterFluxesImpl end
+
+struct WaterFluxes{TImpl<:WaterFluxesImpl,TProp} <: CryoGrid.SubSurfaceProcess
+    impl::TImpl
+    prop::TProp
 end
 
+export BucketScheme
 include("water_bucket.jl")
+
+# Constructors for WaterFluxes
+WaterFluxes(impl::WaterFluxesImpl = BucketScheme(); prop = Physics.Constants()) = WaterFluxes(impl, prop)
 
 end
