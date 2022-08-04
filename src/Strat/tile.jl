@@ -437,7 +437,7 @@ function _collectvars(@nospecialize(comp::StratComponent))
     groups = groupby(var -> varname(var), all_vars)
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
-        @assert reduce(==, gvars) "Found one or more conflicting definitions of $name in $gvars"
+        @assert all(gvars[i] == gvars[i-1] for i in 2:length(gvars)) "Found one or more conflicting definitions of $name in $gvars"
     end
     diag_vars = filter(isdiagnostic, all_vars)
     prog_vars = filter(isprognostic, all_vars)
