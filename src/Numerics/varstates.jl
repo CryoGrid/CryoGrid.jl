@@ -92,7 +92,7 @@ const GroupedVars = NamedTuple{names,<:Tuple{Vararg{<:Tuple{Vararg{<:Var}}}}} wh
 """
     VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunksize::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
 """
-function VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunksize::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
+function VarStates(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.AbstractDiscretization), chunksize::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
     _flatten(vars) = Flatten.flatten(vars, Flatten.flattenable, Var)
     diagvars = map(group -> filter(isdiagnostic, group), vars)
     progvars = map(group -> filter(isprognostic, group), vars)
