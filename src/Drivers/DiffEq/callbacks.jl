@@ -1,32 +1,55 @@
 # callback building functions
-function makecallbacks(component::StratComponent{L,P,name}, i_layer) where {L,P,name}
-    cbs = []
-    i_ev = 1
-    for ev in CryoGrid.events(component.layer, component.process)
-        push!(cbs, _diffeqcallback(ev, Val{name}(), i_layer, i_ev))
-        i_ev += 1
-    end
-    return Tuple(cbs)
-end
 function makecallbacks(tile::Tile)
-    diffeq_callbacks = tuplejoin((makecallbacks(comp, i) for (i,comp) in enumerate(tile.strat))...)
-    return diffeq_callbacks
+    eventname(::Event{name}) where name = name
+    isgridevent(::GridContinuousEvent) = true
+    isgridevent(::Event) = false
+    callbacks = []
+    for (i,comp) in enumerate(tile.strat)
+        events = CryoGrid.events(comp.layer, comp.process)
+        layername = componentname(comp)
+        for ev in events
+            # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
+            # GridContinuousEvents are defined on the whole grid/domain and so do not need to be duplicated
+            # across layers.
+            name = eventname(ev)
+            if !isgridevent(ev) || name ∉ map(first, callbacks)
+                cb = _diffeqcallback(ev, tile, Val{layername}(), i)
+                push!(callbacks, eventname(ev) => cb)
+            end
+        end
+    end
+    return map(last, callbacks)
 end
-function _criterionfunc(::Val{name}, i_layer, i_ev) where name
+function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layername
     function _condition(u,t,integrator)
         let tile = Tile(integrator),
             comp = tile.strat[i_layer],
             layer = comp.layer,
             process = comp.process,
-            ev = tile.events[name][i_ev],
             u = Strat.withaxes(u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
-            t = t;
-            criterion(ev, layer, process, Strat.getstate(Val{name}(), tile, u, du, t, integrator.dt))
+            t = t,
+            state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+            criterion(ev, layer, process, state)
         end
     end
 end
-function _triggerfunc(::Val{name}, trig, i_layer, i_ev) where name
+function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
+    function _condition(out,u,t,integrator)
+        tile = Tile(integrator)
+        for comp in tile.strat
+            let layer = comp.layer,
+                process = comp.process,
+                u = Strat.withaxes(u, tile),
+                du = Strat.withaxes(get_du(integrator), tile),
+                t = t,
+                state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+                criterion!(view(out, Numerics.bounds(state.grid)), ev, layer, process, state)
+            end
+        end
+    end
+end
+function _triggerfunc(::Val{layername}, ev::Event, ::Type{T}, i_layer::Int) where {layername,T<:ContinuousTrigger}
     _invoke_trigger!(ev, ::Nothing, layer, process, state) = trigger!(ev, layer, process, state)
     _invoke_trigger!(ev, trig::ContinuousTrigger, layer, process, state) = trigger!(ev, trig, layer, process, state)
     function _trigger!(integrator)
@@ -34,24 +57,47 @@ function _triggerfunc(::Val{name}, trig, i_layer, i_ev) where name
             comp = tile.strat[i_layer],
             layer = comp.layer,
             process = comp.process,
-            ev = tile.events[name][i_ev],
             u = Strat.withaxes(integrator.u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
             t = integrator.t,
-            state = Strat.getstate(Val{name}(), tile, u, du, t, integrator.dt);
-            _invoke_trigger!(ev, trig, layer, process, state)
+            state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+            _invoke_trigger!(ev, T(nothing), layer, process, state)
         end
     end
 end
-_diffeqcallback(::DiscreteEvent, ::Val{name}, i_layer, i_ev) where name = DiffEqCallbacks.DiscreteCallback(
-    _criterionfunc(Val{name}(), i_layer, i_ev),
-    _triggerfunc(Val{name}(), nothing, i_layer, i_ev);
+function _gridtriggerfunc(::Val{layername}, ev::GridContinuousEvent, grid::Grid, ::Type{T}) where {layername,T<:ContinuousTrigger}
+    _invoke_trigger!(ev, ::Nothing, layer, process, state) = trigger!(ev, layer, process, state)
+    _invoke_trigger!(ev, trig::ContinuousTrigger, layer, process, state) = trigger!(ev, trig, layer, process, state)
+    function _trigger!(integrator, event_idx)
+        tile = Tile(integrator)
+        for comp in tile.strat
+            u = Strat.withaxes(integrator.u, tile)
+            du = Strat.withaxes(get_du(integrator), tile)
+            t = integrator.t
+            state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt)
+            if event_idx ∈ Numerics.bounds(state.grid)
+                _invoke_trigger!(ev, T(nothing), comp.layer, comp.process, state)
+                break
+            end
+        end
+    end
+end
+_diffeqcallback(ev::DiscreteEvent, ::Tile, ::Val{layername}, i_layer::Int) where {layername} = DiffEqCallbacks.DiscreteCallback(
+    _criterionfunc(Val{layername}(), ev, i_layer),
+    _triggerfunc(Val{layername}(), ev, nothing, i_layer),
     # todo: initialize and finalize?
 )
-_diffeqcallback(::ContinuousEvent, ::Val{name}, i_layer, i_ev) where name = DiffEqCallbacks.ContinuousCallback(
-    _criterionfunc(Val{name}(), i_layer, i_ev),
-    _triggerfunc(Val{name}(), Increasing(), i_layer, i_ev);
-    affect_neg! = _triggerfunc(Val{name}(), Decreasing(), i_layer, i_ev),
+_diffeqcallback(ev::ContinuousEvent, ::Tile, ::Val{layername}, i_layer::Int) where layername = DiffEqCallbacks.ContinuousCallback(
+    _criterionfunc(Val{layername}(), ev, i_layer),
+    _triggerfunc(Val{layername}(), ev, Increasing, i_layer),
+    _triggerfunc(Val{layername}(), ev, Decreasing, i_layer),
+    # todo: initialize and finalize?
+)
+_diffeqcallback(ev::GridContinuousEvent, tile::Tile, ::Val{layername}, ::Int) where layername = DiffEqCallbacks.VectorContinuousCallback(
+    _gridcriterionfunc(Val{layername}(), ev),
+    _gridtriggerfunc(Val{layername}(), ev, tile.grid, Increasing),
+    _gridtriggerfunc(Val{layername}(), ev, tile.grid, Decreasing),
+    length(cells(tile.grid)),
     # todo: initialize and finalize?
 )
 

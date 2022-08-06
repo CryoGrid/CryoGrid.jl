@@ -125,46 +125,6 @@ end
     end
     return expr
 end
-@generated function criterion(ev::ContinuousEvent, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
-    expr = Expr(:block)
-    push!(expr.args, :(value = 1.0))
-    for i in 1:length(P.parameters)
-        quote
-            value *= criterion(ev,l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    push!(expr.args, :(return value))
-    return expr
-end
-@generated function criterion(ev::DiscreteEvent, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
-    expr = Expr(:block)
-    push!(expr.args, :(value = true))
-    for i in 1:length(P.parameters)
-        quote
-            value *= criterion(ev,l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    push!(expr.args, :(return value))
-    return expr
-end
-@generated function trigger!(ev::Event, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
-    expr = Expr(:block)
-    for i in 1:length(P.parameters)
-        quote
-            trigger!(ev,l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    return expr
-end
-@generated function trigger!(ev::ContinuousEvent, tr::ContinuousTrigger, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
-    expr = Expr(:block)
-    for i in 1:length(P.parameters)
-        quote
-            trigger!(ev,tr,l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    return expr
-end
 """
     timestep(l::Layer, ps::CoupledProcesses{P}, state) where {P}
 
@@ -175,7 +135,7 @@ Default implementation of `timestep` for coupled process types. Calls each proce
     push!(expr.args, :(dtmax = Inf))
     for i in 1:length(P.parameters)
         quote
-            dtmax = min(dtmax, timestep(l,ps[$i],state))
+            dtmax = min(dtmax, timestep(l, ps[$i], state))
         end |> Base.Fix1(push!, expr.args)
     end
     push!(expr.args, :(return dtmax))

@@ -123,17 +123,28 @@ events(::Layer, ::Process) = ()
 """
     criterion(::Event, ::Layer, ::Process, state)
 
-Event criterion/condition. Should return a `Bool` for discrete events and a real number for continuous events.
+Event criterion/condition. Should return a `Bool` for discrete events. For continuous events,
+this should be a real-valued function where the event is fired at the zeros/roots.
 """
-criterion(ev::Event, ::Layer, ::Process, state) = true
+criterion(::DiscreteEvent, ::Layer, ::Process, state) = false
+criterion(::ContinuousEvent, ::Layer, ::Process, state) = Inf
+"""
+    criterion!(out::AbstractArray, ev::GridContinuousEvent, ::Layer, ::Process, state)
+
+Event criterion for on-grid (i.e. multi-valued) continuous events. The condition for each grid cell should
+be stored in `out`.
+"""
+criterion!(out::AbstractArray, ::GridContinuousEvent, ::Layer, ::Process, state) = out .= Inf
 """
     trigger!(::Event, ::Layer, ::Process, state)
-    trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) where {name}
+    trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state)
+    trigger!(ev::GridContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state)
 
 Event action executed when `criterion` is met.
 """
-trigger!(ev::Event, ::Layer, ::Process, state) = nothing
-trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
+trigger!(::Event, ::Layer, ::Process, state) = nothing
+trigger!(::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
+trigger!(::GridContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
 # Discretization
 """
     midpoint(::Layer, state)
