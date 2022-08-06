@@ -1,5 +1,8 @@
 module HeatConduction
 
+import CryoGrid
+import CryoGrid.Physics
+
 using CryoGrid
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
@@ -14,9 +17,6 @@ using FreezeCurves: FreezeCurves, FreezeCurve, FreeWater
 using ModelParameters
 using Unitful
 
-import CryoGrid
-import CryoGrid.Physics
-
 export Heat, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
 
@@ -28,13 +28,13 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    HeatImplementation
+    HeatImpl
 
 Base type for different numerical formulations of two-phase heat diffusion.
 """
-abstract type HeatImplementation end
-struct Enthalpy <: HeatImplementation end
-struct Temperature <: HeatImplementation end
+abstract type HeatImpl end
+struct Enthalpy <: HeatImpl end
+struct Temperature <: HeatImpl end
 
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
@@ -47,19 +47,21 @@ struct Temperature <: HeatImplementation end
     ca::Tca = 0.00125e6u"J/K/m^3" # heat capacity of air
 end
 
-struct Heat{Tfc<:FreezeCurve,TImpl<:HeatImplementation,Tdt,Tinit,TProp} <: SubSurfaceProcess
+struct Heat{Tfc<:FreezeCurve,TImpl<:HeatImpl,Tdt,Tinit,TProp} <: SubSurfaceProcess
     impl::TImpl
     prop::TProp
     freezecurve::Tfc
     dtlim::Tdt  # timestep limiter
     init::Tinit # optional initialization scheme
 end
+_default_dtlim(::Union{Enthalpy,Temperature}, ::FreezeCurve) = Physics.CFL()
+_default_dtlim(::Enthalpy, ::FreeWater) = Physics.MaxDelta(1u"MJ") # CFL doesn't work with FreeWater freeze curve
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
-Heat(impl::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
-Heat(impl::Temperature; freezecurve, prop=ThermalProperties(), dtlim=Physics.CFL(), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
+Heat(impl::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=_default_dtlim(impl, freezecurve), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
+Heat(impl::Temperature; freezecurve, prop=ThermalProperties(), dtlim=_default_dtlim(impl, freezecurve), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop
@@ -71,7 +73,7 @@ CryoGrid.variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
 export HeatBC, ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")
 
-export heatconduction!, enthalpy, enthalpyinv, waterice, liquidwater, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
+export heatconduction!, enthalpy, enthalpyinv, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 include("heat.jl")
 
 end

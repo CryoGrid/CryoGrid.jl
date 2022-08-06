@@ -1,6 +1,6 @@
 module Soils
 
-using CryoGrid: SubSurface, Parameterization
+using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Numerics: heaviside
 using CryoGrid.Physics
@@ -10,7 +10,6 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds, @kwdef
 using IfElse
-using Interpolations: Interpolations
 using IntervalSets
 using ForwardDiff
 using FreezeCurves
@@ -22,14 +21,13 @@ import CryoGrid
 import CryoGrid.InputOutput
 import CryoGrid.Physics
 import CryoGrid.Physics.HeatConduction
-
-import Flatten: @flattenable, flattenable
+import CryoGrid.Physics.Hydrology
 
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
 export soilparameters, soilcomponent, porosity, mineral, organic
 
 # from FreezeCurves
-export SFCC, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten
+export SFCC, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
 
 const Enthalpy = HeatConduction.Enthalpy
 const Temperature = HeatConduction.Temperature
@@ -100,23 +98,22 @@ SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()
 SoilComposition(::Type{<:Soil{<:HomogeneousCharacteristicFractions}}) = Homogeneous()
 # Volumetric fraction methods
-Physics.waterice(soil::Soil, state) = waterice(SoilComposition(soil), soil, state)
 porosity(soil::Soil, state) = porosity(SoilComposition(soil), soil, state)
 mineral(soil::Soil, state) = mineral(SoilComposition(soil), soil, state)
 organic(soil::Soil, state) = organic(SoilComposition(soil), soil, state)
 ## Homogeneous soils
-Physics.waterice(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
 porosity(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θp}(), soil.para)
 mineral(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θm}(), soil.para)
 organic(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state=nothing) = soilcomponent(Val{:θo}(), soil.para)
-## Heterogeneous soils
-Physics.waterice(::Heterogeneous, soil::Soil, state) = state.θwi   
+## Heterogeneous soils  
 porosity(::Heterogeneous, soil::Soil, state) = state.θp
 mineral(::Heterogeneous, soil::Soil, state) = state.θm
 organic(::Heterogeneous, soil::Soil, state) = state.θo
 
 CryoGrid.variables(soil::Soil) = CryoGrid.variables(SoilComposition(soil), soil)
-CryoGrid.variables(::Homogeneous, ::Soil) = ()
+CryoGrid.variables(::Homogeneous, ::Soil) = (
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
+)
 CryoGrid.variables(::Heterogeneous, ::Soil) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
     Diagnostic(:θp, OnGrid(Cells), domain=0..1),
@@ -168,5 +165,6 @@ Defaults to using the scalar porosity defined on `soil`.
 @inline porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
 
 include("soilheat.jl")
+include("soilwater.jl")
 
 end

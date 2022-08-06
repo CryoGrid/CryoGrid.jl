@@ -30,7 +30,7 @@ function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layerna
             du = Strat.withaxes(get_du(integrator), tile),
             t = t,
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            criterion(ev, layer, process, state)
+            return criterion(ev, layer, process, state)
         end
     end
 end
@@ -49,7 +49,7 @@ function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
         end
     end
 end
-function _triggerfunc(::Val{layername}, ev::Event, ::Type{T}, i_layer::Int) where {layername,T<:ContinuousTrigger}
+function _triggerfunc(::Val{layername}, ev::Event, trig::Union{Nothing,T}, i_layer::Int) where {layername,T<:ContinuousTrigger}
     _invoke_trigger!(ev, ::Nothing, layer, process, state) = trigger!(ev, layer, process, state)
     _invoke_trigger!(ev, trig::ContinuousTrigger, layer, process, state) = trigger!(ev, trig, layer, process, state)
     function _trigger!(integrator)
@@ -61,7 +61,7 @@ function _triggerfunc(::Val{layername}, ev::Event, ::Type{T}, i_layer::Int) wher
             du = Strat.withaxes(get_du(integrator), tile),
             t = integrator.t,
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            _invoke_trigger!(ev, T(nothing), layer, process, state)
+            _invoke_trigger!(ev, trig, layer, process, state)
         end
     end
 end
@@ -89,8 +89,8 @@ _diffeqcallback(ev::DiscreteEvent, ::Tile, ::Val{layername}, i_layer::Int) where
 )
 _diffeqcallback(ev::ContinuousEvent, ::Tile, ::Val{layername}, i_layer::Int) where layername = DiffEqCallbacks.ContinuousCallback(
     _criterionfunc(Val{layername}(), ev, i_layer),
-    _triggerfunc(Val{layername}(), ev, Increasing, i_layer),
-    _triggerfunc(Val{layername}(), ev, Decreasing, i_layer),
+    _triggerfunc(Val{layername}(), ev, Increasing(nothing), i_layer),
+    _triggerfunc(Val{layername}(), ev, Decreasing(nothing), i_layer),
     # todo: initialize and finalize?
 )
 _diffeqcallback(ev::GridContinuousEvent, tile::Tile, ::Val{layername}, ::Int) where layername = DiffEqCallbacks.VectorContinuousCallback(

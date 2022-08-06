@@ -34,14 +34,14 @@ Get heat capacities for generic `SubSurface` layer.
 # Generic heat conduction implementation
 
 """
-    volumetricfractions(::SubSurface, heat::Heat, state, i)
+    volumetricfractions(::SubSurface, ::Heat, state, i)
 
 Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
 the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
 """
-@inline function Physics.volumetricfractions(sub::SubSurface, heat::Heat, state, i)
-    let θwi = waterice(sub, heat, state, i),
-        θw = liquidwater(sub, heat, state, i),
+@inline function Physics.volumetricfractions(::SubSurface, ::Heat, state, i)
+    @inbounds let θwi = state.θwi[i],
+        θw = state.θw[i],
         θa = 1.0 - θwi,
         θi = θwi - θw;
         return (θw, θi, θa)
@@ -55,7 +55,7 @@ In general, this function should compute at least the liquid/frozen water conten
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
 should also be computed depending on the thermal scheme being implemented.
 """
-freezethaw!(sub::SubSurface, heat::Heat, state) = error("missing implementation of freezethaw!")
+freezethaw!(::SubSurface, ::Heat, state) = error("missing implementation of freezethaw!")
 """
     heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
 
@@ -251,28 +251,40 @@ end
 # CFL not defined for free-water freeze curve
 CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,Physics.CFL}, state) = Inf
 """
-    timestep(::SubSurface, ::Heat{Tfc,TPara,CFL}, state) where {TPara}
+    timestep(::SubSurface, ::Heat{Tfc,TImpl,CFL}, state) where {TImpl}
 
 Implementation of `timestep` for `Heat` using the Courant-Fredrichs-Lewy condition
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `dHdT / kc`.
 """
-@inline function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TPara,Physics.CFL}, state) where {Tfc,TPara}
+function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TImpl,<:Physics.CFL}, state) where {Tfc,TImpl}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in 1:length(Δx)
         dtmax = let u = state.dHdT[i] / state.kc[i],
+            c = heat.dtlim.courant_number, # couant number
             Δx = Δx[i],
-            Δt = 0.5*u*Δx^2;
+            Δt = c*u*Δx^2;
             min(dtmax, Δt)
         end
     end
-    dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : heat.dtlim.fallback_dt
+    dtmax = isfinite(dtmax) ? dtmax : Inf
+    return dtmax
+end
+function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TImpl,<:Physics.MaxDelta}, state) where {Tfc,TImpl}
+    Δx = Δ(state.grid)
+    dtmax = Inf
+    @inbounds for i in 1:length(Δx)
+        dtmax = let Δt = abs(heat.dtlim.maxval / state.dH[i]);
+            min(dtmax, Δt)
+        end
+    end
+    dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
-    hc = partial(heatcapacity, liquidwater, sub, heat, state, i)
+    hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
     return enthalpyinv(heat.freezecurve, hc, state.H[i], hc.θwi, heat.prop.L)
 end
 @inline function enthalpyinv(::FreeWater, hc::F, H, θwi, L) where {F}

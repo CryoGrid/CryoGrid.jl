@@ -106,7 +106,7 @@ function CryoGrid.diagnosticstep!(
     # only update snowdepth if swe greater than threshold, otherwise, set to zero.
     @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
     # get heat capacity as a function of liquid water content
-    f_hc = partial(heatcapacity, liquidwater, snow, heat, state, 1)
+    f_hc = partial(heatcapacity, Val{:θw}(), snow, heat, state, 1)
     # set temperature and liquid water content according to free water freeze curve,
     # but capping the liquid fraction according to the 'max_unfrozen' parameter.
     max_unfrozen = ablation(smb).max_unfrozen

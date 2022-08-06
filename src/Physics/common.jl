@@ -5,8 +5,21 @@ Constants() = (
 )
 # Generic step limiter types
 abstract type StepLimiter end
+"""
+    CFL
+
+Courant-Fredrichs-Lewy condition (where defined) with the given Courant number.
+"""
 Base.@kwdef struct CFL <: StepLimiter
-    fallback_dt::Float64 = 60.0 # fallback dt [s]
+    courant_number::Float64 = 0.5
+end
+"""
+    MaxDelta{T}
+
+Allow a maximum change of `maxval` in the integrated quantity.
+"""
+Base.@kwdef struct MaxDelta{T} <: StepLimiter
+    maxval::T
 end
 # Volume material composition
 """
@@ -23,26 +36,7 @@ ordering, so be sure to double check your implementation, otherwise this can cau
 @inline volumetricfractions(::SubSurface, ::SubSurfaceProcess, state) = ()
 @inline volumetricfractions(sub::SubSurface, proc::SubSurfaceProcess, state, i) = volumetricfractions(sub, proc, state)
 """
-    waterice(::SubSurface, state)
-    waterice(sub::SubSurface, ::SubSurfaceProcess, state)
-    waterice(sub::SubSurface, ::SubSurfaceProcess, state, i)
-
-Retrieves the total water content (water + ice) for the given layer at grid cell `i`, if specified.
-Defaults to retrieving the state variable `θwi` (assuming it exists).
-"""
-@inline waterice(::SubSurface, state) = state.θwi
-@inline waterice(sub::SubSurface, proc::SubSurfaceProcess, state) = waterice(sub, state)
-@inline waterice(sub::SubSurface, proc::SubSurfaceProcess, state, i) = Utils.getscalar(waterice(sub, proc, state), i)
-"""
-    liquidwater(sub::SubSurface, proc::SubSurfaceProcess, state)
-    liquidwater(sub::SubSurface, proc::SubSurfaceProcess, state, i)
-
-Retrieves the liquid water content for the given layer.
-"""
-@inline liquidwater(::SubSurface, ::SubSurfaceProcess, state) = state.θw
-@inline liquidwater(sub::SubSurface, proc::SubSurfaceProcess, state, i) = Utils.getscalar(liquidwater(sub, proc, state), i)
-"""
-    partial(f, ::typeof(liquidwater), sub::SubSurface, proc::SubSurfaceProcess, state, i)
+    partial(f, ::Val{:θw}, sub::SubSurface, proc::SubSurfaceProcess, state, i)
 
 Returns a partially applied function `f` which takes liquid water `θw` as an argument and holds all other
 volumetric fractions constant. `f` must be a function of the form `f(::Layer, ::Process, θfracs...)` where
@@ -51,9 +45,9 @@ volumetric fractions constant. `f` must be a function of the form `f(::Layer, ::
 `θfracs` are zero or more additional constituent fractions. The returned method is a closure which has the
 following properties available: `θw, θi, θa, θfracs, θwi` where `θwi` refers to the sum of `θw` and `θi`.
 """
-function partial(f::F, ::typeof(liquidwater), sub::SubSurface, proc::SubSurfaceProcess, state, i) where F
-    (θw, θi, θa, θfracs...) = volumetricfractions(sub, proc, state, i)
-    θwi = θw + θi
+function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::SubSurfaceProcess, state, i) where F
+    (_, _, θa, θfracs...) = volumetricfractions(sub, proc, state, i)
+    θwi = state.θwi[i]
     return function apply(θw)
         return f(sub, proc, θw, θwi - θw, θa, θfracs...)
     end
