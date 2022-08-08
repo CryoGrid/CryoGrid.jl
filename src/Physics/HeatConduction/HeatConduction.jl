@@ -28,13 +28,13 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    HeatImpl
+    HeatFormulation
 
 Base type for different numerical formulations of two-phase heat diffusion.
 """
-abstract type HeatImpl end
-struct Enthalpy <: HeatImpl end
-struct Temperature <: HeatImpl end
+abstract type HeatFormulation end
+struct Enthalpy <: HeatFormulation end
+struct Temperature <: HeatFormulation end
 
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
@@ -47,8 +47,8 @@ struct Temperature <: HeatImpl end
     ca::Tca = 0.00125e6u"J/K/m^3" # heat capacity of air
 end
 
-struct Heat{Tfc<:FreezeCurve,TImpl<:HeatImpl,Tdt,Tinit,TProp} <: SubSurfaceProcess
-    impl::TImpl
+struct Heat{Tfc<:FreezeCurve,TForm<:HeatFormulation,Tdt,Tinit,TProp} <: SubSurfaceProcess
+    form::TForm
     prop::TProp
     freezecurve::Tfc
     dtlim::Tdt  # timestep limiter
@@ -60,8 +60,8 @@ _default_dtlim(::Enthalpy, ::FreeWater) = Physics.MaxDelta(1u"MJ") # CFL doesn't
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
-Heat(impl::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=_default_dtlim(impl, freezecurve), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
-Heat(impl::Temperature; freezecurve, prop=ThermalProperties(), dtlim=_default_dtlim(impl, freezecurve), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
+Heat(form::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
+Heat(form::Temperature; freezecurve, prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop

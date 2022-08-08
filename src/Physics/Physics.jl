@@ -6,6 +6,7 @@ using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using IfElse
 using Reexport
 using Unitful
 

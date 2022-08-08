@@ -12,33 +12,31 @@ using IfElse
 using ModelParameters
 using Unitful
 
-export WaterFluxes
+export WaterBalance
 
 """
-    WaterFluxesImpl
+    WaterBalanceFormulation
 
-Base type for different formulations of `WaterFluxes`.
+Base type for different formulations of `WaterBalance`.
 """
-abstract type WaterFluxesImpl end
+abstract type WaterBalanceFormulation end
 """
-    WaterFluxes{TImpl<:WaterFluxesImpl,Tdt,TProp} <: CryoGrid.SubSurfaceProcess
+    WaterBalance{TForm<:WaterBalanceFormulation,Tdt,TProp} <: CryoGrid.SubSurfaceProcess
 
 Represents subsurface water transport processes.
 """
-struct WaterFluxes{TImpl<:WaterFluxesImpl,Tdt,TProp} <: CryoGrid.SubSurfaceProcess
-    impl::TImpl
+struct WaterBalance{TForm<:WaterBalanceFormulation,Tdt,TProp} <: CryoGrid.SubSurfaceProcess
+    form::TForm
     prop::TProp
     dtlim::Tdt
 end
 
-struct SaturationLimiter <: Physics.StepLimiter end
-
 export BucketScheme
 include("water_bucket.jl")
 
-# Constructors for WaterFluxes
-_default_dtlim(::BucketScheme) = SaturationLimiter()
-_default_dtlim(::WaterFluxesImpl) = nothing
-WaterFluxes(impl::WaterFluxesImpl = BucketScheme(:sat); prop = Physics.Constants(), dtlim = _default_dtlim(impl)) = WaterFluxes(impl, prop, dtlim)
+# Constructors for WaterBalance
+default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
+default_dtlim(::WaterBalanceFormulation) = Physics.MaxDelta(Inf)
+WaterBalance(form::WaterBalanceFormulation = BucketScheme(); prop = Physics.Constants(), dtlim = default_dtlim(form)) = WaterBalance(form, prop, dtlim)
 
 end

@@ -122,7 +122,13 @@ CryoGrid.variables(::Heterogeneous, ::Soil) = (
 )
 
 CryoGrid.initialcondition!(soil::Soil, state) = CryoGrid.initialcondition!(SoilComposition(soil), soil, state)
-CryoGrid.initialcondition!(::Homogeneous, ::Soil, state) = nothing
+function CryoGrid.initialcondition!(::Homogeneous, soil::Soil, state)
+    χ = soil.para.xic
+    ϕ = soil.para.por
+    θ = soil.para.sat
+    ω = soil.para.org
+    @. state.θwi = soilcomponent(Val{:θwi}(), χ, ϕ, θ, ω)
+end
 """
     initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
 
@@ -165,6 +171,7 @@ Defaults to using the scalar porosity defined on `soil`.
 @inline porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
 
 include("soilheat.jl")
+export RichardsEq
 include("soilwater.jl")
 
 end

@@ -108,18 +108,19 @@ Custom implementation of `StepsizeLimiterAffect` function for `CryoGrid.timestep
 `timestep` function with `tile,du,u,p,t` as arguments.
 """
 function (p::DiffEqCallbacks.StepsizeLimiterAffect{typeof(CryoGrid.timestep)})(integrator)
-    integrator.opts.dtmax = p.safety_factor*p.dtFE(integrator.sol.prob.f.f, get_du(integrator), integrator.u, integrator.p, integrator.t)
+    dtFE = p.safety_factor*p.dtFE(integrator.sol.prob.f.f, get_du(integrator), integrator.u, integrator.p, integrator.t)
+    dtmax = min(integrator.opts.dtmax, dtFE)
     # This part is copied from the implementation in DiffEqCallbacks
     if !integrator.opts.adaptive
-        if integrator.opts.dtmax < integrator.dtcache
-            integrator.dtcache = integrator.opts.dtmax
-        elseif p.cached_dtcache <= integrator.opts.dtmax
+        if dtmax < integrator.dtcache
+            integrator.dtcache = dtmax
+        elseif p.cached_dtcache <= dtmax
             integrator.dtcache = p.cached_dtcache
         end
     end
-    if p.max_step && isfinite(integrator.opts.dtmax)
-        set_proposed_dt!(integrator,integrator.opts.dtmax)
-        integrator.dtcache = integrator.opts.dtmax
+    if p.max_step && isfinite(dtmax)
+        set_proposed_dt!(integrator, dtmax)
+        integrator.dtcache = dtmax
     end
     u_modified!(integrator, false)
 end

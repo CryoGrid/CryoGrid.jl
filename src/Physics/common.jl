@@ -16,10 +16,30 @@ end
 """
     MaxDelta{T}
 
-Allow a maximum change of `maxval` in the integrated quantity.
+Allow a maximum change of `Δmax` in the integrated quantity.
 """
 Base.@kwdef struct MaxDelta{T} <: StepLimiter
-    maxval::T
+    Δmax::T
+    upper_limit_factor::Float64 = 0.9
+    lower_limit_factor::Float64 = 0.9
+end
+MaxDelta(Δmax) = MaxDelta(;Δmax)
+function (limiter::MaxDelta)(du, u, t)
+    dtmax = abs(limiter.Δmax / du)
+    return isfinite(dtmax) ? dtmax : Inf
+end
+function (limiter::MaxDelta)(
+    du, u, t, upper_limit, lower_limit;
+    upper_limit_factor=limiter.upper_limit_factor,
+    lower_limit_factor=limiter.lower_limit_factor,
+)
+    dtmax = IfElse.ifelse(
+        sign(du) > 0,
+        upper_limit_factor*(upper_limit - u) / du,
+        -lower_limit_factor*(u - lower_limit) / du,
+    )
+    dtmax = min(dtmax, abs(limiter.Δmax / du))
+    return isfinite(dtmax) ? dtmax : Inf
 end
 # Volume material composition
 """

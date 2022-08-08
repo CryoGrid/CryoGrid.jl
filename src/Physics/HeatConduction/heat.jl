@@ -251,16 +251,16 @@ end
 # CFL not defined for free-water freeze curve
 CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,Physics.CFL}, state) = Inf
 """
-    timestep(::SubSurface, ::Heat{Tfc,TImpl,CFL}, state) where {TImpl}
+    timestep(::SubSurface, ::Heat{Tfc,TForm,CFL}, state) where {TForm}
 
 Implementation of `timestep` for `Heat` using the Courant-Fredrichs-Lewy condition
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `dHdT / kc`.
 """
-function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TImpl,<:Physics.CFL}, state) where {Tfc,TImpl}
+function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.CFL}, state) where {Tfc,TForm}
     Δx = Δ(state.grid)
     dtmax = Inf
-    @inbounds for i in 1:length(Δx)
+    @inbounds for i in eachindex(Δx)
         dtmax = let u = state.dHdT[i] / state.kc[i],
             c = heat.dtlim.courant_number, # couant number
             Δx = Δx[i],
@@ -271,15 +271,13 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TImpl,<:Physics.CFL}, st
     dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
-function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TImpl,<:Physics.MaxDelta}, state) where {Tfc,TImpl}
+function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.MaxDelta}, state) where {Tfc,TForm}
     Δx = Δ(state.grid)
     dtmax = Inf
-    @inbounds for i in 1:length(Δx)
-        dtmax = let Δt = abs(heat.dtlim.maxval / state.dH[i]);
-            min(dtmax, Δt)
-        end
+    @inbounds for i in eachindex(Δx)
+        min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
     end
-    dtmax = isfinite(dtmax) ? dtmax : Inf
+    dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
     return dtmax
 end
 # Free water freeze curve
