@@ -43,12 +43,12 @@ function ∇(f::F) where {F}
     return ∂f
 end
 # Flux calculations
-@propagate_inbounds @inline _flux_kernel(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/ Δx
+@propagate_inbounds @inline _flux_kernel(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/Δx
 @propagate_inbounds @inline function _flux!(j::AbstractVector, x₁::AbstractVector, x₂::AbstractVector, Δx::AbstractVector, k::AbstractVector, ::Val{use_turbo}) where {use_turbo}
-    @. j = _flux_kernel(x₁, x₂, Δx, k)
+    @. j += _flux_kernel(x₁, x₂, Δx, k)
 end
 @propagate_inbounds @inline function _flux!(j::AbstractVector{Float64}, x₁::AbstractVector{Float64}, x₂::AbstractVector{Float64}, Δx::AbstractVector{Float64}, k::AbstractVector{Float64}, ::Val{true})
-    @turbo @. j = _flux_kernel(x₁, x₂, Δx, k)
+    @turbo @. j += _flux_kernel(x₁, x₂, Δx, k)
 end
 """
     flux!(j::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector)
@@ -68,10 +68,10 @@ end
 # Divergence
 @propagate_inbounds @inline _div_kernel(j₁, j₂, Δj) = (j₁ - j₂) / Δj
 @propagate_inbounds @inline function _div!(dx::AbstractVector, j₁::AbstractVector, j₂::AbstractVector, Δj::AbstractVector, ::Val{use_turbo}) where {use_turbo}
-    @. dx = _div_kernel(j₁, j₂, Δj)
+    @. dx += _div_kernel(j₁, j₂, Δj)
 end
 @propagate_inbounds @inline function _div!(dx::AbstractVector{Float64}, j₁::AbstractVector{Float64}, j₂::AbstractVector{Float64}, Δj::AbstractVector{Float64}, ::Val{true})
-    @turbo @. dx = _div_kernel(j₁, j₂, Δj)
+    @turbo @. dx += _div_kernel(j₁, j₂, Δj)
 end
 """
     divergence!(dx::AbstractVector, j::AbstractVector, Δj::AbstractVector)
