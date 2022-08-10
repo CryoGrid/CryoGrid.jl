@@ -12,21 +12,25 @@ struct VarStates{names,griddvars,TU,TD,TV,DF,DG}
     griddiag::NamedTuple{griddvars,DG} # on-grid non-prognostic variables
 end
 @generated function getvar(::Val{name}, vs::VarStates{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
-    pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u)))
-    dnames = map(n -> Symbol(:d,n), keys(pax))
+    pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u))) # get prognostic variable index map (name -> indices)
+    dnames = map(n -> Symbol(:d,n), keys(pax)) # get names of delta/derivative variables
+    # case 1) variable is diagnostic and lives on the grid
     if name ∈ griddvars
         quote
             return retrieve(vs.griddiag.$name, u)
         end
+    # case 2) variable is prognostic
     elseif name ∈ keys(pax)
         quote
             return u.$name
         end
+    # case 3) variable is a prognostic derivative or residual
     elseif du != Nothing && name ∈ dnanes
         i = findfirst(n -> n == name, dnames)::Int
         quote
             return du.$(keys(pax)[i])
         end
+    # case 4) no variables match the given name
     else
         :(return nothing)
     end
@@ -55,7 +59,7 @@ end
 """
     DiffCache{N,A,Adual}
 
-Extension of `PreallocationTools.DiffCache` that stores state variables in forward-diff compatible cache arrays.
+Wrapper around `PreallocationTools.DiffCache` that stores state variables in forward-diff compatible cache arrays.
 """
 struct DiffCache{N,A,Adual}
     name::Symbol

@@ -29,9 +29,9 @@ function (limiter::MaxDelta)(du, u, t)
     return isfinite(dtmax) ? dtmax : Inf
 end
 function (limiter::MaxDelta)(
-    du, u, t, upper_limit, lower_limit;
-    upper_limit_factor=limiter.upper_limit_factor,
+    du, u, t, lower_limit, upper_limit;
     lower_limit_factor=limiter.lower_limit_factor,
+    upper_limit_factor=limiter.upper_limit_factor,
 )
     dtmax = IfElse.ifelse(
         sign(du) > 0,
