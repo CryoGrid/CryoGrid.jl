@@ -15,6 +15,7 @@ using ForwardDiff
 using FreezeCurves
 using ModelParameters
 using Setfield
+using StaticArrays
 using Unitful
 
 import CryoGrid

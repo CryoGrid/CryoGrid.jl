@@ -19,7 +19,7 @@ function ∇(f::F, x::AbstractArray) where {F}
     return res.value, res.derivs
 end
 """
-    ∇(f::F) where {F}
+    ∇(f::F; tag=F) where {F}
 
 Wraps the function `f(x)` with a method `∂f(x)` which evaluates `f` on the dual form
 of `x` (i.e. converts `x` into a `ForwardDiff.Dual`) and returns the result. Note that
@@ -28,15 +28,15 @@ the derivatives are *not* extracted, so the user needs to use `ForwardDiff.value
 quantities produced from `x`. This method is a more flexible alternative to `∇(f, x)`
 which does not assume any particular type for the output of `f`.
 """
-function ∇(f::F) where {F}
+function ∇(f::F; tag=F) where {F}
     function ∂f(x; kwargs...)
-        dualx = ForwardDiff.Dual{F}(x, one(x))
+        dualx = ForwardDiff.Dual{tag}(x, one(x))
         return f(dualx; kwargs...)
     end
     function ∂f(x::SVector{N}; kwargs...) where {N}
         # convert each value of `x` to a ForwardDiff.Dual using `single_seed` to produce the appropriate
         # partial derivatives for each index.
-        makedual(i,x) = ForwardDiff.Dual{F}(x, ForwardDiff.single_seed(ForwardDiff.Partials{N,eltype(x)}, Val{i}()))
+        makedual(i,x) = ForwardDiff.Dual{tag}(x, ForwardDiff.single_seed(ForwardDiff.Partials{N,eltype(x)}, Val{i}()))
         dualx = map(makedual, 1:N, x)
         return f(dualx; kwargs...)
     end

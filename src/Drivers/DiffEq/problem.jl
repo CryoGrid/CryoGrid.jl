@@ -20,7 +20,7 @@ function CryoGridProblem(
     save_start=true,
     save_end=true,
     step_limiter=CryoGrid.timestep,
-    safety_factor=9//10,
+    safety_factor=1,
     max_step=true,
     callback=nothing,
     isoutofdomain=Strat.domain(tile),

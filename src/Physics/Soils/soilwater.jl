@@ -32,11 +32,14 @@ Hydrology.saturation(soil::Soil, ::WaterBalance, state, i) = porosity(soil, stat
     end
 end
 @inline function Hydrology.waterice!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Saturation}}, state)
-    let swrc⁻¹ = inv(swrc(water));
+    let f = swrc(water),
+        f⁻¹ = inv(f),
+        θres = f.water.θres;
         @inbounds for i in 1:length(state.ψ₀)
-            state.θsat[i] = Hydrology.saturation(sub, water, state, i)
-            state.θwi[i] = state.sat[i]*state.θsat[i]
-            state.ψ₀[i] = swrc⁻¹(state.θwi[i]; θsat=state.θsat[i])
+            state.θsat[i] = θsat = Hydrology.saturation(sub, water, state, i)
+            state.θwi[i] = θwi = state.sat[i]*θsat
+            # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi
+            state.ψ₀[i] = f⁻¹(min(max(θres, θwi), θsat); θsat)
             state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
         end
     end
@@ -52,7 +55,7 @@ end
             I_ice = impedencefactor(water, θw, θwi),
             n = vg.n;
             # van Genuchten formulation of hydraulic conductivity; see van Genuchten (1980) and Westermann et al. (2022).
-            state.kwc[i] = abs(kw_sat*I_ice*sqrt(θw/θsat)*(1 - (1 - (θw/θsat)^(n/(n+1)))^((n-1)/n))^2)
+            state.kwc[i] = abs(kw_sat*I_ice*sqrt(complex(θw/θsat))*(1 - complex(1 - complex(θw/θsat)^(n/(n+1)))^((n-1)/n))^2)
         end
     end
     state.kw[1] = state.kwc[1]
@@ -71,18 +74,19 @@ function HeatConduction.freezethaw!(
         @inbounds @fastmath for i in 1:length(state.T)
             T = state.T[i]
             ψ₀ = state.ψ₀[i]
-            f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
+            θtot = state.θwi[i]
+            θsat = state.θsat[i]
+            f_x = @SVector[T,ψ₀,θtot,θsat]
             # get derivative function (which will return results as ForwardDiff.Dual types)
-            ∇f = ∇(T -> f(T, ψ₀; f_argsᵢ...))
+            ∇f = ∇(x -> f(x[1], x[2], Val{true}(); θtot=x[3], θsat=x[4]); tag=typeof(f))
             # unpack results
-            θw, ψ, _ = ∇f(T, ψ₀)
+            θw_dual, ψ_dual, _ = ∇f(f_x)
             # extract derivaitve from water content
-            dθwdT = ForwardDiff.partials(θw)[1]
+            state.dθwdT[i] = dθwdT = ForwardDiff.partials(θw_dual)[1]
             # exract values
-            state.θw[i] = ForwardDiff.value(θw)
-            state.ψ[i] = ForwardDiff.value(ψ)
+            state.θw[i] = θw = ForwardDiff.value(θw_dual)
+            state.ψ[i] = ForwardDiff.value(ψ_dual)
             # compute dependent quantities
-            state.dθwdT[i] = dθwdT
             state.C[i] = C = HeatConduction.heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
             state.dHdT[i] = HeatConduction.C_eff(T, C, L, dθwdT, heat.prop.cw, heat.prop.ci)
             # derivaitve of enthalpy w.r.t water content when dθwdT > 0; otherwise set to zero to avoid Inf
@@ -112,7 +116,27 @@ CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = 
 CryoGrid.variables(soil::Soil, ps::Coupled(WaterBalance, Heat)) = (
     Diagnostic(:dHdθw, OnGrid(Cells), domain=0..Inf),
     CryoGrid.variables(soil, ps[1])...,
+    CryoGrid.variables(soil, ps[2])...,
 )
+function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, ::WaterBalance{<:RichardsEq}, state1, state2)
+    θw₁ = state1.θw[end]
+    ψ₁ = state1.ψ[end]
+    ψ₂ = state2.ψ[1]
+    θfc = Hydrology.fieldcapacity(sub1, water1) # take field capacity from upper layer where water would drain from
+    kwc₁ = state1.kwc[end]
+    kwc₂ = state2.kwc[1]
+    δ₁ = CryoGrid.thickness(sub1, state1, last)
+    δ₂ = CryoGrid.thickness(sub2, state2, first)
+    z₁ = CryoGrid.midpoint(sub1, state1, last)
+    z₂ = CryoGrid.midpoint(sub2, state2, first)
+    kw = state1.kw[end] = state2.kw[1] = Numerics.harmonicmean(kwc₁, kwc₂, δ₁, δ₂)
+    jw = Hydrology.advectiveflux(θw₁, θfc, kw)
+    jw += -kw*(ψ₂ - ψ₁)/(z₂ - z₁)
+    # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
+    # element of the same underlying state array, but it's nice for clarity
+    state1.jw[end] = state2.jw[1] = jw
+    return nothing
+end
 function CryoGrid.prognosticstep!(soil::Soil, water::WaterBalance{<:RichardsEq{TForm}}, state) where {TForm}
     # downward advection due to gravity (the +1 in Richard's Equation)
     Hydrology.wateradvection!(soil, water, state)
@@ -120,6 +144,8 @@ function CryoGrid.prognosticstep!(soil::Soil, water::WaterBalance{<:RichardsEq{T
         # compute diffusive fluxes from pressure, if enabled
         Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
     end
+    # balance water fluxes (i.e. ensure mass balance)
+    Hydrology.balancefluxes!(soil, water, state)
     # compute divergence for water fluxes in all cells
     Numerics.divergence!(state.dθwidt, state.jw, Δ(state.grids.kw))
     # compute time derivative differently depending on Richard's equation formulation;
@@ -135,25 +161,11 @@ function CryoGrid.prognosticstep!(soil::Soil, water::WaterBalance{<:RichardsEq{T
     end
     return nothing
 end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},<:Physics.MaxDelta}, state)
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TEvt,<:Physics.MaxDelta}, state) where {TEvt}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.dψ₀[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
         dt = isfinite(dt) ? dt : Inf # make sure it's +Inf
-        dtmax = min(dtmax, dt)
-    end
-    return dtmax
-end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Saturation},<:Physics.MaxDelta}, state)
-    dtmax = Inf
-    @inbounds for i in 1:length(state.sat)
-        # solve for dt in:
-        # sat + dt*∂sat∂t = 1 if ∂sat∂t > 0
-        # sat + dt*∂sat∂t = 0 if ∂sat∂t <= 0
-        # sets the maximum timestep to the dt which would saturate the grid cell;
-        # will be Inf when ∂sat∂t = 0
-        dt = water.dtlim(state.dsat[i], state.sat[i], state.t, zero(state.t), one(state.t))
-        dt = isfinite(dt) && dt > zero(dt) ? dt : Inf # make sure it's +Inf
         dtmax = min(dtmax, dt)
     end
     return dtmax
@@ -166,14 +178,20 @@ function CryoGrid.diagnosticstep!(soil::Soil, ps::Coupled2{<:WaterBalance,<:Heat
     water, heat = ps
     # reset fluxes
     Hydrology.resetfluxes!(soil, water, state)
-    HeatConduction.resetfluxes!(sub, heat, state)
+    HeatConduction.resetfluxes!(soil, heat, state)
     # first set water/ice diagnostics
     Hydrology.waterice!(soil, water, state)
     Hydrology.liquidwater!(soil, water, state)
     # Evaluate freeze/thaw processes
-    HeatConduction.freezethaw!(sub, ps, state)
+    HeatConduction.freezethaw!(soil, ps, state)
     # Update thermal conductivity
-    HeatConduction.thermalconductivity!(sub, heat, state)
+    HeatConduction.thermalconductivity!(soil, heat, state)
     # then hydraulic conductivity
     Hydrology.hydraulicconductivity!(soil, water, state)
+end
+function CryoGrid.prognosticstep!(soil::Soil, ps::Coupled(WaterBalance{<:RichardsEq}, Heat{<:SFCC}), state)
+    water, heat = ps
+    CryoGrid.prognosticstep!(soil, water, state)
+    @. state.dH += state.dθwidt*(state.T*(heat.prop.cw - heat.prop.ci) + heat.prop.L)
+    CryoGrid.prognosticstep!(soil, heat, state)
 end
