@@ -70,20 +70,22 @@ function HeatConduction.freezethaw!(
     water, heat = ps
     sfcc = freezecurve(heat)
     let L = heat.prop.L,
-        f = sfcc.f;
+        f(x) = sfcc.f(x[1], x[2], Val{true}(); θtot=x[3], θsat=x[4]);
         @inbounds @fastmath for i in 1:length(state.T)
             T = state.T[i]
             ψ₀ = state.ψ₀[i]
             θtot = state.θwi[i]
             θsat = state.θsat[i]
-            f_x = @SVector[T,ψ₀,θtot,θsat]
-            # get derivative function (which will return results as ForwardDiff.Dual types)
-            ∇f = ∇(x -> f(x[1], x[2], Val{true}(); θtot=x[3], θsat=x[4]); tag=typeof(f))
-            # unpack results
-            θw_dual, ψ_dual, _ = ∇f(f_x)
-            # extract derivaitve from water content
+            # make an SVector with all variables needed for the freeze curve;
+            # we don't actually care about the other partial derivaitves, but we need to include them in order
+            # to avoid ForwardDiff getting confused when the state variables are already autodiff types
+            x = @SVector[T,ψ₀,θtot,θsat]
+            dualx = Numerics.dual(x, typeof(f))
+            # evaluate freeze curve with forward-mode autodiff and unpack the resulting dual numbers
+            θw_dual, ψ_dual, _ = f(dualx)
+            # extract derivaitve of water content w.r.t T
             state.dθwdT[i] = dθwdT = ForwardDiff.partials(θw_dual)[1]
-            # exract values
+            # exract function values
             state.θw[i] = θw = ForwardDiff.value(θw_dual)
             state.ψ[i] = ForwardDiff.value(ψ_dual)
             # compute dependent quantities
@@ -118,7 +120,7 @@ CryoGrid.variables(soil::Soil, ps::Coupled(WaterBalance, Heat)) = (
     CryoGrid.variables(soil, ps[1])...,
     CryoGrid.variables(soil, ps[2])...,
 )
-function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, ::WaterBalance{<:RichardsEq}, state1, state2)
+function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]
     ψ₂ = state2.ψ[1]
@@ -130,11 +132,14 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     z₁ = CryoGrid.midpoint(sub1, state1, last)
     z₂ = CryoGrid.midpoint(sub2, state2, first)
     kw = state1.kw[end] = state2.kw[1] = Numerics.harmonicmean(kwc₁, kwc₂, δ₁, δ₂)
-    jw = Hydrology.advectiveflux(θw₁, θfc, kw)
-    jw += -kw*(ψ₂ - ψ₁)/(z₂ - z₁)
+    # flux over boundary = advective flux + diffusive pressure flux
+    jw = Hydrology.advectiveflux(θw₁, θfc, kw) - kw*(ψ₂ - ψ₁)/(z₂ - z₁)
+    # reduction factors
+    r₁ = Hydrology.reductionfactor(water1, state1.sat[end])
+    r₂ = Hydrology.reductionfactor(water2, state2.sat[1])
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
-    state1.jw[end] = state2.jw[1] = jw
+    state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
 function CryoGrid.prognosticstep!(soil::Soil, water::WaterBalance{<:RichardsEq{TForm}}, state) where {TForm}
@@ -192,6 +197,7 @@ end
 function CryoGrid.prognosticstep!(soil::Soil, ps::Coupled(WaterBalance{<:RichardsEq}, Heat{<:SFCC}), state)
     water, heat = ps
     CryoGrid.prognosticstep!(soil, water, state)
+    # heat flux due to change in water content
     @. state.dH += state.dθwidt*(state.T*(heat.prop.cw - heat.prop.ci) + heat.prop.L)
     CryoGrid.prognosticstep!(soil, heat, state)
 end

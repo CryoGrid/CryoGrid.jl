@@ -42,11 +42,14 @@ function getvars(vs::VarStates{layers,gridvars,TU}, u::ComponentVector, du::Comp
     isprognostic(other) = false
     symbols(name::Symbol) = tuple(name)
     symbols(names::NTuple{N,Symbol}) where N = names
+    # map over non-prognostic variables, selecting variables from cache
     vars = map(filter(!(isprognostic), vals)) do val # map over given variable names, ignoring prognostic variables
-        if val ∈ gridvars
+        # in case val is a differential var (will be nothing otherwise)
+        dvar_ind = findfirst(n -> val == Symbol(:d,n), keys(pax))
+        if !isnothing(dvar_ind)
+            val => du[keys(pax)[dvar_ind]]    
+        elseif val ∈ gridvars
             val => getvar(Val{val}(), vs, u, du)
-        elseif val ∈ map(n -> Symbol(:d,n), keys(pax))
-            val => du[val]
         else
             layername = val[1]
             # handle either a single variable name or multiple, also filtering out prognostic variables

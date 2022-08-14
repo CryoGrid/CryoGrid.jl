@@ -19,28 +19,20 @@ function ∇(f::F, x::AbstractArray) where {F}
     return res.value, res.derivs
 end
 """
-    ∇(f::F; tag=F) where {F}
+    dual(x::Number, ::Type{tag}) where {tag}
+    dual(x::A, ::Type{tag}) where {N,T,A<:SVector{N,T},tag}
 
-Wraps the function `f(x)` with a method `∂f(x)` which evaluates `f` on the dual form
-of `x` (i.e. converts `x` into a `ForwardDiff.Dual`) and returns the result. Note that
-the derivatives are *not* extracted, so the user needs to use `ForwardDiff.value` and
-`ForwardDiff.partials` to get the values and partial derivatives of all numerical
-quantities produced from `x`. This method is a more flexible alternative to `∇(f, x)`
-which does not assume any particular type for the output of `f`.
+Constructs a `ForwardDiff.Dual` number (or static array thereof) with `tag` from `x`.
 """
-function ∇(f::F; tag=F) where {F}
-    function ∂f(x; kwargs...)
-        dualx = ForwardDiff.Dual{tag}(x, one(x))
-        return f(dualx; kwargs...)
-    end
-    function ∂f(x::SVector{N}; kwargs...) where {N}
-        # convert each value of `x` to a ForwardDiff.Dual using `single_seed` to produce the appropriate
-        # partial derivatives for each index.
-        makedual(i,x) = ForwardDiff.Dual{tag}(x, ForwardDiff.single_seed(ForwardDiff.Partials{N,eltype(x)}, Val{i}()))
-        dualx = map(makedual, 1:N, x)
-        return f(dualx; kwargs...)
-    end
-    return ∂f
+function dual(x::Number, ::Type{tag}) where {tag}
+    dualx = ForwardDiff.Dual{tag}(x, one(x))
+    return dualx
+end
+@generated function dual(x::A, ::Type{tag}) where {N,T,A<:SVector{N,T},tag}
+    # convert each value of `x` to a ForwardDiff.Dual using `single_seed` to produce the appropriate
+    # partial derivatives for each index.
+    dual_constructors = (:(ForwardDiff.Dual{tag}(x[$i], ForwardDiff.single_seed(ForwardDiff.Partials{N,eltype(x)}, Val{$i}()))) for i in 1:N)
+    return :(SVector{$N}(tuple($(dual_constructors...))))
 end
 # Flux calculations
 @propagate_inbounds @inline _flux_kernel(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/Δx

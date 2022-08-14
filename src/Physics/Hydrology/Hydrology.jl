@@ -14,7 +14,7 @@ using Unitful
 
 export WaterBalance
 
-Base.@kwdef struct HydrualicProperties{Tconsts,Tkwsat,Trb,Trc}
+Base.@kwdef struct HydraulicProperties{Tconsts,Tkwsat,Trb,Trc}
     consts::Tconsts = Physics.Constants()
     kw_sat::Tkwsat = Param(1e-5, domain=0..Inf, units=u"m/s")
     r_β::Trb = 1e3 # reduction factor scale parameter
@@ -109,6 +109,6 @@ include("water_bucket.jl")
 # Constructors for WaterBalance
 default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
-WaterBalance(flow::WaterFlow = BucketScheme(); prop = HydrualicProperties(), evt = nothing, dtlim = default_dtlim(flow)) = WaterBalance(flow, prop, evt, dtlim)
+WaterBalance(flow::WaterFlow = BucketScheme(); prop = HydraulicProperties(), evt = nothing, dtlim = default_dtlim(flow)) = WaterBalance(flow, evt, prop, dtlim)
 
 end

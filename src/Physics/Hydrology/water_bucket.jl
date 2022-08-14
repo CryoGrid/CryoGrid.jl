@@ -26,7 +26,7 @@ end
 end
 # Helper methods
 """
-    reductionfactor(::WaterBalance, x, c, β)
+    reductionfactor(water::WaterBalance, x)
 
 Flux reduction factor for near-saturated conditions:
 ```math
@@ -34,7 +34,7 @@ r(x) = 1 - 1/(1+exp(-β(x-c)))
 ```
 where β is a smoothness parameter and c is the "center" or shift parameter.
 """
-reductionfactor(::WaterBalance, x, c, β) = 1 - 1/(1+exp(-(x - c)β))
+reductionfactor(water::WaterBalance, x) = 1 - 1/(1+exp(-(x - water.prop.r_c)*water.prop.r_β))
 """
     advectiveflux(θw_up, θwi_lo, θsat_lo, θmin, kw)
 
@@ -64,10 +64,9 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
         end
     end
 end
-function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
+function balancefluxes!(::SubSurface, water::WaterBalance, state)
     N = length(state.kw)
-    θmin = fieldcapacity(sub, water)
-    state.jw[1] = min(max(state.jw[1], θmin - state.θw[1]), state.θsat[1] - state.θwi[1])
+    state.jw[1] = min(max(state.jw[1], -state.θw[1]), state.θsat[1] - state.θwi[1])
     @inbounds for i in 2:N-1
         let θw_up = state.θw[i-1],
             θw_lo = state.θw[i],
@@ -79,15 +78,15 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
             # limit flux based on
             # i) available water in cell above and
             # ii) free pore space in cell below
-            max_flux_up = max(jw, θwi_up - θsat_up, θmin - θw_lo) # upward flux is negative
-            min_flux_down = min(jw, θsat_lo - θwi_lo, θw_up - θmin) # downward flux is positive
+            max_flux_up = max(jw, θwi_up - θsat_up, -θw_lo) # upward flux is negative
+            min_flux_down = min(jw, θsat_lo - θwi_lo, θw_up) # downward flux is positive
             # reduction factors
-            r₁ = reductionfactor(water, state.sat[i-1], 0.96, 1e3)
-            r₂ = reductionfactor(water, state.sat[i], 0.96, 1e3)
+            r₁ = reductionfactor(water, state.sat[i-1])
+            r₂ = reductionfactor(water, state.sat[i])
             state.jw[i] = r₁*max_flux_up*(jw < zero(jw)) + r₂*min_flux_down*(jw >= zero(jw))
         end
     end
-    state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end] - θmin)
+    state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])
 end
 # CryoGrid methods
 CryoGrid.variables(water::WaterBalance{<:BucketScheme}) = (
@@ -119,8 +118,8 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     kw = state1.kw[end] = state2.kw[1] = Numerics.harmonicmean(kwc₁, kwc₂, δ₁, δ₂)
     jw = advectiveflux(θw₁, θfc, kw)
     # reduction factors
-    r₁ = reductionfactor(water1, state1.sat[end], 0.96, 1e3)
-    r₂ = reductionfactor(water2, state2.sat[1], 0.96, 1e3)
+    r₁ = reductionfactor(water1, state1.sat[end])
+    r₂ = reductionfactor(water2, state2.sat[1])
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
