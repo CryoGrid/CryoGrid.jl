@@ -91,8 +91,6 @@ function HeatConduction.freezethaw!(
             # compute dependent quantities
             state.C[i] = C = HeatConduction.heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
             state.dHdT[i] = HeatConduction.C_eff(T, C, L, dθwdT, heat.prop.cw, heat.prop.ci)
-            # derivaitve of enthalpy w.r.t water content when dθwdT > 0; otherwise set to zero to avoid Inf
-            state.dHdθw[i] = IfElse.ifelse(dθwdT > 0, state.dHdT[i] / dθwdT, zero(dθwdT))
             # enthalpy
             state.H[i] = HeatConduction.enthalpy(T, C, L, θw)
         end
@@ -114,11 +112,6 @@ CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = 
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
     CryoGrid.variables(soil)...,
     Hydrology.watervariables(water)...,
-)
-CryoGrid.variables(soil::Soil, ps::Coupled(WaterBalance, Heat)) = (
-    Diagnostic(:dHdθw, OnGrid(Cells), domain=0..Inf),
-    CryoGrid.variables(soil, ps[1])...,
-    CryoGrid.variables(soil, ps[2])...,
 )
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]

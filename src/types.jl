@@ -49,7 +49,6 @@ subsurface. A `BoundaryProcess` represents the boundary conditions of one or mor
 but may include its own diagnostic (or even prognostic) variables, if necessary.
 """
 abstract type BoundaryProcess{T<:SubSurfaceProcess} <: Process end
-BoundaryProcess(::Type{T}) where {T<:SubSurfaceProcess} = BoundaryProcess{U} where {T<:U<:SubSurfaceProcess}
 """
     CoupledProcesses{TProcs} <: Process
 
