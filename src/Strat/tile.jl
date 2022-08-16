@@ -60,14 +60,6 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} =
     (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip, obsv)
-InputOutput.parameterize(tile::T) where {T<:Tile} = ConstructionBase.constructorof(T)(
-    InputOutput.parameterize(tile.strat),
-    tile.grid,
-    tile.state,
-    InputOutput.parameterize(tile.inits, layer=:init),
-    InputOutput.parameterize(tile.events, layer=:event),
-    tile.hist,
-)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true

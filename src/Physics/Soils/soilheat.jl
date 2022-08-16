@@ -127,5 +127,3 @@ function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
         return T_sol
     end
 end
-# Parameterization
-InputOutput.parameterize(solver::FreezeCurves.SFCCSolver; fields...) = solver

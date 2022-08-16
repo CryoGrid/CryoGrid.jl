@@ -92,7 +92,6 @@ Basic Soil layer.
     prop::TProp = SoilThermalProperties()
     sp::TSp = nothing # user-defined specialization
 end
-InputOutput.parameterize(soil::Soil; fields...) = Soil(para=InputOutput.parameterize(soil.para; fields...), prop=soil.prop, sp=soil.sp)
 HeatConduction.thermalproperties(soil::Soil) = soil.prop
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))

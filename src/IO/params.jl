@@ -68,31 +68,3 @@ function CryoGridParams(obj; full_metadata=false)
     end
     return CryoGridParams(m)
 end
-"""
-    parameterize(x::T) where {T}
-    parameterize(x::Unitful.AbstractQuantity; fields...)
-    parameterize(x::Number; fields...)
-    parameterize(p::Param; ignored...)
-
-If `x` is a numeric type, `x` will be wrapped in a `ModelParameters.Param`, including a `units` field if `x` has units.
-If `x` is a `Param` type, `x` will be returned as-is.
-If `x` is some other type, `x` will be recursively unpacked and `parameterize` called on each field. It may be necessary
-or desirable for some types to override `parameterize` to define custom behavior, e.g. if only some fields should be
-parameterized.
-"""
-function parameterize(x::Unitful.AbstractQuantity; fields...)
-    let x = normalize_units(x);
-        Param(ustrip(x); untis=unit(x), fields...)
-    end
-end
-function parameterize(x::T; fields...) where {T}
-    _parameterize(x) = parameterize(x; fields...)
-    new_fields = map(_parameterize, getfields(x))
-    ctor = ConstructionBase.constructorof(T)
-    return ctor(new_fields...)
-end
-parameterize(x::Number; fields...) = Param(x; fields...)
-parameterize(x::Bool; ignored...) = x
-parameterize(x::Param; ignored...) = x
-parameterize(x::AbstractArray; ignored...) = x
-parameterize(init::Numerics.VarInitializer; ignored...) = init

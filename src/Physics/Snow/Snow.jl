@@ -53,7 +53,6 @@ abstract type SnowAccumulationScheme end
 Base.@kwdef struct LinearAccumulation{S} <: SnowAccumulationScheme
     rate_scale::S = 1.0 # scaling factor for snowfall rate
 end
-InputOutput.parameterize(acc::LinearAccumulation{<:Real}; fields...) = LinearAccumulation(Param(acc.rate_sacle; domain=0..Inf, fields...))
 
 abstract type SnowDensityScheme end
 # constant density (using Snowpack properties)
