@@ -40,7 +40,7 @@ TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-FreezeCurves = "0.2"
+FreezeCurves = "0.2.2"
 OrdinaryDiffEq = "6"
 PreallocationTools = "0.4"
 julia = "1.6,1.7"
