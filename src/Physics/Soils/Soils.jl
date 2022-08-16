@@ -28,7 +28,7 @@ export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
 export soilparameters, soilcomponent, porosity, mineral, organic
 
 # from FreezeCurves
-export SFCC, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
+export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
 
 const Enthalpy = HeatConduction.Enthalpy
 const Temperature = HeatConduction.Temperature

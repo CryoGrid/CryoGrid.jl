@@ -115,11 +115,11 @@ CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = 
     Hydrology.watervariables(water)...,
 )
 function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
-    state.sat .= soil.para.sat
+    # state.sat .= soil.para.sat
     CryoGrid.diagnosticstep!(soil, water, state)
 end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
-    state.sat .= soil.para.sat
+    # state.sat .= soil.para.sat
     CryoGrid.diagnosticstep!(soil, ps, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
