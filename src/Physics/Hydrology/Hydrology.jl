@@ -28,15 +28,15 @@ Base type for different formulations of water flow in `WaterBalance`.
 """
 abstract type WaterFlow end
 """
-    WaterBalance{TFlow<:WaterFlow,TEvt,Tdt,TProp} <: CryoGrid.SubSurfaceProcess
+    WaterBalance{TFlow<:WaterFlow,Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
 
 Represents subsurface water transport processes.
 """
-struct WaterBalance{TFlow<:WaterFlow,TEvt,Tdt,TProp} <: CryoGrid.SubSurfaceProcess
-    flow::TFlow
-    evt::TEvt
-    prop::TProp
-    dtlim::Tdt
+struct WaterBalance{TFlow<:WaterFlow,Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
+    flow::TFlow # vertical flow scheme
+    prop::TProp # hydraulic parameters/constants
+    dtlim::Tdt # dtlim
+    sp::Tsp
 end
 """
     kwsat(::SubSurface, water::WaterBalance)
@@ -45,64 +45,72 @@ Hydraulic conductivity at saturation.
 """
 kwsat(::SubSurface, water::WaterBalance) = water.prop.kw_sat
 """
-    evapotranspiration(::SubSurface, water::WaterBalance)
+    maxwater(::SubSurface, ::WaterBalance, state, i)
 
-Evapotranspiration implementation.
+Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
 """
-evapotranspiration(::SubSurface, water::WaterBalance) = water.evt
-"""
-    saturation(sub::SubSurface, ::WaterBalance, state, i)
-
-Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1.0`.
-"""
-@inline saturation(sub::SubSurface, ::WaterBalance, state, i) = 1.0
-
-"""
-    Evapotranspiration
-
-Base type for various parameterizations of evapotranspiration.
-"""
-abstract type Evapotranspiration end
-"""
-    SurfaceEvaporation <: Evapotranspiration
-
-Evaporation-only scheme which computes fluxes for the top-most grid cell when interacting with a boundary layer.
-"""
-struct SurfaceEvaporation <: Evapotranspiration end
-"""
-    DampedET
-
-Corresponds to evapotranspiration scheme 3 described in section 2.2.2 of Westermann et al. (2022).
-"""
-Base.@kwdef struct DampedET{Tftr,Tfev,Tdtr,Tdev} <: Evapotranspiration
-    f_tr::Tftr = Param(0.5)
-    f_ev::Tfev = Param(0.5)
-    d_tr::Tdtr = Param(1.0, units=u"m")
-    d_ev::Tdev = Param(0.1, units=u"m")
-end
-
-# auxiliary flux variables
-auxiliaryfluxes(::WaterBalance) = ()
-auxiliaryfluxes(::WaterBalance{<:WaterFlow,<:Evapotranspiration}) = (
-    Diagnostic(:jwET, OnGrid(Edges), u"m/s"),
-)
-
+@inline maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
 """
     watervariables(::WaterBalance)
 
 Diagnostic variables shared by all implementations of WaterBalance.
 """
-watervariables(water::WaterBalance) = (
-    auxiliaryfluxes(water)...,
-    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θw, OnGrid(Cells), domain=0..1),
+watervariables(::WaterBalance) = (
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
+    Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
     Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
-    Diagnostic(:dθwidt, OnGrid(Cells)),
-    Diagnostic(:jw, OnGrid(Edges), u"m/s"),
-    Diagnostic(:kw, OnGrid(Edges), u"m/s", domain=0..Inf),
-    Diagnostic(:kwc, OnGrid(Cells), u"m/s", domain=0..Inf),
+    Diagnostic(:∂θwi∂t, OnGrid(Cells)), # divergence of total water content
+    Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
+    Diagnostic(:kw, OnGrid(Edges), u"m/s", domain=0..Inf), # hydraulic conductivity (edges)
+    Diagnostic(:kwc, OnGrid(Cells), u"m/s", domain=0..Inf), # hydraulic conductivity (cells)
 )
+# Helper methods
+"""
+    reductionfactor(water::WaterBalance, x)
 
+Flux reduction factor for near-saturated conditions:
+```math
+r(x) = 1 - 1/(1+exp(-β(x-c)))
+```
+where β is a smoothness parameter and c is the "center" or shift parameter.
+"""
+reductionfactor(water::WaterBalance, x) = 1 - 1/(1+exp(-(x - water.prop.r_c)*water.prop.r_β))
+"""
+    resetfluxes!(::SubSurface, water::WaterBalance, state)
+
+Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
+"""
+@inline function resetfluxes!(::SubSurface, water::WaterBalance, state)
+    state.jw .= zero(eltype(state.jw))
+    state.∂θwi∂t .= zero(eltype(state.∂θwi∂t))
+end
+function balancefluxes!(::SubSurface, water::WaterBalance, state)
+    N = length(state.kw)
+    state.jw[1] = min(max(state.jw[1], -state.θw[1]), state.θsat[1] - state.θwi[1])
+    @inbounds for i in 2:N-1
+        let θw_up = state.θw[i-1],
+            θw_lo = state.θw[i],
+            θwi_up = state.θwi[i-1],
+            θwi_lo = state.θwi[i],
+            θsat_up = state.θsat[i-1],
+            θsat_lo = state.θsat[i],
+            jw = state.jw[i];
+            # limit flux based on
+            # i) available water in cell above and
+            # ii) free pore space in cell below
+            max_flux_up = max(jw, θwi_up - θsat_up, -θw_lo) # upward flux is negative
+            min_flux_down = min(jw, θsat_lo - θwi_lo, θw_up) # downward flux is positive
+            # reduction factors
+            r₁ = reductionfactor(water, state.sat[i-1])
+            r₂ = reductionfactor(water, state.sat[i])
+            state.jw[i] = r₁*max_flux_up*(jw < zero(jw)) + r₂*min_flux_down*(jw >= zero(jw))
+        end
+    end
+    state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])
+end
+
+export Rainfall, ConstantInfiltration
+include("water_bc.jl")
 export BucketScheme
 include("water_bucket.jl")
 

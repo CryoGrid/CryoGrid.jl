@@ -5,6 +5,7 @@ Constants() = (
 )
 # Generic step limiter types
 abstract type StepLimiter end
+CryoGrid.InputOutput.parameterize(limiter::StepLimiter; ignored...) = limiter
 """
     CFL
 

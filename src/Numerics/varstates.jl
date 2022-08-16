@@ -13,7 +13,7 @@ struct VarStates{names,griddvars,TU,TD,TV,DF,DG}
 end
 @generated function getvar(::Val{name}, vs::VarStates{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
     pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u))) # get prognostic variable index map (name -> indices)
-    dnames = map(n -> Symbol(:d,n), keys(pax)) # get names of delta/derivative variables
+    dnames = map(n -> deltaname(n), keys(pax)) # get names of delta/derivative variables
     # case 1) variable is diagnostic and lives on the grid
     if name ∈ griddvars
         quote
@@ -45,16 +45,18 @@ function getvars(vs::VarStates{layers,gridvars,TU}, u::ComponentVector, du::Comp
     # map over non-prognostic variables, selecting variables from cache
     vars = map(filter(!(isprognostic), vals)) do val # map over given variable names, ignoring prognostic variables
         # in case val is a differential var (will be nothing otherwise)
-        dvar_ind = findfirst(n -> val == Symbol(:d,n), keys(pax))
+        dvar_ind = findfirst(n -> val == deltaname(n), keys(pax))
         if !isnothing(dvar_ind)
             val => du[keys(pax)[dvar_ind]]    
         elseif val ∈ gridvars
             val => getvar(Val{val}(), vs, u, du)
-        else
+        elseif isa(val, Pair)
             layername = val[1]
             # handle either a single variable name or multiple, also filtering out prognostic variables
             layervars = filter(!(isprognostic), symbols(val[2]))
             layername => (;map(n -> n => retrieve(getproperty(vs.diag[layername], n)), layervars)...)
+        else
+            error("no state variable named $val defined")
         end
     end
     return (;vars...)

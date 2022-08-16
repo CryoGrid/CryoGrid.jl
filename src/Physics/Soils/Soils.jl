@@ -79,10 +79,10 @@ soilcomponent(::Val{:θo}, χ, ϕ, θ, ω) = (1-χ)*(1-ϕ)*ω
 Soil thermal properties.
 """
 Base.@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm}
-    ko::Tko = 0.25u"W/m/K" # organic [Hillel(1982)]
-    km::Tkm = 3.8u"W/m/K" # mineral [Hillel(1982)]
-    co::Tco = 2.5e6u"J/K/m^3" # heat capacity organic
-    cm::Tcm = 2.0e6u"J/K/m^3" # heat capacity mineral
+    ko::Tko = Param(0.25, units=u"W/m/K", domain=StrictlyPositive) # organic [Hillel (1982)]
+    km::Tkm = Param(3.8, units=u"W/m/K", domain=StrictlyPositive) # mineral [Hillel (1982)]
+    co::Tco = Param(2.5e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity organic
+    cm::Tcm = Param(2.0e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity mineral
 end
 """
 Basic Soil layer.
@@ -123,7 +123,7 @@ CryoGrid.variables(::Heterogeneous, ::Soil) = (
 )
 
 CryoGrid.initialcondition!(soil::Soil, state) = CryoGrid.initialcondition!(SoilComposition(soil), soil, state)
-function CryoGrid.initialcondition!(::Homogeneous, soil::Soil, state)
+function CryoGrid.initialcondition!(::Homogeneous, soil::Soil{<:CharacteristicFractions}, state)
     χ = soil.para.xic
     ϕ = soil.para.por
     θ = soil.para.sat

@@ -92,5 +92,7 @@ function parameterize(x::T; fields...) where {T}
     return ctor(new_fields...)
 end
 parameterize(x::Number; fields...) = Param(x; fields...)
+parameterize(x::Bool; ignored...) = x
 parameterize(x::Param; ignored...) = x
 parameterize(x::AbstractArray; ignored...) = x
+parameterize(init::Numerics.VarInitializer; ignored...) = init

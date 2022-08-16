@@ -2,19 +2,11 @@ Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow
     fieldcap::Tfc = Param(0.2, domain=0..1)
 end
 fieldcapacity(::SubSurface, water::WaterBalance{<:BucketScheme}) = water.flow.fieldcap
-# methods for computing diagnostic quantities
-@inline function resetfluxes!(::SubSurface, water::WaterBalance, state)
-    state.jw .= zero(eltype(state.jw))
-    state.dθwidt .= zero(eltype(state.dθwidt))
-end
-@inline function waterice!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
+@inline function watercontent!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
     @inbounds for i in 1:length(state.sat)
-        state.θsat[i] = saturation(sub, water, state, i)
+        state.θsat[i] = maxwater(sub, water, state, i)
         state.θwi[i] = state.sat[i]*state.θsat[i]
     end
-end
-@inline function liquidwater!(::SubSurface, water::WaterBalance, state)
-    @. state.θw = state.θwi
 end
 @inline function hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
     kw_sat = kwsat(sub, water)
@@ -24,17 +16,6 @@ end
     state.kw[end] = state.kwc[end]
     Numerics.harmonicmean!(@view(state.kw[2:end-1]), state.kwc, Δkw)
 end
-# Helper methods
-"""
-    reductionfactor(water::WaterBalance, x)
-
-Flux reduction factor for near-saturated conditions:
-```math
-r(x) = 1 - 1/(1+exp(-β(x-c)))
-```
-where β is a smoothness parameter and c is the "center" or shift parameter.
-"""
-reductionfactor(water::WaterBalance, x) = 1 - 1/(1+exp(-(x - water.prop.r_c)*water.prop.r_β))
 """
     advectiveflux(θw_up, θwi_lo, θsat_lo, θmin, kw)
 
@@ -64,33 +45,9 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
         end
     end
 end
-function balancefluxes!(::SubSurface, water::WaterBalance, state)
-    N = length(state.kw)
-    state.jw[1] = min(max(state.jw[1], -state.θw[1]), state.θsat[1] - state.θwi[1])
-    @inbounds for i in 2:N-1
-        let θw_up = state.θw[i-1],
-            θw_lo = state.θw[i],
-            θwi_up = state.θwi[i-1],
-            θwi_lo = state.θwi[i],
-            θsat_up = state.θsat[i-1],
-            θsat_lo = state.θsat[i],
-            jw = state.jw[i];
-            # limit flux based on
-            # i) available water in cell above and
-            # ii) free pore space in cell below
-            max_flux_up = max(jw, θwi_up - θsat_up, -θw_lo) # upward flux is negative
-            min_flux_down = min(jw, θsat_lo - θwi_lo, θw_up) # downward flux is positive
-            # reduction factors
-            r₁ = reductionfactor(water, state.sat[i-1])
-            r₂ = reductionfactor(water, state.sat[i])
-            state.jw[i] = r₁*max_flux_up*(jw < zero(jw)) + r₂*min_flux_down*(jw >= zero(jw))
-        end
-    end
-    state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])
-end
 # CryoGrid methods
 CryoGrid.variables(water::WaterBalance{<:BucketScheme}) = (
-    Prognostic(:sat, OnGrid(Cells), domain=0..1), # autmoatically generates dsat
+    Prognostic(:sat, OnGrid(Cells), domain=0..1), # autmoatically generates ∂sat∂t
     watervariables(water)..., # get common variables
 )
 function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance, state)
@@ -98,15 +55,14 @@ function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance, state)
 end
 function CryoGrid.diagnosticstep!(sub::SubSurface, water::WaterBalance, state)
     resetfluxes!(sub, water, state)
-    waterice!(sub, water, state)
-    liquidwater!(sub, water, state)
+    watercontent!(sub, water, state)
     hydraulicconductivity!(sub, water, state)
 end
 function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
     wateradvection!(sub, water, state)
     balancefluxes!(sub, water, state)
-    Numerics.divergence!(state.dθwidt, state.jw, Δ(state.grids.jw))
-    @. state.dsat = state.dθwidt / state.θsat
+    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
+    @. state.∂sat∂t = state.∂θwi∂t / state.θsat
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, ::WaterBalance{<:BucketScheme}, state1, state2)
     θw₁ = state1.θw[end]
@@ -125,7 +81,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,TEvt,<:Physics.MaxDelta}, state) where {TFlow,TEvt}
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,<:Physics.MaxDelta}, state) where {TFlow}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         # solve for dt in:
@@ -133,7 +89,7 @@ function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,TEvt,<:Physic
         # sat + dt*∂sat∂t = 0 if ∂sat∂t <= 0
         # sets the maximum timestep to the dt which would saturate the grid cell;
         # will be Inf when ∂sat∂t = 0
-        dt = water.dtlim(state.dsat[i], state.sat[i], state.t, zero(state.t), one(state.t))
+        dt = water.dtlim(state.∂sat∂t[i], state.sat[i], state.t, zero(state.t), one(state.t))
         dt = isfinite(dt) && dt > zero(dt) ? dt : Inf # make sure it's +Inf
         dtmax = min(dtmax, dt)
     end

@@ -52,7 +52,7 @@ ConstructionBase.constructorof(::Type{<:Source{P}}) where {P} = (term, sp) -> So
 
 (p::Periodic)(t) = p.amp*sin(2π*p.freq*t - p.shift) + p.level
 # Heat sources
-prognosticstep!(::SubSurface, s::Source{<:Heat,<:Constant}, state) = @inbounds @. state.dH += s.term.S₀
-prognosticstep!(::SubSurface, src::Source{<:Heat,<:Periodic}, state) = @inbounds @. state.dH += src.term(state.t)
+prognosticstep!(::SubSurface, s::Source{<:Heat,<:Constant}, state) = @inbounds @. state.∂H∂t += s.term.S₀
+prognosticstep!(::SubSurface, src::Source{<:Heat,<:Periodic}, state) = @inbounds @. state.∂H∂t += src.term(state.t)
 
 end

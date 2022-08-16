@@ -18,11 +18,11 @@ include("../../types.jl")
 		ΔT = Δ(xc)
 		Δk = Δ(x)
 		jH = zeros(length(x))u"W/m^2"
-		dH = zeros(length(T₀))u"W/m^3"
-		@inferred nonlineardiffusion!(dH, jH, T₀, ΔT, k, Δk)
+		∂H∂t = zeros(length(T₀))u"W/m^3"
+		@inferred nonlineardiffusion!(∂H∂t, jH, T₀, ΔT, k, Δk)
 		# conditions based on initial temperature gradient
-		@test dH[1] < 0.0u"W/m^3"
-		@test dH[end] > 0.0u"W/m^3"
+		@test ∂H∂t[1] < 0.0u"W/m^3"
+		@test ∂H∂t[end] > 0.0u"W/m^3"
 	end
 	# check boundary fluxes
 	@testset "Boundary fluxes" begin
@@ -37,41 +37,41 @@ include("../../types.jl")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
-			dH = zeros(length(T₀))u"W/m^3"
-			state = (T=T₀,k=k,dH=dH,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
+			∂H∂t = zeros(length(T₀))u"W/m^3"
+			state = (T=T₀,k=k,∂H∂t=∂H∂t,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(bc,Top(),heat,sub,state,state) > 0.0u"W/m^2"
 			@test boundaryflux(bc,Bottom(),heat,sub,state,state) < 0.0u"W/m^2"
 		end
 		@testset "top: -, bot: +" begin
 			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
-			dH = zeros(length(T₀))u"W/m^3"
-			state = (T=T₀,k=k,dH=dH,grid=x,grids=(T=xc,k=x),t=0.0)
+			∂H∂t = zeros(length(T₀))u"W/m^3"
+			state = (T=T₀,k=k,∂H∂t=∂H∂t,grid=x,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(bc,Top(),heat,sub,state,state) < 0.0u"W/m^2"
 			@test boundaryflux(bc,Bottom(),heat,sub,state,state) > 0.0u"W/m^2"
 		end
 		@testset "inner edge boundary (positive)" begin
 			T₀ = Vector(sin.(ustrip.(xc).*π))u"°C"
 			jH = zeros(length(x))u"W/m^2"
-			dH = zeros(length(T₀))u"W/m^3"
-			nonlineardiffusion!(dH,jH,T₀,ΔT,k,Δk)
-			@test dH[1] > 0.0u"W/m^3"
-			@test dH[end] > 0.0u"W/m^3"
+			∂H∂t = zeros(length(T₀))u"W/m^3"
+			nonlineardiffusion!(∂H∂t,jH,T₀,ΔT,k,Δk)
+			@test ∂H∂t[1] > 0.0u"W/m^3"
+			@test ∂H∂t[end] > 0.0u"W/m^3"
 		end
 		@testset "inner edge boundary (negative)" begin
 			T₀ = Vector(-sin.(ustrip.(xc).*π))u"°C"
 			jH = zeros(length(x))u"W/m^2"
-			dH = zeros(length(T₀))u"W/m^3"
-			nonlineardiffusion!(dH,jH,T₀,ΔT,k,Δk)
-			@test dH[1] < 0.0u"W/m^3"
-			@test dH[end] < 0.0u"W/m^3"
+			∂H∂t = zeros(length(T₀))u"W/m^3"
+			nonlineardiffusion!(∂H∂t,jH,T₀,ΔT,k,Δk)
+			@test ∂H∂t[1] < 0.0u"W/m^3"
+			@test ∂H∂t[end] < 0.0u"W/m^3"
 		end
 		@testset "Neumann boundary" begin
 			bc = ConstantBC(Heat, CryoGrid.Neumann, -1.0u"W/m^2")
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
-			dH = zeros(length(T₀))u"W/m^3"
-			state = (T=T₀,k=k,dH=dH,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
+			∂H∂t = zeros(length(T₀))u"W/m^3"
+			state = (T=T₀,k=k,∂H∂t=∂H∂t,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
 			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"W/m^2"
 		end
 	end
@@ -104,24 +104,24 @@ end
 	sub = TestGroundLayer()
 	heat = Heat()
 	bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
-	function dTdt(u,p,t)
-		dH = similar(u)u"W/m^3"
-		dH .= zero(eltype(dH))
+	function ∂T∂t(u,p,t)
+		∂H∂t = similar(u)u"W/m^3"
+		∂H∂t .= zero(eltype(∂H∂t))
 		jH = similar(u, length(u)+1)u"W/m^2"
 		jH .= zero(eltype(jH))
 		T = (u)u"°C"
 		# compute boundary fluxes;
 		# while not correct in general, for this test case we can just re-use state for both layers.
-		state = (T=T,dH=dH,jH=jH,k=k,grid=x,grids=(T=xc,k=x),t=t)
+		state = (T=T,∂H∂t=∂H∂t,jH=jH,k=k,grid=x,grids=(T=xc,k=x),t=t)
 		interact!(Top(), bc, sub, heat, state, state)
 		interact!(sub, heat, Bottom(), bc, state, state)
 		prognosticstep!(sub, heat, state)
-		# strip units from dH before returning it to the solver;
+		# strip units from ∂H∂t before returning it to the solver;
 		# note that we do not need to divide by diffusivity since we assume it to be unity
-		return ustrip.(dH)
+		return ustrip.(∂H∂t)
 	end
 	tspan = (0.0,0.5)
-	prob = ODEProblem(dTdt,ustrip.(T₀),tspan)
+	prob = ODEProblem(∂T∂t,ustrip.(T₀),tspan)
 	# Forward Euler scheme with small step size
 	sol = solve(prob,Euler(),dt=1.0e-5,saveat=0.01)
 	# build solution matrices: time x depth
