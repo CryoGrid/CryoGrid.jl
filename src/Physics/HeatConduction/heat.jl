@@ -248,7 +248,7 @@ end
     end
 end
 # CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,Physics.CFL}, state) = Inf
+CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,<:Physics.CFL}, state) = Inf
 """
     timestep(::SubSurface, ::Heat{Tfc,TForm,CFL}, state) where {TForm}
 
@@ -257,13 +257,20 @@ defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which h
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
 function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.CFL}, state) where {Tfc,TForm}
+    derivative(::Enthalpy, state) = state.∂H∂t
+    derivative(::Temperature, state) = state.∂T∂t
+    prognostic(::Enthalpy, state) = state.H
+    prognostic(::Temperature, state) = state.T
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
-        dtmax = let u = state.∂H∂T[i] / state.kc[i],
+        dtmax = let v = state.∂H∂T[i] / state.kc[i], # characteristic velocity
             c = heat.dtlim.courant_number, # couant number
             Δx = Δx[i],
-            Δt = c*u*Δx^2;
+            Δt = c*v*Δx^2;
+            # compute maxdelta timestep limit and choose the smaller one
+            Δt = min(Δt, heat.dtlim.maxdelta(derivative(heat.form, state)[i], prognostic(heat.form, state)[i], state.t))
+            # select smaller of current dtmax and Δt
             min(dtmax, Δt)
         end
     end

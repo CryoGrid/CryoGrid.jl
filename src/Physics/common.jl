@@ -7,14 +7,6 @@ Constants() = (
 abstract type StepLimiter end
 CryoGrid.InputOutput.parameterize(limiter::StepLimiter; ignored...) = limiter
 """
-    CFL
-
-Courant-Fredrichs-Lewy condition (where defined) with the given Courant number.
-"""
-Base.@kwdef struct CFL <: StepLimiter
-    courant_number::Float64 = 0.5
-end
-"""
     MaxDelta{T}
 
 Allow a maximum change of `Δmax` in the integrated quantity.
@@ -41,6 +33,15 @@ function (limiter::MaxDelta)(
     )
     dtmax = min(dtmax, abs(limiter.Δmax / du))
     return isfinite(dtmax) ? dtmax : Inf
+end
+"""
+    CFL{Tmax<:MaxDelta}
+
+Courant-Fredrichs-Lewy condition (where defined) with the given Courant number and embedded `MaxDelta` condition.
+"""
+Base.@kwdef struct CFL{Tmax<:MaxDelta} <: StepLimiter
+    courant_number::Float64 = 0.5
+    maxdelta::Tmax = MaxDelta(Inf)
 end
 # Volume material composition
 """

@@ -40,7 +40,7 @@ p = parameters(tile)
 u0, du0 = initialcondition!(tile, tspan, p)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile,u0,tspan,p,step_limiter=nothing,savevars=(:T,))
-# solve with forward Euler (w/ CFL) and construct CryoGridOutput from solution
+# solve with forward Euler and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=2*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1,5,10,15,20:10:100...]

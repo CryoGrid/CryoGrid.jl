@@ -14,8 +14,8 @@ export volumetricfractions, partial
 
 include("common.jl")
 include("Boundaries/Boundaries.jl")
-include("HeatConduction/HeatConduction.jl")
 include("Hydrology/Hydrology.jl")
+include("HeatConduction/HeatConduction.jl")
 include("Snow/Snow.jl")
 include("Soils/Soils.jl")
 include("SEB/SEB.jl")

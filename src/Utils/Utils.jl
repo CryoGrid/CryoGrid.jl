@@ -7,6 +7,7 @@ module Utils
 
 using Dates
 using Flatten
+using IntervalSets
 using ModelParameters
 using Setfield
 using StructTypes

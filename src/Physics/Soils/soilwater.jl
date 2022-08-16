@@ -37,8 +37,9 @@ end
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = θsat = Hydrology.maxwater(sub, water, state, i)
             state.θwi[i] = θwi = state.sat[i]*θsat
-            # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi
-            state.ψ₀[i] = f⁻¹(complex(θwi); θsat)
+            # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi, but this is necessary
+            # for solving schemes that might attempt to use illegal state values
+            state.ψ₀[i] = f⁻¹(max(θres, min(θwi, θsat)); θsat)
             state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
         end
     end
@@ -113,6 +114,14 @@ CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = 
     CryoGrid.variables(soil)...,
     Hydrology.watervariables(water)...,
 )
+function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
+    state.sat .= soil.para.sat
+    CryoGrid.diagnosticstep!(soil, water, state)
+end
+function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
+    state.sat .= soil.para.sat
+    CryoGrid.diagnosticstep!(soil, ps, state)
+end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]

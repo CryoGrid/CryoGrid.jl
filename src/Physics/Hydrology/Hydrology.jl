@@ -7,6 +7,7 @@ using CryoGrid
 using CryoGrid.Physics
 using CryoGrid.Numerics
 using CryoGrid.Numerics: flux!, divergence!, ∇
+using CryoGrid.Utils
 
 using IfElse
 using ModelParameters
@@ -36,7 +37,7 @@ struct WaterBalance{TFlow<:WaterFlow,Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProces
     flow::TFlow # vertical flow scheme
     prop::TProp # hydraulic parameters/constants
     dtlim::Tdt # dtlim
-    sp::Tsp
+    sp::Tsp # user-defined specialization
 end
 """
     kwsat(::SubSurface, water::WaterBalance)
@@ -117,6 +118,6 @@ include("water_bucket.jl")
 # Constructors for WaterBalance
 default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
-WaterBalance(flow::WaterFlow = BucketScheme(); prop = HydraulicProperties(), evt = nothing, dtlim = default_dtlim(flow)) = WaterBalance(flow, evt, prop, dtlim)
+WaterBalance(flow::WaterFlow = BucketScheme(); prop = HydraulicProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, prop, dtlim, sp)
 
 end
