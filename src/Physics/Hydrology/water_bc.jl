@@ -5,12 +5,12 @@ const WaterBC = BoundaryProcess{T} where {WaterBalance<:T<:SubSurfaceProcess}
 ConstantInfiltration(value::Quantity) = ConstantBC(WaterBalance, Neumann, uconvert(u"m/s", value))
 ImpermeableBoundary() = ConstantBC(WaterBalance, Neumann, 0.0u"m/s")
 """
-    Rainfall{Train<:Forcing} <: BoundaryProcess{WaterBalance}
+    Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
 
 Basic rainfall boundary condition for `WaterBalance` which simply invokes the given precipitation
 forcing at the current time `t`.
 """
-struct Rainfall{Train<:Forcing} <: BoundaryProcess{WaterBalance}
+struct Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
     rain::Train
 end
 CryoGrid.BoundaryStyle(::Type{<:Rainfall}) = Neumann()

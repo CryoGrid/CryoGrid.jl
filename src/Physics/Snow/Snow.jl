@@ -93,14 +93,13 @@ snowvariables(::Snowpack, ::SnowMassBalance) = (
 
 swe(::Snowpack, ::SnowMassBalance, state) = state.swe
 swe(::Snowpack, smb::SnowMassBalance{<:Prescribed}, state) = smb.para.swe
-swe(::Snowpack, smb::SnowMassBalance{<:Prescribed{<:Forcing}}, state) = smb.para.swe(state.t)
+swe(::Snowpack, smb::SnowMassBalance{<:Prescribed{<:Forcing{u"m"}}}, state) = smb.para.swe(state.t)
 snowdensity(::Snowpack, ::SnowMassBalance, state) = state.ρsn
 snowdensity(::Snowpack, smb::SnowMassBalance{<:Prescribed}, state) = smb.para.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:Prescribed{Tswe,<:Forcing}}, state) where {Tswe} = smb.para.ρsn(state.t)
+snowdensity(::Snowpack, smb::SnowMassBalance{<:Prescribed{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = smb.para.ρsn(state.t)
 
 # Boundary conditions
-
-struct Snowfall{Tsn<:Forcing} <: BoundaryProcess{SnowMassBalance}
+struct Snowfall{Tsn<:Forcing{u"m/s"}} <: BoundaryProcess{SnowMassBalance}
     snowfall::Tsn
 end
 CryoGrid.BoundaryStyle(::Snowfall) = CryoGrid.Neumann()
