@@ -64,6 +64,37 @@ function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance{<:BucketS
     Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
     @. state.∂sat∂t = state.∂θwi∂t / state.θsat
 end
+@inline CryoGrid.boundaryflux(::Neumann, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,water,sub,stop,ssub)
+@inline CryoGrid.boundaryflux(::Neumann, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,water,sub,sbot,ssub)
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
+    Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
+    @inbounds let ψupper=boundaryvalue(bc,top,water,sub,stop,ssub),
+        ψsub=ssub.ψ[1],
+        k=ssub.kw[1],
+        δ=Δk/2; # distance to boundary
+        -k*(ψsub-ψupper)/δ
+    end
+end
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub)
+    Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
+    @inbounds let ψlower=boundaryvalue(bc,bot,water,sub,sbot,ssub),
+        ψsub=ssub.ψ[end],
+        k=ssub.kw[end],
+        δ=Δk/2; # distance to boundary
+        # note again the inverted sign; positive here means *upward from* the bottom boundary
+        # TODO: maybe change this convention? it seems needlessly confusing and bug-prone.
+        k*(ψlower-ψsub)/δ
+    end
+end
+function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
+    ssub.jw[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop,ssub)
+    return nothing
+end
+function CryoGrid.interact!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
+    # sign flipped since positive flux is downward
+    ssub.jw[end] -= CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)
+    return nothing
+end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, ::WaterBalance{<:BucketScheme}, state1, state2)
     θw₁ = state1.θw[end]
     θfc = fieldcapacity(sub1, water1) # take field capacity from upper layer where water would drain from

@@ -159,6 +159,28 @@ function CryoGrid.diagnosticstep!(sub::SubSurface, heat::Heat, state)
     thermalconductivity!(sub, heat, state)
     return nothing # ensure no allocation
 end
+# Boundary fluxes
+@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
+@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
+    Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
+    @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
+        Tsub=ssub.T[1],
+        k=ssub.k[1],
+        δ=Δk/2; # distance to boundary
+        -k*(Tsub-Tupper)/δ
+    end
+end
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
+    Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
+    @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
+        Tsub=ssub.T[end],
+        k=ssub.k[end],
+        δ=Δk/2; # distance to boundary
+        # note again the inverted sign; positive here means *upward from* the bottom boundary
+        k*(Tlower-Tsub)/δ
+    end
+end
 """
 Generic top interaction. Computes flux jH at top cell.
 """
@@ -224,28 +246,6 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,Temperat
     # ∂H∂T should be computed by the freeze curve.
     @inbounds @. state.∂T∂t = state.∂H∂t / state.∂H∂T
     return nothing
-end
-# Boundary fluxes
-@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
-@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
-    Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
-    @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
-        Tsub=ssub.T[1],
-        k=ssub.k[1],
-        δ=Δk/2; # distance to boundary
-        -k*(Tsub-Tupper)/δ
-    end
-end
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
-    Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
-    @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
-        Tsub=ssub.T[end],
-        k=ssub.k[end],
-        δ=Δk/2; # distance to boundary
-        # note again the inverted sign; positive here means *upward from* the bottom boundary
-        k*(Tlower-Tsub)/δ
-    end
 end
 # CFL not defined for free-water freeze curve
 CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,<:Physics.CFL}, state) = Inf

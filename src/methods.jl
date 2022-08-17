@@ -83,14 +83,13 @@ setup = Tile(stratigraphy, grid, observed=[:meanT])
 """
 observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
 # Auxiliary functions for generalized boundary implementations;
-# Note that these methods use a different argument order convention than `interact!`. This is intended to
-# faciliate stratigraphy independent implementations of certain boundary conditions (e.g. a simple Dirichlet
-# boundary could be applied in the same manner to both the upper and lower boundary).
 """
     boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
     boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
 
 Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
+Note that this method uses a different argument order convention than `interact!`. This is intended to faciliate stratigraphy independent implementations
+of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
 boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, sbc, ssub)
 boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
@@ -98,6 +97,8 @@ boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::Sub
     boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
 
 Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
+Note that this method uses a different argument order convention than `interact!`. This is intended to faciliate stratigraphy independent implementations
+of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
 boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
 """
