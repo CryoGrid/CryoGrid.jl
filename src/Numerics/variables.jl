@@ -64,6 +64,8 @@ ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units,domain}}) where
 ==(::Var{N1,S1,T1,u1,d1},::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
+basevarname(::Delta{dname,name}) where {dname,name} = name
+basevarname(::Type{<:Delta{dname,name}}) where {dname,name} = name
 vartype(::Var{name,S,T}) where {name,S,T} = T
 vartype(::Type{<:Var{name,S,T}}) where {name,S,T} = T
 varunits(::Var{name,S,T,units}) where {name,S,T,units} = units

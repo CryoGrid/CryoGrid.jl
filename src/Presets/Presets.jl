@@ -14,17 +14,17 @@ export SoilHeatColumn, SamoylovDefault
 include("presetgrids.jl")
 
 """
-    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer; grid::Grid=DefaultGrid, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    SoilHeatColumn([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer; grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
 function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer;
-    grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
+    grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => top(upperbc),
-        Tuple(z => subsurface(Symbol(:soil,i), Soil(para=para), Heat(heatvar, freezecurve=freezecurve)) for (i,(z,para)) in enumerate(soilprofile)),
-        1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
+        Tuple(knot.depth => subsurface(Symbol(:soil,i), Soil(para=knot.value), Heat(heatvar, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
+        1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"W/m^2"))
     )
     Tile(strat, grid, init, chunksize=chunksize)
 end

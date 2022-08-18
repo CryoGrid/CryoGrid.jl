@@ -23,11 +23,11 @@ struct PeriodicBC{P,S,T1,T2,T3,T4} <: BoundaryProcess{P}
     phaseshift::T3
     level::T4
     PeriodicBC(::Type{P}, ::Type{S}, period::T1=1.0, amplitude::T2=1.0, phaseshift::T3=0.0, level::T4=0.0) where
-        {P<:SubSurfaceProcess,S<:BoundaryStyle,T1<:TimeQuantity,T2,T3,T4} =
+        {P<:SubSurfaceProcess,S<:BoundaryStyle,T1,T2,T3,T4} =
         new{P,S,T1,T2,T3,T4}(period, amplitude, phaseshift, level)
 end
 ConstructionBase.constructorof(::Type{<:PeriodicBC{P,S}}) where {P,S} = (args...) -> PeriodicBC(P, S, args...)
-@inline boundaryvalue(bc::PeriodicBC,l1,p2,l2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*t + bc.phaseshift) + bc.level
+@inline boundaryvalue(bc::PeriodicBC,l1,p2,l2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*s1.t + bc.phaseshift) + bc.level
 
 BoundaryStyle(::Type{<:PeriodicBC{P,S}}) where {P,S} = S()
 
