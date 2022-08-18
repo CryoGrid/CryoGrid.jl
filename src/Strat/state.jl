@@ -82,7 +82,7 @@ end
     end
 end
 # internal method dispatches for type stable construction of state types
-@inline _makegrid(::Var{name,<:OnGrid{Cells}}, vs::VarStates, z_inds) where {name} = vs.grid[infimum(z_inds)..supremum(z_inds)-1] # subtract one due to account for cell ofset
+@inline _makegrid(::Var{name,<:OnGrid{Cells}}, vs::VarStates, z_inds) where {name} = cells(vs.grid[infimum(z_inds)..supremum(z_inds)])
 @inline _makegrid(::Var{name,<:OnGrid{Edges}}, vs::VarStates, z_inds) where {name} = vs.grid[z_inds]
 @inline _makegrid(var::Var, vs::VarStates, z_inds) = 1:dimlength(vardims(var), vs.grid)
 @inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)

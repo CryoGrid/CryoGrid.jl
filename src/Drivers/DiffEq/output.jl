@@ -57,9 +57,3 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
     end
     return CryoGridOutput(ts_datetime, sol, (;outputs...))
 end
-
-"""
-Evaluates the continuous solution at time `t`.
-"""
-(out::CryoGridOutput{<:ODESolution})(t::Real) = withaxes(out.res(t), out.res.prob.f.f)
-(out::CryoGridOutput{<:ODESolution})(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)

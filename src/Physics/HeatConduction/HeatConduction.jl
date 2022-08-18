@@ -1,9 +1,13 @@
 module HeatConduction
 
+import CryoGrid
+import CryoGrid.Physics
+
 using CryoGrid
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
+using CryoGrid.Physics.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Numerics: nonlineardiffusion!, harmonicmean!, harmonicmean, heaviside
 using CryoGrid.Utils
@@ -13,9 +17,6 @@ using IfElse
 using FreezeCurves: FreezeCurves, FreezeCurve, FreeWater
 using ModelParameters
 using Unitful
-
-import CryoGrid
-import CryoGrid.Physics
 
 export Heat, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
@@ -28,50 +29,49 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    HeatImplementation
+    HeatFormulation
 
 Base type for different numerical formulations of two-phase heat diffusion.
 """
-abstract type HeatImplementation end
-struct Enthalpy <: HeatImplementation end
-struct Temperature <: HeatImplementation end
+abstract type HeatFormulation end
+struct Enthalpy <: HeatFormulation end
+struct Temperature <: HeatFormulation end
 
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
     L::TL = consts.ρw*consts.Lsl
-    kw::Tkw = 0.57u"W/m/K" # thermal conductivity of water [Hillel(1982)]
-    ki::Tki = 2.2u"W/m/K" # thermal conductivity of ice [Hillel(1982)]
-    ka::Tka = 0.025u"W/m/K" # air [Hillel(1982)]
-    cw::Tcw = 4.2e6u"J/K/m^3" # heat capacity of water
-    ci::Tci = 1.9e6u"J/K/m^3" # heat capacity of ice
-    ca::Tca = 0.00125e6u"J/K/m^3" # heat capacity of air
+    kw::Tkw = Param(0.57, units=u"W/m/K", domain=StrictlyPositive) # thermal conductivity of water [Hillel (1982)]
+    ki::Tki = Param(2.2, units=u"W/m/K", domain=StrictlyPositive) # thermal conductivity of ice [Hillel (1982)]
+    ka::Tka = Param(0.025, unit=u"W/m/K", domain=StrictlyPositive) # thermal conductivity of air [Hillel (1982)]
+    cw::Tcw = Param(4.2e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity of water
+    ci::Tci = Param(1.9e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity of ice
+    ca::Tca = Param(0.00125e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity of air
 end
 
-struct Heat{Tfc<:FreezeCurve,TImpl<:HeatImplementation,Tdt,Tinit,TProp} <: SubSurfaceProcess
-    impl::TImpl
+struct Heat{Tfc<:FreezeCurve,TForm<:HeatFormulation,Tdt,Tinit,TProp} <: SubSurfaceProcess
+    form::TForm
     prop::TProp
     freezecurve::Tfc
     dtlim::Tdt  # timestep limiter
     init::Tinit # optional initialization scheme
 end
+_default_dtlim(::Union{Enthalpy,Temperature}, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
+_default_dtlim(::Enthalpy, ::FreeWater) = Physics.MaxDelta(100u"kJ") # CFL doesn't work with FreeWater freeze curve
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
-Heat(impl::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=nothing, init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
-Heat(impl::Temperature; freezecurve, prop=ThermalProperties(), dtlim=Physics.CFL(), init=nothing) = Heat(impl, prop, deepcopy(freezecurve), dtlim, init)
+Heat(form::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
+Heat(form::Temperature; freezecurve, prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop
 freezecurve(heat::Heat) = heat.freezecurve
 
-# Default implementation of `variables` for freeze curve
-CryoGrid.variables(::SubSurface, ::Heat, ::FreezeCurve) = ()
-
 export HeatBC, ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")
 
-export heatconduction!, enthalpy, enthalpyinv, waterice, liquidwater, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
+export heatconduction!, enthalpy, enthalpyinv, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 include("heat.jl")
 
 end

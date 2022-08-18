@@ -9,8 +9,8 @@ discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Ar
 discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, grid)))
 function discretize(::Type{A}, grid::Grid, pvars::Union{<:Prognostic,<:Algebraic}...) where {A<:AbstractVector}
     # separate into grid and non-grid vars
-    gridvars = unique(filter(v -> isa(vardims(v), OnGrid), pvars))
-    pointvars = filter(v -> !isa(vardims(v), OnGrid), pvars)
+    gridvars = unique(filter(v -> isa(vardims(v), OnGrid), collect(pvars)))
+    pointvars = filter(v -> !isa(vardims(v), OnGrid), collect(pvars))
     # get lengths
     gridvar_ns = map(v -> dimlength(vardims(v), grid), gridvars)
     pointvar_ns = map(v -> dimlength(vardims(v), grid), pointvars)

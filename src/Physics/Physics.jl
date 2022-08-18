@@ -6,25 +6,27 @@ using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using IfElse
 using Reexport
 using Unitful
 
-export volumetricfractions, waterice, liquidwater, partial
+export volumetricfractions, partial
 
 include("common.jl")
 include("Boundaries/Boundaries.jl")
-@reexport using .Boundaries
-include("HeatConduction/HeatConduction.jl")
-@reexport using .HeatConduction
 include("Hydrology/Hydrology.jl")
-@reexport using .Hydrology
+include("HeatConduction/HeatConduction.jl")
 include("Snow/Snow.jl")
-@reexport using .Snow
 include("Soils/Soils.jl")
-@reexport using .Soils
 include("SEB/SEB.jl")
-@reexport using .SEB
 include("Sources/Sources.jl")
+
+@reexport using .Boundaries
+@reexport using .HeatConduction
+@reexport using .Hydrology
+@reexport using .Snow
+@reexport using .Soils
+@reexport using .SEB
 @reexport using .Sources
 
 end

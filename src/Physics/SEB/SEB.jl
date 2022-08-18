@@ -85,16 +85,16 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,F} <: BoundaryProcess{Heat}
     sebparams::SEBParams{TSolution,TStabFun}
     SurfaceEnergyBalance(forcings::NamedTuple, sebparams::SEBParams) = new{typeof(sebparams.solscheme),typeof(sebparams.stabfun),typeof(forcings)}(forcings, sebparams)
     function SurfaceEnergyBalance(
-        Tair::Forcing{Float"°C"},
-        p::Forcing,
-        q::Forcing,
-        wind::Forcing,
-        Lin::Forcing,
-        Sin::Forcing,
-        z::Float"m";
+        Tair::Forcing{u"°C"},
+        p::Forcing{u"kPa"},
+        q::Forcing{u"kg/kg"},
+        wind::Forcing{u"m/s"},
+        Lin::Forcing{u"W/m^2"},
+        Sin::Forcing{u"W/m^2"},
+        z;
         kwargs...
     )
-        forcings = (Tair = Tair, p = p, q = q, wind = wind, Lin = Lin, Sin = Sin, z = z);
+        forcings = (; Tair, p, q, wind, Lin, Sin, z);
         sebparams = SEBParams(;kwargs...);
         new{typeof(sebparams.solscheme),typeof(sebparams.stabfun),typeof(forcings)}(forcings, sebparams)
     end

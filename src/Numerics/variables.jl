@@ -43,9 +43,10 @@ the residual for algebraic variables.
 struct Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     dim::S
     Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{dname,name,typeof(dims),T,units,domain}(dims)
-    Delta(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
-    Delta(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{Symbol(:d,name),name,typeof(dims),T,units,domain}(dims) end
+    Delta(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{deltaname(name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
+    Delta(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{deltaname(name),name,typeof(dims),T,units,domain}(dims) end
 end
+deltaname(sym::Symbol) = Symbol(:∂,sym,:∂t)
 """
     Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 
@@ -63,6 +64,8 @@ ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units,domain}}) where
 ==(::Var{N1,S1,T1,u1,d1},::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2)
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
+basevarname(::Delta{dname,name}) where {dname,name} = name
+basevarname(::Type{<:Delta{dname,name}}) where {dname,name} = name
 vartype(::Var{name,S,T}) where {name,S,T} = T
 vartype(::Type{<:Var{name,S,T}}) where {name,S,T} = T
 varunits(::Var{name,S,T,units}) where {name,S,T,units} = units

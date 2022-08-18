@@ -12,21 +12,25 @@ struct VarStates{names,griddvars,TU,TD,TV,DF,DG}
     griddiag::NamedTuple{griddvars,DG} # on-grid non-prognostic variables
 end
 @generated function getvar(::Val{name}, vs::VarStates{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
-    pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u)))
-    dnames = map(n -> Symbol(:d,n), keys(pax))
+    pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u))) # get prognostic variable index map (name -> indices)
+    dnames = map(n -> deltaname(n), keys(pax)) # get names of delta/derivative variables
+    # case 1) variable is diagnostic and lives on the grid
     if name ∈ griddvars
         quote
             return retrieve(vs.griddiag.$name, u)
         end
+    # case 2) variable is prognostic
     elseif name ∈ keys(pax)
         quote
             return u.$name
         end
+    # case 3) variable is a prognostic derivative or residual
     elseif du != Nothing && name ∈ dnanes
         i = findfirst(n -> n == name, dnames)::Int
         quote
             return du.$(keys(pax)[i])
         end
+    # case 4) no variables match the given name
     else
         :(return nothing)
     end
@@ -38,16 +42,21 @@ function getvars(vs::VarStates{layers,gridvars,TU}, u::ComponentVector, du::Comp
     isprognostic(other) = false
     symbols(name::Symbol) = tuple(name)
     symbols(names::NTuple{N,Symbol}) where N = names
+    # map over non-prognostic variables, selecting variables from cache
     vars = map(filter(!(isprognostic), vals)) do val # map over given variable names, ignoring prognostic variables
-        if val ∈ gridvars
+        # in case val is a differential var (will be nothing otherwise)
+        dvar_ind = findfirst(n -> val == deltaname(n), keys(pax))
+        if !isnothing(dvar_ind)
+            val => du[keys(pax)[dvar_ind]]    
+        elseif val ∈ gridvars
             val => getvar(Val{val}(), vs, u, du)
-        elseif val ∈ map(n -> Symbol(:d,n), keys(pax))
-            val => du[val]
-        else
+        elseif isa(val, Pair)
             layername = val[1]
             # handle either a single variable name or multiple, also filtering out prognostic variables
             layervars = filter(!(isprognostic), symbols(val[2]))
             layername => (;map(n -> n => retrieve(getproperty(vs.diag[layername], n)), layervars)...)
+        else
+            error("no state variable named $val defined")
         end
     end
     return (;vars...)
@@ -55,7 +64,7 @@ end
 """
     DiffCache{N,A,Adual}
 
-Extension of `PreallocationTools.DiffCache` that stores state variables in forward-diff compatible cache arrays.
+Wrapper around `PreallocationTools.DiffCache` that stores state variables in forward-diff compatible cache arrays.
 """
 struct DiffCache{N,A,Adual}
     name::Symbol
@@ -92,7 +101,7 @@ const GroupedVars = NamedTuple{names,<:Tuple{Vararg{<:Tuple{Vararg{<:Var}}}}} wh
 """
     VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunksize::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
 """
-function VarStates(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunksize::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
+function VarStates(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.AbstractDiscretization), chunksize::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
     _flatten(vars) = Flatten.flatten(vars, Flatten.flattenable, Var)
     diagvars = map(group -> filter(isdiagnostic, group), vars)
     progvars = map(group -> filter(isprognostic, group), vars)

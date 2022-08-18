@@ -97,7 +97,6 @@ boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), 
 boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
 componentnames(strat::Stratigraphy) = map(componentname, components(strat))
 componenttypes(::Type{<:Stratigraphy{N,TComponents}}) where {N,TComponents} = Tuple(TComponents.parameters)
-InputOutput.parameterize(strat::Stratigraphy; fields...) = Stratigraphy(getfield(strat, :boundaries), map(comp -> InputOutput.parameterize(comp; layer=componentname(comp), fields...), getfield(strat, :components)))
 Base.keys(strat::Stratigraphy) = componentnames(strat)
 Base.values(strat::Stratigraphy) = components(strat)
 @inline Base.propertynames(strat::Stratigraphy) = Base.keys(strat)

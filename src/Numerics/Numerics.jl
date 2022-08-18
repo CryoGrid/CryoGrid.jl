@@ -18,6 +18,7 @@ using IntervalSets
 using LinearAlgebra
 using LoopVectorization
 using Unitful
+using StaticArrays
 using StructTypes
 
 export GridSpec, Edges, Cells

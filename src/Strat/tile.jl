@@ -60,14 +60,6 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} =
     (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip, obsv)
-InputOutput.parameterize(tile::T) where {T<:Tile} = ConstructionBase.constructorof(T)(
-    InputOutput.parameterize(tile.strat),
-    tile.grid,
-    tile.state,
-    InputOutput.parameterize(tile.inits, layer=:init),
-    InputOutput.parameterize(tile.events, layer=:event),
-    tile.hist,
-)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -105,49 +97,20 @@ function Tile(
         name = componentname(comp)
         # build layer
         vars[name] = _collectvars(comp)
-        params = ModelParameters.params(comp)
-        if length(params) > 0
-            # create sub-model and add layer name to all parameters
-            m_comp = Model(comp)
-            m_comp[:layer] = repeat([name], length(params))
-            components[name] = parent(m_comp)
-        else
-            components[name] = comp
-        end
+        components[name] = _addlayerfield(comp, name)
         # events
-        cbs = CryoGrid.events(comp.layer, comp.process)
-        cbparams = ModelParameters.params(cbs)
-        if length(cbparams) > 0
-            m_cbs = Model(cbs)
-            m_cbs[:layer] = repeat([name], length(params))
-            events[name] = parent(m_cbs)
-        else
-            events[name] = cbs
-        end
+        evs = CryoGrid.events(comp.layer, comp.process)
+        events[name] = _addlayerfield(evs, name)
     end
-    # set :layer field on initializer parameters (if any)
-    init_params = ModelParameters.params(inits)
-    inits = if length(init_params) > 0
-        m_inits = Model(inits)
-        m_inits[:layer] = repeat([:init], length(init_params))
-        parent(m_inits)
-    else
-        inits
-    end
+    inits = _addlayerfield(inits, :init)
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(components)))
-    para = params(strat)
     # construct state variables
-    componentnames = [componentname(node) for node in strat]
-    ntvars = NamedTuple{Tuple(componentnames)}(Tuple(values(vars)))
-    npvars = (length(filter(isprognostic, layer)) + length(filter(isalgebraic, layer)) for layer in ntvars) |> sum
-    ndvars = (length(filter(isdiagnostic, layer)) for layer in ntvars) |> sum
-    @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
-    @assert npvars > 0 "At least one prognostic variable must be specified."
-    chunksize = isnothing(chunksize) ? length(para) : chunksize
-    states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
-    isempty(inits) && @warn "No initializers provided. State variables without initializers will be set to zero by default."
-    Tile(strat, grid, states, inits, (;events...), StateHistory(), iip, Tuple(observe))
+    states = _initvarstates(strat, grid, vars, chunksize, arrayproto)
+    if isempty(inits)
+        @warn "No initializers provided. State variables without initializers will be set to zero by default."
+    end
+    return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip, Tuple(observe))
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
@@ -382,14 +345,23 @@ function domain(tile::Tile)
     end
 end
 """
-    getvar(name::Symbol, tile::Tile, u)
-    getvar(::Val{name}, tile::Tile, u)
+    getvar(name::Symbol, tile::Tile, u; interp=true)
+    getvar(::Val{name}, tile::Tile, u; interp=true)
 
 Retrieves the (diagnostic or prognostic) grid variable from `tile` given prognostic state `u`.
 If `name` is not a variable in the tile, or if it is not a grid variable, `nothing` is returned.
 """
-Numerics.getvar(name::Symbol, tile::Tile, u) = getvar(Val{name}(), tile, u)
-Numerics.getvar(::Val{name}, tile::Tile, u) where name = getvar(Val{name}(), tile.state, withaxes(u, tile))
+Numerics.getvar(name::Symbol, tile::Tile, u; interp=true) = getvar(Val{name}(), tile, u; interp)
+function Numerics.getvar(::Val{name}, tile::Tile, u; interp=true) where name
+    x = getvar(Val{name}(), tile.state, withaxes(u, tile))
+    if interp && length(x) == length(tile.grid)
+        return Numerics.Interpolations.interpolate((edges(tile.grid),), x, Numerics.Interpolations.Gridded(Numerics.Interpolations.Linear()))
+    elseif interp && length(x) == length(tile.grid)-1
+        return Numerics.Interpolations.interpolate((cells(tile.grid),), x, Numerics.Interpolations.Gridded(Numerics.Interpolations.Linear()))
+    else
+        return x
+    end
+end
 """
     getstate(layername::Symbol, tile::Tile, u, du, t)
     getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t)
@@ -466,7 +438,7 @@ function _collectvars(@nospecialize(comp::StratComponent))
     groups = groupby(var -> varname(var), all_vars)
     for (name,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
-        @assert reduce(==, gvars) "Found one or more conflicting definitions of $name in $gvars"
+        @assert all(gvars[i] == gvars[i-1] for i in 2:length(gvars)) "Found one or more conflicting definitions of $name in $gvars"
     end
     diag_vars = filter(isdiagnostic, all_vars)
     prog_vars = filter(isprognostic, all_vars)
@@ -478,7 +450,7 @@ function _collectvars(@nospecialize(comp::StratComponent))
     prog_alg = prog_vars ∪ alg_vars
     diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
     # check for conflicting definitions of differential vars
-    diff_varnames = map(v -> Symbol(:d, varname(v)), prog_alg)
+    diff_varnames = map(v -> varname(Delta(v)), prog_alg)
     @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
     # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
     diag_vars = filter(v -> v ∉ diag_prog, diag_vars)
@@ -489,4 +461,33 @@ function _collectvars(@nospecialize(comp::StratComponent))
     # convert back to tuples
     diag_vars, prog_vars, alg_vars = Tuple(diag_vars), Tuple(prog_vars), Tuple(alg_vars)
     return tuplejoin(diag_vars, prog_vars, alg_vars)
+end
+"""
+Rebuilds the `obj` adding `name` to the `layer` field to all `Param`s, if any are defined.
+"""
+function _addlayerfield(@nospecialize(obj), name::Symbol)
+    params = ModelParameters.params(obj)
+    if length(params) > 0
+        # create sub-model and add layer name to all parameters
+        m = Model(obj)
+        m[:layer] = repeat([name], length(params))
+        return parent(m)
+    else
+        return obj
+    end
+end
+"""
+Initialize `VarStates` which holds the caches for all defined state variables.
+"""
+function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::OrderedDict), chunksize::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
+    componentnames = [componentname(node) for node in strat]
+    ntvars = NamedTuple{Tuple(componentnames)}(Tuple(values(vars)))
+    npvars = (length(filter(isprognostic, layer)) + length(filter(isalgebraic, layer)) for layer in ntvars) |> sum
+    ndvars = (length(filter(isdiagnostic, layer)) for layer in ntvars) |> sum
+    @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
+    @assert npvars > 0 "At least one prognostic variable must be specified."
+    para = params(strat)
+    chunksize = isnothing(chunksize) ? length(para) : chunksize
+    states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
+    return states
 end

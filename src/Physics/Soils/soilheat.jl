@@ -7,9 +7,9 @@
 # Functions for retrieving constituents and volumetric fractions
 @inline HeatConduction.thermalconductivities(soil::Soil, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka, soil.prop.km, soil.prop.ko)
 @inline HeatConduction.heatcapacities(soil::Soil, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca, soil.prop.cm, soil.prop.co)
-@inline function Physics.volumetricfractions(soil::Soil, heat::Heat, state, i)
-    return let θwi = waterice(soil, heat, state, i),
-        θw = liquidwater(soil, heat, state, i),
+@inline function Physics.volumetricfractions(soil::Soil, ::Heat, state, i)
+    return let θwi = state.θwi[i],
+        θw = state.θw[i],
         θm = mineral(soil, state, i),
         θo = organic(soil, state, i),
         θa = 1.0 - θwi - θm - θo,
@@ -30,7 +30,7 @@ which should be set according to the layer/process properties or state. The defa
 sets only the total water content, θtot = θwi, and the saturated water content, θsat = θp.
 """
 sfcckwargs(::SFCCFunction, soil::Soil, heat::Heat, state, i) = (
-    θtot = waterice(soil, heat, state, i), # total water content    
+    θtot = state.θwi[i], # total water content    
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 """
@@ -41,18 +41,18 @@ function CryoGrid.initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
     L = heat.prop.L
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc.f, soil, heat, state, i)
-        hc = partial(heatcapacity, liquidwater, soil, heat, state, i)
+        hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i)
         if i == 1
             # TODO: this is currently only relevant for the pre-solver scheme and assumes that
             # the total water content is uniform throughout the layer and does not change over time.
             FreezeCurves.Solvers.initialize!(fc.solver, fc.f, hc; fc_kwargsᵢ...)
         end
         T = state.T[i]
-        θw, dθdT = ∇(T -> fc(T; fc_kwargsᵢ...), T)
+        θw, dθwdT = ∇(T -> fc(T; fc_kwargsᵢ...), T)
         state.θw[i] = θw
         state.C[i] = hc(θw)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
-        state.dHdT[i] = HeatConduction.C_eff(T, state.C[i], L, dθdT, heat.prop.cw, heat.prop.ci)
+        state.∂H∂T[i] = HeatConduction.C_eff(T, state.C[i], L, dθwdT, heat.prop.cw, heat.prop.ci)
     end
 end
 """
@@ -62,7 +62,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater,Enthalpy}, 
     L = heat.prop.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
-        θwi = waterice(soil, heat, state, i)
+        θwi = state.θwi[i]
         state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
         state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
@@ -83,11 +83,11 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, 
         @inbounds @fastmath for i in 1:length(state.T)
             T = state.T[i]
             f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
-            θw, dθdT = ∇(T -> f(T; f_argsᵢ...), T)
+            θw, dθwdT = ∇(T -> f(T; f_argsᵢ...), T)
             state.θw[i] = θw
-            state.dθdT[i] = dθdT
+            state.dθwdT[i] = dθwdT
             state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-            state.dHdT[i] = HeatConduction.C_eff(T, C, L, dθdT, heat.prop.cw, heat.prop.ci)
+            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, dθwdT, heat.prop.cw, heat.prop.ci)
             state.H[i] = enthalpy(T, C, L, θw)
         end
     end
@@ -99,9 +99,9 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
             L = heat.prop.L,
             cw = heat.prop.cw,
             ci = heat.prop.ci,
-            θwi = waterice(soil, heat, state, i), # total water content
+            θwi = state.θwi[i], # total water content
             T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L), # initial guess for T
-            hc = partial(heatcapacity, liquidwater, soil, heat, state, i),
+            hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
             f = sfcc.f,
             f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
             obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H);
@@ -109,7 +109,7 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
             state.T[i] = res.T
             state.θw[i] = res.θw
             state.C[i] = res.C
-            state.dHdT[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, res.dθwdT, cw, ci)
+            state.∂H∂T[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, res.dθwdT, cw, ci)
         end
     end
 end
@@ -117,9 +117,9 @@ function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
     sfcc = freezecurve(heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
-        θwi = waterice(soil, heat, state, i), # total water content
+        θwi = state.θwi[i], # total water content
         T₀ = i > 1 ? state.T[i-1] : freewater(H, θwi, L),
-        hc = partial(heatcapacity, liquidwater, soil, heat, state, i),
+        hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
         f = sfcc.f,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
         obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H);
@@ -127,5 +127,3 @@ function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
         return T_sol
     end
 end
-# Parameterization
-InputOutput.parameterize(solver::FreezeCurves.SFCCSolver; fields...) = solver

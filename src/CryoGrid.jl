@@ -12,10 +12,11 @@ using Reexport
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
+export DiscreteEvent, ContinuousEvent, GridContinuousEvent
 export Coupled, Coupled2, Coupled3, Coupled4
 include("types.jl")
 export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
-export boundaryflux, boundaryvalue, criterion, trigger!, observe
+export boundaryflux, boundaryvalue, criterion, criterion!, trigger!, observe
 include("methods.jl")
 
 # Submodules

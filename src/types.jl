@@ -49,7 +49,6 @@ subsurface. A `BoundaryProcess` represents the boundary conditions of one or mor
 but may include its own diagnostic (or even prognostic) variables, if necessary.
 """
 abstract type BoundaryProcess{T<:SubSurfaceProcess} <: Process end
-BoundaryProcess(::Type{T}) where {T<:SubSurfaceProcess} = BoundaryProcess{U} where {T<:U<:SubSurfaceProcess}
 """
     CoupledProcesses{TProcs} <: Process
 
@@ -77,6 +76,21 @@ const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,
 Alias for `CoupledProcesses(ps...)`.
 """
 Coupled(ps::Process...) = CoupledProcesses(ps...)
+"""
+    Coupled(types::Type{<:Process}...)
+
+Convenince method which constructs a `CoupledProcesses` type corresponding to each type in `types`, e.g:
+
+```
+Coupled(SnowMassBalance, Heat) = CoupledProcesses{Tuple{T1,T2}} where {T1<:SnowMassBalance, T2<:Heat}
+```
+
+also equivalent to `Coupled2{<:SnowMassBalance,<:Heat}`.
+"""
+@generated function Coupled(types::Type{<:Process}...)
+    typenames = map(i -> Symbol(:T,i), 1:length(types))
+    :(CoupledProcesses{Tuple{$(typenames...)}} where {$(map(i -> :($(typenames[i]) <: $(types[i].parameters[1])), 1:length(types))...)})
+end
 # Base methods
 Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.parameters, " with ")))")
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
@@ -113,16 +127,30 @@ end
 struct ContinuousEvent{name} <: Event{name}
     ContinuousEvent(name::Symbol) = new{name}()
 end
+struct GridContinuousEvent{name} <: Event{name}
+    GridContinuousEvent(name::Symbol) = new{name}()
+end
 """
     ContinuousTrigger
 
 Base type for continuous trigger flags, `Increasing` and `Decreasing`, which indicate
 an upcrossing of the function root (negative to positive) and a downcrossing (positive to negative)
-respectively.
+respectively. Both subtypes have a field `idx` which, for `GridContinuousEvent` is set to the grid
+cell index for which the event was triggered.
 """
 abstract type ContinuousTrigger end
-struct Increasing <: ContinuousTrigger end
-struct Decreasing <: ContinuousTrigger end
+"""
+Trigger for the criterion function crossing zero from negative to positive.
+"""
+struct Increasing <: ContinuousTrigger
+    idx::Union{Nothing,Int}
+end
+"""
+Trigger for the criterion function crossing zero from positive to negative.
+"""
+struct Decreasing <: ContinuousTrigger
+    idx::Union{Nothing,Int}
+end
 """
     Parameterization
 

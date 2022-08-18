@@ -36,7 +36,7 @@ out = @time solve(prob, Euler(), dt=5*60.0, saveat=24*3600.0, progress=true) |> 
 
 The result is a `CryoGridOutput` type which provides `DimArray`s containing the model outputs over time and space:
 
-```
+```raw
 julia> out.T
 278×366 DimArray{Float64,2} with dimensions: 
   Z: Quantity{Float64, 𝐋, Unitful.FreeUnits{(m,), 𝐋, nothing}}[0.01 m, 0.03 m, …, 850.0 m, 950.0 m] Sampled: Ordered Irregular Points,
@@ -53,7 +53,7 @@ variables(soil::Soil, heat::Heat{:H}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:C, OnGrid(Cells), u"J//K*/m^3"),
-    Diagnostic(:dHdT, OnGrid(Cells), u"J/K/m^3"),
+    Diagnostic(:∂H∂T, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
     Diagnostic(:kc, OnGrid(Cells), u"W//m/K"),
     # this last line just appends any state variables or parameters
@@ -62,26 +62,26 @@ variables(soil::Soil, heat::Heat{:H}) = (
 )
 ```
 
-When the `Heat` process is assigned to a `Soil` layer, `Tile` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and can be automatically tracked by the modeling engine.
+When the `Heat` process is assigned to a `Soil` layer, `Tile` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `∂H∂t`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for intermediary variables/computations and can be automatically tracked by the modeling engine.
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 
-The real work finally happens in [`diagnosticstep!`](@ref) and [`prognosticstep!`](@ref), the latter of which should be used to compute the time derivatives (here `dH`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
+The real work finally happens in [`diagnosticstep!`](@ref) and [`prognosticstep!`](@ref), the latter of which should be used to compute the time derivatives (here `∂H∂t`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
 
-We can take as an example the implementation of `prognosticstep!` for enthalpy-based heat conduction:
+We can take as an example the implementation of `prognosticstep!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 
 ```julia
-""" Prognostic step for heat conduction (enthalpy) on soil layer. """
-function prognosticstep!(::Soil, ::Heat{:H}, state)
+function CryoGrid.prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
-    ΔT = Δ(state.grids.T)
-    # Diffusion on non-boundary cells
-    heatconduction!(state.dH,state.T,ΔT,state.k,Δk)
+    ΔT = Δ(state.grids.T) # midpoint distances
+    # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
+    nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    return nothing
 end
 ```
 
 !!! warning
 
-    Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially important when using higher order or implicit integrators as unexpected changes to prognostic state may destroy the accuracy of their internal interpolators. For modeling discontinuities, use [`Callbacks`](@ref) instead.
+    Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially important when using higher order or implicit integrators as unexpected changes to prognostic state may destroy the accuracy of their internal interpolant. For modeling discontinuities, use [`Events`](@ref) instead.
 
-Note that `state` is of type [`LayerState`](@ref) with fields corresponding to the variables declared by the `variables` function for `Soil` and `Heat`. Additionally, output arrays for the time derivatives are provided (here `dH`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grids` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.
+Note that `state` is of type [`LayerState`](@ref) with fields corresponding to the variables declared by the `variables` function for `Soil` and `Heat`. Additionally, output arrays for the time derivatives are provided (here `∂H∂t`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grids` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.

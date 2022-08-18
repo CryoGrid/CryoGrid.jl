@@ -7,6 +7,7 @@ module Utils
 
 using Dates
 using Flatten
+using IntervalSets
 using ModelParameters
 using Setfield
 using StructTypes
@@ -24,6 +25,7 @@ export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setsc
 include("macros.jl")
 
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
 export dustrip, duconvert, applyunits, normalize_units, normalize_temperature, pstrip
 export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
@@ -35,6 +37,11 @@ const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
 const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TimeUnit}
+# Variable/parameter domains
+const StrictlyPositive = OpenInterval(0,Inf)
+const StrictlyNegative = OpenInterval(-Inf,0)
+const Nonnegative = Interval{:closed,:open}(0,Inf)
+const Nonpositive = Interval{:open,:closed}(-Inf,0)
 
 StructTypes.StructType(::Type{<:Quantity}) = StructTypes.CustomStruct()
 StructTypes.lower(value::Quantity) = string(value)

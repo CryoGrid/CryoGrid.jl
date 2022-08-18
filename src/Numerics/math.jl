@@ -1,18 +1,46 @@
+"""
+    ∇(f::F, x::Number) where {F}
+
+Takes a function `y = f(x)` and argument `x` and returns a tuple: `(y, ∂y∂x)`.
+The derivative is calculated using forward-mode automatic differentiation.
+"""
 function ∇(f::F, x::Number) where {F}
     res = ForwardDiff.derivative!(ForwardDiff.DiffResult(zero(x), zero(x)), f, x)
     return res.value, res.derivs[1]
 end
+"""
+    ∇(f::F, x::AbstractArray) where {F}
+
+Takes a function `y = f(x)` and vector-valued argument `x` and returns a tuple: `(y, ∇ₓy)`.
+The gradient is calculated using forward-mode automatic differentiation.
+"""
 function ∇(f::F, x::AbstractArray) where {F}
     res = ForwardDiff.gradient!(ForwardDiff.DiffResult(eltype(x), zero(x)), f, x)
     return res.value, res.derivs
 end
+"""
+    dual(x::Number, ::Type{tag}) where {tag}
+    dual(x::A, ::Type{tag}) where {N,T,A<:SVector{N,T},tag}
+
+Constructs a `ForwardDiff.Dual` number (or static array thereof) with `tag` from `x`.
+"""
+function dual(x::Number, ::Type{tag}) where {tag}
+    dualx = ForwardDiff.Dual{tag}(x, one(x))
+    return dualx
+end
+@generated function dual(x::A, ::Type{tag}) where {N,T,A<:SVector{N,T},tag}
+    # convert each value of `x` to a ForwardDiff.Dual using `single_seed` to produce the appropriate
+    # partial derivatives for each index.
+    dual_constructors = (:(ForwardDiff.Dual{tag}(x[$i], ForwardDiff.single_seed(ForwardDiff.Partials{N,eltype(x)}, Val{$i}()))) for i in 1:N)
+    return :(SVector{$N}(tuple($(dual_constructors...))))
+end
 # Flux calculations
-@propagate_inbounds @inline _flux_kernel(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/ Δx
+@propagate_inbounds @inline _flux_kernel(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/Δx
 @propagate_inbounds @inline function _flux!(j::AbstractVector, x₁::AbstractVector, x₂::AbstractVector, Δx::AbstractVector, k::AbstractVector, ::Val{use_turbo}) where {use_turbo}
-    @. j = _flux_kernel(x₁, x₂, Δx, k)
+    @. j += _flux_kernel(x₁, x₂, Δx, k)
 end
 @propagate_inbounds @inline function _flux!(j::AbstractVector{Float64}, x₁::AbstractVector{Float64}, x₂::AbstractVector{Float64}, Δx::AbstractVector{Float64}, k::AbstractVector{Float64}, ::Val{true})
-    @turbo @. j = _flux_kernel(x₁, x₂, Δx, k)
+    @turbo @. j += _flux_kernel(x₁, x₂, Δx, k)
 end
 """
     flux!(j::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector)
@@ -32,10 +60,10 @@ end
 # Divergence
 @propagate_inbounds @inline _div_kernel(j₁, j₂, Δj) = (j₁ - j₂) / Δj
 @propagate_inbounds @inline function _div!(dx::AbstractVector, j₁::AbstractVector, j₂::AbstractVector, Δj::AbstractVector, ::Val{use_turbo}) where {use_turbo}
-    @. dx = _div_kernel(j₁, j₂, Δj)
+    @. dx += _div_kernel(j₁, j₂, Δj)
 end
 @propagate_inbounds @inline function _div!(dx::AbstractVector{Float64}, j₁::AbstractVector{Float64}, j₂::AbstractVector{Float64}, Δj::AbstractVector{Float64}, ::Val{true})
-    @turbo @. dx = _div_kernel(j₁, j₂, Δj)
+    @turbo @. dx += _div_kernel(j₁, j₂, Δj)
 end
 """
     divergence!(dx::AbstractVector, j::AbstractVector, Δj::AbstractVector)

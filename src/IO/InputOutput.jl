@@ -26,7 +26,7 @@ import DimensionalData: stack
 export loadforcings
 
 include("ioutils.jl")
-export CryoGridParams, parameterize
+export CryoGridParams
 include("params.jl")
 export Forcing, TimeSeriesForcing
 include("forcings.jl")

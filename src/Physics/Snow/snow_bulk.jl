@@ -106,7 +106,7 @@ function CryoGrid.diagnosticstep!(
     # only update snowdepth if swe greater than threshold, otherwise, set to zero.
     @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
     # get heat capacity as a function of liquid water content
-    f_hc = partial(heatcapacity, liquidwater, snow, heat, state, 1)
+    f_hc = partial(heatcapacity, Val{:θw}(), snow, heat, state, 1)
     # set temperature and liquid water content according to free water freeze curve,
     # but capping the liquid fraction according to the 'max_unfrozen' parameter.
     max_unfrozen = ablation(smb).max_unfrozen
@@ -134,7 +134,7 @@ function CryoGrid.interact!(
     # apply snowfall to swe
     rate_scale = accumulation(smb).rate_scale
     snowfall_rate = boundaryvalue(bc, top, smb, snow, stop, ssnow)
-    @. ssnow.dswe += rate_scale*snowfall_rate
+    @. ssnow.∂swe∂t += rate_scale*snowfall_rate
 end
 function CryoGrid.prognosticstep!(
     snow::BulkSnowpack,
@@ -143,7 +143,7 @@ function CryoGrid.prognosticstep!(
 ) where {TAcc,TAbl<:DegreeDayMelt}
     if getscalar(state.dsn) < threshold(snow)
         # set energy flux to zero if there is no snow
-        @. state.dH = zero(eltype(state.H))
+        @. state.∂H∂t = zero(eltype(state.H))
     end
     if getscalar(state.swe) > 0.0 && getscalar(state.T_ub) > 0.0
         ddf = ablation(smb).factor # [m/K/s]
@@ -151,8 +151,8 @@ function CryoGrid.prognosticstep!(
         T_ub = getscalar(state.T_ub) # upper boundary temperature
         Tref = 0.0*unit(T_ub) # just in case T_ub has units
         # calculate the melt rate per second via the degree day model
-        dmelt = max(ddf*(T_ub-Tref), zero(eltype(state.dswe))) # [m/s]
-        @. state.dswe += -dmelt
+        dmelt = max(ddf*(T_ub-Tref), zero(eltype(state.∂swe∂t))) # [m/s]
+        @. state.∂swe∂t += -dmelt
         # set upper heat flux to zero if dmelt > 0;
         # this is due to the energy being (theoretically) "consumed" to melt the snow
         state.jH[1] *= 1 - (dmelt > zero(dmelt))
@@ -246,7 +246,7 @@ function CryoGrid.prognosticstep!(snow::BulkSnowpack, ps::Coupled2{<:SnowMassBal
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set divergence to zero if there is no snow
-        @. state.dH = zero(eltype(state.H))
+        @. state.∂H∂t = zero(eltype(state.H))
     else
         # otherwise call prognosticstep! for heat
         prognosticstep!(snow, heat, state)
