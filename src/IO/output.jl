@@ -14,6 +14,15 @@ struct CryoGridOutput{TSol}
     data::NamedTuple
     CryoGridOutput(ts::Vector{DateTime}, sol::TSol, data::NamedTuple) where TSol = new{TSol}(ts, sol, data)
 end
+"""
+Evaluates the continuous solution at time `t`.
+"""
+(out::CryoGridOutput)(t::Real) = CryoGrid.withaxes(out.sol(t), out.sol.prob.f.f)
+(out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
+function (out::CryoGridOutput)(t, var::Symbol)
+    u = out(t)
+    return getvar(var, out.sol.prob.f.f, u)
+end
 # Overrides from Base
 function Base.show(io::IO, out::CryoGridOutput)
     countvars(x) = 1
@@ -23,7 +32,7 @@ function Base.show(io::IO, out::CryoGridOutput)
     describe(key, val::NamedTuple) = "$key => $(format(map(describe, keys(val), values(val))))"
     data = out.data
     nvars = countvars(data)
-    println(io, "CryoGridOutput with $(length(out.ts)) time steps and $(nvars != 1 ? "$nvars variables" : "1 variable"):")
+    println(io, "CryoGridOutput with $(length(out.ts)) time steps ($(out.ts[1]) to $(out.ts[end])) and $(nvars != 1 ? "$nvars variables" : "1 variable"):")
     strs = map(describe, keys(data), values(data))
     for r in strs
         println(io, "    $r")

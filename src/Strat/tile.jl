@@ -345,14 +345,23 @@ function domain(tile::Tile)
     end
 end
 """
-    getvar(name::Symbol, tile::Tile, u)
-    getvar(::Val{name}, tile::Tile, u)
+    getvar(name::Symbol, tile::Tile, u; interp=true)
+    getvar(::Val{name}, tile::Tile, u; interp=true)
 
 Retrieves the (diagnostic or prognostic) grid variable from `tile` given prognostic state `u`.
 If `name` is not a variable in the tile, or if it is not a grid variable, `nothing` is returned.
 """
-Numerics.getvar(name::Symbol, tile::Tile, u) = getvar(Val{name}(), tile, u)
-Numerics.getvar(::Val{name}, tile::Tile, u) where name = getvar(Val{name}(), tile.state, withaxes(u, tile))
+Numerics.getvar(name::Symbol, tile::Tile, u; interp=true) = getvar(Val{name}(), tile, u; interp)
+function Numerics.getvar(::Val{name}, tile::Tile, u; interp=true) where name
+    x = getvar(Val{name}(), tile.state, withaxes(u, tile))
+    if interp && length(x) == length(tile.grid)
+        return Numerics.Interpolations.interpolate((edges(tile.grid),), x, Numerics.Interpolations.Gridded(Numerics.Interpolations.Linear()))
+    elseif interp && length(x) == length(tile.grid)-1
+        return Numerics.Interpolations.interpolate((cells(tile.grid),), x, Numerics.Interpolations.Gridded(Numerics.Interpolations.Linear()))
+    else
+        return x
+    end
+end
 """
     getstate(layername::Symbol, tile::Tile, u, du, t)
     getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernames},iip}, _u, _du, t)
