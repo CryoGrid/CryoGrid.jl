@@ -85,13 +85,13 @@ function HeatConduction.freezethaw!(
             # evaluate freeze curve with forward-mode autodiff and unpack the resulting dual numbers
             θw_dual, ψ_dual, _ = f(dualx)
             # extract derivaitve of water content w.r.t T
-            state.dθwdT[i] = dθwdT = ForwardDiff.partials(θw_dual)[1]
+            state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(θw_dual)[1]
             # exract liquid water content and temperature-dependent pressure head
             state.θw[i] = θw = ForwardDiff.value(θw_dual)
             state.ψ[i] = ForwardDiff.value(ψ_dual)
             # compute dependent quantities
             state.C[i] = C = HeatConduction.heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, dθwdT, heat.prop.cw, heat.prop.ci)
+            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, ∂θw∂T, heat.prop.cw, heat.prop.ci)
             # enthalpy
             state.H[i] = HeatConduction.enthalpy(T, C, L, θw)
         end

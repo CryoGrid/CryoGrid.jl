@@ -12,12 +12,12 @@ Discrete inverse enthalpy function given H, C, L, and θ.
 """
 @inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
-    C_eff(T, C, L, dθwdT, cw, ci) = C + dθwdT*(L + T*(cw - ci))
+    C_eff(T, C, L, ∂θw∂T, cw, ci) = C + ∂θw∂T*(L + T*(cw - ci))
 
 Computes the apparent or "effective" heat capacity `∂H∂T` as a function of temperature, volumetric heat capacity,
-latent heat of fusion, derivative of the freeze curve `dθwdT`, and the constituent heat capacities of water and ice.
+latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
 """
-@inline C_eff(T, C, L, dθwdT, cw, ci) = C + dθwdT*(L + T*(cw - ci))
+@inline C_eff(T, C, L, ∂θw∂T, cw, ci) = C + ∂θw∂T*(L + T*(cw - ci))
 """
     thermalconductivities(::SubSurface, heat::Heat)
 
@@ -128,7 +128,7 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
-    Diagnostic(:dθwdT, OnGrid(Cells), domain=0..Inf),
+    Diagnostic(:∂θw∂T, OnGrid(Cells), domain=0..Inf),
     heatvariables(heat)...,
 )
 """

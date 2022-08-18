@@ -48,11 +48,11 @@ function CryoGrid.initialcondition!(soil::Soil, heat::Heat{<:SFCC}, state)
             FreezeCurves.Solvers.initialize!(fc.solver, fc.f, hc; fc_kwargsᵢ...)
         end
         T = state.T[i]
-        θw, dθwdT = ∇(T -> fc(T; fc_kwargsᵢ...), T)
+        θw, ∂θw∂T = ∇(T -> fc(T; fc_kwargsᵢ...), T)
         state.θw[i] = θw
         state.C[i] = hc(θw)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
-        state.∂H∂T[i] = HeatConduction.C_eff(T, state.C[i], L, dθwdT, heat.prop.cw, heat.prop.ci)
+        state.∂H∂T[i] = HeatConduction.C_eff(T, state.C[i], L, ∂θw∂T, heat.prop.cw, heat.prop.ci)
     end
 end
 """
@@ -83,11 +83,11 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, 
         @inbounds @fastmath for i in 1:length(state.T)
             T = state.T[i]
             f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
-            θw, dθwdT = ∇(T -> f(T; f_argsᵢ...), T)
+            θw, ∂θw∂T = ∇(T -> f(T; f_argsᵢ...), T)
             state.θw[i] = θw
-            state.dθwdT[i] = dθwdT
+            state.∂θw∂T[i] = ∂θw∂T
             state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, dθwdT, heat.prop.cw, heat.prop.ci)
+            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, ∂θw∂T, heat.prop.cw, heat.prop.ci)
             state.H[i] = enthalpy(T, C, L, θw)
         end
     end
@@ -109,7 +109,7 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
             state.T[i] = res.T
             state.θw[i] = res.θw
             state.C[i] = res.C
-            state.∂H∂T[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, res.dθwdT, cw, ci)
+            state.∂H∂T[i] = HeatConduction.C_eff(state.T[i], state.C[i], L, res.∂θw∂T, cw, ci)
         end
     end
 end
