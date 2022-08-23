@@ -24,7 +24,9 @@ function CryoGridProblem(
     max_step=true,
     callback=nothing,
     isoutofdomain=Strat.domain(tile),
-    kwargs...
+    recompile=true,
+    function_kwargs=(),
+    prob_kwargs...
 )
     # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
@@ -73,21 +75,21 @@ function CryoGridProblem(
     # if no algebraic variables are present, use identity matrix
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
-	func = odefunction(tile, M, u0, p, tspan; kwargs...)
-	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, isoutofdomain, kwargs...)
+	func = odefunction(tile, u0, p, tspan; mass_matrix=M, recompile, function_kwargs...)
+	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, isoutofdomain, prob_kwargs...)
 end
 """
     CryoGridProblem(setup::Tile, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
 CryoGridProblem(setup::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,u0,convert_tspan(tspan),args...;kwargs...)
 """
-    odefunction(setup::Tile, M, u0, p, tspan; kwargs...)
+    odefunction(setup::Tile, u0, p, tspan; kwargs...)
 
-Constructs a SciML `ODEFunction` given the model setup, mass matrix M, initial state u0, parameters p, and tspan.
+Constructs a SciML `ODEFunction` given the model setup, initial state u0, parameters p, and tspan.
 Can (and should) be overridden by users to provide customized ODEFunction configurations for specific problem setups, e.g:
 ```
 tile = Tile(strat,grid)
-function CryoGrid.Setup.odefunction(::DefaultJac, setup::typeof(tile), M, u0, p, tspan)
+function CryoGrid.Setup.odefunction(::DefaultJac, setup::typeof(tile), u0, p, tspan)
     ...
     # make sure to return an instance of ODEFunction
 end
@@ -97,12 +99,12 @@ prob = CryoGridProblem(tile, tspan, p)
 
 `JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `Tile`s.
 """
-odefunction(setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:Tile} = odefunction(JacobianStyle(TSetup), setup, M, u0, p, tspan; kwargs...)
-odefunction(::DefaultJac, setup::TSetup, M, u0, p, tspan; kwargs...) where {TSetup<:Tile} = ODEFunction(setup, mass_matrix=M; kwargs...)
-function odefunction(::TridiagJac, setup::Tile, M, u0, p, tspan; kwargs...)
+odefunction(tile::TTile, u0, p, tspan; mass_matrix=I, recompile=true, kwargs...) where {TTile<:Tile} = odefunction(JacobianStyle(TTile), tile, u0, p, tspan; mass_matrix, recompile, kwargs...)
+odefunction(::DefaultJac, tile::Tile, u0, p, tspan; mass_matrix=I, recompile=true, kwargs...) = ODEFunction{true,recompile}(tile; mass_matrix, kwargs...)
+function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, recompile=true, kwargs...)
     if :jac_prototype in keys(kwargs)
         @warn "using user specified jac_prorotype instead of tridiagonal"
-        ODEFunction(setup, mass_matrix=M; kwargs...)
+        ODEFunction{true,recompile}(tile; mass_matrix, kwargs...)
     else
         N = length(u0)
         J = Tridiagonal(
@@ -110,6 +112,6 @@ function odefunction(::TridiagJac, setup::Tile, M, u0, p, tspan; kwargs...)
                 similar(u0, eltype(p), N) |> Vector,
                 similar(u0, eltype(p), N-1) |> Vector
         )
-        ODEFunction(setup, mass_matrix=M, jac_prototype=J, kwargs...)
+        ODEFunction{true,recompile}(tile; jac_prototype=J, mass_matrix, kwargs...)
     end
 end
