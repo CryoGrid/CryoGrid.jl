@@ -24,7 +24,7 @@ or equivalently in code/REPL:
 
 ```julia
 import Pkg
-Pkg.add(["https://gitlab.awi.de/sparcs/cryogrid/cryogridjulia"])
+Pkg.add(url="https://gitlab.awi.de/sparcs/cryogrid/cryogridjulia")
 ```
 
 ### Quick start
