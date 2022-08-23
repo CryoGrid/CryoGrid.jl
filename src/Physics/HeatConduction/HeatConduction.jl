@@ -68,7 +68,7 @@ Heat(form::Temperature; freezecurve, prop=ThermalProperties(), dtlim=_default_dt
 thermalproperties(heat::Heat) = heat.prop
 freezecurve(heat::Heat) = heat.freezecurve
 
-export HeatBC, ConstantTemp, GeothermalHeatFlux, TemperatureGradient, NFactor
+export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")
 
 export heatconduction!, enthalpy, enthalpyinv, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!

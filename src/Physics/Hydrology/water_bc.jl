@@ -3,6 +3,7 @@ const Neumann = CryoGrid.Neumann
 # Boundary condition type aliases
 const WaterBC = BoundaryProcess{T} where {WaterBalance<:T<:SubSurfaceProcess}
 ConstantInfiltration(value::Quantity) = ConstantBC(WaterBalance, Neumann, uconvert(u"m/s", value))
+ConstantInfiltration(value) = ConstantBC(WaterBalance, Neumann, value)
 ImpermeableBoundary() = ConstantBC(WaterBalance, Neumann, 0.0u"m/s")
 """
     Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
