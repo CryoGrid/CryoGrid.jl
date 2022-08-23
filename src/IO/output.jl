@@ -17,11 +17,11 @@ end
 """
 Evaluates the continuous solution at time `t`.
 """
-(out::CryoGridOutput)(t::Real) = CryoGrid.withaxes(out.sol(t), out.sol.prob.f.f)
+(out::CryoGridOutput)(t::Real) = CryoGrid.withaxes(out.sol(t), Tile(out.sol.prob.f))
 (out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 function (out::CryoGridOutput)(t, var::Symbol)
     u = out(t)
-    return getvar(var, out.sol.prob.f.f, u)
+    return getvar(var, Tile(out.sol.prob.f), u)
 end
 # Overrides from Base
 function Base.show(io::IO, out::CryoGridOutput)

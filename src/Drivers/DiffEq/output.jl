@@ -10,7 +10,7 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
     withdims(var::Var{name,<:OnGrid{Edges}}, arr, grid, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
     withdims(var::Var{name}, arr, zs, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Dim{name}(1:size(arr,1)),Ti(ts)))
     save_interval = ClosedInterval(tspan...)
-    tile = sol.prob.f.f # Tile
+    tile = Tile(sol.prob.f) # Tile
     ts = tile.hist.vals.t # use save callback time points
     t_mask = map(∈(save_interval), ts) # indices within t interval
     u_all = reduce(hcat, sol.(ts[t_mask])) # build prognostic state from continuous solution
