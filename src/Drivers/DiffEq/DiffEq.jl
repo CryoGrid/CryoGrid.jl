@@ -9,7 +9,7 @@ using CryoGrid.Drivers
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
-using CryoGrid.Strat: Stratigraphy, StratComponent
+using CryoGrid.Strat: Stratigraphy
 using CryoGrid.Utils
 
 import CryoGrid.Strat
@@ -53,10 +53,11 @@ function Strat.Tile(integrator::SciMLBase.DEIntegrator)
     return Strat.updateparams(tile, Strat.withaxes(integrator.u, tile), integrator.p, integrator.t)
 end
 function Strat.Tile(f::ODEFunction)
-    # if f is a Tile (works with older OrdinaryDiffEq versions, probably obsolete now)
+    # if f is a Tile (when recompile=true)
     extract_f(tile::Tile) = tile
     extract_f(f::DiffEqBase.Void) = f.f
-    # extract from this stupid FunctionWrappers thing.... this is probably fragile and might break in future versions
+    # extract from FunctionWrappers (when recompile=false)
+    # TODO: replace with unwrapped_f(f) once feature is released in DiffEqBase
     extract_f(f::DiffEqBase.FunctionWrappersWrappers.FunctionWrappersWrapper) = f.fw[1].obj.x.f
     return extract_f(f.f)
 end

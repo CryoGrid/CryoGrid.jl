@@ -37,10 +37,11 @@ abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 Generic representation of a ground surface snow pack.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp,Tproc} <: CryoGrid.SubSurface{Tproc}
     para::Tpara = Bulk()
     prop::Tprop = SnowProperties()
     sp::Tsp = nothing
+    proc::Tproc
 end
 
 abstract type SnowAblationScheme end

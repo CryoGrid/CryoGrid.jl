@@ -1,4 +1,5 @@
 # Core model functions
+processes(l::Layer) = l.proc
 """
     variables(::Layer)
     variables(::Process)
@@ -6,44 +7,42 @@
 
 Defines variables for a given Process and/or Layer. Implementations should return a `Tuple` of `Var`s.
 """
-variables(::Layer) = ()
+variables(l::Layer) = variables(l, processes(l))
 variables(::Process) = ()
-variables(layer::Layer, process::Process) = tuple(variables(layer)..., variables(process)...)
+variables(layer::Layer, process::Process) = tuple(variables(process)...)
 """
     initialcondition!(::Layer, state)
-    initialcondition!(::Process, state) = nothing
     initialcondition!(::Layer, ::Process, state)
 
 Defines the initial condition for a given Process and/or Layer. `initialcondition!` should write initial values into all relevant
 state variables in `state`.
 """
-initialcondition!(::Layer, state) = nothing
-initialcondition!(::Process, state) = nothing
-initialcondition!(layer::Layer, process::Process, state) = nothing
+initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(layer), state)
+initialcondition!(::Layer, ::Process, state) = nothing
 """
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
 Defines the initial condition for two processes on adjacent layers. `initialcondition!` should write initial values into all
 relevant state variables in `state`.
 """
+initialcondition!(layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
-    diagnosticstep!(l::Layer, p::Process, state)
     diagnosticstep!(l::Layer, state)
+    diagnosticstep!(l::Layer, p::Process, state)
 
 Defines the diagnostic update for a Process on a given Layer.
 """
-diagnosticstep!(l::Layer, p::Process, state) = nothing
-diagnosticstep!(l::Layer, state) = nothing
-diagnosticstep!(::Top, ::BoundaryProcess, state) = nothing
-diagnosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
+diagnosticstep!(layer::Layer, state) = diagnosticstep!(layer, processes(layer), state)
+diagnosticstep!(::Layer, ::Process, state) = nothing
 """
     prognosticstep!(l::Layer, p::Process, state)
 
 Defines the prognostic update for a Process on a given layer. Note that an instance of `prognosticstep!` must be provided
 for all non-boundary (subsurface) processes/layers.
 """
-prognosticstep!(l::Layer, p::Process, state) = error("no prognostic step defined for $(typeof(l)) with $(typeof(p))")
+prognosticstep!(layer::Layer, state) = prognosticstep!(layer, processes(layer), state)
+prognosticstep!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
 prognosticstep!(::Top, ::BoundaryProcess, state) = nothing
 prognosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
 """
@@ -53,6 +52,7 @@ Defines a boundary interaction between two processes on adjacent layers. For any
 follows decreasing depth, i.e. the first layer/process is always on top of the second layer/process. This ordering matters
 and separate dispatches must be provided for interactions in reverse order.
 """
+interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
     timestep(::Layer, ::Process, state)
@@ -61,6 +61,7 @@ Retrieves the recommended timestep for the given `Process` defined on the given 
 The default implementation returns `Inf` which indicates no timestep restriction. The
 actual chosen timestep will depend on the integrator being used and other user configuration options.
 """
+timestep(layer::Layer, state) = timestep(layer, processes(layer), state)
 timestep(::Layer, ::Process, state) = Inf
 """
     observe(::Val{name}, ::Layer, ::Process, state1)
@@ -81,6 +82,7 @@ setup = Tile(stratigraphy, grid, observed=[:meanT])
 @show out.log.meanT # will be a DimArray of meanT at each timestep.
 ```
 """
+observe(::Val{name}, layer::Layer, state) where name = observe(Val{name}(), layer, processes(layer), state)
 observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
 # Auxiliary functions for generalized boundary implementations;
 """
@@ -120,6 +122,7 @@ BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
 
 Defines "events" for a given Process on the given Layer. Implementations should return a `Tuple` of `Event`s.
 """
+events(layer::Layer) = events(layer, processes(layer))
 events(::Layer, ::Process) = ()
 """
     criterion(::Event, ::Layer, ::Process, state)

@@ -29,8 +29,8 @@ import ConstructionBase
 import Flatten
 import ModelParameters: update
 
-export Stratigraphy, @Stratigraphy
-export StratComponent, componentname, copmonenttypes, components, boundaries
+export Stratigraphy, @Stratigraphy, NamedLayer
+export layernames, layertypes, layers, boundaries, layername, stratiterate
 export top, bottom, subsurface
 include("stratigraphy.jl")
 

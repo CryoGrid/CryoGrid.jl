@@ -4,9 +4,9 @@ function makecallbacks(tile::Tile)
     isgridevent(::GridContinuousEvent) = true
     isgridevent(::Event) = false
     callbacks = []
-    for (i,comp) in enumerate(tile.strat)
-        events = CryoGrid.events(comp.layer, comp.process)
-        layername = componentname(comp)
+    for (i,named_layer) in enumerate(tile.strat)
+        events = CryoGrid.events(named_layer.obj)
+        layername = Strat.layername(named_layer)
         for ev in events
             # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
             # GridContinuousEvents are defined on the whole grid/domain and so do not need to be duplicated

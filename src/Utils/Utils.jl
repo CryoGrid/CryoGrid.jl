@@ -18,16 +18,18 @@ import ForwardDiff
 import FreezeCurves
 import Unitful
 
+import ConstructionBase
 import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
 export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
+export Named
 export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
 export dustrip, duconvert, applyunits, normalize_units, normalize_temperature, pstrip
-export structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
+export fastmap, fastiterate, structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 export IterableStruct
 
 # Convenience constants for units
@@ -49,6 +51,19 @@ StructTypes.lowertype(value::Type{<:Quantity}) = String
 StructTypes.construct(::Type{Q}, value::String) where {Q<:Quantity} = uconvert(Q, uparse(replace(value, " " => "")))
 
 """
+    Named{name,T}
+
+Wraps an object of type `T` with a `name` type parameter.
+"""
+struct Named{name,T}
+    obj::T
+    Named(name::Symbol, obj::T) where T = new{name,T}(obj)
+end
+Named(values::Pair{Symbol,T}) where T = Named(values[1], values[2])
+Base.nameof(::Named{name}) where name = name
+ConstructionBase.constructorof(::Type{<:Named{name}}) where name = obj -> Named(name, obj)
+
+"""
     applyunits(u::Unitful.Units, x::Number)
 
 Conditionally applies unit `u` to `x` if and only if `x` is a unit-free quantity.
@@ -62,6 +77,33 @@ function applyunits(u::Unitful.Units, x::Number)
         return x
     end
 end
+"""
+    fastmap(f::F, iter::NTuple{N,Any}...) where {F,N}
+
+Same as `map` for `NTuple`s but with guaranteed type stability. `fastmap` is a `@generated`
+function which unrolls calls to `f` into a loop-free tuple construction expression.
+"""
+@generated function fastmap(f::F, iters::NTuple{N,Any}...) where {F,N}
+    expr = Expr(:tuple)
+    for j in 1:N
+        push!(expr.args, _genexpr(:(f), iters, j))
+    end
+    return expr
+end
+"""
+    fastiterate(f!::F, iters::NTuple{N,Any}...) where {F,N}
+
+Same as `fastmap` but simply invokes `f!` on each argument set without constructing a tuple.
+"""
+@generated function fastiterate(f!::F, iters::NTuple{N,Any}...) where {F,N}
+    expr = Expr(:block)
+    for j in 1:N
+        push!(expr.args, _genexpr(:(f!), iters, j))
+    end
+    push!(expr.args, :(return nothing))
+    return expr
+end
+_genexpr(f::Symbol, iters, j) where F = :($f($(map(i -> :(iters[$i][$j]), 1:length(iters))...)))
 
 # special case: make sure temperatures are in °C
 normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)

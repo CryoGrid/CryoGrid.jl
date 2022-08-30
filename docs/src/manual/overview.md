@@ -1,15 +1,15 @@
 # Overview
 ## Setting up a model
 
-At the highest level, a model in `CryoGrid.jl` is defined by a [`Grid`](@ref) and a [`Stratigraphy`](@ref), constructed top-down from individual [`StratComponent`](@ref)s, each of which consists of a [`Layer`](@ref) and one or more [`Process`](@ref)es. Each node in the `Stratigraphy` is assigned a depth, which then aligns it with the `Grid`. All models must consist of at least three layers/nodes: `Top` and `Bottom` layers with corresponding boundary conditions, as well as one or more [`SubSurface`](@ref) layers. Here we define a simple three-layer model (or one-layer, exlcuding the boundaries) with a single sub-surface process, i.e. [`Heat`](@ref) (heat conduction):
+At the highest level, a model in `CryoGrid.jl` is defined by a [`Grid`](@ref) and a [`Stratigraphy`](@ref), constructed top-down from individual [`Layer`](@ref)s, each of which has one or more [`Process`](@ref)es. Each layer in the `Stratigraphy` is assigned a depth, which then aligns it with the `Grid`. All models must consist of at least three layers/nodes: `Top` and `Bottom` layers with corresponding boundary conditions, as well as one or more [`SubSurface`](@ref) layers. Here we define a simple three-layer model (or one-layer, exlcuding the boundaries) with a single sub-surface process, i.e. [`Heat`](@ref) (heat conduction):
 
 ```julia
 # ... load forcings, set up profiles, etc.
 # see examples/heat_vgfc_seb_saoylov_custom.jl for more details
 strat = Stratigraphy(
-    -2.0u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
-    0.0u"m" => subsurface(:soil, Soil(soilprofile), Heat(:H;freezecurve=SFCC(DallAmico()))),
-    1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
+    -2.0u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
+    0.0u"m" => Soil(soilprofile, Heat(:H;freezecurve=SFCC(DallAmico()))),
+    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
 # define initial conditions for temperature using a given profile;

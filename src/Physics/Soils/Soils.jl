@@ -85,13 +85,17 @@ Base.@kwdef struct SoilThermalProperties{Tko,Tkm,Tco,Tcm}
     cm::Tcm = Param(2.0e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity mineral
 end
 """
-Basic Soil layer.
+    Soil{Tpara<:SoilParameterization,Tprop,Tsp,Tproc} <: SubSurface{Tproc}
+
+Generic Soil layer.
 """
-@kwdef struct Soil{TPara<:SoilParameterization,TProp,TSp} <: SubSurface
-    para::TPara = CharacteristicFractions()
-    prop::TProp = SoilThermalProperties()
-    sp::TSp = nothing # user-defined specialization
+@kwdef struct Soil{Tpara<:SoilParameterization,Tprop,Tsp,Tproc} <: SubSurface{Tproc}
+    para::Tpara = CharacteristicFractions()
+    prop::Tprop = SoilThermalProperties()
+    sp::Tsp = nothing # user-defined specialization
+    proc::Tproc
 end
+Soil(proc::Tproc; kwargs...) where Tproc = Soil(;proc, kwargs...)
 HeatConduction.thermalproperties(soil::Soil) = soil.prop
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
@@ -128,6 +132,7 @@ function CryoGrid.initialcondition!(::Homogeneous, soil::Soil{<:CharacteristicFr
     θ = soil.para.sat
     ω = soil.para.org
     @. state.θwi = soilcomponent(Val{:θwi}(), χ, ϕ, θ, ω)
+    CryoGrid.initialcondition!(soil, processes(soil), state)
 end
 """
     initialcondition!(::Heterogeneous, soil::Soil{<:CharacteristicFractions}, state)
@@ -146,6 +151,7 @@ function CryoGrid.initialcondition!(::Heterogeneous, soil::Soil{<:Characteristic
     @. state.θp = soilcomponent(Val{:θp}(), χ, ϕ, θ, ω)
     @. state.θm = soilcomponent(Val{:θm}(), χ, ϕ, θ, ω)
     @. state.θo = soilcomponent(Val{:θo}(), χ, ϕ, θ, ω)
+    CryoGrid.initialcondition!(soil, processes(soil), state)
 end
 
 """
