@@ -283,6 +283,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.MaxDelta
     @inbounds for i in eachindex(Δx)
         dtmax = min(dtmax, heat.dtlim(state.∂H∂t[i], state.H[i], state.t))
     end
+    # Main.@infiltrate
     dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
     return dtmax
 end

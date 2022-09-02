@@ -160,13 +160,12 @@ function step!(
     return nothing
 end
 function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
-    _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
-    max_dts = fastmap!(layers(strat)) do named_layer
+    max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.obj, getproperty(state, layername(named_layer)))
     end
     return minimum(max_dts)

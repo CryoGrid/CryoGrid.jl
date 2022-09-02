@@ -35,7 +35,7 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
             outputs[name] = withdims(var, arr, tile.grid, ts_datetime)
         end
     end
-    for layer in Strat.componentnames(tile.strat)
+    for layer in Strat.layernames(tile.strat)
         # if layer name appears in saved states, then add these variables to the output.
         if haskey(savedstates[1], layer)
             layerouts = map(savedstates) do state

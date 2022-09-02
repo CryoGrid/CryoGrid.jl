@@ -7,6 +7,7 @@ function debug(debug::Bool)
 end
 
 using Base: @propagate_inbounds
+using ComponentArrays
 using Reexport
 
 # Common types and methods
