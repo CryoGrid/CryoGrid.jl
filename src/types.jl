@@ -50,7 +50,7 @@ const BoundaryProcesses = Union{BoundaryProcess,CoupledProcesses{<:Tuple{Vararg{
 """
     Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
-Represents an explicitly coupled pair of processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
+Type alias for coupled processes, i.e. `CoupledProcesses{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
 const Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
@@ -59,7 +59,7 @@ const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,
 """
     Coupled(ps::Process...)
 
-Alias for `CoupledProcesses(ps...)`.
+Constructs a composite/coupled process from one or more processes. Alias for `CoupledProcesses(ps...)`.
 """
 Coupled(ps::Process...) = CoupledProcesses(ps...)
 """

@@ -317,8 +317,7 @@ Collects and validates all declared variables (`Var`s) for the given stratigraph
 """
 function _collectvars(@nospecialize(named_layer::NamedLayer{name,TLayer})) where {name,TLayer}
     layer = named_layer.obj
-    process = CryoGrid.processes(layer)
-    declared_vars = variables(layer, process)
+    declared_vars = variables(layer)
     nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
     all_vars = tuplejoin(declared_vars, nested_vars)
     @debug "Building layer $name with $(length(all_vars)) variables: $(all_vars)"

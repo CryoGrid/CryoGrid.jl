@@ -106,15 +106,7 @@ Computes the thermal conductivity for the given layer from the current state and
     end
 end
 """
-Variable definitions for heat conduction on any subsurface layer. Joins variables defined on
-`layer` and `heat` individually as well as variables defined by the freeze curve.
-"""
-CryoGrid.variables(sub::SubSurface, heat::Heat) = (
-    variables(sub)..., # layer variables
-    variables(heat)...,  # heat variables
-)
-"""
-Variable definitions for heat conduction (enthalpy).
+Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
 CryoGrid.variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),

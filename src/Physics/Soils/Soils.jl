@@ -115,14 +115,16 @@ mineral(::Heterogeneous, soil::Soil, state) = state.θm
 organic(::Heterogeneous, soil::Soil, state) = state.θo
 
 CryoGrid.variables(soil::Soil) = CryoGrid.variables(SoilComposition(soil), soil)
-CryoGrid.variables(::Homogeneous, ::Soil) = (
+CryoGrid.variables(::Homogeneous, soil::Soil) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
+    CryoGrid.variables(soil, processes(soil))...
 )
-CryoGrid.variables(::Heterogeneous, ::Soil) = (
+CryoGrid.variables(::Heterogeneous, soil::Soil) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
     Diagnostic(:θp, OnGrid(Cells), domain=0..1),
     Diagnostic(:θm, OnGrid(Cells), domain=0..1),
     Diagnostic(:θo, OnGrid(Cells), domain=0..1),
+    CryoGrid.variables(soil, processes(soil))...,
 )
 
 CryoGrid.initialcondition!(soil::Soil, state) = CryoGrid.initialcondition!(SoilComposition(soil), soil, state)

@@ -9,7 +9,7 @@ Defines variables for a given Process and/or Layer. Implementations should retur
 """
 variables(l::Layer) = variables(l, processes(l))
 variables(::Process) = ()
-variables(layer::Layer, process::Process) = tuple(variables(process)...)
+variables(layer::Layer, process::Process) = variables(process)
 """
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)

@@ -17,11 +17,6 @@
         (θw, θi, θa, θm, θo)
     end
 end
-# Default implementations of variables for SFCCFunction
-CryoGrid.variables(::Soil, ::Heat, f::SFCCFunction) = ()
-CryoGrid.variables(::Soil, ::Heat, s::SFCCSolver) = ()
-# Join the declared state variables of the SFCC function and the solver
-CryoGrid.variables(soil::Soil, heat::Heat, sfcc::SFCC) = tuplejoin(CryoGrid.variables(soil, heat, sfcc.f), CryoGrid.variables(soil, heat, sfcc.solver))
 """
     sfcckwargs(f::SFCCFunction, soil::Soil, heat::Heat, state, i)
 

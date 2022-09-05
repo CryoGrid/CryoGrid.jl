@@ -43,6 +43,7 @@ Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp,Tproc} <: 
     sp::Tsp = nothing
     proc::Tproc
 end
+Snowpack(proc::Tproc; kwargs...) where {Tproc} = Snowpack(;proc, kwargs...)
 
 abstract type SnowAblationScheme end
 Base.@kwdef struct DegreeDayMelt{Tfactor,Tmax} <: SnowAblationScheme
