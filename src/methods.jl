@@ -130,6 +130,7 @@ events(::Layer, ::Process) = ()
 Event criterion/condition. Should return a `Bool` for discrete events. For continuous events,
 this should be a real-valued function where the event is fired at the zeros/roots.
 """
+criterion(ev::Union{DiscreteEvent,ContinuousEvent}, layer::Layer, state) = criterion(ev, layer, processes(layer), state)
 criterion(::DiscreteEvent, ::Layer, ::Process, state) = false
 criterion(::ContinuousEvent, ::Layer, ::Process, state) = Inf
 """
@@ -138,6 +139,7 @@ criterion(::ContinuousEvent, ::Layer, ::Process, state) = Inf
 Event criterion for on-grid (i.e. multi-valued) continuous events. The condition for each grid cell should
 be stored in `out`.
 """
+criterion!(out::AbstractArray, ev::GridContinuousEvent, layer::Layer, state) = criterion!(out, ev, layer, processes(layer), state)
 criterion!(out::AbstractArray, ::GridContinuousEvent, ::Layer, ::Process, state) = out .= Inf
 """
     trigger!(::Event, ::Layer, ::Process, state)
@@ -146,6 +148,7 @@ criterion!(out::AbstractArray, ::GridContinuousEvent, ::Layer, ::Process, state)
 
 Event action executed when `criterion` is met.
 """
+trigger!(ev::Event, layer::Layer, state) = trigger!(ev, layer, processes(layer), state)
 trigger!(::Event, ::Layer, ::Process, state) = nothing
 trigger!(::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
 trigger!(::GridContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing

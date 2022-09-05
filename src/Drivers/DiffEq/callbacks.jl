@@ -23,14 +23,12 @@ end
 function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layername
     function _condition(u,t,integrator)
         let tile = Tile(integrator),
-            comp = tile.strat[i_layer],
-            layer = comp.layer,
-            process = comp.process,
+            layer = tile.strat[i_layer],
             u = Strat.withaxes(u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
             t = t,
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            return criterion(ev, layer, process, state)
+            return criterion(ev, layer.obj, state)
         end
     end
 end
