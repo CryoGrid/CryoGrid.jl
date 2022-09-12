@@ -10,6 +10,7 @@ Defines variables for a given Process and/or Layer. Implementations should retur
 variables(l::Layer) = variables(l, processes(l))
 variables(::Process) = ()
 variables(layer::Layer, process::Process) = variables(process)
+variables(::Any) = ()
 """
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)

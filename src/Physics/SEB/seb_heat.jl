@@ -31,17 +31,24 @@ function boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::Heat, ::Soil, stop, s
 
     # 1. calculate radiation budget
     # outgoing shortwave radiation as reflected
-    @setscalar stop.Sout = let α = seb.sebparams.α, Sin = seb.forcings.Sin(stop.t);
+    @setscalar stop.Sout = let α = seb.sebparams.α,
+        Sin = seb.forcings.Sin(stop.t);
         -α * Sin  # Eq. (2) in Westermann et al. (2016)
     end
 
     # outgoing longwave radiation composed of emitted and reflected radiation
-    @setscalar stop.Lout = let ϵ = seb.sebparams.ϵ, σ = seb.sebparams.σ, T₀ = ssoil.T[1], Lin = seb.forcings.Lin(stop.t);
+    @setscalar stop.Lout = let ϵ = seb.sebparams.ϵ,
+        σ = seb.sebparams.σ,
+        T₀ = ssoil.T[1],
+        Lin = seb.forcings.Lin(stop.t);
         -ϵ * σ * normalize_temperature(T₀)^4 - (1 - ϵ) * Lin # Eq. (3) in Westermann et al. (2016)
     end
 
     # net radiation budget
-    @setscalar stop.Qnet = let Sin = seb.forcings.Sin(stop.t), Lin = seb.forcings.Lin(stop.t), Sout = getscalar(stop.Sout), Lout = getscalar(stop.Lout);
+    @setscalar stop.Qnet = let Sin = seb.forcings.Sin(stop.t),
+        Lin = seb.forcings.Lin(stop.t),
+        Sout = getscalar(stop.Sout),
+        Lout = getscalar(stop.Lout);
         Sin + Sout + Lin + Lout
     end
 
@@ -106,18 +113,18 @@ Obukhov length according to Monin-Obukhov theory, iterative determination as in 
 """
 function Lstar(seb::SurfaceEnergyBalance{Iterative}, stop, ssoil)
     res = let κ = seb.sebparams.κ,
-            g = seb.sebparams.g,
-            Rₐ = seb.sebparams.Rₐ,
-            cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                             # specific heat capacity of air at constant pressure
-            Tair = seb.forcings.Tair(stop.t),
-            Tₕ = normalize_temperature(Tair),                                       # air temperature at height z over surface
-            p = seb.forcings.p(stop.t),                                            # atmospheric pressure at surface
-            ustar = stop.ustar |> getscalar,
-            Qₑ = stop.Qe |> getscalar,
-            Qₕ = stop.Qh |> getscalar,
-            Llg = L_lg(ssoil.T[1]),
-            ρₐ = density_air(seb, Tair, p);                                         # density of air at surface air temperature and surface pressure [kg/m^3]
-        -ρₐ * cₚ * Tₕ / (κ * g) * ustar^3 / (Qₕ + 0.61 * cₚ / Llg * Tₕ * Qₑ)      # Eq. (8) in Westermann et al. (2016)
+        g = seb.sebparams.g,
+        Rₐ = seb.sebparams.Rₐ,
+        cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ, # specific heat capacity of air at constant pressure
+        Tair = seb.forcings.Tair(stop.t),
+        Tₕ = normalize_temperature(Tair), # air temperature at height z over surface
+        p = seb.forcings.p(stop.t), # atmospheric pressure at surface
+        ustar = stop.ustar |> getscalar,
+        Qₑ = stop.Qe |> getscalar,
+        Qₕ = stop.Qh |> getscalar,
+        Llg = L_lg(ssoil.T[1]),
+        ρₐ = density_air(seb, Tair, p); # density of air at surface air temperature and surface pressure [kg/m^3]
+        -ρₐ * cₚ * Tₕ / (κ * g) * ustar^3 / (Qₕ + 0.61 * cₚ / Llg * Tₕ * Qₑ) # Eq. (8) in Westermann et al. (2016)
     end
     # upper and lower limits for Lstar
     res = (abs(res) < 1e-7) ? sign(res) * 1e-7 : res

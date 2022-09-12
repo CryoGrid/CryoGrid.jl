@@ -1,6 +1,7 @@
 Constants() = (
     ρw = 1000.0u"kg/m^3", # density of water at standard conditions
     Lsl = 3.34e5u"J/kg", # specific latent heat of fusion of water [J/kg]
+    Lsg = 2.257e6u"J/kg", # specific latent heat of vaporization of water [J/kg]
     g = 9.80665u"m/s^2", # gravitational constant
 )
 # Generic step limiter types

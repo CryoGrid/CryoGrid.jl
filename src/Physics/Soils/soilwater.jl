@@ -104,22 +104,20 @@ CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}) = (
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
     Diagnostic(:sat, OnGrid(Cells), domain=0..1), # saturation (diagnostic)
     Diagnostic(:dθwidψ, OnGrid(Cells), domain=0..Inf), # derivative of SWRC w.r.t matric potential
+    CryoGrid.variables(water)...,
     CryoGrid.variables(soil)...,
-    Hydrology.watervariables(water)...,
 )
 CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = (
     Prognostic(:sat, OnGrid(Cells), domain=0..1), # saturation
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
+    CryoGrid.variables(water)...,
     CryoGrid.variables(soil)...,
-    Hydrology.watervariables(water)...,
 )
 function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
-    # state.sat .= soil.para.sat
     CryoGrid.diagnosticstep!(soil, water, state)
 end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
-    # state.sat .= soil.para.sat
     CryoGrid.diagnosticstep!(soil, ps, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
