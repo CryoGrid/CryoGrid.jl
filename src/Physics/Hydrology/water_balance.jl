@@ -174,7 +174,7 @@ function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance{<:BucketS
     divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
     waterprognostic!(sub, water, state)
 end
-function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, ::WaterBalance{<:BucketScheme}, state1, state2)
+function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)
     θw₁ = state1.θw[end]
     θfc = fieldcapacity(sub1, water1) # take field capacity from upper layer where water would drain from
     kwc₁ = state1.kwc[end]

@@ -28,13 +28,14 @@ function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:BucketScheme
         end
     end
     @inbounds @. state.f_et = et.f_tr*(state.αᶿ*state.w_tr) + (1-et.f_tr)*(state.αᶿ*state.w_ev)
-    norm_f = sum(state.f_ev)
+    norm_f = sum(state.f_et)
     Lsg = water.prop.consts.Lsg # specific latent heat of vaporization
     ρw = water.prop.consts.ρw
     # I guess we just ignore the flux at the lower boundary here... it will either be set
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
+    Qe = getscalar(state.Qe)
     @inbounds for i in eachindex(Δz)
-        state.jwET[i] += state.f / norm_f * state.Qe / (Lsg*ρw)
+        state.jwET[i] += state.f_et[i] / norm_f * Qe / (Lsg*ρw)
         # add ET fluxes to total water flux
         state.jw[i] += state.jwET[i]
     end
