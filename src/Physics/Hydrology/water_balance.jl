@@ -146,7 +146,7 @@ end
 # CryoGrid methods
 CryoGrid.variables(water::WaterBalance) = (
     CryoGrid.variables(water.flow)...,
-    CryoGrid.variables(water.evt)...,
+    CryoGrid.variables(water.et)...,
     Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
     Diagnostic(:jwET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content

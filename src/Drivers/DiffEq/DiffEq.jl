@@ -56,9 +56,7 @@ function Strat.Tile(f::ODEFunction)
     # if f is a Tile (when recompile=true)
     extract_f(tile::Tile) = tile
     extract_f(f::DiffEqBase.Void) = f.f
-    # extract from FunctionWrappers (when recompile=false)
-    # TODO: replace with unwrapped_f(f) once feature is released in DiffEqBase
-    extract_f(f::DiffEqBase.FunctionWrappersWrappers.FunctionWrappersWrapper) = f.fw[1].obj.x.f
+    extract_f(f::DiffEqBase.FunctionWrappersWrappers.FunctionWrappersWrapper) = SciMLBase.unwrapped_f(f)
     return extract_f(f.f)
 end
 """

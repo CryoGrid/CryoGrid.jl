@@ -90,7 +90,7 @@ end
 function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
     sfcc = freezecurve(heat)
     @inbounds for i in 1:length(state.H)
-        @inbounds let H = state.H[i], # enthalpy
+        let H = state.H[i], # enthalpy
             L = heat.prop.L,
             cw = heat.prop.cw,
             ci = heat.prop.ci,

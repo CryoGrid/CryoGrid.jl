@@ -24,7 +24,7 @@ function CryoGridProblem(
     max_step=true,
     callback=nothing,
     isoutofdomain=Strat.domain(tile),
-    recompile=true,
+    specialization=SciMLBase.AutoSpecialize,
     function_kwargs=(),
     prob_kwargs...
 )
@@ -75,7 +75,7 @@ function CryoGridProblem(
     # if no algebraic variables are present, use identity matrix
     num_algebraic = length(M_diag) - sum(M_diag)
     M = num_algebraic > 0 ? Diagonal(M_diag) : I
-	func = odefunction(tile, u0, p, tspan; mass_matrix=M, recompile, function_kwargs...)
+	func = odefunction(tile, u0, p, tspan; mass_matrix=M, specialization, function_kwargs...)
 	ODEProblem(func, u0, tspan, p, CryoGridODEProblem(); callback=callbacks, isoutofdomain, prob_kwargs...)
 end
 """
@@ -99,12 +99,12 @@ prob = CryoGridProblem(tile, tspan, p)
 
 `JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `Tile`s.
 """
-odefunction(tile::TTile, u0, p, tspan; mass_matrix=I, recompile=true, kwargs...) where {TTile<:Tile} = odefunction(JacobianStyle(TTile), tile, u0, p, tspan; mass_matrix, recompile, kwargs...)
-odefunction(::DefaultJac, tile::Tile, u0, p, tspan; mass_matrix=I, recompile=true, kwargs...) = ODEFunction{true,recompile}(tile; mass_matrix, kwargs...)
-function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, recompile=true, kwargs...)
+odefunction(tile::TTile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...) where {TTile<:Tile} = odefunction(JacobianStyle(TTile), tile, u0, p, tspan; mass_matrix, specialization, kwargs...)
+odefunction(::DefaultJac, tile::Tile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...) = ODEFunction{true,specialization}(tile; mass_matrix, kwargs...)
+function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...)
     if :jac_prototype in keys(kwargs)
         @warn "using user specified jac_prorotype instead of tridiagonal"
-        ODEFunction{true,recompile}(tile; mass_matrix, kwargs...)
+        ODEFunction{true,specialization}(tile; mass_matrix, kwargs...)
     else
         N = length(u0)
         J = Tridiagonal(
@@ -112,6 +112,6 @@ function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, reco
                 similar(u0, eltype(p), N) |> Vector,
                 similar(u0, eltype(p), N-1) |> Vector
         )
-        ODEFunction{true,recompile}(tile; jac_prototype=J, mass_matrix, kwargs...)
+        ODEFunction{true,specialization}(tile; jac_prototype=J, mass_matrix, kwargs...)
     end
 end
