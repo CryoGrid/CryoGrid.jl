@@ -5,12 +5,13 @@ Base type for different formulations of water flow in `WaterBalance`.
 """
 abstract type WaterFlow end
 """
-    WaterBalance{TFlow<:WaterFlow,Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
+    WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
 
 Represents subsurface water transport processes.
 """
-struct WaterBalance{TFlow<:WaterFlow,Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
+struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
     flow::TFlow # vertical flow scheme
+    et::TET # evapotranspiration scheme
     prop::TProp # hydraulic parameters/constants
     dtlim::Tdt # dtlim
     sp::Tsp # user-defined specialization
@@ -23,10 +24,9 @@ end
 Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow
     fieldcap::Tfc = Param(0.2, domain=0..1)
 end
-# Constructors for WaterBalance
 default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
-WaterBalance(flow::WaterFlow = BucketScheme(); prop = HydraulicProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, prop, dtlim, sp)
+WaterBalance(flow::WaterFlow = BucketScheme(), et::Union{Nothing,Evapotranspiration}=nothing; prop = HydraulicProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
 """
     kwsat(::SubSurface, water::WaterBalance)
 
@@ -39,18 +39,6 @@ kwsat(::SubSurface, water::WaterBalance) = water.prop.kw_sat
 Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
 """
 @inline maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
-CryoGrid.variables(water::WaterBalance) = (
-    CryoGrid.variables(water.flow)...,
-    CryoGrid.variables(water.evt)...,
-    Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
-    Diagnostic(:jwET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
-    Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
-    Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
-    Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
-    Diagnostic(:∂θwi∂t, OnGrid(Cells)), # divergence of total water content
-    Diagnostic(:kw, OnGrid(Edges), u"m/s", domain=0..Inf), # hydraulic conductivity (edges)
-    Diagnostic(:kwc, OnGrid(Cells), u"m/s", domain=0..Inf), # hydraulic conductivity (cells)
-)
 # Helper methods
 """
     reductionfactor(water::WaterBalance, x)
@@ -136,11 +124,38 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
             θfc = fieldcapacity(sub, water),
             kw = state.kw[i];
             # compute fluxes over inner grid cell faces
-            state.jw[i] = advectiveflux(θwᵢ₋₁, θfc, kw)
+            state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
         end
     end
 end
+"""
+    waterdiffusion!(::SubSurface, ::WaterBalance, state)
+
+Computes diffusive fluxes for water balance, if defined.
+"""
+waterdiffusion!(::SubSurface, ::WaterBalance, state) = nothing
+"""
+    waterprognostic!(::SubSurface, ::WaterBalance, state)
+
+Computes the prognostic time derivative for the water balance, usually based on `∂θwi∂t`.
+Implementation depends on which water flow scheme is being used.
+"""
+function waterprognostic!(::SubSurface, ::WaterBalance{<:BucketScheme}, state)
+    @inbounds @. state.∂sat∂t = state.∂θwi∂t / state.θsat
+end
 # CryoGrid methods
+CryoGrid.variables(water::WaterBalance) = (
+    CryoGrid.variables(water.flow)...,
+    CryoGrid.variables(water.evt)...,
+    Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
+    Diagnostic(:jwET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
+    Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
+    Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
+    Diagnostic(:∂θwi∂t, OnGrid(Cells)), # divergence of total water content
+    Diagnostic(:kw, OnGrid(Edges), u"m/s", domain=0..Inf), # hydraulic conductivity (edges)
+    Diagnostic(:kwc, OnGrid(Cells), u"m/s", domain=0..Inf), # hydraulic conductivity (cells)
+)
 CryoGrid.variables(::BucketScheme) = (
     Prognostic(:sat, OnGrid(Cells), domain=0..1), # autmoatically generates ∂sat∂t
 )
@@ -153,10 +168,11 @@ function CryoGrid.diagnosticstep!(sub::SubSurface, water::WaterBalance, state)
     hydraulicconductivity!(sub, water, state)
 end
 function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
+    evapotranspiration!(sub, water, state)
     wateradvection!(sub, water, state)
     balancefluxes!(sub, water, state)
-    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
-    @. state.∂sat∂t = state.∂θwi∂t / state.θsat
+    divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
+    waterprognostic!(sub, water, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, ::WaterBalance{<:BucketScheme}, state1, state2)
     θw₁ = state1.θw[end]
@@ -165,7 +181,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     kwc₂ = state2.kwc[1]
     δ₁ = CryoGrid.thickness(sub1, state1, last)
     δ₂ = CryoGrid.thickness(sub2, state2, first)
-    kw = state1.kw[end] = state2.kw[1] = Numerics.harmonicmean(kwc₁, kwc₂, δ₁, δ₂)
+    kw = state1.kw[end] = state2.kw[1] = harmonicmean(kwc₁, kwc₂, δ₁, δ₂)
     jw = advectiveflux(θw₁, θfc, kw)
     # reduction factors
     r₁ = reductionfactor(water1, state1.sat[end])
@@ -175,7 +191,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,<:Physics.MaxDelta}, state) where {TFlow}
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,TET,<:Physics.MaxDelta}, state) where {TFlow,TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         # solve for dt in:

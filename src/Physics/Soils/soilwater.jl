@@ -63,6 +63,21 @@ end
     state.kw[end] = state.kwc[end]
     Numerics.harmonicmean!(@view(state.kw[2:end-1]), state.kwc, Δkw)
 end
+function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Saturation}}, state)
+    @inbounds @. state.∂sat∂t = state.∂θwi∂t / state.θsat
+    return nothing
+end
+function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure}}, state)
+    @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.dθwidψ
+    return nothing
+end
+function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
+    if !water.flow.advection_only
+        # compute diffusive fluxes from pressure, if enabled
+        flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
+    end
+    return nothing
+end
 function HeatConduction.freezethaw!(
     soil::Soil,
     ps::Coupled(WaterBalance{<:RichardsEq}, Heat{<:SFCC,Temperature}),
@@ -142,31 +157,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.prognosticstep!(soil::Soil, water::WaterBalance{<:RichardsEq{TForm}}, state) where {TForm}
-    # downward advection due to gravity (the +1 in Richard's Equation)
-    Hydrology.wateradvection!(soil, water, state)
-    if !water.flow.advection_only
-        # compute diffusive fluxes from pressure, if enabled
-        Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
-    end
-    # balance water fluxes (i.e. ensure mass balance)
-    Hydrology.balancefluxes!(soil, water, state)
-    # compute divergence for water fluxes in all cells
-    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.kw))
-    # compute time derivative differently depending on Richard's equation formulation;
-    # this if statement will be compiled away since TForm is known at compile time
-    if TForm == Saturation
-        # scale by max saturation (porosity) just like with bucket scheme
-        @. state.∂sat∂t = state.∂θwi∂t / state.θsat
-    elseif TForm == Pressure
-        # divide by specific moisture capacity (derivative of the water retention curve) dθwidψ
-        @. state.∂ψ₀∂t = state.∂θwi∂t / state.dθwidψ
-    else
-        error("$TForm not supported")
-    end
-    return nothing
-end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},<:Physics.MaxDelta}, state)
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:Physics.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
