@@ -4,9 +4,9 @@ function makecallbacks(tile::Tile)
     isgridevent(::GridContinuousEvent) = true
     isgridevent(::Event) = false
     callbacks = []
-    for (i,comp) in enumerate(tile.strat)
-        events = CryoGrid.events(comp.layer, comp.process)
-        layername = componentname(comp)
+    for (i,named_layer) in enumerate(tile.strat)
+        events = CryoGrid.events(named_layer.obj)
+        layername = Strat.layername(named_layer)
         for ev in events
             # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
             # GridContinuousEvents are defined on the whole grid/domain and so do not need to be duplicated
@@ -23,14 +23,12 @@ end
 function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layername
     function _condition(u,t,integrator)
         let tile = Tile(integrator),
-            comp = tile.strat[i_layer],
-            layer = comp.layer,
-            process = comp.process,
+            layer = tile.strat[i_layer],
             u = Strat.withaxes(u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
             t = t,
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            return criterion(ev, layer, process, state)
+            return criterion(ev, layer.obj, state)
         end
     end
 end
@@ -108,7 +106,7 @@ Custom implementation of `StepsizeLimiterAffect` function for `CryoGrid.timestep
 `timestep` function with `tile,du,u,p,t` as arguments.
 """
 function (p::DiffEqCallbacks.StepsizeLimiterAffect{typeof(CryoGrid.timestep)})(integrator)
-    dtFE = p.safety_factor*p.dtFE(integrator.sol.prob.f.f, get_du(integrator), integrator.u, integrator.p, integrator.t)
+    dtFE = p.safety_factor*p.dtFE(Strat.Tile(integrator.sol.prob.f), get_du(integrator), integrator.u, integrator.p, integrator.t)
     dtmax = min(integrator.opts.dtmax, dtFE)
     # This part is copied from the implementation in DiffEqCallbacks
     if !integrator.opts.adaptive

@@ -65,7 +65,7 @@ Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:events}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
-Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} = print(io, "Tile ($iip) with layers $(map(componentname, components(tile.strat))), observables=$obsv, $TGrid, $TStrat")
+Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} = print(io, "Tile ($iip) with layers $(map(layername, layers(tile.strat))), observables=$obsv, $TGrid, $TStrat")
 
 """
     Tile(
@@ -92,19 +92,20 @@ function Tile(
 ) where {A<:AbstractArray}
     vars = OrderedDict()
     events = OrderedDict()
-    components = OrderedDict()
-    for comp in stripunits(strat)
-        name = componentname(comp)
-        # build layer
-        vars[name] = _collectvars(comp)
-        components[name] = _addlayerfield(comp, name)
+    layers = OrderedDict()
+    for named_layer in stripunits(strat)
+        name = layername(named_layer)
+        layer = named_layer.obj
+        # (re)build layer
+        vars[name] = _collectvars(named_layer)
+        layers[name] = _addlayerfield(named_layer, name)
         # events
-        evs = CryoGrid.events(comp.layer, comp.process)
+        evs = CryoGrid.events(layer)
         events[name] = _addlayerfield(evs, name)
     end
     inits = _addlayerfield(inits, :init)
     # rebuild stratigraphy with updated parameters
-    strat = Stratigraphy(boundaries(strat), Tuple(values(components)))
+    strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
     states = _initvarstates(strat, grid, vars, chunksize, arrayproto)
     if isempty(inits)
@@ -117,98 +118,57 @@ Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) wh
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
 
-Generated step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
+Time derivative step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 <= i <= N:
 
-diagnosticstep!(layer i, ...)
-interact!(layer i, ..., layer i+1, ...)
-prognosticstep!(layer i, ...)
-
-Note for developers: All sections of code wrapped in quote..end blocks are generated. Code outside of quote blocks
-is only executed during compilation and will not appear in the compiled version.
+```julia
+diagnosticstep!(layer[i], ...)
+interact!(layer[i], ..., layer[i+1], ...)
+prognosticstep!(layer[i], ...)
+```
 """
-@generated function step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
-    nodetyps = componenttypes(TStrat)
-    N = length(nodetyps)
-    expr = Expr(:block)
-    # Declare variables
-    quote
+function step!(
+    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv},
+    _du,
+    _u,
+    p,
+    t
+) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,obsv}
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
-    end |> Base.Fix1(push!, expr.args)
-    # Generate identifiers for each component
-    names = map(i -> componentname(nodetyps[i]), 1:N)
-    comps = map(n -> Symbol(n,:comp), names)
-    states = map(n -> Symbol(n,:state), names)
-    layers = map(n -> Symbol(n,:layer), names)
-    procs = map(n -> Symbol(n,:process), names)
-    # Initialize variables for all layers
-    for i in 1:N
-        quote
-        $(states[i]) = state.$(names[i])
-        $(comps[i]) = components(strat)[$i]
-        $(layers[i]) = $(comps[i]).layer
-        $(procs[i]) = $(comps[i]).process
-        end |> Base.Fix1(push!, expr.args)
+    fastiterate(layers(strat)) do named_layer
+        CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
     end
-    # Diagnostic step
-    for i in 1:N
-        quote
-        diagnosticstep!($(layers[i]), $(states[i]))
-        diagnosticstep!($(layers[i]), $(procs[i]), $(states[i]))
-        end |> Base.Fix1(push!, expr.args)
+    # interact! requires special implementation via `stratiterate`
+    # this allows for layer states to determine which adjacent layers can and cannot interact
+    stratiterate(strat, state) do layer1, layer2, state1, state2
+        CryoGrid.interact!(layer1, layer2, state1, state2)
     end
-    # Interact
-    can_interact_exprs = map(i -> :(CryoGrid.thickness($(layers[i]), $(states[i])) > 0), 1:N)
-    quote
-    can_interact = tuple($(can_interact_exprs...))
-    end |> Base.Fix1(push!, expr.args)
-    # We only invoke interact! on pairs of layers for which the following are satisfied:
-    # 1) Both layers have thickness > 0 (i.e. they occupy non-zero space in the stratigraphy)
-    # 2) Both layers are adjacent, or more crudely, all layers in between (if any) have zero thickness;
-    # In order to make this type stable, we pre-generate all possible interact! expressions in the
-    # downward direction and add a check to each one.
-    for i in 1:N-1
-        for j in i+1:N
-            if (i == 1 && j == 2) || (i == N-1 && j == N)
-                # always apply top and bottom interactions
-                quote
-                interact!($(layers[i]),$(procs[i]),$(layers[j]),$(procs[j]),$(states[i]),$(states[j]))
-                end
-            else
-                innerchecks = j > i+1 ? map(k -> :(can_interact[$k]), i+1:j-1) : :(false)
-                quote
-                if can_interact[$i] && can_interact[$j] && !any(tuple($(innerchecks...)))
-                    interact!($(layers[i]),$(procs[i]),$(layers[j]),$(procs[j]),$(states[i]),$(states[j]))
-                end
-                end
-            end |> Base.Fix1(push!, expr.args)
-        end
+    fastiterate(layers(strat)) do named_layer
+        CryoGrid.prognosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
     end
-    # Prognostic step
-    for i in 1:N
-        quote
-        prognosticstep!($(layers[i]),$(procs[i]),$(states[i]))
-        end |> Base.Fix1(push!, expr.args)
-    end
-    # Observables
-    for i in 1:N
+    fastiterate(layers(strat)) do named_layer
         for name in obsv
-            nameval = Val{name}()
-            quote
-                observe($nameval,$(layers[i]),$(procs[i]),$(states[i]))
-            end |> Base.Fix1(push!, expr.args)
+            CryoGrid.observe(Val{name}(), named_layer.obj, getproperty(state, layername(named_layer)))
         end
     end
-    # make sure compiled method returns no value
-    push!(expr.args, :(return nothing))
-    # emit generated expression block
-    return expr
+    return nothing
+end
+function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+    du = ComponentArray(_du, getaxes(_tile.state.uproto))
+    u = ComponentArray(_u, getaxes(_tile.state.uproto))
+    tile = updateparams(_tile, u, p, t)
+    strat = tile.strat
+    state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
+    max_dts = fastmap(layers(strat)) do named_layer
+        CryoGrid.timestep(named_layer.obj, getproperty(state, layername(named_layer)))
+    end
+    return minimum(max_dts)
 end
 """
     initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::AbstractVector)
@@ -217,108 +177,35 @@ end
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
 CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-@generated function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
-    nodetyps = componenttypes(TStrat)
-    N = length(nodetyps)
-    expr = Expr(:block)
-    # Declare variables
-    @>> quote
+function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
     t0 = tspan[1]
     du = zero(similar(tile.state.uproto, eltype(p)))
     u = zero(similar(tile.state.uproto, eltype(p)))
     tile = updateparams(tile, u, p, t0)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t0, Val{iip}())
-    end push!(expr.args)
-    # Call initializers
-    for i in 1:N
-        for j in 1:length(TInits.parameters)
-            @>> quote
-            let layer = strat[$i].layer,
-                layerstate = state[$i],
-                init! = tile.inits[$j];
-                if haskey(layerstate.states, varname(init!))
-                    init!(layer, layerstate)
-                end
+    # initialcondition! is only called once so we don't need to worry about performance;
+    # we can just loop over everything naively
+    for named_layer in strat
+        for init! in tile.inits
+            layerstate = getproperty(state, layername(named_layer))
+            if haskey(layerstate.states, varname(init!))
+                init!(named_layer.obj, layerstate)
             end
-            end push!(expr.args)
         end
     end
-    # Iterate over layers
-    for i in 1:N-1
-        n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
-        # create variable names
-        n1,n2 = componentname(nodetyps[i]), componentname(nodetyps[i+1])
-        n1state, n2state = Symbol(n1,:state), Symbol(n2,:state)
-        n1layer, n2layer = Symbol(n1,:layer), Symbol(n2,:layer)
-        n1process, n2process = Symbol(n1,:process), Symbol(n2,:process)
-        # generated code for layer updates
-        @>> quote
-        $n1state = state.$n1
-        $n2state = state.$n2
-        $n1layer = components(strat)[$i].layer
-        $n1process = components(strat)[$i].process
-        $n2layer = components(strat)[$(i+1)].layer
-        $n2process = components(strat)[$(i+1)].process
-        end push!(expr.args)
-        # invoke initialcondition! for each layer, then for both (similar to interact!);
-        # initialcondition! is called for layer1 only on the first iteration to avoid duplicate invocations
+    for i in 1:length(strat)-1
+        layerᵢ = strat[i].obj
+        layerᵢ₊₁ = strat[i+1].obj
+        stateᵢ = getproperty(state, layername(strat[i]))
+        stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
         if i == 1
-            @>> quote
-            initialcondition!($n1layer,$n1state)
-            initialcondition!($n1layer,$n1process)
-            initialcondition!($n1layer,$n1process,$n1state)
-            end push!(expr.args)
+            initialcondition!(layerᵢ, stateᵢ)
         end
-        @>> quote
-        initialcondition!($n2layer,$n2state)
-        initialcondition!($n2process,$n2state)
-        initialcondition!($n2layer,$n2process,$n2state)
-        initialcondition!($n1layer,$n1process,$n2layer,$n2process,$n1state,$n2state)
-        end push!(expr.args)
+        initialcondition!(layerᵢ₊₁, stateᵢ₊₁)
+        initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
     end
-    @>> quote
-    return u, du
-    end push!(expr.args)
-    return expr
-end
-@generated function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
-    nodetyps = componenttypes(TStrat)
-    N = length(nodetyps)
-    expr = Expr(:block)
-    # Declare variables
-    quote
-    du = ComponentArray(_du, getaxes(_tile.state.uproto))
-    u = ComponentArray(_u, getaxes(_tile.state.uproto))
-    tile = updateparams(_tile, u, p, t)
-    strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{iip}())
-    end |> Base.Fix1(push!, expr.args)
-    # Generate identifiers for each component
-    names = map(i -> componentname(nodetyps[i]), 1:N)
-    comps = map(n -> Symbol(n,:comp), names)
-    states = map(n -> Symbol(n,:state), names)
-    layers = map(n -> Symbol(n,:layer), names)
-    procs = map(n -> Symbol(n,:process), names)
-    # Initialize variables for all layers
-    for i in 1:N
-        quote
-        $(states[i]) = state.$(names[i])
-        $(comps[i]) = components(strat)[$i]
-        $(layers[i]) = $(comps[i]).layer
-        $(procs[i]) = $(comps[i]).process
-        end |> Base.Fix1(push!, expr.args)
-    end
-    push!(expr.args, :(dtmax = Inf))
-    # Retrieve minimum timesteps
-    for i in 1:N
-        quote
-        dtmax = min(dtmax, timestep($(layers[i]), $(procs[i]), $(states[i])))
-        end |> Base.Fix1(push!, expr.args)
-    end
-    push!(expr.args, :(return dtmax))
-    # emit generated expression block
-    return expr
+    return u, du    
 end
 """
     domain(tile::Tile)
@@ -417,28 +304,28 @@ Subsequently evaluates and replaces all nested `DynamicParameterization`s.
 function updateparams(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
     # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct directly soooo....
-    tile_updated = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, Union{TGrid,TStates,StateHistory},1)[1]
-    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory})
+    tile_updated = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, Union{TGrid,TStates,StateHistory,Unitful.Quantity},1)[1]
+    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory,Unitful.Quantity})
     # TODO: perhaps should allow dependence on local layer state;
-    # this would likely require per-layer deconstruction/reconstruction of `StratComponent`s in order to
+    # this would likely require deconstruction/reconstruction of layers in order to
     # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
     dynamic_values = map(d -> d(u, t), dynamic_ps)
-    return Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory},1)[1]
+    return Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory,Unitful.Quantity},1)[1]
 end
 """
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.
 """
-function _collectvars(@nospecialize(comp::StratComponent))
-    layer, process = comp.layer, comp.process
-    declared_vars = variables(layer, process)
-    nested_vars = Flatten.flatten(comp, Flatten.flattenable, Var)
+function _collectvars(@nospecialize(named_layer::NamedLayer{name,TLayer})) where {name,TLayer}
+    layer = named_layer.obj
+    declared_vars = variables(layer)
+    nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
     all_vars = tuplejoin(declared_vars, nested_vars)
-    @debug "Building layer $(componentname(comp)) with $(length(all_vars)) variables: $(all_vars)"
+    @debug "Building layer $name with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
     groups = groupby(var -> varname(var), all_vars)
-    for (name,gvars) in filter(g -> length(g.second) > 1, groups)
+    for (id,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
-        @assert all(gvars[i] == gvars[i-1] for i in 2:length(gvars)) "Found one or more conflicting definitions of $name in $gvars"
+        @assert all(gvars[i] == gvars[i-1] for i in 2:length(gvars)) "Found one or more conflicting definitions of $id in $gvars"
     end
     diag_vars = filter(isdiagnostic, all_vars)
     prog_vars = filter(isprognostic, all_vars)
@@ -480,14 +367,14 @@ end
 Initialize `VarStates` which holds the caches for all defined state variables.
 """
 function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::OrderedDict), chunksize::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
-    componentnames = [componentname(node) for node in strat]
-    ntvars = NamedTuple{Tuple(componentnames)}(Tuple(values(vars)))
-    npvars = (length(filter(isprognostic, layer)) + length(filter(isalgebraic, layer)) for layer in ntvars) |> sum
-    ndvars = (length(filter(isdiagnostic, layer)) for layer in ntvars) |> sum
+    layernames = [layername(layer) for layer in strat]
+    ntvars = NamedTuple{Tuple(layernames)}(Tuple(values(vars)))
+    npvars = (length(filter(isprognostic, var)) + length(filter(isalgebraic, var)) for var in ntvars) |> sum
+    ndvars = (length(filter(isdiagnostic, var)) for var in ntvars) |> sum
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
-    chunksize = isnothing(chunksize) ? length(para) : chunksize
+    chunksize = isnothing(chunksize) ? length(para) : chunksizereturn
     states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
     return states
 end

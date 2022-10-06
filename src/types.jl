@@ -1,29 +1,4 @@
 """
-Abstract base type for all layers.
-"""
-abstract type Layer end
-"""
-    SubSurface <: Layer
-
-Abstract base type for layers in the stratigraphy, e.g. soil, snow, pond, etc.
-"""
-abstract type SubSurface <: Layer end
-"""
-    Top <: Layer
-
-Generic "top" layer that marks the upper boundary of the subsurface grid.
-"""
-struct Top <: Layer end
-"""
-    Bottom <: Layer
-
-Generic "bottom" layer that marks the lower boundary of the subsurface grid.
-"""
-struct Bottom <: Layer end
-# allow broadcasting of Layer types
-Base.Broadcast.broadcastable(l::Layer) = Ref(l)
-
-"""
 Abstract base type for all dynamical processes.
 """
 abstract type Process end
@@ -57,14 +32,25 @@ of other processes.
 """
 struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
-    CoupledProcesses(processes::SubSurfaceProcess...) = CoupledProcesses(processes)
-    CoupledProcesses(processes::BoundaryProcess...) = CoupledProcesses(processes)
-    CoupledProcesses(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
+    CoupledProcesses(processes::SubSurfaceProcess...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
+    CoupledProcesses(processes::BoundaryProcess...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
+    function CoupledProcesses(processes::Tuple{Vararg{Process}}; ignore_order=false)
+        # check coupling order
+        if !issorted(processes) && !ignore_order
+            processes = CoupledProcesses(sort(processes))
+            @warn "The ordering of the given coupled processes is inconsistent with the defined rules and has been automatically corrected: $(map(p -> typeof(p).name.wrapper, procs.processes)).
+            If this was on purpose, you can override the defined ordering and suppress this warning with `ignore_order=true` or define `isless` on your process types to explicitly declare the intended ordering."
+        end
+        return new{typeof(processes)}(processes)
+    end
 end
+# type union aliases for process subtype w/ coupled processes of that same subtype
+const SubSurfaceProcesses = Union{SubSurfaceProcess,CoupledProcesses{<:Tuple{Vararg{SubSurfaceProcess}}}}
+const BoundaryProcesses = Union{BoundaryProcess,CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}}
 """
     Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
-Represents an explicitly coupled pair of processes. Alias for `CoupledProcesses{Tuple{P1,P2}}`.
+Type alias for coupled processes, i.e. `CoupledProcesses{Tuple{P1,P2}}`.
 `Coupled` provides a simple mechanism for defining new behaviors on multi-processes systems.
 """
 const Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
@@ -73,7 +59,7 @@ const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,
 """
     Coupled(ps::Process...)
 
-Alias for `CoupledProcesses(ps...)`.
+Constructs a composite/coupled process from one or more processes. Alias for `CoupledProcesses(ps...)`.
 """
 Coupled(ps::Process...) = CoupledProcesses(ps...)
 """
@@ -114,6 +100,42 @@ struct Dirichlet <: BoundaryStyle end
 `BoundaryStyle` instance for Neumann boundary conditions.
 """
 struct Neumann <: BoundaryStyle end
+
+# Layers
+"""
+    Layer{TProc<:Process}
+
+Abstract base type for all layers.
+"""
+abstract type Layer{TProc<:Process} end
+"""
+    SubSurface{TProc<:SubSurfaceProcesses} <: Layer{TProc}
+
+Abstract base type for layers in the stratigraphy, e.g. soil, snow, pond, etc.
+"""
+abstract type SubSurface{TProc<:SubSurfaceProcesses} <: Layer{TProc} end
+"""
+    Top{TProc<:BoundaryProcesses} <: Layer{TProc}
+
+Generic "top" layer that marks the upper boundary of the subsurface grid.
+"""
+struct Top{TProc<:BoundaryProcesses} <: Layer{TProc}
+    proc::TProc
+    Top(proc::BoundaryProcesses) = new{typeof(proc)}(proc)
+end
+"""
+    Bottom{TProc<:BoundaryProcesses} <: Layer{TProc}
+
+Generic "bottom" layer that marks the lower boundary of the subsurface grid.
+"""
+struct Bottom{TProc<:BoundaryProcesses} <: Layer{TProc}
+    proc::TProc
+    Bottom(proc::BoundaryProcesses) = new{typeof(proc)}(proc)
+end
+# allow broadcasting of Layer types
+Base.Broadcast.broadcastable(l::Layer) = Ref(l)
+
+# Events
 """
     Event{name}
 

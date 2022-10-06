@@ -28,9 +28,9 @@ tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 strat = Stratigraphy(
-    -z*u"m" => top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z,solscheme=Analytical(),stabfun=Businger())),
-    Tuple(knot.depth => subsurface(Symbol(:soil,i), Soil(para=knot.value), Heat(:H, freezecurve=SFCC(DallAmico()))) for (i,knot) in enumerate(soilprofile)),
-    1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
+    -z*u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z,solscheme=Analytical(),stabfun=Businger())),
+    Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=knot.value) for (i,knot) in enumerate(soilprofile)),
+    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 grid = Grid(gridvals);
 tile = Tile(strat, grid, initT);

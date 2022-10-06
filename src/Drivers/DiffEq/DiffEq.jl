@@ -9,7 +9,7 @@ using CryoGrid.Drivers
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
-using CryoGrid.Strat: Stratigraphy, StratComponent
+using CryoGrid.Strat: Stratigraphy
 using CryoGrid.Utils
 
 import CryoGrid.Strat
@@ -49,8 +49,17 @@ include("output.jl")
 Constructs a `Tile` from a `SciMLBase` integrator.
 """
 function Strat.Tile(integrator::SciMLBase.DEIntegrator)
-    tile = integrator.sol.prob.f.f
+    tile = Strat.Tile(integrator.sol.prob.f)
     return Strat.updateparams(tile, Strat.withaxes(integrator.u, tile), integrator.p, integrator.t)
+end
+function Strat.Tile(f::ODEFunction)
+    # if f is a Tile (when recompile=true)
+    extract_f(tile::Tile) = tile
+    extract_f(f::DiffEqBase.Void) = f.f
+    # extract from FunctionWrappers (when recompile=false)
+    # TODO: replace with unwrapped_f(f) once feature is released in DiffEqBase
+    extract_f(f::DiffEqBase.FunctionWrappersWrappers.FunctionWrappersWrapper) = f.fw[1].obj.x.f
+    return extract_f(f.f)
 end
 """
     getstate(integrator::SciMLBase.DEIntegrator)

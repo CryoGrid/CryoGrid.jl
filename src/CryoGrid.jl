@@ -7,6 +7,7 @@ function debug(debug::Bool)
 end
 
 using Base: @propagate_inbounds
+using ComponentArrays
 using Reexport
 
 # Common types and methods
@@ -15,7 +16,7 @@ export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
 export Coupled, Coupled2, Coupled3, Coupled4
 include("types.jl")
-export variables, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
+export variables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!, observe
 include("methods.jl")
 

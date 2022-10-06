@@ -4,10 +4,10 @@ using Plots
 # forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_1979_2020, :Tair => u"°C", :swe => u"m", :ρsn => u"kg/m^3"; spec=JsonSpec{2});
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d"; spec=JsonSpec{1});
 # use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
+tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # swe = TimeSeriesForcing(ustrip.(forcings.data.swe), forcings.timestamps, :swe);
 # ρsn = TimeSeriesForcing(ustrip.(forcings.data.ρsn), forcings.timestamps, :ρsn);
-snowfall = TimeSeriesForcing(convert.(Float64, ustrip.(u"m/s", forcings.data.snowfall)), forcings.timestamps, :snowfall)
+snowfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.snowfall.*1.0), forcings.timestamps, :snowfall)
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
@@ -22,17 +22,17 @@ snowmass = SnowMassBalance(
     )
 )
 strat = @Stratigraphy(
-    z_top => top(TemperatureGradient(tair), Snowfall(snowfall)),
+    z_top => Top(Coupled(TemperatureGradient(tair), Snowfall(snowfall))),
     # prescribed snow
     # z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk()), SnowMassBalance(para=Snow.Prescribed(swe=swe, ρsn=ρsn)), Heat(:H)),
     # "dynamic" snow (i.e. modeled snow accumulation and ablation)
-    z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk(thresh=2.0u"cm")), snowmass, Heat(:H)),
-    z_sub[1] => subsurface(:topsoil1, Soil(para=soilprofile[1].value), Heat(:H)),
-    z_sub[2] => subsurface(:topsoil2, Soil(para=soilprofile[2].value), Heat(:H)),
-    z_sub[3] => subsurface(:sediment1, Soil(para=soilprofile[3].value), Heat(:H)),
-    z_sub[4] => subsurface(:sediment2, Soil(para=soilprofile[4].value), Heat(:H)),
-    z_sub[5] => subsurface(:sediment3, Soil(para=soilprofile[5].value), Heat(:H)),
-    z_bot => bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
+    z_top => :snowpack => Snowpack(Coupled(snowmass, Heat(:H)), para=Snow.Bulk(thresh=2.0u"cm")),
+    z_sub[1] => :topsoil1 => Soil(Heat(:H), para=soilprofile[1].value),
+    z_sub[2] => :topsoil2 => Soil(Heat(:H), para=soilprofile[2].value),
+    z_sub[3] => :sediment1 => Soil(Heat(:H), para=soilprofile[3].value),
+    z_sub[4] => :sediment2 => Soil(Heat(:H), para=soilprofile[4].value),
+    z_sub[5] => :sediment3 => Soil(Heat(:H), para=soilprofile[5].value),
+    z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 tile = Tile(strat, modelgrid, initT)
 # define time span

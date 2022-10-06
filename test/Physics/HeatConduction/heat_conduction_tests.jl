@@ -31,24 +31,24 @@ include("../../types.jl")
 		k = collect(LinRange(0.5,1.0,length(x)))u"W/m/K"
 		ΔT = Δ(xc)
 		Δk = Δ(x)
-		sub = TestGroundLayer()
 		heat = Heat()
+		sub = TestGroundLayer(heat)
 		bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(bc,Top(),heat,sub,state,state) > 0.0u"W/m^2"
-			@test boundaryflux(bc,Bottom(),heat,sub,state,state) < 0.0u"W/m^2"
+			@test boundaryflux(bc,Top(bc),heat,sub,state,state) > 0.0u"W/m^2"
+			@test boundaryflux(bc,Bottom(bc),heat,sub,state,state) < 0.0u"W/m^2"
 		end
 		@testset "top: -, bot: +" begin
 			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,grid=x,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(bc,Top(),heat,sub,state,state) < 0.0u"W/m^2"
-			@test boundaryflux(bc,Bottom(),heat,sub,state,state) > 0.0u"W/m^2"
+			@test boundaryflux(bc,Top(bc),heat,sub,state,state) < 0.0u"W/m^2"
+			@test boundaryflux(bc,Bottom(bc),heat,sub,state,state) > 0.0u"W/m^2"
 		end
 		@testset "inner edge boundary (positive)" begin
 			T₀ = Vector(sin.(ustrip.(xc).*π))u"°C"
@@ -72,7 +72,7 @@ include("../../types.jl")
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
-			@test boundaryflux(bc,Top(),heat,sub,state,state) == -1.0u"W/m^2"
+			@test boundaryflux(bc,Top(bc),heat,sub,state,state) == -1.0u"W/m^2"
 		end
 	end
 end
@@ -81,12 +81,13 @@ end
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
 		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1]u"°C", ts, :Tair)
 		tgrad = TemperatureGradient(forcing, NFactor(nf=0.5, nt=1.0))
-		sub = TestGroundLayer()
 		heat = Heat()
+		sub = TestGroundLayer(heat)
+		zerobc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
-			diagnosticstep!(Top(), tgrad, state)
-			return boundaryvalue(tgrad,Top(),heat,sub,state,state)
+			diagnosticstep!(Top(zerobc), tgrad, state)
+			return boundaryvalue(tgrad,Top(zerobc),heat,sub,state,state)
 		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
@@ -101,8 +102,8 @@ end
 	# Fourier's solution to heat equation with Dirichlet boundaries
 	T₀ = (sin.(2π.*ustrip.(xc)))u"°C"
 	f_analytic(x,t) = exp(-t*4π^2)*sin(2.0*π*x)
-	sub = TestGroundLayer()
 	heat = Heat()
+	sub = TestGroundLayer(heat)
 	bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
 	function ∂T∂t(u,p,t)
 		∂H∂t = similar(u)u"W/m^3"
@@ -113,8 +114,8 @@ end
 		# compute boundary fluxes;
 		# while not correct in general, for this test case we can just re-use state for both layers.
 		state = (T=T,∂H∂t=∂H∂t,jH=jH,k=k,grid=x,grids=(T=xc,k=x),t=t)
-		interact!(Top(), bc, sub, heat, state, state)
-		interact!(sub, heat, Bottom(), bc, state, state)
+		interact!(Top(bc), bc, sub, heat, state, state)
+		interact!(sub, heat, Bottom(bc), bc, state, state)
 		prognosticstep!(sub, heat, state)
 		# strip units from ∂H∂t before returning it to the solver;
 		# note that we do not need to divide by diffusivity since we assume it to be unity

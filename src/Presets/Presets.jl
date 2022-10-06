@@ -22,9 +22,9 @@ but this can be changed via the `freezecurve` parameter. For example, to use the
 function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer;
     grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
-        -2.0u"m" => top(upperbc),
-        Tuple(knot.depth => subsurface(Symbol(:soil,i), Soil(para=knot.value), Heat(heatvar, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
-        1000.0u"m" => bottom(GeothermalHeatFlux(0.053u"W/m^2"))
+        -2.0u"m" => Top(upperbc),
+        Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
+        1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
     )
     Tile(strat, grid, init, chunksize=chunksize)
 end

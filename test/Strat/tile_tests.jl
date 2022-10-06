@@ -10,15 +10,15 @@ include("../types.jl")
     @testset "3-layer" begin
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
         strat = Stratigraphy(
-            -1.0u"m" => top(TestBoundary()),
-            0.0u"m" => subsurface(:testground, TestGroundLayer(), TestGroundProcess()),
-            1000.0u"m" => bottom(TestBoundary())
+            -1.0u"m" => Top(TestBoundary()),
+            0.0u"m" => :testground => TestGroundLayer(TestGroundProcess()),
+            1000.0u"m" => Bottom(TestBoundary())
         )
         function checkfields(model)
             # for each non-error test case, we need to check that all layers are present in vars
-            @test hasproperty(model.state.vars,:top)
-            @test hasproperty(model.state.vars,:testground)
-            @test hasproperty(model.state.vars,:bottom)
+            @test hasproperty(model.state.vars, :top)
+            @test hasproperty(model.state.vars, :testground)
+            @test hasproperty(model.state.vars, :bottom)
         end
         try
             # case: no variables defined
@@ -27,7 +27,7 @@ include("../types.jl")
             CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
                 Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
             )
-            @test_throws AssertionError model = Tile(strat,grid)
+            @test_throws AssertionError model = Tile(strat, grid)
             # case: OK
             CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
                 Prognostic(:x, OnGrid(Cells), u"J"),
@@ -82,17 +82,17 @@ include("../types.jl")
             state = getstate(:testground, model, model.state.uproto, model.state.uproto, 0.0)
         finally
             # clean-up method definitions (necessary for re-running test set)
-            Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
+            Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
         end
     end
     @testset "4-layer" begin
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
         strat = Stratigraphy(
-            -1.0u"m" => top(TestBoundary()), (
-                0.0u"m" => subsurface(:testground1, TestGroundLayer(), TestGroundProcess()),
-                100.0u"m" => subsurface(:testground2, TestGroundLayer(), TestGroundProcess()),
+            -1.0u"m" => Top(TestBoundary()), (
+                0.0u"m" => :testground1 => TestGroundLayer(TestGroundProcess()),
+                100.0u"m" => :testground2 => TestGroundLayer(TestGroundProcess()),
             ),
-            1000.0u"m" => bottom(TestBoundary())
+            1000.0u"m" => Bottom(TestBoundary())
         )
         CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
             Diagnostic(:w, OnGrid(Cells), u"kg"),
@@ -109,16 +109,16 @@ include("../types.jl")
         @test hasproperty(model.state.uproto, :x)
         @test hasproperty(model.state.uproto, :x)
         # clean-up method definitions (necessary for re-running test set)
-        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()),TestGroundProcess()))
     end
     @testset "Helper functions" begin
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
         strat = Stratigraphy(
-            -1.0u"m" => top(TestBoundary()), (
-                0.0u"m" => subsurface(:testground1, TestGroundLayer(), TestGroundProcess()),
-                100.0u"m" => subsurface(:testground2, TestGroundLayer(), TestGroundProcess()),
+            -1.0u"m" => Top(TestBoundary()), (
+                0.0u"m" => :testground1 => TestGroundLayer(TestGroundProcess()),
+                100.0u"m" => :testground2 => TestGroundLayer(TestGroundProcess()),
             ),
-            1000.0u"m" => bottom(TestBoundary())
+            1000.0u"m" => Bottom(TestBoundary())
         )
         CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
             Prognostic(:x, OnGrid(Cells), u"J"),
@@ -129,6 +129,6 @@ include("../types.jl")
         @test length(getvar(:x, model, model.state.uproto)) == length(cells(grid))
         @test length(getvar(:k, model, model.state.uproto)) == length(grid)
         # clean-up method definitions (necessary for re-running test set)
-        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(),TestGroundProcess()))
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()),TestGroundProcess()))
     end
 end
