@@ -301,7 +301,7 @@ total water content (θwi), and liquid water content (θw).
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)
         # set ∂H∂T (a.k.a ∂H∂T)
-        state.∂H∂T[i] = state.T[i] ≈ 0.0 ? 1e6 : 1/state.C[i]
+        state.∂H∂T[i] = state.T[i] ≈ 0.0 ? 1e8 : state.C[i]
     end
     return nothing
 end

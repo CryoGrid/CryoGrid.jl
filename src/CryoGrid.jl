@@ -47,7 +47,6 @@ include("coupling.jl")
 
 # include dependent submodules
 include("Drivers/Drivers.jl")
-@reexport using .Drivers
 include("Presets/Presets.jl")
 
 end # module

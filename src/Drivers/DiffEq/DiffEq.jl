@@ -5,7 +5,6 @@ module DiffEq
 
 using CryoGrid
 using CryoGrid: Event, ContinuousEvent, DiscreteEvent, ContinuousTrigger, Increasing, Decreasing
-using CryoGrid.Drivers
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
@@ -27,16 +26,16 @@ using Reexport
 using Unitful
 
 using DiffEqBase
-using DiffEqBase.SciMLBase
+using SciMLBase
 using DiffEqCallbacks
 
 import DiffEqCallbacks
 
 @reexport using OrdinaryDiffEq
-@reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
+@reexport using DiffEqBase: solve, init, ODEProblem
 
 export TDMASolver
-include("solvers.jl")
+include("linsolve.jl")
 include("callbacks.jl")
 export CryoGridProblem
 include("problem.jl")

@@ -40,6 +40,28 @@ include("state.jl")
 export Tile, withaxes, getstate, parameters
 include("tile.jl")
 
+export JacobianStyle, DefaultJac, TridiagJac, HeatOnlyTile
+
+"""
+    JacobianStyle
+
+Trait for indicating Jacobian sparsity of a CryoGrid ODEProblem.
+"""
+abstract type JacobianStyle end
+struct DefaultJac <: JacobianStyle end
+struct TridiagJac <: JacobianStyle end
+"""
+    JacobianStyle(::Type{<:Tile})
+
+Can be overriden/extended to specify Jacobian structure for specific `Tile`s.
+"""
+JacobianStyle(::Type{<:Tile}) = DefaultJac()
+# Auto-detect Jacobian sparsity for problems with one or more heat-only layers.
+# Note: This assumes that the processes/forcings on the boundary layers do not violate the tridiagonal structure!
+# Unfortunately, the Stratigraphy type signature is a bit nasty to work with :(
+const HeatOnlyTile = Tile{<:Stratigraphy{N,<:Tuple{TTop,Vararg{<:Union{<:Named{<:Any,<:SubSurface{<:Heat}},TBot}}}}} where {N,TTop,TBot}
+JacobianStyle(::Type{<:HeatOnlyTile}) = TridiagJac()
+
 precompile(CryoGridParams, (Tile,))
 
 end
