@@ -1,8 +1,5 @@
 using CryoGrid.Numerics: Delta
-"""
-Enumeration for in-place vs out-of-place mode.
-"""
-@enum InPlaceMode inplace ooplace
+
 """
     LayerState{iip,TGrid,TStates,TGrids,Tt,Tdt,Tz,varnames}
 
@@ -15,7 +12,7 @@ struct LayerState{iip,TGrid,TStates,TGrids,Tt,Tdt,Tz,varnames}
     bounds::NTuple{2,Tz}
     t::Tt
     dt::Tdt
-    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, bounds::NTuple{2,Tz}, t::Tt, dt::Tdt=nothing, ::Val{iip}=Val{inplace}()) where
+    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, bounds::NTuple{2,Tz}, t::Tt, dt::Tdt=nothing, ::Val{iip}=Val{true}()) where
         {TG,Tvg,Tvs,Tt,Tdt,Tz,varnames,iip} = new{iip,TG,Tvs,Tvg,Tt,Tdt,Tz,varnames}(grid, grids, states, bounds, t, dt)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
@@ -26,7 +23,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{inplace}()) where {layername,iip}
+@inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
     z_inds = subgridinds(edges(vs.grid), zs[1]..zs[2])
     return LayerState(
         vs.grid[z_inds],
@@ -49,7 +46,7 @@ struct TileState{iip,TGrid,TStates,Tt,Tdt,names}
     states::NamedTuple{names,TStates}
     t::Tt
     dt::Tdt
-    TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, dt::Tdt=nothing, ::Val{iip}=Val{inplace}()) where
+    TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, dt::Tdt=nothing, ::Val{iip}=Val{true}()) where
         {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,Tdt,names,iip} =
             new{iip,TGrid,TS,Tt,Tdt,names}(grid, states, t, dt)
 end
@@ -62,7 +59,7 @@ function Base.getproperty(state::TileState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-@inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, dt=nothing, ::Val{iip}=Val{inplace}()) where {names,iip}
+@inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, dt=nothing, ::Val{iip}=Val{true}()) where {names,iip}
     layerstates = (
         quote
             bounds_i = (bounds[$i][1], bounds[$i][2])

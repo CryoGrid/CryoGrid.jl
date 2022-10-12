@@ -6,19 +6,19 @@ end
 """
     AbstractTile{iip}
 
-Base type for 1D tiles. `iip` is a value of enum `InPlaceMode` that indicates
+Base type for 1D tiles. `iip` is a boolean value that indicates, if true,
 whether the model operates on state variables in-place (overwriting arrays) or
-out-of-place (copying arrays).
+if false, out-of-place (copying arrays).
 """
 abstract type AbstractTile{iip} end
 """
-    (tile::AbstractTile{inplace})(du,u,p,t)
-    (tile::AbstractTile{ooplace})(u,p,t)
+    (tile::AbstractTile{true})(du,u,p,t)
+    (tile::AbstractTile{false})(u,p,t)
 
 Invokes the corresponding `step` function to compute the time derivative du/dt.
 """
-(tile::AbstractTile{inplace})(du,u,p,t) = step!(tile,du,u,p,t)
-(tile::AbstractTile{ooplace})(u,p,t) = step(tile,u,p,t)
+(tile::AbstractTile{true})(du,u,p,t) = step!(tile,du,u,p,t)
+(tile::AbstractTile{false})(u,p,t) = step(tile,u,p,t)
 
 """
     step!(::T,du,u,p,t) where {T<:AbstractTile}
@@ -52,7 +52,7 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
         inits::TInits,
         events::TEvents,
         hist::StateHistory=StateHistory(),
-        iip::InPlaceMode=inplace,
+        iip::Bool=true,
         observe::Tuple{Vararg{Symbol}}=()) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:VarStates,TInits<:Tuple,TEvents<:NamedTuple}
         new{TStrat,TGrid,TStates,TInits,TEvents,iip,observe}(strat,grid,state,inits,events,hist)
@@ -73,7 +73,7 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
         @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
         @nospecialize(inits::Numerics.VarInitializer...);
         arrayproto::Type{A}=Vector,
-        iip::InPlaceMode=inplace,
+        iip::Bool=true,
         observe::Vector{Symbol}=Symbol[],
         chunksize=nothing,
     )
@@ -86,7 +86,7 @@ function Tile(
     @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
     @nospecialize(inits::Numerics.VarInitializer...);
     arrayproto::Type{A}=Vector,
-    iip::InPlaceMode=inplace,
+    iip::Bool=true,
     observe::Vector{Symbol}=Symbol[],
     chunksize=nothing,
 ) where {A<:AbstractArray}
@@ -116,7 +116,7 @@ end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 """
-    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
+    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
 
 Time derivative step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
@@ -129,7 +129,7 @@ prognosticstep!(layer[i], ...)
 ```
 """
 function step!(
-    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,inplace,obsv},
+    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true,obsv},
     _du,
     _u,
     p,
@@ -140,7 +140,7 @@ function step!(
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
+    state = TileState(tile.state, boundaries(strat), u, du, t, Val{true}())
     fastiterate(layers(strat)) do named_layer
         CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
     end
@@ -164,7 +164,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,o
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{inplace}())
+    state = TileState(tile.state, boundaries(strat), u, du, t, Val{true}())
     max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.obj, getproperty(state, layername(named_layer)))
     end

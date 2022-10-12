@@ -1,45 +1,55 @@
 module LiteImplicit
 
+using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
-using CryoGrid.Strat
 
 using DiffEqBase
+using SciMLBase
 
 import DiffEqBase: __solve, __init, step!
 import SciMLBase: done
 
-struct CryoGridLiteProblem{Tu,Tt,Tp,TT} <: SciMLBase.AbstractODEProblem{Tu,Tt,true}
-    tile::TT
+export CryoGridLiteProblem, LiteImplicitEuler
+
+struct CryoGridLiteProblem{Tu,Tt,Tp,TT,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,true}
+    f::TT
     u0::Tu
     p::Tp
     tspan::NTuple{2,Tt}
+    kwargs::Tkw
+    function CryoGridLiteProblem(tile::TT, u0::Tu, tspan::NTuple{2}, p::Tp=p; kwargs...) where {TT<:HeatOnlyTile,Tu,Tp}
+        tspan = convert_tspan(tspan)
+        f = ODEFunction(tile)
+        return new{Tu,eltype(tspan),Tp,typeof(f),typeof(kwargs)}(f, u0, p, tspan, kwargs)
+    end
 end
 
 Base.@kwdef struct LiteImplicitEuler <: SciMLBase.AbstractDEAlgorithm
-    miniters::Int = 10
+    miniters::Int = 2
     maxiters::Int = 1000
     tolerance::Float64 = 1e-3
 end
 
-struct LiteImplicitCache{TA} <: SciMLBase.DECache
+struct LiteImplicitEulerCache{TA} <: SciMLBase.DECache
     H::TA
     dH::TA
     T_new::TA
     resid::TA
-    dxn::TA
+    dx::TA
     Sc::TA
     Sp::TA
     bp::TA
     ap::TA
-    ans::TA
+    an::TA
+    as::TA
     A::TA
     B::TA
     C::TA
     D::TA
 end
 
-struct CGLiteSolution{T,Tu,Tt,Tprob} <: SciMLBase.AbstractODESolution{T,1,Tu}
+struct CGLiteSolution{T,Tu<:AbstractVector{T},Tt,Tprob} <: SciMLBase.AbstractODESolution{T,1,Tu}
     u::Vector{Tu}
     t::Vector{Tt}
     prob::Tprob
@@ -58,24 +68,27 @@ done(integrator::CGLiteIntegrator) = integrator.t >= integrator.sol.prob.tspan[e
 
 function __init(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
     sol = CGLiteSolution([copy(prob.u0)], [prob.tspan[1]], prob)
-    grid = prob.tile.grid
-    cache = LiteImplicitCache(
-        copy(prob.u0),
-        zero(prob.u0),
-        zero(prob.u0),
-        zero(prob.u0),
-        zero(prob.u0),
-        zero(prob.u0),
-        similar(prob.u0, length(cells(grid))-1),
-        zero(prob.u0),
-        zero(prob.u0),
-        zero(prob.u0),
-        similar(prob.u0, length(prob.u0)-1),
-        similar(prob.u0),
-        similar(prob.u0, length(prob.u0)-1),
-        similar(prob.u0)
+    tile = Tile(prob.f)
+    grid = tile.grid
+    u0 = collect(prob.u0)
+    cache = LiteImplicitEulerCache(
+        copy(u0),
+        zero(u0),
+        zero(u0),
+        zero(u0),
+        similar(u0, length(cells(grid))-1),
+        zero(u0),
+        zero(u0),
+        zero(u0),
+        zero(u0),
+        similar(u0, length(u0)-1),
+        similar(u0, length(u0)-1),
+        similar(u0, length(u0)-1),
+        similar(u0),
+        similar(u0, length(u0)-1),
+        similar(u0)
     )
-    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), prob.p, prob.tspan[1], dt)
+    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt)
 end
 
 function __solve(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
@@ -83,5 +96,7 @@ function __solve(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=
     for i in integrator end
     return integrator.sol
 end
+
+include("step.jl")
 
 end
