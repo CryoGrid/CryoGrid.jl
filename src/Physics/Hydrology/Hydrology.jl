@@ -26,16 +26,10 @@ Base.@kwdef struct HydraulicProperties{Tconsts,Tkwsat,Trb,Trc}
     r_β::Trb = 1e3 # reduction factor scale parameter
     r_c::Trc = 0.96325 # reduction factor shift parameter
 end
-"""
-    Evapotranspiration
 
-Base type for subsurface evapotranspiration processes.
-"""
-abstract type Evapotranspiration end
-
-export BucketScheme, WaterBalance
+export BucketScheme, Evapotranspiration, WaterBalance
 include("water_balance.jl")
-export DampedET
+export DampedET, EvapOnly
 include("water_ET.jl")
 export ConstantInfiltration, Rainfall, WaterBC
 include("water_bc.jl")

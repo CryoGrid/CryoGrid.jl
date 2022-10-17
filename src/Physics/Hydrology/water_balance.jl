@@ -5,6 +5,12 @@ Base type for different formulations of water flow in `WaterBalance`.
 """
 abstract type WaterFlow end
 """
+    Evapotranspiration
+
+Base type for parameterizations of evapotranspiration (ET).
+"""
+abstract type Evapotranspiration end
+"""
     WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
 
 Represents subsurface water transport processes.
@@ -26,7 +32,7 @@ Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow
 end
 default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
-WaterBalance(flow::WaterFlow = BucketScheme(), et::Union{Nothing,Evapotranspiration}=nothing; prop = HydraulicProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
+WaterBalance(flow::WaterFlow = BucketScheme(), et=nothing; prop = HydraulicProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
 """
     kwsat(::SubSurface, water::WaterBalance)
 
