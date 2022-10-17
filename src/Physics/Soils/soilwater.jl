@@ -68,7 +68,7 @@ function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Saturati
     return nothing
 end
 function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure}}, state)
-    @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.dθwidψ
+    @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.∂θw∂ψ
     return nothing
 end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
@@ -78,62 +78,25 @@ function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, st
     end
     return nothing
 end
-function HeatConduction.freezethaw!(
-    soil::Soil,
-    ps::Coupled(WaterBalance{<:RichardsEq}, Heat{<:SFCC,Temperature}),
-    state
-)
-    water, heat = ps
-    sfcc = freezecurve(heat)
-    let L = heat.prop.L,
-        f(x) = sfcc.f(x[1], x[2], Val{true}(); θtot=x[3], θsat=x[4]);
-        @inbounds @fastmath for i in 1:length(state.T)
-            T = state.T[i]
-            ψ₀ = state.ψ₀[i]
-            θtot = state.θwi[i]
-            θsat = state.θsat[i]
-            # make an SVector with all variables needed for the freeze curve;
-            # we don't actually care about the other partial derivaitves, but we need to include them in order
-            # to avoid ForwardDiff getting confused when the state variables are already autodiff types
-            x = @SVector[T,ψ₀,θtot,θsat]
-            dualx = Numerics.dual(x, typeof(f))
-            # evaluate freeze curve with forward-mode autodiff and unpack the resulting dual numbers
-            θw_dual, ψ_dual, _ = f(dualx)
-            # extract derivaitve of water content w.r.t T
-            state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(θw_dual)[1]
-            # exract liquid water content and temperature-dependent pressure head
-            state.θw[i] = θw = ForwardDiff.value(θw_dual)
-            state.ψ[i] = ForwardDiff.value(ψ_dual)
-            # compute dependent quantities
-            state.C[i] = C = HeatConduction.heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, ∂θw∂T, heat.prop.cw, heat.prop.ci)
-            # enthalpy
-            state.H[i] = HeatConduction.enthalpy(T, C, L, θw)
-        end
-    end
-    return nothing
-end
 # CryoGrid methods
-CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}) = (
+CryoGrid.variables(::RichardsEq{Pressure}) = (
     Prognostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
     Diagnostic(:sat, OnGrid(Cells), domain=0..1), # saturation (diagnostic)
-    Diagnostic(:dθwidψ, OnGrid(Cells), domain=0..Inf), # derivative of SWRC w.r.t matric potential
-    CryoGrid.variables(water)...,
-    CryoGrid.variables(soil)...,
+    Diagnostic(:∂θw∂ψ, OnGrid(Cells), domain=0..Inf), # derivative of SWRC w.r.t matric potential
 )
-CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = (
+CryoGrid.variables(::RichardsEq{Saturation}) = (
     Prognostic(:sat, OnGrid(Cells), domain=0..1), # saturation
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
-    CryoGrid.variables(water)...,
-    CryoGrid.variables(soil)...,
 )
 function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
     CryoGrid.diagnosticstep!(soil, water, state)
 end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
+    water, heat = ps
     CryoGrid.diagnosticstep!(soil, ps, state)
+    @. state.H = enthalpy(state.T, state.C, heat.prop.L, state.θw)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]

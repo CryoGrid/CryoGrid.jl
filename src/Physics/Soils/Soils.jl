@@ -178,8 +178,8 @@ Defaults to using the scalar porosity defined on `soil`.
 """
 @inline porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
 
-include("soilheat.jl")
 export RichardsEq
 include("soilwater.jl")
+include("soilheat.jl")
 
 end

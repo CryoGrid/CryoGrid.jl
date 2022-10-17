@@ -167,7 +167,7 @@ function CryoGrid.diagnosticstep!(sub::SubSurface, water::WaterBalance, state)
     watercontent!(sub, water, state)
     hydraulicconductivity!(sub, water, state)
 end
-function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
+function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance, state)
     evapotranspiration!(sub, water, state)
     wateradvection!(sub, water, state)
     balancefluxes!(sub, water, state)
@@ -194,11 +194,6 @@ end
 function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,TET,<:Physics.MaxDelta}, state) where {TFlow,TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
-        # solve for dt in:
-        # sat + dt*∂sat∂t = 1 if ∂sat∂t > 0
-        # sat + dt*∂sat∂t = 0 if ∂sat∂t <= 0
-        # sets the maximum timestep to the dt which would saturate the grid cell;
-        # will be Inf when ∂sat∂t = 0
         dt = water.dtlim(state.∂sat∂t[i], state.sat[i], state.t, zero(state.t), one(state.t))
         dt = isfinite(dt) && dt > zero(dt) ? dt : Inf # make sure it's +Inf
         dtmax = min(dtmax, dt)
