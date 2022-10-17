@@ -40,12 +40,15 @@ function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:BucketScheme
         state.jw[i] += state.jwET[i]
     end
 end
-CryoGrid.variables(::DampedET) = (
+CryoGrid.basevariables(::Evapotranspiration) = (
+    Diagnostic(:Qe, Scalar, desc="Latent heat flux at the surface."), # must be supplied by an interaction
+)
+CryoGrid.variables(et::DampedET) = (
+    CryoGrid.basevariables(et)...,
     Diagnostic(:f_et, OnGrid(Cells), domain=0..1, desc="Evapotranspiration reduction factor."),
     Diagnostic(:w_ev, OnGrid(Cells), desc="Damped grid cell weight for evaporation."),
     Diagnostic(:w_tr, OnGrid(Cells), desc="Damped grid cell weight for transpiration"),
     Diagnostic(:αᶿ, OnGrid(Cells), domain=0..1, desc="Water availability coefficient."),
-    Diagnostic(:Qe, Scalar, desc="Latent heat flux at the surface."), # must be supplied by an interaction
 )
 function CryoGrid.interact!(
     ::SubSurface,
