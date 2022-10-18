@@ -4,6 +4,7 @@ using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
 using CryoGrid.Physics.HeatConduction
+using CryoGrid.Physics.Hydrology
 using CryoGrid.Physics.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
@@ -101,5 +102,6 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,F} <: BoundaryProcess{Heat}
 end
 
 include("seb_heat.jl")
+include("seb_water.jl")
 
 end
