@@ -15,10 +15,17 @@ soilprofile = SoilProfile(
 );
 # mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-Tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
+forcings = loadforcings(
+    CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
+    :Tair => u"°C",
+    :pressure => u"kPa",
+    :wind => u"m/s",
+    :Lin => u"W/m^2",
+    :Sin => u"W/m^2",
+);
+Tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # assume other forcings don't (yet) have units
-pr   = TimeSeriesForcing(forcings.data.pressure, forcings.timestamps, :p);
+pr   = TimeSeriesForcing(forcings.data.pressure, forcings.timestamps, :pr);
 q    = TimeSeriesForcing(forcings.data.q, forcings.timestamps, :q);
 wind = TimeSeriesForcing(forcings.data.wind, forcings.timestamps, :wind);
 Lin  = TimeSeriesForcing(forcings.data.Lin, forcings.timestamps, :Lin);
@@ -28,7 +35,7 @@ tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 strat = Stratigraphy(
-    -z*u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z,solscheme=Analytical(),stabfun=Businger())),
+    -z*u"m" => Top(SurfaceEnergyBalance(Tair, pr, q,wind, Lin, Sin, z, solscheme=SEB.Iterative(),stabfun=SEB.HøgstrømSHEBA())),
     Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=knot.value) for (i,knot) in enumerate(soilprofile)),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
@@ -39,7 +46,7 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = parameters(tile)
 u0, du0 = initialcondition!(tile, tspan, p)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(tile,u0,tspan,p,step_limiter=nothing,savevars=(:T,))
+prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,), step_limiter=nothing)
 # solve with forward Euler and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=2*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

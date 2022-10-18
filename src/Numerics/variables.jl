@@ -20,7 +20,8 @@ Defines a prognostic (time-integrated) state variable.
 """
 struct Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
-    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{name,typeof(dims),T,units,domain}(dims)
+    desc::String
+    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
     Prognostic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
 """
@@ -30,8 +31,9 @@ Defines an algebraic (implicit) state variable.
 """
 struct Algebraic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
+    desc::String
     # maybe a mass matrix init function?
-    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{name,typeof(dims),T,units,domain}(dims)
+    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
     Algebraic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
 """
@@ -42,7 +44,8 @@ the residual for algebraic variables.
 """
 struct Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     dim::S
-    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{dname,name,typeof(dims),T,units,domain}(dims)
+    desc::String
+    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{dname,name,typeof(dims),T,units,domain}(dims, desc)
     Delta(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{deltaname(name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
     Delta(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{deltaname(name),name,typeof(dims),T,units,domain}(dims) end
 end
@@ -54,14 +57,18 @@ Defines a diagnostic variable which is allocated and cached per timestep but not
 """
 struct Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
-    Diagnostic(name::Symbol, dims::VarDim, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf) where {T} = new{name,typeof(dims),T,units,domain}(dims)
+    desc::String
+    Diagnostic(name::Symbol, dims::VarDim, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
 end
 # constructors for Flatten.reconstruct
 ConstructionBase.constructorof(::Type{Prognostic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Prognostic(name, s, units, T; domain)
 ConstructionBase.constructorof(::Type{Diagnostic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Diagnostic(name, s, units, T; domain)
 ConstructionBase.constructorof(::Type{Algebraic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Algebraic(name, s, units, T; domain)
 ConstructionBase.constructorof(::Type{Delta{dname,name,S,T,units,domain}}) where {dname,name,S,T,units,domain} = s -> Delta(dname, name, s, units, T; domain)
-==(::Var{N1,S1,T1,u1,d1},::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2)
+# Base overrides
+==(var1::Var{N1,S1,T1,u1,d1}, var2::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2) && vardims(var1) == vardims(var2) && vardesc(var1) == vardesc(var2)
+Base.show(io::IO, ::MIME"text/plain", var::TVar) where {name,S,T,TVar<:Var{name,S,T}} = show("$(typeof(var).name.wrapper){:$name}(shape=$S, type=$(T), desc=$(var.desc))")
+# other methods
 varname(::Var{name}) where {name} = name
 varname(::Type{<:Var{name}}) where {name} = name
 basevarname(::Delta{dname,name}) where {dname,name} = name
@@ -73,6 +80,7 @@ varunits(::Type{<:Var{name,S,T,units}}) where {name,S,T,units} = units
 vardomain(::Var{name,S,T,units,domain}) where {name,S,T,units,domain} = domain
 vardomain(::Type{<:Var{name,S,T,units,domain}}) where {name,S,T,units,domain} = domain
 vardims(var::Var) = var.dim
+vardesc(var::Var) = var.desc
 isprognostic(::T) where {T<:Var} = T <: Prognostic
 isalgebraic(::T) where {T<:Var} = T <: Algebraic
 isflux(::T) where {T<:Var} = T <: Delta

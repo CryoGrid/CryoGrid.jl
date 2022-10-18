@@ -88,7 +88,7 @@ const PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{Prescribed{Tswe,T�
 """
 const DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{Dynamic{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
 
-snowvariables(::Snowpack, ::SnowMassBalance) = (
+CryoGrid.basevariables(::Snowpack, ::SnowMassBalance) = (
     Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
     Diagnostic(:T_ub, Scalar, u"°C"),
 )

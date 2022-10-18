@@ -3,13 +3,6 @@ Abstract base type for all dynamical processes.
 """
 abstract type Process end
 """
-    isless(::Process, ::Process)
-
-Defines an ordering between processes, which can be useful for automatically enforcing
-order constraints when coupling processes together.
-"""
-Base.isless(::Process, ::Process) = false
-"""
     SubSurfaceProcess <: Process
 
 Abstract base type for subsurface processes, i.e. processes that operate at or below the surface,
@@ -82,9 +75,15 @@ Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.p
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
 @propagate_inbounds Base.getindex(cp::CoupledProcesses, i) = cp.processes[i]
-# allow broadcasting of Process types
-Base.Broadcast.broadcastable(p::Process) = Ref(p)
+Base.Broadcast.broadcastable(p::Process) = Ref(p) # allow broadcasting of Process types
+"""
+    isless(::Type{P1}, ::Type{P2}) where {P1<:Process,P2<:Process}
 
+Defines an ordering between process types, which can be useful for automatically enforcing
+order constraints when coupling processes together.
+"""
+Base.isless(::Type{P1}, ::Type{P2}) where {P1<:Process,P2<:Process} = false
+Base.isless(p1::Process, p2::Process) = isless(typeof(p1), typeof(p2))
 # Boundary condition trait
 """
 Trait that specifies the "style" or kind of boundary condition. This can be used to write generic

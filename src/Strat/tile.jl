@@ -241,6 +241,7 @@ If `name` is not a variable in the tile, or if it is not a grid variable, `nothi
 Numerics.getvar(name::Symbol, tile::Tile, u; interp=true) = getvar(Val{name}(), tile, u; interp)
 function Numerics.getvar(::Val{name}, tile::Tile, u; interp=true) where name
     x = getvar(Val{name}(), tile.state, withaxes(u, tile))
+    @assert !isnothing(x) "no variable exists with name $name"
     if interp && length(x) == length(tile.grid)
         return Numerics.Interpolations.interpolate((edges(tile.grid),), x, Numerics.Interpolations.Gridded(Numerics.Interpolations.Linear()))
     elseif interp && length(x) == length(tile.grid)-1

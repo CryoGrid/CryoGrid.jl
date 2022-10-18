@@ -90,7 +90,7 @@ end
 function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
     sfcc = freezecurve(heat)
     @inbounds for i in 1:length(state.H)
-        @inbounds let H = state.H[i], # enthalpy
+        let H = state.H[i], # enthalpy
             L = heat.prop.L,
             cw = heat.prop.cw,
             ci = heat.prop.ci,
@@ -108,12 +108,50 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, sta
         end
     end
 end
+function HeatConduction.freezethaw!(
+    soil::Soil,
+    ps::Coupled(WaterBalance{<:RichardsEq{TREqForm}}, Heat{<:SFCC,THeatForm}),
+    state
+) where {TREqForm,THeatForm}
+    water, heat = ps
+    sfcc = freezecurve(heat)
+    swrc = FreezeCurves.swrc(sfcc.f)
+    # helper function for computing temperature (inverse enthalpy, if necessary)
+    _get_temperature(::Type{Temperature}, i) = state.T[i]
+    _get_temperature(::Type{Enthalpy}, i) = enthalpyinv(soil, heat, state, i)
+    let L = heat.prop.L;
+        @inbounds @fastmath for i in 1:length(state.T)
+            T = _get_temperature(THeatForm, i)
+            ψ₀ = state.ψ₀[i]
+            θtot = state.θwi[i]
+            θsat = state.θsat[i]
+            (ψ, ∂ψ∂T) = ∇(Tᵢ -> sfcc(Tᵢ, ψ₀, Val{:ψ}(); θtot, θsat), T)
+            (θw, ∂θw∂ψ) = ∇(ψᵢ -> swrc(ψᵢ; θsat), ψ)
+            ∂θw∂T = ∂θw∂ψ*∂ψ∂T
+            C = HeatConduction.heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
+            ∂H∂T = HeatConduction.C_eff(T, C, L, ∂θw∂T, heat.prop.cw, heat.prop.ci)
+            state.∂θw∂T[i] = ∂θw∂T
+            state.θw[i] = θw
+            state.ψ[i] = ψ
+            # compute dependent quantities
+            state.C[i] = C
+            state.∂H∂T[i] = ∂H∂T
+            if TREqForm == Pressure
+                state.∂θw∂ψ[i] = ∂θw∂ψ
+            end
+            if THeatForm == Temperature
+                state.H[i] = HeatConduction.enthalpy(T, C, L, θw)
+            end
+        end
+    end
+    return nothing
+end
 function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, i)
     sfcc = freezecurve(heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
         θwi = state.θwi[i], # total water content
-        T₀ = i > 1 ? state.T[i-1] : freewater(H, θwi, L),
+        T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L),
         hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
         f = sfcc.f,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),

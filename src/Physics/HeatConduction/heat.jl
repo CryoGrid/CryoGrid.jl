@@ -111,7 +111,7 @@ Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 CryoGrid.variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
-    heatvariables(heat)...,
+    CryoGrid.basevariables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
@@ -120,15 +120,15 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,Temperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
-    Diagnostic(:∂θw∂T, OnGrid(Cells), domain=0..Inf),
-    heatvariables(heat)...,
+    CryoGrid.basevariables(heat)...,
 )
 """
 Common variable definitions for all heat implementations.
 """
-heatvariables(::Heat) = (
+CryoGrid.basevariables(::Heat) = (
     Diagnostic(:jH, OnGrid(Edges), u"W/m^2"),    
     Diagnostic(:∂H∂T, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
+    Diagnostic(:∂θw∂T, OnGrid(Cells), domain=0..Inf),
     Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
@@ -275,7 +275,6 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.MaxDelta
     @inbounds for i in eachindex(Δx)
         dtmax = min(dtmax, heat.dtlim(state.∂H∂t[i], state.H[i], state.t))
     end
-    # Main.@infiltrate
     dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
     return dtmax
 end

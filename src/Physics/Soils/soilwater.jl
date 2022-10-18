@@ -63,64 +63,40 @@ end
     state.kw[end] = state.kwc[end]
     Numerics.harmonicmean!(@view(state.kw[2:end-1]), state.kwc, Δkw)
 end
-function HeatConduction.freezethaw!(
-    soil::Soil,
-    ps::Coupled(WaterBalance{<:RichardsEq}, Heat{<:SFCC,Temperature}),
-    state
-)
-    water, heat = ps
-    sfcc = freezecurve(heat)
-    let L = heat.prop.L,
-        f(x) = sfcc.f(x[1], x[2], Val{true}(); θtot=x[3], θsat=x[4]);
-        @inbounds @fastmath for i in 1:length(state.T)
-            T = state.T[i]
-            ψ₀ = state.ψ₀[i]
-            θtot = state.θwi[i]
-            θsat = state.θsat[i]
-            # make an SVector with all variables needed for the freeze curve;
-            # we don't actually care about the other partial derivaitves, but we need to include them in order
-            # to avoid ForwardDiff getting confused when the state variables are already autodiff types
-            x = @SVector[T,ψ₀,θtot,θsat]
-            dualx = Numerics.dual(x, typeof(f))
-            # evaluate freeze curve with forward-mode autodiff and unpack the resulting dual numbers
-            θw_dual, ψ_dual, _ = f(dualx)
-            # extract derivaitve of water content w.r.t T
-            state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(θw_dual)[1]
-            # exract liquid water content and temperature-dependent pressure head
-            state.θw[i] = θw = ForwardDiff.value(θw_dual)
-            state.ψ[i] = ForwardDiff.value(ψ_dual)
-            # compute dependent quantities
-            state.C[i] = C = HeatConduction.heatcapacity(soil, heat, volumetricfractions(soil, heat, state, i)...)
-            state.∂H∂T[i] = HeatConduction.C_eff(T, C, L, ∂θw∂T, heat.prop.cw, heat.prop.ci)
-            # enthalpy
-            state.H[i] = HeatConduction.enthalpy(T, C, L, θw)
-        end
+function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Saturation}}, state)
+    @inbounds @. state.∂sat∂t = state.∂θwi∂t / state.θsat
+    return nothing
+end
+function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure}}, state)
+    @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.∂θw∂ψ
+    return nothing
+end
+function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
+    if !water.flow.advection_only
+        # compute diffusive fluxes from pressure, if enabled
+        flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
     end
     return nothing
 end
 # CryoGrid methods
-CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}) = (
+CryoGrid.variables(::RichardsEq{Pressure}) = (
     Prognostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
     Diagnostic(:sat, OnGrid(Cells), domain=0..1), # saturation (diagnostic)
-    Diagnostic(:dθwidψ, OnGrid(Cells), domain=0..Inf), # derivative of SWRC w.r.t matric potential
-    CryoGrid.variables(soil)...,
-    Hydrology.watervariables(water)...,
+    Diagnostic(:∂θw∂ψ, OnGrid(Cells), domain=0..Inf), # derivative of SWRC w.r.t matric potential
 )
-CryoGrid.variables(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}) = (
+CryoGrid.variables(::RichardsEq{Saturation}) = (
     Prognostic(:sat, OnGrid(Cells), domain=0..1), # saturation
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
-    CryoGrid.variables(soil)...,
-    Hydrology.watervariables(water)...,
 )
 function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
-    # state.sat .= soil.para.sat
     CryoGrid.diagnosticstep!(soil, water, state)
 end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
-    # state.sat .= soil.para.sat
+    water, heat = ps
     CryoGrid.diagnosticstep!(soil, ps, state)
+    @. state.H = enthalpy(state.T, state.C, heat.prop.L, state.θw)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
@@ -144,31 +120,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.prognosticstep!(soil::Soil, water::WaterBalance{<:RichardsEq{TForm}}, state) where {TForm}
-    # downward advection due to gravity (the +1 in Richard's Equation)
-    Hydrology.wateradvection!(soil, water, state)
-    if !water.flow.advection_only
-        # compute diffusive fluxes from pressure, if enabled
-        Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
-    end
-    # balance water fluxes (i.e. ensure mass balance)
-    Hydrology.balancefluxes!(soil, water, state)
-    # compute divergence for water fluxes in all cells
-    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.kw))
-    # compute time derivative differently depending on Richard's equation formulation;
-    # this if statement will be compiled away since TForm is known at compile time
-    if TForm == Saturation
-        # scale by max saturation (porosity) just like with bucket scheme
-        @. state.∂sat∂t = state.∂θwi∂t / state.θsat
-    elseif TForm == Pressure
-        # divide by specific moisture capacity (derivative of the water retention curve) dθwidψ
-        @. state.∂ψ₀∂t = state.∂θwi∂t / state.dθwidψ
-    else
-        error("$TForm not supported")
-    end
-    return nothing
-end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},<:Physics.MaxDelta}, state)
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:Physics.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
