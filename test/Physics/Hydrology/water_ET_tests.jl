@@ -14,11 +14,13 @@ function evapotranspiration_tests()
     state.Qe .= Qe
     # test that results are valid when total water content is zero
     Hydrology.evapotranspiration!(layer, water, state)
+    Hydrology.evapotranspirative_fluxes!(layer, water, state)
     @test all(isfinite.(state.jw))
     @test all(iszero.(state.jw))
     # test with water present (saturated conditions)
     state.θwi .= state.θw .= 0.5
     Hydrology.evapotranspiration!(layer, water, state)
+    Hydrology.evapotranspirative_fluxes!(layer, water, state)
     @test all(isfinite.(state.jw))
     @test !all(iszero.(state.jw))
     @test state.jw[1] == state.jwET[1]

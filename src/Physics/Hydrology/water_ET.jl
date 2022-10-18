@@ -18,11 +18,15 @@ end
 """
     evapotranspiration!(::SubSurface, ::WaterBalance, state)
 
-Computes evapotranspiration fluxes for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called after `interact!` for `WaterBalance`, e.g. in `prognosticstep!`.
+Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
+This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `diagnosticstep!`.
 """
-evapotranspiration!(::SubSurface, ::WaterBalance, state) = nothing
-function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:BucketScheme,<:DampedET}, state)
+function evapotranspiration!(::SubSurface, ::WaterBalance, state) end
+function evapotranspiration!(
+    sub::SubSurface,
+    water::WaterBalance{<:BucketScheme,<:DampedET},
+    state
+)
     Δz = Δ(state.grid)
     z = cells(state.grid)
     et = water.et
@@ -35,10 +39,34 @@ function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:BucketScheme
         end
     end
     @inbounds @. state.f_et = et.f_tr*(state.αᶿ*state.w_tr) + (1-et.f_tr)*(state.αᶿ*state.w_ev)
-    f_norm = sum(state.f_et)
+end
+"""
+    ETflux(::SubSurface, water::WaterBalance{<:WaterFlow,<:Evapotranspiration}, state)
+
+Computes the ET base flux as `Qe / (Lsg*ρw)` where `state.Qe` is typically provided as a boundary condition.
+"""
+function ETflux(::SubSurface, water::WaterBalance{<:WaterFlow,<:Evapotranspiration}, state)
+    Qe = getscalar(state.Qe)
+    Lsg = water.prop.consts.Lsg # specific latent heat of vaporization
+    ρw = water.prop.consts.ρw
+    return Qe / (Lsg*ρw)
+end
+"""
+    evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
+
+Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
+This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `prognosticstep!`.
+"""
+function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
+function evapotranspirative_fluxes!(
+    sub::SubSurface,
+    water::WaterBalance{<:BucketScheme,<:DampedET},
+    state
+)
+    f_norm = sum(parent(state.f_et))
     # I guess we just ignore the flux at the lower boundary here... it will either be set
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
-    @inbounds for i in eachindex(z)
+    @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
         state.jwET[i] += fᵢ * ETflux(sub, water, state)
         # add ET fluxes to total water flux
@@ -46,16 +74,10 @@ function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:BucketScheme
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
-function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
+function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
     state.jwET[1] += ETflux(sub, water, state)
     # add ET fluxes to total water flux
     state.jw[1] += state.jwET[1]
-end
-function ETflux(::SubSurface, water::WaterBalance{<:WaterFlow,<:Evapotranspiration}, state)
-    Qe = getscalar(state.Qe)
-    Lsg = water.prop.consts.Lsg # specific latent heat of vaporization
-    ρw = water.prop.consts.ρw
-    return Qe / (Lsg*ρw)
 end
 # CryoGrid methods
 CryoGrid.basevariables(::Evapotranspiration) = (
