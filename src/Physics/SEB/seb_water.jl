@@ -1,5 +1,5 @@
 # type alias for water balance with ET scheme
-const WaterBalanceET{TET} = WaterBalanceET{TFlow,TET} where {TFlow,TET<:Evapotranspiration}
+const WaterBalanceET{TET} = WaterBalance{TFlow,TET} where {TFlow,TET<:Evapotranspiration}
 
 function interact!(top::Top, seb::SurfaceEnergyBalance, sub::SubSurface, ps::Coupled(WaterBalanceET, Heat), stop, ssub)
     water, heat = ps

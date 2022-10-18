@@ -39,7 +39,8 @@ function evapotranspiration!(sub::SubSurface, water::WaterBalance{<:BucketScheme
     # I guess we just ignore the flux at the lower boundary here... it will either be set
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
     @inbounds for i in eachindex(z)
-        state.jwET[i] += state.f_et[i] / f_norm * ETflux(sub, water, state)
+        fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
+        state.jwET[i] += fᵢ * ETflux(sub, water, state)
         # add ET fluxes to total water flux
         state.jw[i] += state.jwET[i]
     end
@@ -58,13 +59,13 @@ function ETflux(::SubSurface, water::WaterBalance{<:WaterFlow,<:Evapotranspirati
 end
 # CryoGrid methods
 CryoGrid.basevariables(::Evapotranspiration) = (
-    Diagnostic(:Qe, Scalar, desc="Latent heat flux at the surface."), # must be supplied by an interaction
+    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by an interaction
 )
 CryoGrid.variables(et::DampedET) = (
     CryoGrid.basevariables(et)...,
-    Diagnostic(:f_et, OnGrid(Cells), domain=0..1, desc="Evapotranspiration reduction factor."),
-    Diagnostic(:w_ev, OnGrid(Cells), desc="Damped grid cell weight for evaporation."),
-    Diagnostic(:w_tr, OnGrid(Cells), desc="Damped grid cell weight for transpiration"),
+    Diagnostic(:f_et, OnGrid(Cells), u"m", domain=0..1, desc="Evapotranspiration reduction factor."),
+    Diagnostic(:w_ev, OnGrid(Cells), u"m", desc="Damped grid cell weight for evaporation."),
+    Diagnostic(:w_tr, OnGrid(Cells), u"m", desc="Damped grid cell weight for transpiration"),
     Diagnostic(:αᶿ, OnGrid(Cells), domain=0..1, desc="Water availability coefficient."),
 )
 function CryoGrid.interact!(

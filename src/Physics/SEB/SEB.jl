@@ -1,6 +1,6 @@
 module SEB
 
-using CryoGrid.InputOutput: Forcing
+using CryoGrid
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
 using CryoGrid.Physics.HeatConduction
