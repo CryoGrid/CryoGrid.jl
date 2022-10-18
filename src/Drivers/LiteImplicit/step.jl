@@ -36,6 +36,7 @@ function step!(integrator::CGLiteIntegrator)
             CryoGrid.interact!(layer1, layer2, state1, state2)
         end
         k = getvar(Val{:k}(), tile, H; interp=false)
+        jH = getvar(Val{:jH}(), tile, H; interp=false)
         dHdT = getvar(Val{:∂H∂T}(), tile, H; interp=false)
         Hinv = getvar(Val{:T}(), tile, H; interp=false)
         T_ub = getscalar(state.top.T_ub)
@@ -64,7 +65,7 @@ function step!(integrator::CGLiteIntegrator)
         # account for boundary fluxes; assumes Dirichlet upper boundary and Neumann lower boundary
         ap[1] += k[1] / (dxp[1]^2 / 2)
         bp[1] = T_ub*k[1] / (dxp[1]^2 / 2)
-        bp[end] = dH[end]
+        bp[end] = jH[end]
 
         # bp_lat[:,j] = sum(lat_flux,dims=2)./Vp[:,j]; #[W/m³];
         # bp = bp + bp_lat[:,j];
@@ -88,6 +89,9 @@ function step!(integrator::CGLiteIntegrator)
     end
     # write new state into integrator
     copyto!(integrator.u, H)
+    push!(integrator.sol.H, copy(H))
+    push!(integrator.sol.T, copy(T_new))
+    push!(integrator.sol.t, t)
     integrator.t = t
     return nothing
 end

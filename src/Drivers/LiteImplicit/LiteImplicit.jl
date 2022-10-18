@@ -49,11 +49,14 @@ struct LiteImplicitEulerCache{TA} <: SciMLBase.DECache
     D::TA
 end
 
-struct CGLiteSolution{T,Tu<:AbstractVector{T},Tt,Tprob} <: SciMLBase.AbstractODESolution{T,1,Tu}
+struct CGLiteSolution{TT,Tu<:AbstractVector{TT},Tt,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
+    prob::Tprob
     u::Vector{Tu}
     t::Vector{Tt}
-    prob::Tprob
+    T::Vector{Tu}
 end
+Base.getproperty(sol::CGLiteSolution, name::Symbol) = name == :H ? getfield(sol, :u) : getfield(sol, name)
+Base.propertynames(sol::CGLiteSolution) = (fieldnames(typoeof(sol))..., :H)
 
 mutable struct CGLiteIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegrator{Talg,true,Tu,Tt}
     alg::Talg
@@ -67,10 +70,12 @@ end
 done(integrator::CGLiteIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
 
 function __init(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
-    sol = CGLiteSolution([copy(prob.u0)], [prob.tspan[1]], prob)
     tile = Tile(prob.f)
     grid = tile.grid
-    u0 = collect(prob.u0)
+    u0 = copy(collect(prob.u0))
+    T0 = similar(u0)
+    copyto!(T0, getvar(:T, tile, u0; interp=false))
+    sol = CGLiteSolution(prob, [u0], [prob.tspan[1]], [T0])
     cache = LiteImplicitEulerCache(
         copy(u0),
         zero(u0),
@@ -92,7 +97,7 @@ function __init(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=2
 end
 
 function __solve(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
-    integrator = __init(prob, alg, args...; dt=24*3600.0, kwargs...)
+    integrator = __init(prob, alg, args...; dt=dt, kwargs...)
     for i in integrator end
     return integrator.sol
 end
