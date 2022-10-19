@@ -1,10 +1,11 @@
 using CryoGrid.Numerics
 using CryoGrid.Numerics: flux!, divergence!, nonlineardiffusion!
+using LinearAlgebra
 using Test
 
 include("../testutils.jl")
 
-@inline function test_flux!_and_divergence!()
+function test_flux!_and_divergence!()
 	x = 0.0:0.25:1.0
 	xc = (x[1:end-1] .+ x[2:end])./2
 	Δx = x[2:end] .- x[1:end-1]
@@ -21,7 +22,7 @@ include("../testutils.jl")
 	@test allequal(div, [1/0.25^2,-2/0.25^2,1/0.25^2])
 end
 
-@inline function test_nonlineardiffusion!()
+function test_nonlineardiffusion!()
 	f(x) = (1/6)x^3 # function to differntiate
 	df(x) = (1/2)x^2 # analytical 1st derivative
 	d2f(x) = x # analytical 2nd derivative
@@ -51,5 +52,13 @@ end
 	end
 	@testset "Non-linear diffusion" begin
 		test_nonlineardiffusion!()
+	end
+	@testset "TDMA solve" begin
+		A = Tridiagonal(ones(4), 2*ones(5), ones(4))
+		b = ones(5)
+		x_true = A \ b # solve using built-in ldiv
+		x_test = similar(x_true)
+		Numerics.tdma_solve!(x_test, diag(A,-1), diag(A), diag(A,1), b)
+		@test all(x_true .≈ x_test)
 	end
 end

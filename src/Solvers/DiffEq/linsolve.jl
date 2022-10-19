@@ -10,9 +10,9 @@ function SciMLBase.solve(cache::LinearSolve.LinearCache, alg::TDMASolver; kwargs
     if !factorized
         copyto!(cache.cacheval, cache.A)
     end
-    a = diag(cache.cacheval,-1)
-    b = diag(cache.cacheval,0)
-    c = diag(cache.cacheval,1)
+    a = diag(cache.cacheval, -1)
+    b = diag(cache.cacheval, 0)
+    c = diag(cache.cacheval, 1)
     d = cache.b
     x = cache.u
     Numerics.tdma_solve!(x, a, b, c, d, factorized)

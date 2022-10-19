@@ -5,7 +5,6 @@ module DiffEq
 
 using CryoGrid
 using CryoGrid: Event, ContinuousEvent, DiscreteEvent, ContinuousTrigger, Increasing, Decreasing
-using CryoGrid.Drivers
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
 using CryoGrid.Physics: Heat
@@ -27,20 +26,25 @@ using Reexport
 using Unitful
 
 using DiffEqBase
-using DiffEqBase.SciMLBase
+using SciMLBase
 using DiffEqCallbacks
 
-import DiffEqCallbacks
-
 @reexport using OrdinaryDiffEq
-@reexport using DiffEqBase: solve, init, ODEProblem, SciMLBase
+@reexport using DiffEqBase: solve, init, ODEProblem
 
 export TDMASolver
-include("solvers.jl")
-include("callbacks.jl")
-export CryoGridProblem
-include("problem.jl")
+include("linsolve.jl")
 include("output.jl")
+
+# solve/init interface
+function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
+    ode_prob = ODEProblem(prob)
+    return DiffEqBase.solve(ode_prob, alg, args...; kwargs...)
+end
+function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
+    ode_prob = ODEProblem(prob)
+    return DiffEqBase.init(ode_prob, alg, args...; kwargs...)
+end
 
 # Add method dispatches for other CryoGrid methods on DEIntegrator type
 """
