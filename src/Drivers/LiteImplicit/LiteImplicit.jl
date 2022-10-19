@@ -66,6 +66,7 @@ mutable struct CGLiteIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegr
     p::Tp
     t::Tt
     dt::Tt
+    step::Int
 end
 done(integrator::CGLiteIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
 
@@ -74,8 +75,22 @@ function __init(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=2
     grid = tile.grid
     u0 = copy(collect(prob.u0))
     T0 = similar(u0)
+    # evaluate the step at the initial state to ensure correct starting values
+    tile(similar(u0), u0, prob.p, prob.tspan[1])
     copyto!(T0, getvar(:T, tile, u0; interp=false))
-    sol = CGLiteSolution(prob, [u0], [prob.tspan[1]], [T0])
+    nsteps = Int(ceil((prob.tspan[2] - prob.tspan[1]) / dt)) + 1
+    u_storage = Vector{typeof(u0)}(undef, nsteps)
+    T_storage = Vector{typeof(T0)}(undef, nsteps)
+    t_storage = zeros(nsteps)
+    # initialize storage
+    u_storage[1] = u0
+    T_storage[1] = T0
+    t_storage[1] = prob.tspan[1]
+    for i in 2:length(u_storage)
+        u_storage[i] = similar(u0)
+        T_storage[i] = similar(T0)
+    end
+    sol = CGLiteSolution(prob, u_storage, t_storage, T_storage)
     cache = LiteImplicitEulerCache(
         copy(u0),
         zero(u0),
@@ -93,7 +108,7 @@ function __init(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=2
         similar(u0, length(u0)-1),
         similar(u0)
     )
-    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt)
+    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt, 1)
 end
 
 function __solve(prob::CryoGridLiteProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)

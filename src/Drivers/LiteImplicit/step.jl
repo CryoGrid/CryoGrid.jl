@@ -1,5 +1,6 @@
 function step!(integrator::CGLiteIntegrator)
-    H₀ = integrator.u
+    u = integrator.u
+    H₀ = u.H
     t₀ = integrator.t
     p = integrator.p
     dt = integrator.dt
@@ -26,7 +27,7 @@ function step!(integrator::CGLiteIntegrator)
 
     iter_count = 1
     ϵ_max = Inf
-    while iter_count <= integrator.alg.maxiters
+    while ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters
         # diagnostic update and interact!
         state = getstate(tile, H, dH, t)
         fastiterate(layers(tile.strat)) do named_layer
@@ -40,14 +41,6 @@ function step!(integrator::CGLiteIntegrator)
         dHdT = getvar(Val{:∂H∂T}(), tile, H; interp=false)
         Hinv = getvar(Val{:T}(), tile, H; interp=false)
         T_ub = getscalar(state.top.T_ub)
-        # convergence check
-        @. ϵ = T_new - Hinv
-        ϵ_max = maximum(ϵ)
-        if ϵ_max < integrator.alg.tolerance && iter_count >= integrator.alg.miniters
-            break
-        elseif !isfinite(ϵ_max)
-            error("NaN values in residual at iteration $iter_count: $ϵ")
-        end
 
         k_inner = @view k[2:end-1]
         dxpn = @view dxp[1:end-1]
@@ -81,17 +74,29 @@ function step!(integrator::CGLiteIntegrator)
         Numerics.tdma_solve!(T_new, cache.A, cache.B, cache.C, cache.D);
         #---------------------------------------------------------------
         #update current state of H
-        @. H += dHdT*(T_new - Hinv)
+        @. ϵ = T_new - Hinv
+        @. H += dHdT*ϵ
+
+        # convergence check
+        ϵ_max = -Inf
+        for i in eachindex(ϵ)
+            ϵ_max = max(ϵ_max, abs(ϵ[i]))
+            if !isfinite(ϵ[i])
+                error("NaN values in residual at iteration $iter_count @ t = $(convert_t(t))")
+            end
+        end
         iter_count += 1
     end
     if iter_count > integrator.alg.maxiters && ϵ_max > integrator.alg.tolerance
-        @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(ϵ)) @ $(argmax(ϵ)))"
+        @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
     end
     # write new state into integrator
     copyto!(integrator.u, H)
-    push!(integrator.sol.H, copy(H))
-    push!(integrator.sol.T, copy(T_new))
-    push!(integrator.sol.t, t)
+    i = integrator.step + 1
+    integrator.sol.H[i] .= H
+    integrator.sol.T[i] .= T_new
+    integrator.sol.t[i] = t
+    integrator.step = i
     integrator.t = t
     return nothing
 end
