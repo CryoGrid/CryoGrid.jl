@@ -126,3 +126,27 @@ function VarStates(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.A
     allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
     VarStates(uproto, D, allvars, (;freediagstate...), (;griddiagstate...))
 end
+"""
+    build_mass_matrix(u::ComponentVector, states::VarStates)
+
+Constructs a mass matrix `M⋅∂u∂t = f(u)` suitable for the prognostic state vector `u` based on the
+defined variable types.
+"""
+function build_mass_matrix(states::VarStates)
+    M_diag = similar(states.uproto)
+    M_idxmap = ComponentArrays.indexmap(getaxes(M_diag)[1])
+    allvars = Flatten.flatten(states.vars, Flatten.flattenable, Var)
+    progvars = map(varname, filter(isprognostic, allvars))
+    algvars = map(varname, filter(isalgebraic, allvars))
+    for name in keys(M_idxmap)
+        M_diag_var = @view M_diag[name]
+        if name ∈ progvars
+            M_diag_var .= one(eltype(M_diag))
+        elseif name ∈ algvars
+            M_diag_var .= zero(eltype(M_diag))
+        end
+    end
+    # if no algebraic variables are present, use identity matrix
+    num_algebraic = length(M_diag) - sum(M_diag)
+    M = num_algebraic > 0 ? Diagonal(M_diag) : I
+end

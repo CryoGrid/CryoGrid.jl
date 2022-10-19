@@ -29,17 +29,22 @@ using DiffEqBase
 using SciMLBase
 using DiffEqCallbacks
 
-import DiffEqCallbacks
-
 @reexport using OrdinaryDiffEq
 @reexport using DiffEqBase: solve, init, ODEProblem
 
 export TDMASolver
 include("linsolve.jl")
-include("callbacks.jl")
-export CryoGridProblem
-include("problem.jl")
 include("output.jl")
+
+# solve/init interface
+function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
+    ode_prob = ODEProblem(prob)
+    return DiffEqBase.solve(ode_prob, alg, args...; kwargs...)
+end
+function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
+    ode_prob = ODEProblem(prob)
+    return DiffEqBase.init(ode_prob, alg, args...; kwargs...)
+end
 
 # Add method dispatches for other CryoGrid methods on DEIntegrator type
 """

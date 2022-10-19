@@ -8,6 +8,8 @@ end
 
 using Base: @propagate_inbounds
 using ComponentArrays
+using Dates
+using LinearAlgebra
 using Reexport
 
 # Common types and methods
@@ -39,6 +41,10 @@ include("Diagnostics/Diagnostics.jl")
 # Coupling
 include("coupling.jl")
 
+# Problem interface
+export CryoGridProblem
+include("problem.jl")
+
 # Re-exported packages
 @reexport using Dates: Dates, DateTime
 @reexport using DimensionalData
@@ -46,7 +52,7 @@ include("coupling.jl")
 @reexport using Unitful
 
 # include dependent submodules
-include("Drivers/Drivers.jl")
+include("Solvers/Solvers.jl")
 include("Presets/Presets.jl")
 
 end # module

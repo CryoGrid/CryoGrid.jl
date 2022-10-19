@@ -1,4 +1,4 @@
-function step!(integrator::CGLiteIntegrator)
+function DiffEqBase.step!(integrator::CGLiteIntegrator)
     u = integrator.u
     H₀ = u.H
     t₀ = integrator.t
@@ -76,6 +76,7 @@ function step!(integrator::CGLiteIntegrator)
         #update current state of H
         @. ϵ = T_new - Hinv
         @. H += dHdT*ϵ
+        @. dH = (H - H₀) / dt
 
         # convergence check
         ϵ_max = -Inf
@@ -91,11 +92,19 @@ function step!(integrator::CGLiteIntegrator)
         @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
     end
     # write new state into integrator
-    copyto!(integrator.u, H)
+    copyto!(integrator.u.H, H)
     i = integrator.step + 1
-    integrator.sol.H[i] .= H
-    integrator.sol.T[i] .= T_new
-    integrator.sol.t[i] = t
+    push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, get_du(integrator)))
+    push!(tile.hist.vals.t, integrator.t)
+    # use pre-allocated values up to time limit, then push! afterwards
+    # technically step! should probably do nothing when t > tspan[2] ..?
+    if i <= length(integrator.sol.u)
+        integrator.sol.u[i] .= integrator.u
+        integrator.sol.t[i] = t
+    else
+        push!(integrator.sol.u, integrator.u)
+        push!(integrator.sol.t, integrator.t)
+    end
     integrator.step = i
     integrator.t = t
     return nothing
