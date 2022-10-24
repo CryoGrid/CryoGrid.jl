@@ -49,21 +49,21 @@ struct HøgstrømSHEBA <: StabilityFunctions end
 
 Base.@kwdef struct SEBParams{TSolution,TStabFun}
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables
-    α::Float"1" = 0.2xu"1"                          # surface albedo [-]
-    ϵ::Float"1" = 0.97xu"1"                         # surface emissivity [-]
-    z₀::Float"m" = 1e-3xu"m"                        # surface roughness length [m]
-    rₛ::Float"1/m" = 50.0xu"s/m"                    # surface resistance against evapotranspiration and sublimation [s/m]
+    α = 0.2                          # surface albedo [-]
+    ϵ = 0.97                         # surface emissivity [-]
+    z₀ = 1e-3u"m"                        # surface roughness length [m]
+    rₛ = 50.0u"s/m"                    # surface resistance against evapotranspiration and sublimation [s/m]
 
     # "natural" constant
-    σ::Float"J/(s*m^2*K^4)" = 5.6704e-8xu"J/(s*m^2*K^4)"   # Stefan-Boltzmann constant
-    κ::Float"1" = 0.4xu"1"                          # von Kármán constant [-]
-    γ::Float"1" = 0.622xu"1"                        # Psychrometric constant [-]
-    Rₐ::Float"J/(kg*K)" = 287.058xu"J/(kg*K)"       # specific gas constant of air [J/(kg*K)]
-    g::Float"m/s^2" = 9.81xu"m/s^2"                 # gravitational acceleration [m/s^2]
+    σ = 5.6704e-8u"J/(s*m^2*K^4)"   # Stefan-Boltzmann constant
+    κ = 0.4u"1"                          # von Kármán constant [-]
+    γ = 0.622u"1"                        # Psychrometric constant [-]
+    Rₐ = 287.058u"J/(kg*K)"       # specific gas constant of air [J/(kg*K)]
+    g = 9.81u"m/s^2"                 # gravitational acceleration [m/s^2]
 
     # material properties (assumed to be constant)
-    ρₐ::Float"kg/m^3" = 1.293xu"kg/m^3"             # density of air at standard pressure and 0°C [kg/m^3]
-    cₐ::Float"J/(m^3*K)" = 1005.7xu"J/(kg*K)" * ρₐ  # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
+    ρₐ = 1.293u"kg/m^3"             # density of air at standard pressure and 0°C [kg/m^3]
+    cₐ = 1005.7u"J/(kg*K)" * ρₐ  # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 
     Pr₀::Float64 = 0.74                             # turbulent Prandtl number
     βₘ::Float64 = 4.7

@@ -4,7 +4,7 @@ const Neumann = CryoGrid.Neumann
 const HeatBC = BoundaryProcess{T} where {Heat<:T<:SubSurfaceProcess}
 ConstantTemperature(value::UFloat"K") = ConstantBC(Heat, Dirichlet, uconvert(u"°C", value))
 ConstantTemperature(value) = ConstantBC(Heat, Dirichlet, value)
-GeothermalHeatFlux(value=0.053xu"W/m^2") = ConstantBC(Heat, Neumann, value)
+GeothermalHeatFlux(value=0.053u"W/m^2") = ConstantBC(Heat, Neumann, value)
 
 struct TemperatureGradient{E,F} <: BoundaryProcess{Heat}
     T::F # temperature forcing

@@ -22,7 +22,7 @@ import ConstructionBase
 import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
-export @xu_str, @Float_str, @Real_str, @Number_str, @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
+export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
 export Named
@@ -30,7 +30,6 @@ export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
 export dustrip, duconvert, applyunits, normalize_units, normalize_temperature, pstrip
 export fastmap, fastiterate, structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
-export IterableStruct
 
 # Convenience constants for units
 const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
@@ -45,6 +44,7 @@ const StrictlyNegative = OpenInterval(-Inf,0)
 const Nonnegative = Interval{:closed,:open}(0,Inf)
 const Nonpositive = Interval{:open,:closed}(-Inf,0)
 
+# StructTypes dispatches for Unitful types to convert them to and from strings
 StructTypes.StructType(::Type{<:Quantity}) = StructTypes.CustomStruct()
 StructTypes.lower(value::Quantity) = string(value)
 StructTypes.lowertype(value::Type{<:Quantity}) = String
@@ -110,33 +110,6 @@ normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(
 normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
 # Add method dispatch for normalize_temperature in FreezeCurves.jl
 normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
-
-"""
-Provides implementation of `Base.iterate` for structs.
-"""
-function structiterate(obj::A) where {A}
-    names = fieldnames(A)
-    if length(names) == 0; return nothing end
-    gen = (getfield(obj,name) for name in names)
-    (val,state) = iterate(gen)
-    (val, (gen,state))
-end
-function structiterate(obj, state)
-    gen, genstate = state
-    nextitr = iterate(gen,genstate)
-    isnothing(nextitr) ? nothing : (nextitr[1],(gen,nextitr[2]))
-end
-
-"""
-Base type for allowing iteration of struct fields.
-"""
-abstract type IterableStruct end
-# scalar broadcasting of IterableStruct types
-Base.Broadcast.broadcastable(p::IterableStruct) = Ref(p)
-# provide length and iteration over field names
-Base.length(p::IterableStruct) = fieldcount(typeof(p))
-Base.iterate(p::IterableStruct) = structiterate(p)
-Base.iterate(p::IterableStruct, state) = structiterate(p,state)
 
 """
     tuplejoin([x, y], z...)

@@ -1,4 +1,10 @@
 # Core model functions
+"""
+    processes(l::Layer)
+
+Fetches the process attached to this layer, if any. Default implementation retrieves the
+`proc` field on the given layer `l`. Two or more processes may be attached as a `CoupledProcess`.
+"""
 processes(l::Layer) = l.proc
 """
     variables(layer::Layer, process::Process)
