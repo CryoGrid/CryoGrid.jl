@@ -20,13 +20,13 @@ Builds a simple one-layer soil/heat-conduction model with the given grid and con
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
 function SoilHeatColumn(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer;
-    grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunksize=nothing) where {F<:FreezeCurve}
+    grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
         Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
         1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
     )
-    Tile(strat, grid, init, chunksize=chunksize)
+    Tile(strat, grid, init, chunk_size=chunk_size)
 end
 SoilHeatColumn(upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatColumn(:H, upperbc, soilprofile, init; grid=grid, freezecurve=freezecurve)
 

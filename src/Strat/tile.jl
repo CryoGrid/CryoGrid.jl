@@ -75,7 +75,7 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
         arrayproto::Type{A}=Vector,
         iip::Bool=true,
         observe::Vector{Symbol}=Symbol[],
-        chunksize=nothing,
+        chunk_size=nothing,
     )
 
 Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
@@ -88,7 +88,7 @@ function Tile(
     arrayproto::Type{A}=Vector,
     iip::Bool=true,
     observe::Vector{Symbol}=Symbol[],
-    chunksize=nothing,
+    chunk_size=nothing,
 ) where {A<:AbstractArray}
     vars = OrderedDict()
     events = OrderedDict()
@@ -107,7 +107,7 @@ function Tile(
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
-    states = _initvarstates(strat, grid, vars, chunksize, arrayproto)
+    states = _initvarstates(strat, grid, vars, chunk_size, arrayproto)
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
@@ -367,7 +367,7 @@ end
 """
 Initialize `VarStates` which holds the caches for all defined state variables.
 """
-function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::OrderedDict), chunksize::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
+function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::OrderedDict), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
     layernames = [layername(layer) for layer in strat]
     ntvars = NamedTuple{Tuple(layernames)}(Tuple(values(vars)))
     npvars = (length(filter(isprognostic, var)) + length(filter(isalgebraic, var)) for var in ntvars) |> sum
@@ -375,7 +375,7 @@ function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
-    chunksize = isnothing(chunksize) ? length(para) : chunksizereturn
-    states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
+    chunk_size = isnothing(chunk_size) ? length(para) : chunk_size
+    states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunk_size, arrayproto)
     return states
 end
