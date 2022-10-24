@@ -62,8 +62,8 @@ for all non-boundary (subsurface) processes/layers.
 """
 prognosticstep!(layer::Layer, state) = prognosticstep!(layer, processes(layer), state)
 prognosticstep!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
-prognosticstep!(::Top, ::BoundaryProcess, state) = nothing
-prognosticstep!(::Bottom, ::BoundaryProcess, state) = nothing
+prognosticstep!(::Top, ::Process, state) = nothing
+prognosticstep!(::Bottom, ::Process, state) = nothing
 """
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
