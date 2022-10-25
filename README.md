@@ -45,7 +45,7 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # initializer for temperature
 initT = initializer(:T, tempprofile)
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), soilprofile, initT)
+model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, initT)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = parameters(model)
@@ -64,7 +64,7 @@ plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temper
 Alternatively, we can use a Dall'Amico freeze curve:
 
 ```julia
-model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), soilprofile, freezecurve=SFCC(DallAmico()))
+model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, freezecurve=SFCC(DallAmico()))
 # Set-up parameters
 p = parameters(model)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
@@ -75,11 +75,11 @@ prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
 out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
-Note that `SoilHeatColumn` uses energy as the state variable by default. To use temperature as the state variable instead:
+Note that `SoilHeatTile` uses energy as the state variable by default. To use temperature as the state variable instead:
 
 ```julia
 # :T is the variable name for temperature, :H represents enthalpy/energy.
 # This is used in the specification of the Heat process type.
 # While this will work with any freeze curve, here we use Westermann (2011) as an example.
-model = CryoGrid.Presets.SoilHeatColumn(:T, TemperatureGradient(tair), soilprofile, freezecurve=SFCC(Westermann()))
+model = CryoGrid.Presets.SoilHeatTile(:T, TemperatureGradient(tair), soilprofile, freezecurve=SFCC(Westermann()))
 ```
