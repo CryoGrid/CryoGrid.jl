@@ -89,7 +89,7 @@ end
 CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
     Prognostic(:swe, Scalar, u"m", domain=0..Inf),
     Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1), 
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1), 
     CryoGrid.basevariables(snow, smb)...,
 )
 function CryoGrid.diagnosticstep!(

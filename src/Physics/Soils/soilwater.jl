@@ -46,13 +46,13 @@ end
 end
 @inline function Hydrology.hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
     kw_sat = Hydrology.kwsat(sub, water)
-    vg = swrc(water)
+    vg = Soils.swrc(water)
     Δkw = Δ(state.grids.kw)
     @inbounds for i in 1:length(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
             θwi = state.θwi[i],
-            I_ice = impedencefactor(water, θw, θwi),
+            I_ice = Soils.impedencefactor(water, θw, θwi),
             n = vg.n;
             # van Genuchten formulation of hydraulic conductivity; see van Genuchten (1980) and Westermann et al. (2022).
             # we use `complex` types here to permit illegal state values which may occur for adaptive solving schemes

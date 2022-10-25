@@ -50,6 +50,12 @@ struct Profile{N,TKnots}
     Profile(pairs::Tuple{Vararg{<:Pair}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
     Profile(pairs::Pair...) = Profile(pairs)
 end
+function Base.show(io::IO, mime::MIME"text/plain", profile::Profile)
+    for knot in profile
+        show(io, mime, knot)
+        println(io)
+    end
+end
 Base.length(::Profile{N}) where N = N
 Base.iterate(profile::Profile) = iterate(profile.knots)
 Base.iterate(profile::Profile, state) = iterate(profile.knots, state)

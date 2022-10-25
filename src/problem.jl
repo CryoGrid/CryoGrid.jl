@@ -9,8 +9,8 @@ Represents a CryoGrid discretized PDE forward model configuration using the `Sci
 struct CryoGridProblem{Tu,Tt,Tp,TT,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,true}
     f::TT
     u0::Tu
-    p::Tp
     tspan::NTuple{2,Tt}
+    p::Tp
     callbacks::Tcb
     savefunc::Tsf
     isoutofdomain::Tdf
@@ -90,12 +90,12 @@ function CryoGridProblem(
     tile.hist.vals = savevals
     M = Numerics.build_mass_matrix(tile.state)
 	func = odefunction(tile, u0, p, tspan; mass_matrix=M, specialization, function_kwargs...)
-	return CryoGridProblem(func, u0, p, tspan, callbacks, getsavestate, isoutofdomain, prob_kwargs)
+	return CryoGridProblem(func, u0, tspan, p, callbacks, getsavestate, isoutofdomain, prob_kwargs)
 end
 """
-    CryoGridProblem(setup::Tile, tspan::NTuple{2,DateTime}, args...;kwargs...)
+    CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
-CryoGridProblem(setup::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(setup,u0,convert_tspan(tspan),args...;kwargs...)
+CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(tile, u0, convert_tspan(tspan), args...;kwargs...)
 """
     odefunction(setup::Tile, u0, p, tspan; kwargs...)
 

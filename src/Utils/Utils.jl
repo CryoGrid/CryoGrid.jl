@@ -207,5 +207,7 @@ function ModelParameters.stripunits(obj)
     values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
     return Flatten.reconstruct(obj, map(ustrip ∘ normalize_units, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end
+# pretty print Param types
+Base.show(io::IO, mime::MIME"text/plain", p::Param) = print(io, "Param($(p.val))")
 
 end

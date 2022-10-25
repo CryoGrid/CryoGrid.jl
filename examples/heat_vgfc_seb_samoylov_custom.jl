@@ -24,7 +24,6 @@ forcings = loadforcings(
     :Sin => u"W/m^2",
 );
 Tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-# assume other forcings don't (yet) have units
 pr   = TimeSeriesForcing(forcings.data.pressure, forcings.timestamps, :pr);
 q    = TimeSeriesForcing(forcings.data.q, forcings.timestamps, :q);
 wind = TimeSeriesForcing(forcings.data.wind, forcings.timestamps, :wind);

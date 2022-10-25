@@ -32,3 +32,6 @@ output/
 
 # User test scripts
 user/
+
+# Jupyter notebook
+*-checkpoint.ipynb
