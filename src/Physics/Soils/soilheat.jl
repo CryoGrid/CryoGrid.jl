@@ -146,13 +146,13 @@ function HeatConduction.freezethaw!(
     end
     return nothing
 end
-function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state, i)
+function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,HeatConduction.Enthalpy}, state, i)
     sfcc = freezecurve(heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
         θwi = state.θwi[i], # total water content
-        T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L),
-        hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
+        hc = partial(HeatConduction.heatcapacity, Val{:θw}(), soil, heat, state, i),
+        T₀ = i > 1 ? state.T[i-1] : (H - L*θwi) / hc(θwi),
         f = sfcc.f,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
         obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H);

@@ -55,8 +55,8 @@ struct Heat{Tfc<:FreezeCurve,TForm<:HeatFormulation,Tdt,Tinit,TProp} <: SubSurfa
     dtlim::Tdt  # timestep limiter
     init::Tinit # optional initialization scheme
 end
-_default_dtlim(::Union{Enthalpy,Temperature}, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
-_default_dtlim(::Enthalpy, ::FreeWater) = Physics.MaxDelta(50u"kJ") # CFL doesn't work with FreeWater freeze curve
+_default_dtlim(::Temperature, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
+_default_dtlim(::Enthalpy, ::FreezeCurve) = Physics.MaxDelta(100u"kJ")
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
