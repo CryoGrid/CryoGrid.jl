@@ -40,6 +40,34 @@ end
     return expr
 end
 """
+    diagnosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
+
+Default implementation of `diagnosticstep!` for coupled process types. Calls each process in sequence.
+"""
+@generated function diagnosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
+    expr = Expr(:block)
+    for i in 1:length(P.parameters)
+        quote
+            diagnosticstep!(l,ps[$i],state)
+        end |> Base.Fix1(push!, expr.args)
+    end
+    return expr
+end
+"""
+    prognosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
+
+Default implementation of `prognosticstep!` for coupled process types. Calls each process in sequence.
+"""
+@generated function prognosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
+    expr = Expr(:block)
+    for i in 1:length(P.parameters)
+        quote
+            prognosticstep!(l,ps[$i],state)
+        end |> Base.Fix1(push!, expr.args)
+    end
+    return expr
+end
+"""
     initialcondition!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 
 Default implementation of `initialcondition!` for coupled process types. Calls each process in sequence.
