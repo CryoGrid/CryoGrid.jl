@@ -87,7 +87,8 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Temperature}, 
         end
     end
 end
-function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,Enthalpy}, state)
+# freezethaw! implementation for enthalpy and implicit enthalpy formulations
+function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,TForm}, state) where {TForm<:Union{Enthalpy,EnthalpyImplicit}}
     sfcc = freezecurve(heat)
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy

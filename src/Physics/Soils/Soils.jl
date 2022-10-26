@@ -30,7 +30,9 @@ export soilparameters, soilcomponent, porosity, mineral, organic
 # from FreezeCurves
 export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
 
+# aliases for heat formulations in HeatConduction module
 const Enthalpy = HeatConduction.Enthalpy
+const EnthalpyImplicit = HeatConduction.EnthalpyImplicit
 const Temperature = HeatConduction.Temperature
 
 """

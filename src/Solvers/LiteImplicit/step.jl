@@ -28,37 +28,14 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     iter_count = 1
     ϵ_max = Inf
     while ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters
-        # diagnostic update and interact!
-        state = getstate(tile, H, dH, t)
-        fastiterate(layers(tile.strat)) do named_layer
-            CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
-        end
-        stratiterate(tile.strat, state) do layer1, layer2, state1, state2
-            CryoGrid.interact!(layer1, layer2, state1, state2)
-        end
-        k = getvar(Val{:k}(), tile, H; interp=false)
-        jH = getvar(Val{:jH}(), tile, H; interp=false)
+        # invoke Tile step function
+        CryoGrid.Strat.step!(tile, dH,  H, p, t)
         dHdT = getvar(Val{:∂H∂T}(), tile, H; interp=false)
         Hinv = getvar(Val{:T}(), tile, H; interp=false)
-        T_ub = getscalar(state.top.T_ub)
-
-        k_inner = @view k[2:end-1]
-        dxpn = @view dxp[1:end-1]
-        dxps = @view dxp[2:end]
-        @. an = k_inner / dx / dxpn
-        @. as = k_inner / dx / dxps
-
-        # reset terms
-        bp .= 0
-        ap .= 0
-
-        #Additional heat fluxes ----------------------------------------
-        ap[1:end-1] .+= as
-        ap[2:end] .+= an
-        # account for boundary fluxes; assumes Dirichlet upper boundary and Neumann lower boundary
-        ap[1] += k[1] / (dxp[1]^2 / 2)
-        bp[1] = T_ub*k[1] / (dxp[1]^2 / 2)
-        bp[end] = jH[end]
+        an = getvar(Val{:DT_an}(), tile, H; interp=false)
+        as = getvar(Val{:DT_as}(), tile, H; interp=false)
+        ap = getvar(Val{:DT_ap}(), tile, H; interp=false)
+        bp = getvar(Val{:DT_bp}(), tile, H; interp=false)
 
         # bp_lat[:,j] = sum(lat_flux,dims=2)./Vp[:,j]; #[W/m³];
         # bp = bp + bp_lat[:,j];

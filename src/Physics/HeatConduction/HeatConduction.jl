@@ -35,6 +35,7 @@ Base type for different numerical formulations of two-phase heat diffusion.
 """
 abstract type HeatFormulation end
 struct Enthalpy <: HeatFormulation end
+struct EnthalpyImplicit <: HeatFormulation end
 struct Temperature <: HeatFormulation end
 
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
@@ -61,7 +62,7 @@ _default_dtlim(::Enthalpy, ::FreezeCurve) = Physics.MaxDelta(100u"kJ")
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Temperature(); kwargs...)
-Heat(form::Enthalpy; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
+Heat(form; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
 Heat(form::Temperature; freezecurve, prop=ThermalProperties(), dtlim=_default_dtlim(form, freezecurve), init=nothing) = Heat(form, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
