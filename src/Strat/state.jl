@@ -88,8 +88,8 @@ end
 @inline _makestate(::Val, ::Algebraic{name,<:Shape}, vs::VarStates, z_inds, u, du, t) where {name} = view(u, Val{name}())
 @inline _makestate(::Val, ::Delta{dname,name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
 @inline _makestate(::Val, ::Delta{dname,name,<:Shape}, vs::VarStates, z_inds, u, du, t) where {dname,name} = view(du, Val{name}())
-@inline _makestate(::Val, ::Diagnostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Diagnostic{name,<:OnGrid{Edges}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds))
+@inline _makestate(::Val, var::Diagnostic{name,<:OnGrid{Cells}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1+var.dim.offset)
+@inline _makestate(::Val, var::Diagnostic{name,<:OnGrid{Edges}}, vs::VarStates, z_inds, u, du, t) where {name} = view(retrieve(vs.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)+var.dim.offset)
 @inline _makestate(::Val{layername}, ::Diagnostic{name}, vs::VarStates, z_inds, u, du, t) where {name,layername} = retrieve(vs.diag[layername][name], u, t)
 # these need to be @generated functions in order for the compiler to infer all of the types correctly
 @inline @generated function _makegrids(::Val{layername}, vars::NamedTuple{varnames}, vs::VarStates, z_inds::ClosedInterval) where {layername,varnames}

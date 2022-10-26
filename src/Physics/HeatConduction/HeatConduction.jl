@@ -58,6 +58,7 @@ struct Heat{Tfc<:FreezeCurve,TForm<:HeatFormulation,Tdt,Tinit,TProp} <: SubSurfa
 end
 _default_dtlim(::Temperature, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
 _default_dtlim(::Enthalpy, ::FreezeCurve) = Physics.MaxDelta(100u"kJ")
+_default_dtlim(::HeatFormulation, ::FreezeCurve) = nothing
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Enthalpy(); kwargs...)
@@ -74,5 +75,8 @@ include("heat_bc.jl")
 
 export heatconduction!, enthalpy, enthalpyinv, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
 include("heat.jl")
+
+export ImplicitHeat
+include("heat_implicit.jl")
 
 end

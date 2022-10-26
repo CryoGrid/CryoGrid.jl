@@ -1,16 +1,16 @@
 # Variable dimensions
 abstract type VarDim{S} end
-struct OnGrid{S,F} <: VarDim{S}
-    f::F # G -> G' where G is the edge grid
-    OnGrid(::Type{S}, f::Function=identity) where {S<:GridSpec} = new{S,typeof(f)}(f)
+struct OnGrid{S} <: VarDim{S}
+    offset::Int # G -> G' where G is the edge grid
+    OnGrid(::Type{S}, offset::Int=0) where {S<:GridSpec} = new{S}(offset)
 end
 struct Shape{S} <: VarDim{S} Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()
 ConstructionBase.constructorof(::Type{OnGrid{S}}) where {S} = f -> OnGrid(S, f)
 ConstructionBase.constructorof(::Type{Shape{S}}) where {S} = f -> Shpae(S...)
 dimlength(::Shape{dims}, grid::Grid) where dims = prod(dims)
-dimlength(d::OnGrid{Cells}, grid::Grid) = d.f(length(cells(grid)))
-dimlength(d::OnGrid{Edges}, grid::Grid) = d.f(length(edges(grid)))
+dimlength(d::OnGrid{Cells}, grid::Grid) = length(cells(grid)) + d.offset
+dimlength(d::OnGrid{Edges}, grid::Grid) = length(edges(grid)) + d.offset
 
 abstract type Var{name,S<:VarDim,T,units,domain} end
 """
@@ -21,7 +21,7 @@ Defines a prognostic (time-integrated) state variable.
 struct Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
     desc::String
-    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
+    Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
     Prognostic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
 """
@@ -33,7 +33,7 @@ struct Algebraic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     dim::S
     desc::String
     # maybe a mass matrix init function?
-    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
+    Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
     Algebraic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
 """
@@ -45,7 +45,7 @@ the residual for algebraic variables.
 struct Delta{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     dim::S
     desc::String
-    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells,typeof(identity)}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{dname,name,typeof(dims),T,units,domain}(dims, desc)
+    Delta(dname::Symbol, name::Symbol, dims::Union{<:Shape,OnGrid{Cells}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{dname,name,typeof(dims),T,units,domain}(dims, desc)
     Delta(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{deltaname(name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
     Delta(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{deltaname(name),name,typeof(dims),T,units,domain}(dims) end
 end

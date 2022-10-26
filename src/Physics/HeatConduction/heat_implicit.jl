@@ -13,8 +13,8 @@ CryoGrid.variables(heat::ImplicitHeat) = (
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
     Diagnostic(:θw, OnGrid(Cells), domain=0..1),
     # coefficients and cache variables for diffusion operator
-    Diagnostic(:DT_an, OnGrid(Cells, n -> n-1)),
-    Diagnostic(:DT_as, OnGrid(Cells, n -> n-1)),
+    Diagnostic(:DT_an, OnGrid(Cells, -1)),
+    Diagnostic(:DT_as, OnGrid(Cells, -1)),
     Diagnostic(:DT_ap, OnGrid(Cells)),
     Diagnostic(:DT_bp, OnGrid(Cells)),
 )
@@ -47,13 +47,13 @@ function CryoGrid.diagnosticstep!(
     @. ap[2:end] += an
     return nothing # ensure no allocation
 end
-function CryoGrid.boundaryflux(::Dirichlet, ::HeatBC, ::Top, heat::Heat, sub::SubSurface, stop, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, ::HeatBC, ::Top, heat::ImplicitHeat, sub::SubSurface, stop, ssub)
     T_ub = boundaryvalue(bc, top, heat, sub, stop, ssub)
     k = ssub.k[1]
     Δk = CryoGrid.thickness(sub, ssub, first)
     return 2*T_ub*k / Δk^2
 end
-function CryoGrid.boundaryflux(::Dirichlet, ::HeatBC, ::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, ::HeatBC, ::Bottom, heat::ImplicitHeat, sub::SubSurface, sbot, ssub)
     T_lb = boundaryvalue(bc, bot, heat, sub, sbot, ssub)
     k = ssub.k[end]
     Δk = CryoGrid.thickness(sub, ssub, last)
