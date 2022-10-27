@@ -6,7 +6,6 @@ import ConstructionBase
 using CryoGrid
 using CryoGrid.Physics
 using CryoGrid.Numerics
-using CryoGrid.Numerics: flux!, divergence!, ∇
 using CryoGrid.Utils
 
 using IfElse

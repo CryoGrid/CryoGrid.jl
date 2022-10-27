@@ -74,7 +74,7 @@ end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     if !water.flow.advection_only
         # compute diffusive fluxes from pressure, if enabled
-        flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
+        Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
     end
     return nothing
 end

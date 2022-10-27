@@ -128,7 +128,7 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
     @inbounds for i in 2:N-1 # note that the index is over grid *edges*
         let θwᵢ₋₁ = state.θw[i-1], # cell above edge i
             θfc = fieldcapacity(sub, water),
-            kw = state.kw[i];
+            kw = state.kw[i]*state.dt;
             # compute fluxes over inner grid cell faces
             state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
         end
@@ -178,7 +178,7 @@ function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance, state)
     evapotranspirative_fluxes!(sub, water, state)
     wateradvection!(sub, water, state)
     balancefluxes!(sub, water, state)
-    divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
+    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
     waterprognostic!(sub, water, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)

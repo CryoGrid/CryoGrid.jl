@@ -2,7 +2,6 @@ module Soils
 
 using CryoGrid
 using CryoGrid.Numerics
-using CryoGrid.Numerics: heaviside
 using CryoGrid.Physics
 using CryoGrid.Physics.HeatConduction
 using CryoGrid.Physics.Hydrology
