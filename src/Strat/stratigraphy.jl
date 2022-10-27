@@ -26,6 +26,12 @@ struct Stratigraphy{N,TLayers,TBoundaries}
         sub::Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}},
         bot::Pair{<:StratBoundaryType,<:Bottom}
     ) = Stratigraphy(top,(sub,),bot)
+    Stratigraphy(
+        # use @nospecialize to (hopefully) reduce compilation overhead
+        @nospecialize(top::Pair{<:StratBoundaryType,<:Top}),
+        @nospecialize(sub::AbstractVector{<:Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}}}),
+        @nospecialize(bot::Pair{<:StratBoundaryType,<:Bottom})
+    ) = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
         @nospecialize(top::Pair{<:StratBoundaryType,<:Top}),
