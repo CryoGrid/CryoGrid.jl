@@ -71,7 +71,7 @@ The real work finally happens in [`diagnosticstep!`](@ref) and [`prognosticstep!
 We can take as an example the implementation of `prognosticstep!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 
 ```julia
-function CryoGrid.prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
+function CryoGrid.prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,<:PrognosticEnthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

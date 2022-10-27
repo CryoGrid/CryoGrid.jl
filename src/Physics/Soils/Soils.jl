@@ -31,9 +31,9 @@ export soilparameters, soilcomponent, porosity, mineral, organic
 export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
 
 # aliases for heat formulations in HeatConduction module
-const Enthalpy = HeatConduction.Enthalpy
+const PrognosticTemperature = HeatConduction.PrognosticTemperature
+const PrognosticEnthalpy = HeatConduction.PrognosticEnthalpy
 const EnthalpyImplicit = HeatConduction.EnthalpyImplicit
-const Temperature = HeatConduction.Temperature
 
 """
     SoilComposition

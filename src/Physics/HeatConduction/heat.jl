@@ -108,7 +108,7 @@ end
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
-CryoGrid.variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
+CryoGrid.variables(heat::Heat{<:FreezeCurve,<:PrognosticEnthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     CryoGrid.basevariables(heat)...,
@@ -116,7 +116,7 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,Enthalpy}) = (
 """
 Variable definitions for heat conduction (temperature).
 """
-CryoGrid.variables(heat::Heat{<:FreezeCurve,Temperature}) = (
+CryoGrid.variables(heat::Heat{<:FreezeCurve,<:PrognosticTemperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
@@ -219,7 +219,7 @@ end
 """
 Prognostic step for heat conduction (enthalpy) on subsurface layer.
 """
-function CryoGrid.prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,Enthalpy}, state)
+function CryoGrid.prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,<:PrognosticEnthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -229,7 +229,7 @@ end
 """
 Prognostic step for heat conduction (temperature) on subsurface layer.
 """
-function CryoGrid.prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,Temperature}, state)
+function CryoGrid.prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,<:PrognosticTemperature}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -240,19 +240,19 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,Temperat
     return nothing
 end
 # CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,Enthalpy,<:Physics.CFL}, state) = Inf
+CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,<:PrognosticEnthalpy,<:Physics.CFL}, state) = Inf
 """
-    timestep(::SubSurface, ::Heat{Tfc,TForm,CFL}, state) where {TForm}
+    timestep(::SubSurface, ::Heat{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
 
 Implementation of `timestep` for `Heat` using the Courant-Fredrichs-Lewy condition
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
-function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.CFL}, state) where {Tfc,TForm}
-    derivative(::Enthalpy, state) = state.∂H∂t
-    derivative(::Temperature, state) = state.∂T∂t
-    prognostic(::Enthalpy, state) = state.H
-    prognostic(::Temperature, state) = state.T
+function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,THeatOp,<:Physics.CFL}, state) where {Tfc,THeatOp}
+    derivative(::PrognosticEnthalpy, state) = state.∂H∂t
+    derivative(::PrognosticTemperature, state) = state.∂T∂t
+    prognostic(::PrognosticEnthalpy, state) = state.H
+    prognostic(::PrognosticTemperature, state) = state.T
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
@@ -261,7 +261,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.CFL}, st
             Δx = Δx[i],
             Δt = c*v*Δx^2;
             # compute maxdelta timestep limit and choose the smaller one
-            Δt = min(Δt, heat.dtlim.maxdelta(derivative(heat.form, state)[i], prognostic(heat.form, state)[i], state.t))
+            Δt = min(Δt, heat.dtlim.maxdelta(derivative(heat.op, state)[i], prognostic(heat.op, state)[i], state.t))
             # select smaller of current dtmax and Δt
             min(dtmax, Δt)
         end
@@ -269,7 +269,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.CFL}, st
     dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
-function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.MaxDelta}, state) where {Tfc,TForm}
+function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,THeatOp,<:Physics.MaxDelta}, state) where {Tfc,THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
@@ -279,7 +279,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.MaxDelta
     return dtmax
 end
 # Free water freeze curve
-@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,<:EnthalpyAny}, state, i)
+@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,<:PrognosticEnthalpy}, state, i)
     hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
     return enthalpyinv(heat.freezecurve, hc, state.H[i], hc.θwi, heat.prop.L)
 end
@@ -290,13 +290,13 @@ end
     return T, θw, C
 end
 """
-    freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
+    freezethaw!(sub::SubSurface, heat::Heat{FreeWater,<:PrognosticEnthalpy}, state)
 
 Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θwi), and liquid water content (θw).
 """
-@inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,<:EnthalpyAny}, state)
+@inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,<:PrognosticEnthalpy}, state)
     @inbounds for i in 1:length(state.H)
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)
