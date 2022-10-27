@@ -60,6 +60,7 @@ function Base.getproperty(state::TileState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
+Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:states,:t,:dt)
 @inline @generated function TileState(vs::VarStates{names}, zs::NTuple, u=copy(vs.uproto), du=similar(vs.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
     layerstates = (
         quote
