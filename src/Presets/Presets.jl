@@ -6,6 +6,7 @@ module Presets
 using CryoGrid
 using CryoGrid.InputOutput: Resource
 using CryoGrid.Numerics
+using CryoGrid.Strat
 
 using Statistics
 
@@ -14,12 +15,12 @@ export SoilHeatTile, SamoylovDefault
 include("presetgrids.jl")
 
 """
-    SoilHeatTile([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer; grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    SoilHeatTile([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
-function SoilHeatTile(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer;
+function SoilHeatTile(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer;
     grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
@@ -28,7 +29,7 @@ function SoilHeatTile(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, i
     )
     Tile(strat, grid, init, chunk_size=chunk_size)
 end
-SoilHeatTile(upperbc::BoundaryProcess, soilprofile::Profile, init::Numerics.VarInitializer; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatTile(:H, upperbc, soilprofile, init; grid=grid, freezecurve=freezecurve)
+SoilHeatTile(upperbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_2cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatTile(:H, upperbc, soilprofile, init; grid=grid, freezecurve=freezecurve)
 
 Forcings = (
     Samoylov_ERA5_fitted_daily_1979_2020 = Resource("samoylov_era5_fitted_daily_1979-2020", ForcingJSON{2}, "https://nextcloud.awi.de/s/WJtT7CS7HtcoRDz/download/samoylov_era5_fitted_daily_1979-2020.json"),

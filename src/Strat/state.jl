@@ -23,6 +23,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
+Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :grids, :states, :bounds, :t, :dt, :z)
 @inline function LayerState(vs::VarStates, zs::NTuple{2}, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
     z_inds = subgridinds(edges(vs.grid), zs[1]..zs[2])
     return LayerState(

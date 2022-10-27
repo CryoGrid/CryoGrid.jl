@@ -71,7 +71,7 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
     Tile(
         @nospecialize(strat::Stratigraphy),
         @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
-        @nospecialize(inits::Numerics.VarInitializer...);
+        @nospecialize(inits::VarInitializer...);
         arrayproto::Type{A}=Vector,
         iip::Bool=true,
         observe::Vector{Symbol}=Symbol[],
@@ -84,7 +84,7 @@ Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword a
 function Tile(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
-    @nospecialize(inits::Numerics.VarInitializer...);
+    @nospecialize(inits::VarInitializer...);
     arrayproto::Type{A}=Vector,
     iip::Bool=true,
     observe::Vector{Symbol}=Symbol[],
@@ -187,19 +187,24 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
-    for named_layer in strat
-        for init! in tile.inits
-            layerstate = getproperty(state, layername(named_layer))
-            if haskey(layerstate.states, varname(init!))
-                init!(named_layer.obj, layerstate)
-            end
-        end
-    end
     for i in 1:length(strat)-1
         layerᵢ = strat[i].obj
         layerᵢ₊₁ = strat[i+1].obj
         stateᵢ = getproperty(state, layername(strat[i]))
         stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
+        # first invoke initialcondition! with initializers
+        for init in tile.inits
+            if i == 1 && haskey(stateᵢ.states, varname(init))
+                initialcondition!(layerᵢ, stateᵢ, init)
+            end
+            if haskey(stateᵢ₊₁.states, varname(init))
+                initialcondition!(layerᵢ₊₁, stateᵢ₊₁, init)
+            end
+            if haskey(stateᵢ.states, varname(init)) && haskey(stateᵢ₊₁.states, varname(init))
+                initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁, init)
+            end
+        end
+        # then invoke initialcondition! standalone
         if i == 1
             initialcondition!(layerᵢ, stateᵢ)
         end

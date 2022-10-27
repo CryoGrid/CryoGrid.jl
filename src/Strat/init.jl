@@ -10,7 +10,7 @@ struct FunctionInitializer{varname,F} <: VarInitializer{varname}
     f::F
     FunctionInitializer(varname::Symbol, f::F) where {F} = new{varname,F}(f)
 end
-(init::FunctionInitializer)(args...) = init.f(args...)
+CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::FunctionInitializer) = init.f(args...)
 Base.getindex(init::FunctionInitializer, itrv::Interval) = init
 """
     InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
@@ -25,13 +25,20 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     extrap::E
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
-function (init::InterpInitializer{var})(layer, state) where var
+function CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::InterpInitializer{var}) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(map(knot -> dustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
     z = getproperty(state.grids, var)
     if length(depths) > 1
-        f = extrapolate(interpolate((depths,), collect(map(knot -> dustrip(knot.value), profile.knots)), Gridded(interp)), extrap)
+        f = Interpolations.extrapolate(
+            Interpolations.interpolate(
+                (depths,),
+                collect(map(knot -> dustrip(knot.value), profile.knots)),
+                Interpolations.Gridded(interp)
+            ),
+            extrap
+        )
         @. u = f(z)
         return u
     else
@@ -51,6 +58,6 @@ Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpIn
 
 Convenience constructor for `VarInitializer` that selects the appropriate initializer type based on the arguments.
 """
-initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, (layer,state) -> getproperty(state, varname) .= x)
+initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, (layer,state,init) -> getproperty(state, varname) .= x)
 initializer(varname::Symbol, f::Function) = FunctionInitializer(varname, f)
-initializer(varname::Symbol, profile::Profile, interp=Linear(), extrap=Flat()) = InterpInitializer(varname, profile, interp, extrap)
+initializer(varname::Symbol, profile::Profile, interp=Interpolations.Linear(), extrap=Interpolations.Flat()) = InterpInitializer(varname, profile, interp, extrap)

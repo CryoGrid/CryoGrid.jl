@@ -35,6 +35,7 @@ include("Physics/Physics.jl")
 @reexport using .Physics
 include("Strat/Strat.jl")
 @reexport using .Strat
+parameters = Strat.parameters
 include("Diagnostics/Diagnostics.jl")
 @reexport using .Diagnostics
 

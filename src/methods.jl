@@ -32,20 +32,27 @@ basevariables(::Any) = ()
 """
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)
+    initialcondition!(::Layer, ::Process, state, initializer)
 
 Defines the initial condition for a given Process and/or Layer. `initialcondition!` should write initial values into all relevant
 state variables in `state`.
 """
 initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(layer), state)
+initialcondition!(layer::Layer, state, initializer) = initialcondition!(layer, processes(layer), state, initializer)
 initialcondition!(::Layer, ::Process, state) = nothing
+initialcondition!(::Layer, ::Process, state, initializer) = nothing
 """
+    initialcondition!(layer1::Layer, layer2::Layer, state1, state2)
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
+    initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2, initializer)
 
 Defines the initial condition for two processes on adjacent layers. `initialcondition!` should write initial values into all
 relevant state variables in `state`.
 """
 initialcondition!(layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
+initialcondition!(layer1::Layer, layer2::Layer, state1, state2, initializer) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2, initializer)
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2, initializer) = nothing
 """
     diagnosticstep!(l::Layer, state)
     diagnosticstep!(l::Layer, p::Process, state)

@@ -80,7 +80,4 @@ include("varstates.jl")
 
 include("discretize.jl")
 
-export ConstantInitializer, InterpInitializer, initializer, init!
-include("init.jl")
-
 end
