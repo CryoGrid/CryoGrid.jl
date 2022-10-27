@@ -64,14 +64,14 @@ function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
     end
 end
 """
-    freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:PrognosticTemperature}, state)
-    freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:PrognosticEnthalpy}, state)
+    freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:Temperature}, state)
+    freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:Enthalpy}, state)
 
 Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θw, and H.
 """
-function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:PrognosticTemperature}, state)
+function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:Temperature}, state)
     sfcc = freezecurve(heat)
     let L = heat.prop.L,
         f = sfcc.f;
@@ -88,7 +88,7 @@ function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:PrognosticTe
     end
 end
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
-function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:PrognosticEnthalpy}, state)
+function HeatConduction.freezethaw!(soil::Soil, heat::Heat{<:SFCC,<:Enthalpy}, state)
     sfcc = freezecurve(heat)
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
@@ -118,8 +118,8 @@ function HeatConduction.freezethaw!(
     sfcc = freezecurve(heat)
     swrc = FreezeCurves.swrc(sfcc.f)
     # helper function for computing temperature (inverse enthalpy, if necessary)
-    _get_temperature(::Type{<:PrognosticTemperature}, i) = state.T[i]
-    _get_temperature(::Type{<:PrognosticEnthalpy}, i) = enthalpyinv(soil, heat, state, i)
+    _get_temperature(::Type{<:Temperature}, i) = state.T[i]
+    _get_temperature(::Type{<:Enthalpy}, i) = enthalpyinv(soil, heat, state, i)
     let L = heat.prop.L;
         @inbounds @fastmath for i in 1:length(state.T)
             T = _get_temperature(THeatForm, i)
@@ -154,7 +154,7 @@ function HeatConduction.freezethaw!(
 )
     HeatConduction.freezethaw!(soil, ps[2], state)
 end
-function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,<:PrognosticEnthalpy}, state, i)
+function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,<:Enthalpy}, state, i)
     sfcc = freezecurve(heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water

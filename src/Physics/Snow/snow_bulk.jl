@@ -13,8 +13,8 @@ end
 Type alias for Snowpack with `Bulk` parameterization.
 """
 const BulkSnowpack = Snowpack{<:Bulk}
-# Local alias for HeatConduction PrognosticEnthalpy type
-const PrognosticEnthalpy = HeatConduction.PrognosticEnthalpy
+# Local alias for HeatConduction Enthalpy type
+const Enthalpy = HeatConduction.Enthalpy
 
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
@@ -94,7 +94,7 @@ CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
 )
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
-    procs::Coupled(DynamicSnowMassBalance{TAcc,TAbl,TDen}, Heat{FreeWater,<:PrognosticEnthalpy}),
+    procs::Coupled(DynamicSnowMassBalance{TAcc,TAbl,TDen}, Heat{FreeWater,<:Enthalpy}),
     state
 ) where {TAcc,TAbl<:DegreeDayMelt,TDen<:ConstantDensity}
     smb, heat = procs
@@ -207,7 +207,7 @@ function CryoGrid.trigger!(
 end
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
-    procs::Coupled2{<:PrescribedSnowMassBalance,<:Heat{FreeWater,<:PrognosticEnthalpy}},
+    procs::Coupled2{<:PrescribedSnowMassBalance,<:Heat{FreeWater,<:Enthalpy}},
     state
 )
     smb, heat = procs
@@ -242,7 +242,7 @@ end
 # prognosticstep! for free water, enthalpy based Heat on snow layer
 function CryoGrid.prognosticstep!(
     snow::BulkSnowpack,
-    ps::Coupled(SnowMassBalance,Heat{FreeWater,<:PrognosticEnthalpy}),
+    ps::Coupled(SnowMassBalance,Heat{FreeWater,<:Enthalpy}),
     state
 )
     smb, heat = ps

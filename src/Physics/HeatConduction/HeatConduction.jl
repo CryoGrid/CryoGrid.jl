@@ -48,11 +48,11 @@ struct EnthalpyImplicit <: HeatOperator{:H} end
 """
 Type alias for `HeatOperator{:H}`, i.e. enthalpy-based heat conduction operators.
 """
-const PrognosticEnthalpy = HeatOperator{:H}
+const Enthalpy = HeatOperator{:H}
 """
 Type alias for `HeatOperator{:T}`, i.e. temperature-based heat conduction operators.
 """
-const PrognosticTemperature = HeatOperator{:T}
+const Temperature = HeatOperator{:T}
 
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
@@ -72,15 +72,15 @@ struct Heat{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tinit,TProp} <: SubSurfac
     dtlim::Tdt  # timestep limiter
     init::Tinit # optional initialization scheme
 end
-default_dtlim(::PrognosticTemperature, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
-default_dtlim(::PrognosticEnthalpy, ::FreezeCurve) = Physics.MaxDelta(100u"kJ")
+default_dtlim(::Temperature, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
+default_dtlim(::Enthalpy, ::FreezeCurve) = Physics.MaxDelta(100u"kJ")
 default_dtlim(::HeatOperator, ::FreezeCurve) = nothing
 # convenience constructors for specifying prognostic variable as symbol
 Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
 Heat(::Val{:H}; kwargs...) = Heat(Diffusion(:H); kwargs...)
 Heat(::Val{:T}; kwargs...) = Heat(Diffusion(:T); kwargs...)
 Heat(op; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = Heat(op, prop, deepcopy(freezecurve), dtlim, init)
-Heat(op::PrognosticTemperature; freezecurve, prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = Heat(op, prop, deepcopy(freezecurve), dtlim, init)
+Heat(op::Temperature; freezecurve, prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = Heat(op, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
 thermalproperties(heat::Heat) = heat.prop
