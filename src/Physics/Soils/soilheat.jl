@@ -147,6 +147,13 @@ function HeatConduction.freezethaw!(
     end
     return nothing
 end
+function HeatConduction.freezethaw!(
+    soil::Soil,
+    ps::Coupled(WaterBalance{<:BucketScheme}, Heat{FreeWater}),
+    state
+)
+    HeatConduction.freezethaw!(soil, ps[2], state)
+end
 function HeatConduction.enthalpyinv(soil::Soil, heat::Heat{<:SFCC,<:PrognosticEnthalpy}, state, i)
     sfcc = freezecurve(heat)
     @inbounds let H = state.H[i], # enthalpy

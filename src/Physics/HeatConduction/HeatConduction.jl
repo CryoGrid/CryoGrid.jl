@@ -102,4 +102,6 @@ include("heat.jl")
 export ImplicitHeat
 include("heat_implicit.jl")
 
+include("water_heat.jl")
+
 end

@@ -21,6 +21,7 @@ DiffEqBase.check_prob_alg_pairing(::CryoGridProblem, ::LiteImplicitEuler) = noth
 DiffEqBase.check_prob_alg_pairing(prob, alg::LiteImplicitEuler) = throw(DiffEqBase.ProblemSolverPairingError(prob, alg))
 
 struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
+    uprev::Tu
     du::Tu
     H::TA
     T_new::TA
@@ -93,15 +94,16 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     sol = CGLiteSolution(prob, u_storage, t_storage)
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
-        copy(u0),
-        similar(u0),
-        similar(u0),
-        similar(u0),
-        similar(u0),
-        similar(u0, length(u0)-1),
-        similar(u0),
-        similar(u0, length(u0)-1),
-        similar(u0),
+        similar(prob.u0),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)-1),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)-1),
+        similar(u0, length(prob.u0.H)),
     )
     return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt, 1)
 end

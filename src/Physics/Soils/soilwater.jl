@@ -95,8 +95,8 @@ function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
 end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
     water, heat = ps
-    CryoGrid.diagnosticstep!(soil, ps, state)
-    @. state.H = enthalpy(state.T, state.C, heat.prop.L, state.θw)
+    CryoGrid.initialcondition!(soil, water, state)
+    CryoGrid.initialcondition!(soil, heat, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]

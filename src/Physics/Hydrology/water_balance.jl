@@ -128,7 +128,7 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
     @inbounds for i in 2:N-1 # note that the index is over grid *edges*
         let θwᵢ₋₁ = state.θw[i-1], # cell above edge i
             θfc = fieldcapacity(sub, water),
-            kw = state.kw[i]*state.dt;
+            kw = state.kw[i];
             # compute fluxes over inner grid cell faces
             state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
         end

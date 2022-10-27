@@ -1,9 +1,9 @@
 """
 Type alias for the implicit enthalpy formulation of Heat.
 """
-const ImplicitHeat{Tfc} = Heat{Tfc,EnthalpyImplicit} where {Tfc<:FreezeCurve}
+const HeatImplicit{Tfc} = Heat{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
 
-function HeatConduction.resetfluxes!(sub::SubSurface, heat::ImplicitHeat, state)
+function HeatConduction.resetfluxes!(sub::SubSurface, heat::HeatImplicit, state)
     @inbounds for i in 1:length(state.H)
         state.∂H∂T[i] = 0.0
         state.∂θw∂T[i] = 0.0
@@ -13,7 +13,7 @@ function HeatConduction.resetfluxes!(sub::SubSurface, heat::ImplicitHeat, state)
         state.DT_as[i] = 0.0
     end
 end
-CryoGrid.variables(::ImplicitHeat) = (
+CryoGrid.variables(::HeatImplicit) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:∂H∂T, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
@@ -30,7 +30,7 @@ CryoGrid.variables(::ImplicitHeat) = (
 )
 function CryoGrid.diagnosticstep!(
     sub::SubSurface,
-    heat::ImplicitHeat,
+    heat::HeatImplicit,
     state
 )
     resetfluxes!(sub, heat, state)
@@ -54,33 +54,33 @@ function CryoGrid.diagnosticstep!(
     @. ap[2:end] += an[2:end]
     return nothing # ensure no allocation
 end
-function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::ImplicitHeat, sub::SubSurface, stop, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatImplicit, sub::SubSurface, stop, ssub)
     T_ub = boundaryvalue(bc, top, heat, sub, stop, ssub)
     k = ssub.k[1]
     Δk = CryoGrid.thickness(sub, ssub, first)
     return 2*T_ub*k / Δk
 end
-function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::ImplicitHeat, sub::SubSurface, sbot, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatImplicit, sub::SubSurface, sbot, ssub)
     T_lb = boundaryvalue(bc, bot, heat, sub, sbot, ssub)
     k = ssub.k[end]
     Δk = CryoGrid.thickness(sub, ssub, last)
     return 2*T_lb*k / Δk
 end
-function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::ImplicitHeat, stop, ssub)
+function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatImplicit, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first)
     jH_top = boundaryflux(bc, top, heat, sub, stop, ssub)
     ssub.DT_bp[1] += jH_top / Δk
     ssub.DT_ap[1] += 2*ssub.k[1] / Δk^2
     return nothing # ensure no allocation
 end
-function CryoGrid.interact!(sub::SubSurface, heat::ImplicitHeat, bot::Bottom, bc::HeatBC, ssub, sbot)
+function CryoGrid.interact!(sub::SubSurface, heat::HeatImplicit, bot::Bottom, bc::HeatBC, ssub, sbot)
     Δk = CryoGrid.thickness(sub, ssub, last)
     jH_bot = boundaryflux(bc, bot, heat, sub, sbot, ssub)
     ssub.DT_bp[end] += jH_bot / Δk
     ssub.DT_ap[end] += 2*ssub.k[1] / Δk^2
     return nothing # ensure no allocation
 end
-function CryoGrid.interact!(sub1::SubSurface, ::ImplicitHeat, sub2::SubSurface, ::ImplicitHeat, s1, s2)
+function CryoGrid.interact!(sub1::SubSurface, ::HeatImplicit, sub2::SubSurface, ::HeatImplicit, s1, s2)
     Δk₁ = CryoGrid.thickness(sub1, s1, last)
     Δk₂ = CryoGrid.thickness(sub2, s2, first)
     Δz = CryoGrid.midpoint(sub2, s2, first) - CryoGrid.midpoint(sub1, s1, last)
@@ -97,4 +97,4 @@ function CryoGrid.interact!(sub1::SubSurface, ::ImplicitHeat, sub2::SubSurface, 
     return nothing # ensure no allocation
 end
 # do nothing in prognostic step
-CryoGrid.prognosticstep!(::SubSurface, ::ImplicitHeat, state) where {Tfc} = nothing
+CryoGrid.prognosticstep!(::SubSurface, ::HeatImplicit, state) where {Tfc} = nothing

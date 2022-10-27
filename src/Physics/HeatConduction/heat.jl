@@ -305,26 +305,3 @@ total water content (θwi), and liquid water content (θw).
     end
     return nothing
 end
-# Water/heat coupling
-CryoGrid.initialcondition!(sub::SubSurface, ps::Coupled(WaterBalance, Heat), state) = CryoGrid.diagnosticstep!(sub, ps, state)
-function CryoGrid.diagnosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, Heat), state)
-    water, heat = ps
-    # Reset fluxes
-    Hydrology.resetfluxes!(sub, water, state)
-    HeatConduction.resetfluxes!(sub, heat, state)
-    # Compute water diagnostics
-    Hydrology.watercontent!(sub, water, state)
-    # Evaluate freeze/thaw processes
-    HeatConduction.freezethaw!(sub, ps, state)
-    # Update thermal conductivity
-    HeatConduction.thermalconductivity!(sub, heat, state)
-    # then hydraulic conductivity
-    Hydrology.hydraulicconductivity!(sub, water, state)
-end
-function CryoGrid.prognosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, Heat), state)
-    water, heat = ps
-    CryoGrid.prognosticstep!(sub, water, state)
-    # heat flux due to change in water content
-    @. state.∂H∂t += state.∂θwi∂t*(state.T*(heat.prop.cw - heat.prop.ci) + heat.prop.L)
-    CryoGrid.prognosticstep!(sub, heat, state)
-end

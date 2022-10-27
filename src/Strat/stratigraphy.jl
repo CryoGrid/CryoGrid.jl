@@ -66,8 +66,8 @@ end
 @inline Base.keys(strat::Stratigraphy) = layernames(strat)
 @inline Base.values(strat::Stratigraphy) = layers(strat)
 @inline Base.propertynames(strat::Stratigraphy) = Base.keys(strat)
-@inline Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
-@inline Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
+@inline Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].obj
+@inline Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].obj
 @generated Base.getindex(strat::Stratigraphy{N,TC}, ::Val{sym}) where {N,TC,sym} = :(layers(strat)[$(findfirst(T -> layername(T) == sym, TC.parameters))])
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(layers(strat))
