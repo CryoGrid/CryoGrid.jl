@@ -20,9 +20,9 @@ end
 DiffEqBase.check_prob_alg_pairing(::CryoGridProblem, ::LiteImplicitEuler) = nothing
 DiffEqBase.check_prob_alg_pairing(prob, alg::LiteImplicitEuler) = throw(DiffEqBase.ProblemSolverPairingError(prob, alg))
 
-struct LiteImplicitEulerCache{TA} <: SciMLBase.DECache
+struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
+    du::Tu
     H::TA
-    dH::TA
     T_new::TA
     resid::TA
     dx::TA
@@ -76,7 +76,7 @@ mutable struct CGLiteIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegr
     step::Int
 end
 SciMLBase.done(integrator::CGLiteIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
-SciMLBase.get_du(integrator::CGLiteIntegrator) = integrator.cache.dH
+SciMLBase.get_du(integrator::CGLiteIntegrator) = integrator.cache.du
 
 function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
     tile = Tile(prob.f)
@@ -97,8 +97,8 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     tile.hist.vals = savevals
     sol = CGLiteSolution(prob, u_storage, t_storage)
     cache = LiteImplicitEulerCache(
+        similar(prob.u0),
         copy(u0),
-        zero(u0),
         zero(u0),
         zero(u0),
         similar(u0, length(cells(grid))-1),

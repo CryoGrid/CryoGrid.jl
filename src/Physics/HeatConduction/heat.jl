@@ -279,7 +279,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,TForm,<:Physics.MaxDelta
     return dtmax
 end
 # Free water freeze curve
-@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state, i)
+@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,<:EnthalpyAny}, state, i)
     hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
     return enthalpyinv(heat.freezecurve, hc, state.H[i], hc.θwi, heat.prop.L)
 end
@@ -296,7 +296,7 @@ Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θwi), and liquid water content (θw).
 """
-@inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,Enthalpy}, state)
+@inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,<:EnthalpyAny}, state)
     @inbounds for i in 1:length(state.H)
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)

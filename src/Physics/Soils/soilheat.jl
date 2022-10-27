@@ -53,7 +53,7 @@ end
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ free water freeze curve.
 """
-function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater,Enthalpy}, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::Heat{FreeWater}, state)
     L = heat.prop.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)

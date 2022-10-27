@@ -38,6 +38,8 @@ struct Enthalpy <: HeatFormulation end
 struct EnthalpyImplicit <: HeatFormulation end
 struct Temperature <: HeatFormulation end
 
+const EnthalpyAny = Union{Enthalpy,EnthalpyImplicit}
+
 @Base.kwdef struct ThermalProperties{Tconsts,TL,Tkw,Tki,Tka,Tcw,Tci,Tca}
     consts::Tconsts = Physics.Constants()
     L::TL = consts.ρw*consts.Lsl

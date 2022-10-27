@@ -133,14 +133,15 @@ function step!(
     _du,
     _u,
     p,
-    t
+    t,
+    dt=1.0,
 ) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,obsv}
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{true}())
+    state = TileState(tile.state, boundaries(strat), u, du, t, dt, Val{true}())
     fastiterate(layers(strat)) do named_layer
         CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
     end
@@ -164,7 +165,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,o
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{true}())
+    state = TileState(tile.state, boundaries(strat), u, du, t, 1.0, Val{true}())
     max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.obj, getproperty(state, layername(named_layer)))
     end
@@ -183,7 +184,7 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     u = zero(similar(tile.state.uproto, eltype(p)))
     tile = updateparams(tile, u, p, t0)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t0, Val{iip}())
+    state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
     for named_layer in strat
@@ -257,8 +258,8 @@ end
 Constructs a `LayerState` representing the full state of `layername` given `tile`, state vectors `u` and `du`, and the
 time step `t`.
 """
-getstate(layername::Symbol, tile::Tile, u, du, t, dt=nothing) = getstate(Val{layername}(), tile, u, du, t, dt)
-function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernames},TInits,TEvents,iip}, _u, _du, t, dt=nothing) where {layername,TStrat,TGrid,TInits,TEvents,iip,layernames}
+getstate(layername::Symbol, tile::Tile, u, du, t, dt=1.0) = getstate(Val{layername}(), tile, u, du, t, dt)
+function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernames},TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {layername,TStrat,TGrid,TInits,TEvents,iip,layernames}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     i = 1
@@ -291,10 +292,10 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
-function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
+function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
-    return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, Val{iip}())
+    return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt, Val{iip}())
 end
 """
     updateparams(tile::Tile, u, p, t)

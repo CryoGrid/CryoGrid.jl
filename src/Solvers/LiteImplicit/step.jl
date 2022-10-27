@@ -1,12 +1,13 @@
 function DiffEqBase.step!(integrator::CGLiteIntegrator)
+    cache = integrator.cache
     u = integrator.u
+    du = cache.du
     H₀ = u.H
     t₀ = integrator.t
     p = integrator.p
     dt = integrator.dt
     t = t₀ + dt
-    cache = integrator.cache
-    dH = cache.dH
+    dH = du.H
     H = cache.H
     H .= H₀
     ϵ = cache.resid
@@ -29,11 +30,11 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     ϵ_max = Inf
     while ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters
         # invoke Tile step function
-        CryoGrid.Strat.step!(tile, dH,  H, p, t)
+        CryoGrid.Strat.step!(tile, dH,  H, p, t, dt)
         dHdT = getvar(Val{:∂H∂T}(), tile, H; interp=false)
         Hinv = getvar(Val{:T}(), tile, H; interp=false)
-        an = getvar(Val{:DT_an}(), tile, H; interp=false)
-        as = getvar(Val{:DT_as}(), tile, H; interp=false)
+        an = @view getvar(Val{:DT_an}(), tile, H; interp=false)[2:end]
+        as = @view getvar(Val{:DT_as}(), tile, H; interp=false)[1:end-1]
         ap = getvar(Val{:DT_ap}(), tile, H; interp=false)
         bp = getvar(Val{:DT_bp}(), tile, H; interp=false)
 
