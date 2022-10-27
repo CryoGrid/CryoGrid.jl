@@ -14,23 +14,15 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     T_new = cache.T_new
     T_new .= zero(eltype(H))
     tile = Strat.updateparams(Tile(integrator.sol.prob.f), H, p, t)
-    grid = tile.state.grid
-    dx = cache.dx
-    ap = cache.ap
-    an = cache.an
-    as = cache.as
-    bp = cache.bp
     Sp = cache.Sp
     Sc = cache.Sc
-    # initialize grid spacing
-    dxp = Δ(grid) # grid cell thickness; length = N
-    dx .= Δ(cells(grid)) # length: N - 1
 
+    # implicit update for energy state
     iter_count = 1
     ϵ_max = Inf
     while ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters
         # invoke Tile step function
-        CryoGrid.Strat.step!(tile, dH,  H, p, t, dt)
+        CryoGrid.Strat.step!(tile, du, u, p, t, dt)
         dHdT = getvar(Val{:∂H∂T}(), tile, H; interp=false)
         Hinv = getvar(Val{:T}(), tile, H; interp=false)
         an = @view getvar(Val{:DT_an}(), tile, H; interp=false)[2:end]

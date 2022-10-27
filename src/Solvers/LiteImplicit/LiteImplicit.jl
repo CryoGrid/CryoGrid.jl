@@ -25,13 +25,8 @@ struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
     H::TA
     T_new::TA
     resid::TA
-    dx::TA
     Sc::TA
     Sp::TA
-    bp::TA
-    ap::TA
-    an::TA
-    as::TA
     A::TA
     B::TA
     C::TA
@@ -97,21 +92,16 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     tile.hist.vals = savevals
     sol = CGLiteSolution(prob, u_storage, t_storage)
     cache = LiteImplicitEulerCache(
-        similar(prob.u0),
+        similar(prob.u0), # should have ComponentArray type
         copy(u0),
-        zero(u0),
-        zero(u0),
-        similar(u0, length(cells(grid))-1),
-        zero(u0),
-        zero(u0),
-        zero(u0),
-        zero(u0),
-        similar(u0, length(u0)-1),
-        similar(u0, length(u0)-1),
+        similar(u0),
+        similar(u0),
+        similar(u0),
+        similar(u0),
         similar(u0, length(u0)-1),
         similar(u0),
         similar(u0, length(u0)-1),
-        similar(u0)
+        similar(u0),
     )
     return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt, 1)
 end
