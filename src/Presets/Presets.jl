@@ -6,6 +6,7 @@ module Presets
 using CryoGrid
 using CryoGrid.InputOutput: Resource
 using CryoGrid.Numerics
+using CryoGrid.Physics
 using CryoGrid.Strat
 
 using Statistics
@@ -24,7 +25,7 @@ function SoilHeatTile(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, i
     grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
-        Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
+        Tuple(knot.depth => Symbol(:soil,i) => Soil(HeatBalance(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
         1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
     )
     Tile(strat, grid, init, chunk_size=chunk_size)

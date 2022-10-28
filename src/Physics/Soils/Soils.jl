@@ -3,7 +3,7 @@ module Soils
 using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Physics
-using CryoGrid.Physics.HeatConduction
+using CryoGrid.Physics.Heat
 using CryoGrid.Physics.Hydrology
 using CryoGrid.Utils
 
@@ -20,7 +20,7 @@ using Unitful
 import CryoGrid
 import CryoGrid.InputOutput
 import CryoGrid.Physics
-import CryoGrid.Physics.HeatConduction
+import CryoGrid.Physics.Heat
 import CryoGrid.Physics.Hydrology
 
 export Soil, SoilParameterization, CharacteristicFractions, SoilProfile
@@ -29,10 +29,10 @@ export soilparameters, soilcomponent, porosity, mineral, organic
 # from FreezeCurves
 export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
 
-# aliases for heat formulations in HeatConduction module
-const Temperature = HeatConduction.Temperature
-const Enthalpy = HeatConduction.Enthalpy
-const EnthalpyImplicit = HeatConduction.EnthalpyImplicit
+# aliases for heat formulations in Heat module
+const Temperature = Heat.Temperature
+const Enthalpy = Heat.Enthalpy
+const EnthalpyImplicit = Heat.EnthalpyImplicit
 
 """
     SoilComposition
@@ -97,7 +97,7 @@ Generic Soil layer.
     proc::Tproc
 end
 Soil(proc::Tproc; kwargs...) where Tproc = Soil(;proc, kwargs...)
-HeatConduction.thermalproperties(soil::Soil) = soil.prop
+Heat.thermalproperties(soil::Soil) = soil.prop
 # SoilComposition trait impl
 SoilComposition(soil::Soil) = SoilComposition(typeof(soil))
 SoilComposition(::Type{<:Soil}) = Heterogeneous()

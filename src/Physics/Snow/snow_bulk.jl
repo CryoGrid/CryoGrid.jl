@@ -13,8 +13,8 @@ end
 Type alias for Snowpack with `Bulk` parameterization.
 """
 const BulkSnowpack = Snowpack{<:Bulk}
-# Local alias for HeatConduction Enthalpy type
-const Enthalpy = HeatConduction.Enthalpy
+# Local alias for Heat Enthalpy type
+const Enthalpy = Heat.Enthalpy
 
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
@@ -22,7 +22,7 @@ CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
 CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = -getscalar(state.dsn) / 2
 
 # Events
-CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:Heat}) = (
+CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),
 )
 # critierion for minimum snow threshold event
@@ -47,7 +47,7 @@ function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
     ::Decreasing,
     snow::BulkSnowpack,
-    ::Coupled2{<:SnowMassBalance,<:Heat},
+    ::Coupled2{<:SnowMassBalance,<:HeatBalance},
     state
 )
     # Case 1: Decreasing snow depth; set everything to zero to remove snowpack
@@ -61,20 +61,20 @@ function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
     ::Increasing,
     snow::BulkSnowpack,
-    procs::Coupled2{<:SnowMassBalance,<:Heat},
+    procs::Coupled2{<:SnowMassBalance,<:HeatBalance},
     state
 )
     # Case 2: Increasing snow depth; initialize temperature and enthalpy state
     # using current upper boundary temperature.
     _, heat = procs
     θfracs = volumetricfractions(snow, heat, state, 1)
-    state.C .= C = HeatConduction.heatcapacity(snow, heat, θfracs...)
+    state.C .= C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
     state.H .= state.T.*C
 end
 # heat upper boundary (for all bulk implementations)
-CryoGrid.interact!(top::Top, bc::HeatBC, snow::BulkSnowpack, heat::Heat, stop, ssnow) = CryoGrid.interact!(CryoGrid.BoundaryStyle(bc), top, bc, snow, heat, stop, ssnow)
-function CryoGrid.interact!(::CryoGrid.Dirichlet, top::Top, bc::HeatBC, snow::BulkSnowpack, heat::Heat, stop, ssnow)
+CryoGrid.interact!(top::Top, bc::HeatBC, snow::BulkSnowpack, heat::HeatBalance, stop, ssnow) = CryoGrid.interact!(CryoGrid.BoundaryStyle(bc), top, bc, snow, heat, stop, ssnow)
+function CryoGrid.interact!(::CryoGrid.Dirichlet, top::Top, bc::HeatBC, snow::BulkSnowpack, heat::HeatBalance, stop, ssnow)
     @setscalar ssnow.T_ub = CryoGrid.boundaryvalue(bc, top, heat, snow, stop, ssnow)
     if getscalar(ssnow.dsn) < threshold(snow)
         @setscalar ssnow.T = getscalar(ssnow.T_ub)
@@ -94,12 +94,12 @@ CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
 )
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
-    procs::Coupled(DynamicSnowMassBalance{TAcc,TAbl,TDen}, Heat{FreeWater,<:Enthalpy}),
+    procs::Coupled(DynamicSnowMassBalance{TAcc,TAbl,TDen}, HeatBalance{FreeWater,<:Enthalpy}),
     state
 ) where {TAcc,TAbl<:DegreeDayMelt,TDen<:ConstantDensity}
     smb, heat = procs
     ρsn = snow.prop.ρsn_new
-    HeatConduction.resetfluxes!(snow, heat, state)
+    Heat.resetfluxes!(snow, heat, state)
     @setscalar state.θwi = θwi = ρsn / snow.prop.ρw
     @setscalar state.ρsn = ρsn
     dsn = getscalar(state.swe) / θwi
@@ -111,13 +111,13 @@ function CryoGrid.diagnosticstep!(
     # but capping the liquid fraction according to the 'max_unfrozen' parameter.
     max_unfrozen = ablation(smb).max_unfrozen
     θwi_cap = θwi*max_unfrozen
-    T, θw, C = HeatConduction.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), θwi_cap, heat.prop.L)
+    T, θw, C = Heat.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), θwi_cap, heat.prop.L)
     # do not allow temperature to exceed 0°C
     @. state.T = min(T, zero(T))
     @. state.θw = θw
     @. state.C = C
     # compute thermal conductivity
-    HeatConduction.thermalconductivity!(snow, heat, state)
+    Heat.thermalconductivity!(snow, heat, state)
     @. state.k = state.kc
     return nothing
 end
@@ -169,7 +169,7 @@ CryoGrid.variables(snow::BulkSnowpack, smb::PrescribedSnowMassBalance) = (
     Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1),
     CryoGrid.basevariables(snow, smb)...,
 )
-CryoGrid.events(::BulkSnowpack, ::Coupled2{<:PrescribedSnowMassBalance,<:Heat}) = (
+CryoGrid.events(::BulkSnowpack, ::Coupled2{<:PrescribedSnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),
 )
 function CryoGrid.criterion(
@@ -187,7 +187,7 @@ function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
     ::Decreasing,
     snow::BulkSnowpack,
-    ::Coupled2{<:PrescribedSnowMassBalance,<:Heat},
+    ::Coupled2{<:PrescribedSnowMassBalance,<:HeatBalance},
     state
 )
     state.H .= 0.0
@@ -196,23 +196,23 @@ function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
     ::Increasing,
     snow::BulkSnowpack,
-    procs::Coupled2{<:PrescribedSnowMassBalance,<:Heat},
+    procs::Coupled2{<:PrescribedSnowMassBalance,<:HeatBalance},
     state
 )
     _, heat = procs
     θfracs = volumetricfractions(snow, heat, state, 1)
-    C = HeatConduction.heatcapacity(snow, heat, θfracs...)
+    C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
     state.H .= state.T.*C
 end
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
-    procs::Coupled2{<:PrescribedSnowMassBalance,<:Heat{FreeWater,<:Enthalpy}},
+    procs::Coupled2{<:PrescribedSnowMassBalance,<:HeatBalance{FreeWater,<:Enthalpy}},
     state
 )
     smb, heat = procs
     ρw = snow.prop.ρw
-    HeatConduction.resetfluxes!(snow, heat, state)
+    Heat.resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
@@ -223,10 +223,10 @@ function CryoGrid.diagnosticstep!(
         @setscalar state.ρsn = new_ρsn
         @setscalar state.dsn = new_dsn
         @. state.θwi = new_ρsn / ρw
-        HeatConduction.freezethaw!(snow, heat, state)
+        Heat.freezethaw!(snow, heat, state)
         # cap temperature at 0°C
         @. state.T = min(state.T, zero(eltype(state.T)))
-        HeatConduction.thermalconductivity!(snow, heat, state)
+        Heat.thermalconductivity!(snow, heat, state)
         @. state.k = state.kc
     else
         # otherwise, set to zero
@@ -239,10 +239,10 @@ function CryoGrid.diagnosticstep!(
         @setscalar state.kc = heat.prop.ka
     end
 end
-# prognosticstep! for free water, enthalpy based Heat on snow layer
+# prognosticstep! for free water, enthalpy based HeatBalance on snow layer
 function CryoGrid.prognosticstep!(
     snow::BulkSnowpack,
-    ps::Coupled(SnowMassBalance,Heat{FreeWater,<:Enthalpy}),
+    ps::Coupled(SnowMassBalance,HeatBalance{FreeWater,<:Enthalpy}),
     state
 )
     smb, heat = ps

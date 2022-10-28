@@ -9,7 +9,7 @@ const modules = [
        CryoGrid.Numerics,
        CryoGrid.Physics,
        CryoGrid.Boundaries,
-       CryoGrid.HeatConduction,
+       CryoGrid.Heat,
        CryoGrid.Hydrology,
        CryoGrid.Soils,
        CryoGrid.Solvers,

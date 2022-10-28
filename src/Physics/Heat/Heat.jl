@@ -1,4 +1,4 @@
-module HeatConduction
+module Heat
 
 import CryoGrid
 import CryoGrid.Physics
@@ -18,7 +18,7 @@ using FreezeCurves: FreezeCurves, FreezeCurve, FreeWater
 using ModelParameters
 using Unitful
 
-export Heat, TemperatureProfile
+export HeatBalance, TemperatureProfile
 export FreeWater, FreezeCurve, freezecurve
 
 """
@@ -65,7 +65,7 @@ const Temperature = HeatOperator{:T}
     ca::Tca = Param(0.00125e6, units=u"J/K/m^3", domain=StrictlyPositive) # heat capacity of air
 end
 
-struct Heat{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tinit,TProp} <: SubSurfaceProcess
+struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tinit,TProp} <: SubSurfaceProcess
     op::THeatOp
     prop::TProp
     freezecurve::Tfc
@@ -76,15 +76,15 @@ default_dtlim(::Temperature, ::FreezeCurve) = Physics.CFL(maxdelta=Physics.MaxDe
 default_dtlim(::Enthalpy, ::FreezeCurve) = Physics.MaxDelta(100u"kJ")
 default_dtlim(::HeatOperator, ::FreezeCurve) = nothing
 # convenience constructors for specifying prognostic variable as symbol
-Heat(var::Symbol=:H; kwargs...) = Heat(Val{var}(); kwargs...)
-Heat(::Val{:H}; kwargs...) = Heat(Diffusion(:H); kwargs...)
-Heat(::Val{:T}; kwargs...) = Heat(Diffusion(:T); kwargs...)
-Heat(op; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = Heat(op, prop, deepcopy(freezecurve), dtlim, init)
-Heat(op::Temperature; freezecurve, prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = Heat(op, prop, deepcopy(freezecurve), dtlim, init)
+HeatBalance(var::Symbol=:H; kwargs...) = HeatBalance(Val{var}(); kwargs...)
+HeatBalance(::Val{:H}; kwargs...) = HeatBalance(Diffusion(:H); kwargs...)
+HeatBalance(::Val{:T}; kwargs...) = HeatBalance(Diffusion(:T); kwargs...)
+HeatBalance(op; freezecurve=FreeWater(), prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = HeatBalance(op, prop, deepcopy(freezecurve), dtlim, init)
+HeatBalance(op::Temperature; freezecurve, prop=ThermalProperties(), dtlim=default_dtlim(op, freezecurve), init=nothing) = HeatBalance(op, prop, deepcopy(freezecurve), dtlim, init)
 
 # getter functions
-thermalproperties(heat::Heat) = heat.prop
-freezecurve(heat::Heat) = heat.freezecurve
+thermalproperties(heat::HeatBalance) = heat.prop
+freezecurve(heat::HeatBalance) = heat.freezecurve
 
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
@@ -97,7 +97,7 @@ export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, NFa
 include("heat_bc.jl")
 
 export heatconduction!, enthalpy, enthalpyinv, freezethaw!, heatcapacity, heatcapacity!, thermalconductivity, thermalconductivity!
-include("heat.jl")
+include("heat_conduction.jl")
 
 export ImplicitHeat
 include("heat_implicit.jl")

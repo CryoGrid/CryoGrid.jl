@@ -19,27 +19,27 @@ latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the cons
 """
 @inline C_eff(T, C, L, ∂θw∂T, cw, ci) = C + ∂θw∂T*(L + T*(cw - ci))
 """
-    thermalconductivities(::SubSurface, heat::Heat)
+    thermalconductivities(::SubSurface, heat::HeatBalance)
 
 Get thermal conductivities for generic `SubSurface` layer.
 """
-@inline thermalconductivities(::SubSurface, heat::Heat) = (heat.prop.kw, heat.prop.ki, heat.prop.ka)
+@inline thermalconductivities(::SubSurface, heat::HeatBalance) = (heat.prop.kw, heat.prop.ki, heat.prop.ka)
 """
-    heatcapacities(::SubSurface, heat::Heat)
+    heatcapacities(::SubSurface, heat::HeatBalance)
 
 Get heat capacities for generic `SubSurface` layer.
 """
-@inline heatcapacities(::SubSurface, heat::Heat) = (heat.prop.cw, heat.prop.ci, heat.prop.ca)
+@inline heatcapacities(::SubSurface, heat::HeatBalance) = (heat.prop.cw, heat.prop.ci, heat.prop.ca)
 
 # Generic heat conduction implementation
 
 """
-    volumetricfractions(::SubSurface, ::Heat, state, i)
+    volumetricfractions(::SubSurface, ::HeatBalance, state, i)
 
 Get constituent volumetric fractions for generic `SubSurface` layer. Default implementation assumes
 the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
 """
-@inline function Physics.volumetricfractions(::SubSurface, ::Heat, state, i)
+@inline function Physics.volumetricfractions(::SubSurface, ::HeatBalance, state, i)
     @inbounds let θwi = state.θwi[i],
         θw = state.θw[i],
         θa = 1.0 - θwi,
@@ -48,49 +48,49 @@ the only constitutents are liquid water, ice, and air: `(θw,θi,θa)`.
     end
 end
 """
-    freezethaw!(sub::SubSurface, heat::Heat, state)
+    freezethaw!(sub::SubSurface, heat::HeatBalance, state)
 
 Calculates freezing and thawing effects, including evaluation of the freeze curve.
 In general, this function should compute at least the liquid/frozen water contents
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
 should also be computed depending on the thermal scheme being implemented.
 """
-freezethaw!(::SubSurface, ::Heat, state) = error("missing implementation of freezethaw!")
+freezethaw!(::SubSurface, ::HeatBalance, state) = error("missing implementation of freezethaw!")
 """
-    heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
+    heatcapacity(sub::SubSurface, heat::HeatBalance, θfracs...)
 
 Computes the heat capacity as a weighted average over constituent capacities with volumetric fractions `θfracs`.
 """
-@inline function heatcapacity(sub::SubSurface, heat::Heat, θfracs...)
+@inline function heatcapacity(sub::SubSurface, heat::HeatBalance, θfracs...)
     cs = heatcapacities(sub, heat)
     return sum(map(*, cs, θfracs))
 end
 """
-    heatcapacity!(sub::SubSurface, heat::Heat, state)
+    heatcapacity!(sub::SubSurface, heat::HeatBalance, state)
 
 Computes the heat capacity for the given layer from the current state and stores the result in-place in the state variable `C`.
 """
-@inline function heatcapacity!(sub::SubSurface, heat::Heat, state)
+@inline function heatcapacity!(sub::SubSurface, heat::HeatBalance, state)
     @inbounds for i in 1:length(state.T)
         θfracs = volumetricfractions(sub, heat, state, i)
         state.C[i] = heatcapacity(sub, heat, θfracs...)
     end
 end
 """
-    thermalconductivity(sub::SubSurface, heat::Heat, θfracs...)
+    thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
 
 Computes the thermal conductivity as a squared weighted sum over constituent conductivities with volumetric fractions `θfracs`.
 """
-@inline function thermalconductivity(sub::SubSurface, heat::Heat, θfracs...)
+@inline function thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
     ks = thermalconductivities(sub, heat)
     return sum(map(*, map(sqrt, ks), θfracs))^2
 end
 """
-    thermalconductivity!(sub::SubSurface, heat::Heat, state)
+    thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
 
 Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `C`.
 """
-@inline function thermalconductivity!(sub::SubSurface, heat::Heat, state)
+@inline function thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
     @inbounds for i in 1:length(state.T)
         θfracs = volumetricfractions(sub, heat, state, i)
         state.kc[i] = thermalconductivity(sub, heat, θfracs...)
@@ -108,7 +108,7 @@ end
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
-CryoGrid.variables(heat::Heat{<:FreezeCurve,<:Enthalpy}) = (
+CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Enthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     CryoGrid.basevariables(heat)...,
@@ -116,7 +116,7 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,<:Enthalpy}) = (
 """
 Variable definitions for heat conduction (temperature).
 """
-CryoGrid.variables(heat::Heat{<:FreezeCurve,<:Temperature}) = (
+CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Temperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
@@ -125,7 +125,7 @@ CryoGrid.variables(heat::Heat{<:FreezeCurve,<:Temperature}) = (
 """
 Common variable definitions for all heat implementations.
 """
-CryoGrid.basevariables(::Heat) = (
+CryoGrid.basevariables(::HeatBalance) = (
     Diagnostic(:jH, OnGrid(Edges), u"W/m^2"),    
     Diagnostic(:∂H∂T, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
     Diagnostic(:∂θw∂T, OnGrid(Cells), domain=0..Inf),
@@ -134,7 +134,7 @@ CryoGrid.basevariables(::Heat) = (
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
     Diagnostic(:θw, OnGrid(Cells), domain=0..1),
 )
-function resetfluxes!(sub::SubSurface, heat::Heat, state)
+function resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
     # Reset energy fluxes to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     @. state.∂H∂t = zero(eltype(state.∂H∂t))
@@ -143,7 +143,7 @@ end
 """
 Diagonstic step for heat conduction (all state configurations) on any subsurface layer.
 """
-function CryoGrid.diagnosticstep!(sub::SubSurface, heat::Heat, state)
+function CryoGrid.diagnosticstep!(sub::SubSurface, heat::HeatBalance, state)
     resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
     freezethaw!(sub, heat, state)
@@ -152,9 +152,9 @@ function CryoGrid.diagnosticstep!(sub::SubSurface, heat::Heat, state)
     return nothing # ensure no allocation
 end
 # Boundary fluxes
-@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
-@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::Heat, sub::SubSurface, stop, ssub)
+@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, top::Top, heat::HeatBalance, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,heat,sub,stop,ssub)
+@inline CryoGrid.boundaryflux(::Neumann, bc::HeatBC, bot::Bottom, heat::HeatBalance, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,heat,sub,sbot,ssub)
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalance, sub::SubSurface, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
         Tsub=ssub.T[1],
@@ -163,7 +163,7 @@ end
         -k*(Tsub-Tupper)/δ
     end
 end
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::Heat, sub::SubSurface, sbot, ssub)
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatBalance, sub::SubSurface, sbot, ssub)
     Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
     @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
         Tsub=ssub.T[end],
@@ -176,7 +176,7 @@ end
 """
 Generic top interaction. Computes flux jH at top cell.
 """
-function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::Heat, stop, ssub)
+function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatBalance, stop, ssub)
     # boundary flux
     ssub.jH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
     return nothing # ensure no allocation
@@ -184,7 +184,7 @@ end
 """
 Generic bottom interaction. Computes flux jH at bottom cell.
 """
-function CryoGrid.interact!(sub::SubSurface, heat::Heat, bot::Bottom, bc::HeatBC, ssub, sbot)
+function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc::HeatBC, ssub, sbot)
     # boundary flux; here we flip the sign since a positive flux is by convention downward
     ssub.jH[end] -= boundaryflux(bc, bot, heat, sub, sbot, ssub)
     return nothing # ensure no allocation
@@ -192,7 +192,7 @@ end
 """
 Generic subsurface interaction. Computes flux jH at boundary between subsurface layers.
 """
-function CryoGrid.interact!(sub1::SubSurface, ::Heat, sub2::SubSurface, ::Heat, s1, s2)
+function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, ::HeatBalance, s1, s2)
     Δk₁ = CryoGrid.thickness(sub1, s1, last)
     Δk₂ = CryoGrid.thickness(sub2, s2, first)
     # thermal conductivity between cells
@@ -219,7 +219,7 @@ end
 """
 Prognostic step for heat conduction (enthalpy) on subsurface layer.
 """
-function CryoGrid.prognosticstep!(::SubSurface, ::Heat{<:FreezeCurve,<:Enthalpy}, state)
+function CryoGrid.prognosticstep!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -229,7 +229,7 @@ end
 """
 Prognostic step for heat conduction (temperature) on subsurface layer.
 """
-function CryoGrid.prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,<:Temperature}, state)
+function CryoGrid.prognosticstep!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:Temperature}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -240,15 +240,15 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ::Heat{<:FreezeCurve,<:Temper
     return nothing
 end
 # CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::Heat{FreeWater,<:Enthalpy,<:Physics.CFL}, state) = Inf
+CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy,<:Physics.CFL}, state) = Inf
 """
-    timestep(::SubSurface, ::Heat{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
+    timestep(::SubSurface, ::HeatBalance{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
 
-Implementation of `timestep` for `Heat` using the Courant-Fredrichs-Lewy condition
+Implementation of `timestep` for `HeatBalance` using the Courant-Fredrichs-Lewy condition
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
-function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,THeatOp,<:Physics.CFL}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics.CFL}, state) where {Tfc,THeatOp}
     derivative(::Enthalpy, state) = state.∂H∂t
     derivative(::Temperature, state) = state.∂T∂t
     prognostic(::Enthalpy, state) = state.H
@@ -269,7 +269,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,THeatOp,<:Physics.CFL}, 
     dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
-function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,THeatOp,<:Physics.MaxDelta}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics.MaxDelta}, state) where {Tfc,THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
@@ -279,7 +279,7 @@ function CryoGrid.timestep(::SubSurface, heat::Heat{Tfc,THeatOp,<:Physics.MaxDel
     return dtmax
 end
 # Free water freeze curve
-@inline function enthalpyinv(sub::SubSurface, heat::Heat{FreeWater,<:Enthalpy}, state, i)
+@inline function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state, i)
     hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
     return enthalpyinv(heat.freezecurve, hc, state.H[i], hc.θwi, heat.prop.L)
 end
@@ -290,13 +290,13 @@ end
     return T, θw, C
 end
 """
-    freezethaw!(sub::SubSurface, heat::Heat{FreeWater,<:Enthalpy}, state)
+    freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state)
 
 Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θwi), and liquid water content (θw).
 """
-@inline function freezethaw!(sub::SubSurface, heat::Heat{FreeWater,<:Enthalpy}, state)
+@inline function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state)
     @inbounds for i in 1:length(state.H)
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)

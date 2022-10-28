@@ -25,7 +25,7 @@ Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state,
             state.θsat[i] = Hydrology.maxwater(sub, water, state, i)
             state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
             state.θwi[i], state.dθwidψ[i] = ∇(ψ -> swrc(ψ; θsat=state.θsat[i]), state.ψ[i])
-            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with Heat will overwrite this)
+            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
             state.sat[i] = state.θwi[i] / state.θsat[i]
         end
     end
@@ -93,7 +93,7 @@ CryoGrid.variables(::RichardsEq{Saturation}) = (
 function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
     CryoGrid.diagnosticstep!(soil, water, state)
 end
-function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
+function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.initialcondition!(soil, water, state)
     CryoGrid.initialcondition!(soil, heat, state)

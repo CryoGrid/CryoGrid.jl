@@ -98,7 +98,7 @@ monitors/consumes CryoGrid model outputs.
 
 Example:
 ```julia
-observe(::Val{:meanT}, ::SubSurface, ::Heat, state) = @log meanT = mean(state.T)
+observe(::Val{:meanT}, ::SubSurface, ::HeatBalance, state) = @log meanT = mean(state.T)
 # build model
 ...
 setup = Tile(stratigraphy, grid, observed=[:meanT])

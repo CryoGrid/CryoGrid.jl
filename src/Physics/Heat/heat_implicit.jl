@@ -1,9 +1,9 @@
 """
-Type alias for the implicit enthalpy formulation of Heat.
+Type alias for the implicit enthalpy formulation of HeatBalance.
 """
-const HeatImplicit{Tfc} = Heat{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
+const HeatImplicit{Tfc} = HeatBalance{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
 
-function HeatConduction.resetfluxes!(sub::SubSurface, heat::HeatImplicit, state)
+function Heat.resetfluxes!(sub::SubSurface, heat::HeatImplicit, state)
     @inbounds for i in 1:length(state.H)
         state.∂H∂T[i] = 0.0
         state.∂θw∂T[i] = 0.0

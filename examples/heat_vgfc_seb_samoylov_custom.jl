@@ -36,11 +36,11 @@ initT = initializer(:T, tempprofile)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -z*u"m" => Top(SurfaceEnergyBalance(Tair, pr, q,wind, Lin, Sin, z, solscheme=SEB.Iterative(),stabfun=SEB.HøgstrømSHEBA())),
-    soilprofile[1].depth => :soil1 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[1].value),
-    soilprofile[2].depth => :soil2 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[2].value),
-    soilprofile[3].depth => :soil3 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[3].value),
-    soilprofile[4].depth => :soil4 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[4].value),
-    soilprofile[5].depth => :soil5 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[5].value),
+    soilprofile[1].depth => :soil1 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[1].value),
+    soilprofile[2].depth => :soil2 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[2].value),
+    soilprofile[3].depth => :soil3 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[3].value),
+    soilprofile[4].depth => :soil4 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[4].value),
+    soilprofile[5].depth => :soil5 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[5].value),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 grid = Grid(gridvals);

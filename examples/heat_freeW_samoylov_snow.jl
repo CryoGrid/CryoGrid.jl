@@ -23,14 +23,14 @@ snowmass = SnowMassBalance(
 strat = @Stratigraphy(
     z_top => Top(Coupled(TemperatureGradient(tair), Snowfall(snowfall))),
     # prescribed snow
-    # z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk()), SnowMassBalance(para=Snow.Prescribed(swe=swe, ρsn=ρsn)), Heat(:H)),
+    # z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk()), SnowMassBalance(para=Snow.Prescribed(swe=swe, ρsn=ρsn)), HeatBalance(:H)),
     # "dynamic" snow (i.e. modeled snow accumulation and ablation)
-    z_top => :snowpack => Snowpack(Coupled(snowmass, Heat(:H)), para=Snow.Bulk(thresh=2.0u"cm")),
-    z_sub[1] => :topsoil1 => Soil(Heat(:H), para=soilprofile[1].value),
-    z_sub[2] => :topsoil2 => Soil(Heat(:H), para=soilprofile[2].value),
-    z_sub[3] => :sediment1 => Soil(Heat(:H), para=soilprofile[3].value),
-    z_sub[4] => :sediment2 => Soil(Heat(:H), para=soilprofile[4].value),
-    z_sub[5] => :sediment3 => Soil(Heat(:H), para=soilprofile[5].value),
+    z_top => :snowpack => Snowpack(Coupled(snowmass, HeatBalance(:H)), para=Snow.Bulk(thresh=2.0u"cm")),
+    z_sub[1] => :topsoil1 => Soil(HeatBalance(:H), para=soilprofile[1].value),
+    z_sub[2] => :topsoil2 => Soil(HeatBalance(:H), para=soilprofile[2].value),
+    z_sub[3] => :sediment1 => Soil(HeatBalance(:H), para=soilprofile[3].value),
+    z_sub[4] => :sediment2 => Soil(HeatBalance(:H), para=soilprofile[4].value),
+    z_sub[5] => :sediment3 => Soil(HeatBalance(:H), para=soilprofile[5].value),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 tile = Tile(strat, modelgrid, initT)

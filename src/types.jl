@@ -61,10 +61,10 @@ Coupled(ps::Process...) = CoupledProcesses(ps...)
 Convenince method which constructs a `CoupledProcesses` type corresponding to each type in `types`, e.g:
 
 ```
-Coupled(SnowMassBalance, Heat) = CoupledProcesses{Tuple{T1,T2}} where {T1<:SnowMassBalance, T2<:Heat}
+Coupled(SnowMassBalance, HeatBalance) = CoupledProcesses{Tuple{T1,T2}} where {T1<:SnowMassBalance, T2<:HeatBalance}
 ```
 
-also equivalent to `Coupled2{<:SnowMassBalance,<:Heat}`.
+also equivalent to `Coupled2{<:SnowMassBalance,<:HeatBalance}`.
 """
 @generated function Coupled(types::Type{<:Process}...)
     typenames = map(i -> Symbol(:T,i), 1:length(types))
