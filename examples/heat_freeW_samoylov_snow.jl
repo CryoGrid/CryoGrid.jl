@@ -1,8 +1,7 @@
 using CryoGrid
 using Plots
 
-# forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_1979_2020, :Tair => u"°C", :swe => u"m", :ρsn => u"kg/m^3"; spec=JsonSpec{2});
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d"; spec=JsonSpec{1});
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d");
 # use air temperature as upper boundary forcing;
 tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # swe = TimeSeriesForcing(ustrip.(forcings.data.swe), forcings.timestamps, :swe);

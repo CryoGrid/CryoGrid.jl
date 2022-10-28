@@ -10,7 +10,7 @@ tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), soilprofile, initT)
+model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, initT)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 p = parameters(model)
@@ -25,7 +25,7 @@ cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 savefig("res/Ts_H_tair_freeW_2010-2011.png")
 
-model = CryoGrid.Presets.SoilHeatColumn(TemperatureGradient(tair), soilprofile, freezecurve=SFCC(DallAmico()))
+model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, freezecurve=SFCC(DallAmico()))
 # Set-up parameters
 p = parameters(model)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))

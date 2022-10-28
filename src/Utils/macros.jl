@@ -1,25 +1,4 @@
 """
-Similar to Unitful.@u_str (i.e. u"kg") but conditional on debug mode being enabled. Otherwise, no unit is applied.
-This should be used to apply units (and thus dimensional analysis checks) to physical quantities at test time but
-not during normal execution to avoid unnecessary overhead.
-"""
-macro xu_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(@u_str($unit)) : 1 end
-"""
-Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
-If debug mode is not enabled, plain Float64 is used instead.
-"""
-macro Float_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Float64) end
-"""
-Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
-If debug mode is not enabled, plain Real is used instead.
-"""
-macro Real_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Real) end
-"""
-Similar to @UT_str but produces a Float64 quantity type for the given unit if and only if debug mode is enabled.
-If debug mode is not enabled, plain Number is used instead.
-"""
-macro Number_str(unit) CryoGrid.CRYOGRID_DEBUG ? :(typeof(@u_str($unit)*0.0)) : :(Number) end
-"""
 Similar to Unitful.@u_str (i.e. u"kg") but produces the type of the quantity rather than the instance. NOT conditional
 on debug mode.
 """

@@ -1,67 +1,73 @@
 function DiffEqBase.step!(integrator::CGLiteIntegrator)
+    cache = integrator.cache
+    copyto!(cache.uprev, integrator.u)
     u = integrator.u
-    H₀ = u.H
+    du = cache.du
     t₀ = integrator.t
     p = integrator.p
     dt = integrator.dt
     t = t₀ + dt
+    tile = Strat.updateparams(Tile(integrator.sol.prob.f), u, p, t)
+    # explicit update, if necessary
+    _explicit_step!(integrator, tile, du, u, p, t)
+    # implicit update for energy state
+    _implicit_step!(integrator, tile, du, u, p, t)
+    i = integrator.step + 1
+    # invoke auxiliary state saving function in CryoGridProblem
+    push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
+    push!(tile.hist.vals.t, integrator.t)
+    # use pre-allocated values up to time limit, then push! afterwards
+    # technically step! should probably do nothing when t > tspan[2] ..?
+    if i <= length(integrator.sol.u)
+        integrator.sol.u[i] .= u
+        integrator.sol.t[i] = t
+    else
+        push!(integrator.sol.u, integrator.u)
+        push!(integrator.sol.t, integrator.t)
+    end
+    integrator.step = i
+    integrator.t = t
+    return nothing
+end
+# for Tiles with only heat conduction, no explicit step
+_explicit_step!(integrator::CGLiteIntegrator, tile::HeatOnlyTile, du, u, p, t) = nothing
+function _explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
+    dt = 1.0
+    t_next = integrator.t
+    while t_next < t
+        CryoGrid.Strat.step!(tile, du, u, p, t, dt)
+        dt = min(t - t_next, CryoGrid.timestep(tile, du, u, p, t_next))
+        # Explicit (forward) Euler update for `u` with time derivative `du`
+        @. u = u + dt*du
+        t_next += dt
+    end
+    return u
+end
+function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
+    # initialize local variables
     cache = integrator.cache
-    dH = cache.dH
-    H = cache.H
-    H .= H₀
-    ϵ = cache.resid
+    uprev = cache.uprev
+    H₀ = uprev.H
+    dH = du.H
+    H = u.H
     T_new = cache.T_new
     T_new .= zero(eltype(H))
-    tile = Strat.updateparams(Tile(integrator.sol.prob.f), H, p, t)
-    grid = tile.state.grid
-    dx = cache.dx
-    ap = cache.ap
-    an = cache.an
-    as = cache.as
-    bp = cache.bp
+    ϵ = cache.resid
     Sp = cache.Sp
     Sc = cache.Sc
-    # initialize grid spacing
-    dxp = Δ(grid) # grid cell thickness; length = N
-    dx .= Δ(cells(grid)) # length: N - 1
-
+    dt = integrator.dt
+    # iterative scheme for enthalpy update
     iter_count = 1
     ϵ_max = Inf
     while ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters
-        # diagnostic update and interact!
-        state = getstate(tile, H, dH, t)
-        fastiterate(layers(tile.strat)) do named_layer
-            CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
-        end
-        stratiterate(tile.strat, state) do layer1, layer2, state1, state2
-            CryoGrid.interact!(layer1, layer2, state1, state2)
-        end
-        k = getvar(Val{:k}(), tile, H; interp=false)
-        jH = getvar(Val{:jH}(), tile, H; interp=false)
-        dHdT = getvar(Val{:∂H∂T}(), tile, H; interp=false)
-        Hinv = getvar(Val{:T}(), tile, H; interp=false)
-        T_ub = getscalar(state.top.T_ub)
-
-        k_inner = @view k[2:end-1]
-        dxpn = @view dxp[1:end-1]
-        dxps = @view dxp[2:end]
-        @. an = k_inner / dx / dxpn
-        @. as = k_inner / dx / dxps
-
-        # reset terms
-        bp .= 0
-        ap .= 0
-
-        #Additional heat fluxes ----------------------------------------
-        ap[1:end-1] .+= as
-        ap[2:end] .+= an
-        # account for boundary fluxes; assumes Dirichlet upper boundary and Neumann lower boundary
-        ap[1] += k[1] / (dxp[1]^2 / 2)
-        bp[1] = T_ub*k[1] / (dxp[1]^2 / 2)
-        bp[end] = jH[end]
-
-        # bp_lat[:,j] = sum(lat_flux,dims=2)./Vp[:,j]; #[W/m³];
-        # bp = bp + bp_lat[:,j];
+        # invoke Tile step function
+        CryoGrid.Strat.step!(tile, du, u, p, t, dt)
+        dHdT = getvar(Val{:∂H∂T}(), tile, u; interp=false)
+        Hinv = getvar(Val{:T}(), tile, u; interp=false)
+        an = @view getvar(Val{:DT_an}(), tile, u; interp=false)[2:end]
+        as = @view getvar(Val{:DT_as}(), tile, u; interp=false)[1:end-1]
+        ap = getvar(Val{:DT_ap}(), tile, u; interp=false)
+        bp = getvar(Val{:DT_bp}(), tile, u; interp=false)
 
         @. Sp = -dHdT / dt;
         @. Sc = (H₀ - H) / dt - Sp*Hinv;
@@ -91,21 +97,5 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     if iter_count > integrator.alg.maxiters && ϵ_max > integrator.alg.tolerance
         @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
     end
-    # write new state into integrator
-    copyto!(integrator.u.H, H)
-    i = integrator.step + 1
-    push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, get_du(integrator)))
-    push!(tile.hist.vals.t, integrator.t)
-    # use pre-allocated values up to time limit, then push! afterwards
-    # technically step! should probably do nothing when t > tspan[2] ..?
-    if i <= length(integrator.sol.u)
-        integrator.sol.u[i] .= integrator.u
-        integrator.sol.t[i] = t
-    else
-        push!(integrator.sol.u, integrator.u)
-        push!(integrator.sol.t, integrator.t)
-    end
-    integrator.step = i
-    integrator.t = t
-    return nothing
+    return dH
 end

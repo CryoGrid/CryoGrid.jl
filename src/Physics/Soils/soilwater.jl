@@ -46,13 +46,13 @@ end
 end
 @inline function Hydrology.hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
     kw_sat = Hydrology.kwsat(sub, water)
-    vg = swrc(water)
+    vg = Soils.swrc(water)
     Δkw = Δ(state.grids.kw)
     @inbounds for i in 1:length(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
             θwi = state.θwi[i],
-            I_ice = impedencefactor(water, θw, θwi),
+            I_ice = Soils.impedencefactor(water, θw, θwi),
             n = vg.n;
             # van Genuchten formulation of hydraulic conductivity; see van Genuchten (1980) and Westermann et al. (2022).
             # we use `complex` types here to permit illegal state values which may occur for adaptive solving schemes
@@ -74,7 +74,7 @@ end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     if !water.flow.advection_only
         # compute diffusive fluxes from pressure, if enabled
-        flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
+        Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
     end
     return nothing
 end
@@ -95,8 +95,8 @@ function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
 end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
     water, heat = ps
-    CryoGrid.diagnosticstep!(soil, ps, state)
-    @. state.H = enthalpy(state.T, state.C, heat.prop.L, state.θw)
+    CryoGrid.initialcondition!(soil, water, state)
+    CryoGrid.initialcondition!(soil, heat, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]

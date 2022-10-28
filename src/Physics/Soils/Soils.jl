@@ -2,7 +2,6 @@ module Soils
 
 using CryoGrid
 using CryoGrid.Numerics
-using CryoGrid.Numerics: heaviside
 using CryoGrid.Physics
 using CryoGrid.Physics.HeatConduction
 using CryoGrid.Physics.Hydrology
@@ -30,8 +29,10 @@ export soilparameters, soilcomponent, porosity, mineral, organic
 # from FreezeCurves
 export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie, VanGenuchten, BrooksCorey
 
-const Enthalpy = HeatConduction.Enthalpy
+# aliases for heat formulations in HeatConduction module
 const Temperature = HeatConduction.Temperature
+const Enthalpy = HeatConduction.Enthalpy
+const EnthalpyImplicit = HeatConduction.EnthalpyImplicit
 
 """
     SoilComposition

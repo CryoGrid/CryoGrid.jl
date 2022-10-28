@@ -75,24 +75,24 @@ end
 """
 Density of air at given tempeature and pressure
 """
-density_air(seb::SurfaceEnergyBalance,T::Real"°C",p::Real"Pa") = p / (normalize_temperature(T) * seb.sebparams.Rₐ);
+density_air(seb::SurfaceEnergyBalance,T, p) = p / (normalize_temperature(T) * seb.sebparams.Rₐ);
 
 """
 Saturation pressure of water/ice according to the empirical August-Roche-Magnus formula
 """
-estar(T::Real"°C") = (T > 0) ? 611.2 * exp(17.62 * T / (243.12 + T)) : 611.2 * exp(22.46 * T / (272.62 + T)); # Eq. (B3) in Westermann et al. (2016)
+estar(T) = (T > 0) ? 611.2 * exp(17.62 * T / (243.12 + T)) : 611.2 * exp(22.46 * T / (272.62 + T)); # Eq. (B3) in Westermann et al. (2016)
 
 """
 Latent heat of evaporation/condensation of water in [J/kg]
 according to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-L_lg(T::Real"°C") = 1000 * (2500.8 - 2.36 * T + 0.0016 * T^2 - 0.00006 * T^3);
+L_lg(T) = 1000 * (2500.8 - 2.36 * T + 0.0016 * T^2 - 0.00006 * T^3);
 
 """
 Latent heat of sublimation/resublimation of water in [J/kg]
 accodring to https://en.wikipedia.org/wiki/Latent_heat#cite_note-RYfit-11
 """
-L_sg(T::Real"°C") = 1000 * (2834.1 - 0.29 * T - 0.004 * T^2);
+L_sg(T) = 1000 * (2834.1 - 0.29 * T - 0.004 * T^2);
 
 """
 Friction velocity according to Monin-Obukhov theory
@@ -249,7 +249,7 @@ Integrated stability function for heat/water transport
     Högström, 1988
     SHEBA, Uttal et al., 2002, Grachev et al. 2007
 """
-function Ψ_HW(seb::SurfaceEnergyBalance{T,HøgstrømSHEBA}, ζ₁::Float64, ζ₂::Float64) where T
+function Ψ_HW(seb::SurfaceEnergyBalance{T,HøgstrømSHEBA}, ζ₁, ζ₂) where T
     if ζ₁ <= 0 # neutral and unstable conditions (according to Høgstrøm, 1988)
         # computed using WolframAlpha command "Integrate[ (1-(0.95*(1-11.6x)^(-1/2)))/x ] assuming x<0"
         res = real( log(Complex(ζ₁)) + 1.9 * atanh(Complex((1 - 11.6 * ζ₁)^0.5)) -
@@ -272,7 +272,7 @@ Integrated stability function for momentum transport
     Högström, 1988
     SHEBA, Uttal et al., 2002, Grachev et al. 2007
 """
-function Ψ_M(seb::SurfaceEnergyBalance{T,HøgstrømSHEBA}, ζ₁::Float64, ζ₂::Float64) where T
+function Ψ_M(seb::SurfaceEnergyBalance{T,HøgstrømSHEBA}, ζ₁, ζ₂) where T
     if ζ₁ <= 0 # neutral and unstable conditions (according to Høgstrøm, 1988)
         # computed using WolframAlpha command "Integrate[ (1-(1-19.3x)^(-1/4))/x ] assuming x<0"
         # log(ζ₁) - 2*atan((1-19.3*ζ₁)^(1/4)) + 2*atanh((1-19.3*ζ₁)^(1/4)) -

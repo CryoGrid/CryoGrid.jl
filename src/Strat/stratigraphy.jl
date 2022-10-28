@@ -26,6 +26,12 @@ struct Stratigraphy{N,TLayers,TBoundaries}
         sub::Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}},
         bot::Pair{<:StratBoundaryType,<:Bottom}
     ) = Stratigraphy(top,(sub,),bot)
+    Stratigraphy(
+        # use @nospecialize to (hopefully) reduce compilation overhead
+        @nospecialize(top::Pair{<:StratBoundaryType,<:Top}),
+        @nospecialize(sub::AbstractVector{<:Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}}}),
+        @nospecialize(bot::Pair{<:StratBoundaryType,<:Bottom})
+    ) = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
         @nospecialize(top::Pair{<:StratBoundaryType,<:Top}),
@@ -66,8 +72,8 @@ end
 @inline Base.keys(strat::Stratigraphy) = layernames(strat)
 @inline Base.values(strat::Stratigraphy) = layers(strat)
 @inline Base.propertynames(strat::Stratigraphy) = Base.keys(strat)
-@inline Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
-@inline Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()]
+@inline Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].obj
+@inline Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].obj
 @generated Base.getindex(strat::Stratigraphy{N,TC}, ::Val{sym}) where {N,TC,sym} = :(layers(strat)[$(findfirst(T -> layername(T) == sym, TC.parameters))])
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(layers(strat))

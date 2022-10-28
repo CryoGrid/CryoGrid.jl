@@ -71,11 +71,11 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
     Tile(
         @nospecialize(strat::Stratigraphy),
         @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
-        @nospecialize(inits::Numerics.VarInitializer...);
+        @nospecialize(inits::VarInitializer...);
         arrayproto::Type{A}=Vector,
         iip::Bool=true,
         observe::Vector{Symbol}=Symbol[],
-        chunksize=nothing,
+        chunk_size=nothing,
     )
 
 Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
@@ -84,11 +84,11 @@ Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword a
 function Tile(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
-    @nospecialize(inits::Numerics.VarInitializer...);
+    @nospecialize(inits::VarInitializer...);
     arrayproto::Type{A}=Vector,
     iip::Bool=true,
     observe::Vector{Symbol}=Symbol[],
-    chunksize=nothing,
+    chunk_size=nothing,
 ) where {A<:AbstractArray}
     vars = OrderedDict()
     events = OrderedDict()
@@ -107,7 +107,7 @@ function Tile(
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
-    states = _initvarstates(strat, grid, vars, chunksize, arrayproto)
+    states = _initvarstates(strat, grid, vars, chunk_size, arrayproto)
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
@@ -133,14 +133,15 @@ function step!(
     _du,
     _u,
     p,
-    t
+    t,
+    dt=1.0,
 ) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,obsv}
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{true}())
+    state = TileState(tile.state, boundaries(strat), u, du, t, dt, Val{true}())
     fastiterate(layers(strat)) do named_layer
         CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
     end
@@ -164,7 +165,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,o
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, Val{true}())
+    state = TileState(tile.state, boundaries(strat), u, du, t, 1.0, Val{true}())
     max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.obj, getproperty(state, layername(named_layer)))
     end
@@ -183,22 +184,27 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     u = zero(similar(tile.state.uproto, eltype(p)))
     tile = updateparams(tile, u, p, t0)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t0, Val{iip}())
+    state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
-    for named_layer in strat
-        for init! in tile.inits
-            layerstate = getproperty(state, layername(named_layer))
-            if haskey(layerstate.states, varname(init!))
-                init!(named_layer.obj, layerstate)
-            end
-        end
-    end
     for i in 1:length(strat)-1
         layerᵢ = strat[i].obj
         layerᵢ₊₁ = strat[i+1].obj
         stateᵢ = getproperty(state, layername(strat[i]))
         stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
+        # first invoke initialcondition! with initializers
+        for init in tile.inits
+            if i == 1 && haskey(stateᵢ.states, varname(init))
+                initialcondition!(layerᵢ, stateᵢ, init)
+            end
+            if haskey(stateᵢ₊₁.states, varname(init))
+                initialcondition!(layerᵢ₊₁, stateᵢ₊₁, init)
+            end
+            if haskey(stateᵢ.states, varname(init)) && haskey(stateᵢ₊₁.states, varname(init))
+                initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁, init)
+            end
+        end
+        # then invoke initialcondition! standalone
         if i == 1
             initialcondition!(layerᵢ, stateᵢ)
         end
@@ -257,8 +263,8 @@ end
 Constructs a `LayerState` representing the full state of `layername` given `tile`, state vectors `u` and `du`, and the
 time step `t`.
 """
-getstate(layername::Symbol, tile::Tile, u, du, t, dt=nothing) = getstate(Val{layername}(), tile, u, du, t, dt)
-function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernames},TInits,TEvents,iip}, _u, _du, t, dt=nothing) where {layername,TStrat,TGrid,TInits,TEvents,iip,layernames}
+getstate(layername::Symbol, tile::Tile, u, du, t, dt=1.0) = getstate(Val{layername}(), tile, u, du, t, dt)
+function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernames},TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {layername,TStrat,TGrid,TInits,TEvents,iip,layernames}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     i = 1
@@ -291,10 +297,10 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
-function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
+function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
-    return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, Val{iip}())
+    return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt, Val{iip}())
 end
 """
     updateparams(tile::Tile, u, p, t)
@@ -367,7 +373,7 @@ end
 """
 Initialize `VarStates` which holds the caches for all defined state variables.
 """
-function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::OrderedDict), chunksize::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
+function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::OrderedDict), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
     layernames = [layername(layer) for layer in strat]
     ntvars = NamedTuple{Tuple(layernames)}(Tuple(values(vars)))
     npvars = (length(filter(isprognostic, var)) + length(filter(isalgebraic, var)) for var in ntvars) |> sum
@@ -375,7 +381,7 @@ function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
-    chunksize = isnothing(chunksize) ? length(para) : chunksizereturn
-    states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunksize, arrayproto)
+    chunk_size = isnothing(chunk_size) ? length(para) : chunk_size
+    states = VarStates(ntvars, Grid(dustrip(grid), grid.geometry), chunk_size, arrayproto)
     return states
 end

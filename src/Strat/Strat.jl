@@ -27,6 +27,7 @@ using Setfield
 
 import ConstructionBase
 import Flatten
+import Interpolations
 import ModelParameters: update
 
 export Stratigraphy, @Stratigraphy, NamedLayer
@@ -37,7 +38,10 @@ include("stratigraphy.jl")
 export TileState, LayerState
 include("state.jl")
 
-export Tile, withaxes, getstate, parameters
+export ConstantInitializer, InterpInitializer, initializer, init!
+include("init.jl")
+
+export Tile, withaxes, getstate
 include("tile.jl")
 
 export JacobianStyle, DefaultJac, TridiagJac, HeatOnlyTile

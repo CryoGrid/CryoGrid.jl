@@ -20,18 +20,14 @@ end
 DiffEqBase.check_prob_alg_pairing(::CryoGridProblem, ::LiteImplicitEuler) = nothing
 DiffEqBase.check_prob_alg_pairing(prob, alg::LiteImplicitEuler) = throw(DiffEqBase.ProblemSolverPairingError(prob, alg))
 
-struct LiteImplicitEulerCache{TA} <: SciMLBase.DECache
+struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
+    uprev::Tu
+    du::Tu
     H::TA
-    dH::TA
     T_new::TA
     resid::TA
-    dx::TA
     Sc::TA
     Sp::TA
-    bp::TA
-    ap::TA
-    an::TA
-    as::TA
     A::TA
     B::TA
     C::TA
@@ -76,7 +72,7 @@ mutable struct CGLiteIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegr
     step::Int
 end
 SciMLBase.done(integrator::CGLiteIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
-SciMLBase.get_du(integrator::CGLiteIntegrator) = integrator.cache.dH
+SciMLBase.get_du(integrator::CGLiteIntegrator) = integrator.cache.du
 
 function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
     tile = Tile(prob.f)
@@ -97,21 +93,17 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     tile.hist.vals = savevals
     sol = CGLiteSolution(prob, u_storage, t_storage)
     cache = LiteImplicitEulerCache(
-        copy(u0),
-        zero(u0),
-        zero(u0),
-        zero(u0),
-        similar(u0, length(cells(grid))-1),
-        zero(u0),
-        zero(u0),
-        zero(u0),
-        zero(u0),
-        similar(u0, length(u0)-1),
-        similar(u0, length(u0)-1),
-        similar(u0, length(u0)-1),
-        similar(u0),
-        similar(u0, length(u0)-1),
-        similar(u0)
+        similar(prob.u0), # should have ComponentArray type
+        similar(prob.u0),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)-1),
+        similar(u0, length(prob.u0.H)),
+        similar(u0, length(prob.u0.H)-1),
+        similar(u0, length(prob.u0.H)),
     )
     return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt, 1)
 end

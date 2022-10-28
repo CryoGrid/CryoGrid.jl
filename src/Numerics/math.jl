@@ -15,7 +15,7 @@ Takes a function `y = f(x)` and vector-valued argument `x` and returns a tuple: 
 The gradient is calculated using forward-mode automatic differentiation.
 """
 function ∇(f::F, x::AbstractArray) where {F}
-    res = ForwardDiff.gradient!(ForwardDiff.DiffResult(eltype(x), zero(x)), f, x)
+    res = ForwardDiff.gradient!(ForwardDiff.DiffResult(zero(eltype(x)), zero(x)), f, x)
     return res.value, res.derivs
 end
 """

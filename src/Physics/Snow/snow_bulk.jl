@@ -89,12 +89,12 @@ end
 CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
     Prognostic(:swe, Scalar, u"m", domain=0..Inf),
     Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1), 
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1), 
     CryoGrid.basevariables(snow, smb)...,
 )
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
-    procs::Coupled2{<:DynamicSnowMassBalance{TAcc,TAbl,TDen},<:Heat{FreeWater,Enthalpy}},
+    procs::Coupled(DynamicSnowMassBalance{TAcc,TAbl,TDen}, Heat{FreeWater,<:Enthalpy}),
     state
 ) where {TAcc,TAbl<:DegreeDayMelt,TDen<:ConstantDensity}
     smb, heat = procs
@@ -207,7 +207,7 @@ function CryoGrid.trigger!(
 end
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
-    procs::Coupled2{<:PrescribedSnowMassBalance,<:Heat{FreeWater,Enthalpy}},
+    procs::Coupled2{<:PrescribedSnowMassBalance,<:Heat{FreeWater,<:Enthalpy}},
     state
 )
     smb, heat = procs
@@ -240,7 +240,11 @@ function CryoGrid.diagnosticstep!(
     end
 end
 # prognosticstep! for free water, enthalpy based Heat on snow layer
-function CryoGrid.prognosticstep!(snow::BulkSnowpack, ps::Coupled2{<:SnowMassBalance,<:Heat{FreeWater,Enthalpy}}, state)
+function CryoGrid.prognosticstep!(
+    snow::BulkSnowpack,
+    ps::Coupled(SnowMassBalance,Heat{FreeWater,<:Enthalpy}),
+    state
+)
     smb, heat = ps
     prognosticstep!(snow, smb, state)
     dsn = getscalar(state.dsn)

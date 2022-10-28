@@ -24,7 +24,6 @@ forcings = loadforcings(
     :Sin => u"W/m^2",
 );
 Tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-# assume other forcings don't (yet) have units
 pr   = TimeSeriesForcing(forcings.data.pressure, forcings.timestamps, :pr);
 q    = TimeSeriesForcing(forcings.data.q, forcings.timestamps, :q);
 wind = TimeSeriesForcing(forcings.data.wind, forcings.timestamps, :wind);
@@ -34,9 +33,14 @@ z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, p
 tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-strat = Stratigraphy(
+# @Stratigraphy macro lets us list multiple subsurface layers
+strat = @Stratigraphy(
     -z*u"m" => Top(SurfaceEnergyBalance(Tair, pr, q,wind, Lin, Sin, z, solscheme=SEB.Iterative(),stabfun=SEB.HøgstrømSHEBA())),
-    Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=knot.value) for (i,knot) in enumerate(soilprofile)),
+    soilprofile[1].depth => :soil1 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[1].value),
+    soilprofile[2].depth => :soil2 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[2].value),
+    soilprofile[3].depth => :soil3 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[3].value),
+    soilprofile[4].depth => :soil4 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[4].value),
+    soilprofile[5].depth => :soil5 => Soil(Heat(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[5].value),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 grid = Grid(gridvals);

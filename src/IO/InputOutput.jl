@@ -21,31 +21,34 @@ using Tables
 using TimeSeries
 using Unitful
 
-import DimensionalData: stack
+import DimensionalData
 
-export loadforcings
-
-include("ioutils.jl")
-export CryoGridParams
-include("params.jl")
-export Forcing, TimeSeriesForcing
-include("forcings.jl")
-export CryoGridOutput
-include("output.jl")
+export ForcingJSON, ParamJSON, ParamYAML
 
 const INPUT_DIR = "input/"
 const DEFAULT_FORCINGS_DIR = joinpath(INPUT_DIR, "forcings")
 const DEFAULT_PARA_DIR = joinpath(INPUT_DIR, "para")
 
-struct Resource
+"""
+    Resource{T}
+
+Simple representation of a local or remote resource with a `name`, `type`, and `url`.
+The `name` and `type` will be used to specify a file name and suffix respectively.
+"""
+struct Resource{T}
 	name::String
-	type::String
+	format::T
 	url::String
 end
 
+"""
+    fetch(resource::Resource, dir::String)
+
+Downloads the remote `resource` from the location given by its URL to directory `dir`.
+"""
 function fetch(resource::Resource, dir::String)
 	mkpath(dir)
-	filepath = joinpath(dir, resource.name * "." * resource.type)
+	filepath = joinpath(dir, resource.name * "." * filesuffix(resource.format))
     if !isfile(filepath)
         Downloads.download(resource.url, filepath)
     else
@@ -54,52 +57,47 @@ function fetch(resource::Resource, dir::String)
 end
 
 """
-Represents an externally specified format for inputs (i.e. forcings and parameters). IO functions should dispatch on
-specific types `T<:InputSpec` that they implement.
+Represents an externally specified format for forcing inputs. IO functions should dispatch on
+specific types `T<:ForcingInputFormat` that they implement.
 """
-abstract type InputSpec end
+abstract type ForcingInputFormat end
 """
-JSON input format. Version parameter allows for forward/backward-compatibility with future format changes.
+JSON forcing input format (from CryoGridLite). Version parameter allows for forward/backward-compatibility with future format changes.
 """
-struct JsonSpec{Version} <: InputSpec end
+struct ForcingJSON{Version} <: ForcingInputFormat end
 
-export InputSpec, JsonSpec
-
+abstract type ParameterInputFormat end
 """
-    loadforcings(filename::String, units...; spec::Type{T}=JsonSpec{1})
-    loadforcings(resource::Resource, units...; spec::Type{T}=JsonSpec{1}, outdir=DEFAULT_FORCINGS_DIR)
-    loadforcings(::Type{JsonSpec{1}}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
-
-Loads forcing data from the given file according to the format specified by `spec::InputSpec`. Default is JsonSpec{1}.
-Returns a NamedTuple of the form `(data=(...), timestamps=Array{DateTime,1})` where `data` is a NamedTuple matching
-the structure of the JSON file. Units can (and should) be supplied as additional pair arguments, e.g:
-
-`loadforcings("example.json", :Tair=>u"°C", :Ptot=>u"mm")`
+JSON parameter input format (from CryoGridLite).
 """
-loadforcings(filename::String, units...; spec::Type{T}=JsonSpec{1}) where {T <: InputSpec} = loadforcings(T, filename, units...)
-loadforcings(resource::Resource, units...; spec::Type{T}=JsonSpec{1}, outdir=DEFAULT_FORCINGS_DIR) where {T <: InputSpec} = loadforcings(T, fetch(resource, outdir), units...)
-function loadforcings(::Type{JsonSpec{1}}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
-    dict = open(filename, "r") do file; JSON3.read(file) end
-    # convert JSON3 dict for data field to Julia dict
-    data = Dict(dict[:data]...)
-    # get timestamps and then remove from dict
-    ts = @>> data[:t_span] map(DateNumber) map(todatetime)
-    delete!(data, :t_span)
-    unitdict = Dict(units...)
-    vals_with_units = (haskey(unitdict, name) ? vals*unitdict[name] : vals for (name, vals) in data)
-    # construct new named tuple
-    (data = NamedTuple{Tuple(keys(data))}(tuple(vals_with_units...)), timestamps = Array(ts))
+struct ParamJSON{Version} <: ParameterInputFormat end
+"""
+YAML parameter input format matching that of the CryoGrid community model.
+"""
+struct ParamYAML{Version} <: ParameterInputFormat end
+
+filesuffix(::Type{<:ForcingJSON}) = "json"
+filesuffix(::Type{<:ParamJSON}) = "json"
+filesuffix(::Type{<:ParamYAML}) = "yml"
+
+function _autodetect_forcing_format(filepath::String)
+    filename = basename(filepath)
+    if endswith(filename, ".json") || endswith(filename, ".JSON")
+        return ForcingJSON{1}
+    else
+        error("unsupported forcing file format: $filename")
+    end
 end
-function loadforcings(::Type{JsonSpec{2}}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
-    dict = open(filename, "r") do file; JSON3.read(file) end
-    # convert JSON3 dict for data field to Julia dict
-    data = Dict(dict[:data]...)
-    # get timestamps
-    ts = map(DateTime, dict[:timestamps])
-    unitdict = Dict(units...)
-    vals_with_units = (haskey(unitdict, name) ? vals*unitdict[name] : vals for (name, vals) in data)
-    # construct new named tuple
-    (data = NamedTuple{Tuple(keys(data))}(tuple(vals_with_units...)), timestamps = Array(ts))
-end
+
+include("ioutils.jl")
+export CryoGridParams
+include("params.jl")
+export Forcing, TimeSeriesForcing
+include("forcings.jl")
+export CryoGridOutput
+include("output.jl")
+export loadforcings
+include("forcings_loaders.jl")
+include("params_loaders.jl")
 
 end

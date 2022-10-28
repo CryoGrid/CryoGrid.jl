@@ -60,6 +60,10 @@ function _setparafields(m::Model)
     newparent = Flatten.reconstruct(parent(m), updated_parameterizations, CryoGrid.Parameterization)
     return Model(newparent)
 end
+"""
+Constructs a `modelParameters.Model` wrapped with `CryoGridParams` from `obj`. If `full_metadata` is `true`, additonal fields
+for nested `Parameterization` types will be added.
+"""
 function CryoGridParams(obj; full_metadata=false)
     m = Model(obj)
     if full_metadata

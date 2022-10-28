@@ -1,5 +1,10 @@
 import Downloads
 
+"""
+	DateNumber <: Real
+
+Represents a MATLAB DateNumber type.
+"""
 struct DateNumber <: Real
 	val::Float64
 end
