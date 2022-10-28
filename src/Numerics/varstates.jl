@@ -80,11 +80,11 @@ Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::DiffCache) = show(io,
 _retrieve(cache_var::AbstractArray{T}, ::AbstractArray{T}) where {T} = cache_var
 _retrieve(cache_var::AbstractArray{T}, u::AbstractArray{U}) where {T,U} = copyto!(similar(u, length(cache_var)), cache_var)
 retrieve(dc::DiffCache) = dc.cache.du
-retrieve(dc::DiffCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = Prealloc.get_tmp(dc.cache, u)
+retrieve(dc::DiffCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = copyto!(similar(dc.cache.du, T), dc.cache.du)
 retrieve(dc::DiffCache, u::AbstractArray{T}) where {T} = _retrieve(dc.cache.du, u)
 retrieve(dc::DiffCache, u::AbstractArray{T}, t) where {T} = retrieve(dc, u)
 # these cover cases for Rosenbrock solvers where only t has differentiable type
-retrieve(dc::DiffCache, u::AbstractArray, t::T) where {T<:ForwardDiff.Dual} = retrieve(dc, u)
+retrieve(dc::DiffCache, u::AbstractArray, t::T) where {T<:ForwardDiff.Dual} = copyto!(similar(dc.cache.du, T), dc.cache.du)
 retrieve(dc::DiffCache, u::AbstractArray{T}, t::T) where {T<:ForwardDiff.Dual} = retrieve(dc, u)
 # This ugly and confusing type alias is just to help enforce the structure of arguments used to construct state types.
 # It is neither strictly necessary nor important, just there to help prevent user error :)
