@@ -1,6 +1,18 @@
 variables(ps::CoupledProcesses) = tuplejoin((variables(p) for p in ps.process)...)
 variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.processes)...)
 events(layer::Layer, ps::CoupledProcesses) = tuplejoin((events(layer,p) for p in ps.processes)...)
+# invoke `f` on all processes in `ps` sequentially
+function _invoke_sequential(f!::F, l::Layer, ps::CoupledProcesses, args...) where {F}
+    Utils.fastiterate(ps.processes) do proc
+        f!(l, proc, args...)
+    end
+end
+CryoGrid.diagnosticstep!(top::Top, ps::CoupledProcesses, state) = _invoke_sequential(diagnosticstep!, top, ps, state)
+CryoGrid.diagnosticstep!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(diagnosticstep!, bot, ps, state)
+CryoGrid.diagnosticstep!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(diagnosticstep!, sub, ps, state)
+CryoGrid.prognosticstep!(top::Top, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, top, ps, state)
+CryoGrid.prognosticstep!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, bot, ps, state)
+CryoGrid.prognosticstep!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, sub, ps, state)
 """
     interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 
@@ -39,34 +51,7 @@ end
     end
     return expr
 end
-"""
-    diagnosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
-
-Default implementation of `diagnosticstep!` for coupled process types. Calls each process in sequence.
-"""
-@generated function diagnosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
-    expr = Expr(:block)
-    for i in 1:length(P.parameters)
-        quote
-            diagnosticstep!(l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    return expr
-end
-"""
-    prognosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
-
-Default implementation of `prognosticstep!` for coupled process types. Calls each process in sequence.
-"""
-@generated function prognosticstep!(l::Layer, ps::CoupledProcesses{P}, state) where {P}
-    expr = Expr(:block)
-    for i in 1:length(P.parameters)
-        quote
-            prognosticstep!(l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    return expr
-end
+CryoGrid.initialcondition!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(initialcondition!, layer, ps, state)
 """
     initialcondition!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 

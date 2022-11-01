@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.Physics
 using Plots
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d");
@@ -21,10 +22,7 @@ snowmass = SnowMassBalance(
     )
 )
 strat = @Stratigraphy(
-    z_top => Top(Coupled(TemperatureGradient(tair), Snowfall(snowfall))),
-    # prescribed snow
-    # z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk()), SnowMassBalance(para=Snow.Prescribed(swe=swe, ρsn=ρsn)), HeatBalance(:H)),
-    # "dynamic" snow (i.e. modeled snow accumulation and ablation)
+    z_top => Top(TemperatureGradient(tair), Snowfall(snowfall)),
     z_top => :snowpack => Snowpack(Coupled(snowmass, HeatBalance(:H)), para=Snow.Bulk(thresh=2.0u"cm")),
     z_sub[1] => :topsoil1 => Soil(HeatBalance(:H), para=soilprofile[1].value),
     z_sub[2] => :topsoil2 => Soil(HeatBalance(:H), para=soilprofile[2].value),
