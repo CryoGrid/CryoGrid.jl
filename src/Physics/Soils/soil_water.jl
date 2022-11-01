@@ -1,3 +1,20 @@
+# Soil hydrological properties
+"""
+Soil properites for water processes.
+"""
+SoilWaterProperties(
+    ::HomogeneousMixture;
+    kw_sat=1e-5u"m/s",
+    hydraulic_props...,
+) = HydraulicProperties(; kw_sat, hydraulic_props...)
+SoilProperties(para::HomogeneousMixture, ::WaterBalance; water=SoilWaterProperties(para)) = SoilProperties(; water)
+"""
+Gets the `HydraulicProperties` for the given soil layer.
+"""
+Hydrology.hydraulicproperties(soil::Soil) = soil.prop.water
+"""
+Base type for different formulations of Richard's equation.
+"""
 abstract type RichardsEqFormulation end
 struct Saturation <: RichardsEqFormulation end
 struct Pressure <: RichardsEqFormulation end

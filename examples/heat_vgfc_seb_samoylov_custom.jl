@@ -7,11 +7,11 @@ const gridvals = vcat([0:0.02:2...,2.05:0.05:4.0...,
 	35:5:50...,60:10:100...,200:100:1000...]...)u"m"
 # soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
-    0.0u"m" => soilparameters(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-    0.1u"m" => soilparameters(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-    0.4u"m" => soilparameters(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-    3.0u"m" => soilparameters(xic=0.0,por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-    10.0u"m" => soilparameters(xic=0.0,por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+    0.0u"m" => HomogeneousMixture(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+    0.1u"m" => HomogeneousMixture(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+    0.4u"m" => HomogeneousMixture(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+    3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+    10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
 );
 # mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
@@ -47,10 +47,9 @@ grid = Grid(gridvals);
 tile = Tile(strat, grid, initT);
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = parameters(tile)
-u0, du0 = initialcondition!(tile, tspan, p)
+u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,), step_limiter=nothing)
 # solve with forward Euler and construct CryoGridOutput from solution
 out = @time solve(prob, Euler(), dt=2*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!

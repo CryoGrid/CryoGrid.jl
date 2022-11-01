@@ -14,7 +14,9 @@ end
 function CryoGrid.prognosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.prognosticstep!(sub, water, state)
+    L = heat.prop.L
+    @unpack cw, ci = thermalproperties(sub)
     # heat flux due to change in water content
-    @. state.∂H∂t += state.∂θwi∂t*(state.T*(heat.prop.cw - heat.prop.ci) + heat.prop.L)
+    @. state.∂H∂t += state.∂θwi∂t*(state.T*(cw - ci) + L)
     CryoGrid.prognosticstep!(sub, heat, state)
 end

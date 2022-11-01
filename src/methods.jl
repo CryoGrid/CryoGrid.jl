@@ -110,6 +110,30 @@ setup = Tile(stratigraphy, grid, observed=[:meanT])
 """
 observe(::Val{name}, layer::Layer, state) where name = observe(Val{name}(), layer, processes(layer), state)
 observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
+"""
+    parameterize(x::T) where {T}
+    parameterize(x::Unitful.AbstractQuantity; props...)
+    parameterize(p::Param; ignored...)
+
+Recursively wraps `x` or nested numeric quantities in `x` with `Param` to mark them as parameters.
+If `x` is already a `Param` type, `x` will be returned as-is.
+If `x` is a numeric type, `x` will be wrapped in `Param` with associated properties `props`.
+If `x` is a struct type, `x` will be recursively unpacked and `parameterize` called on each field.
+"""
+parameterize(x::Number; props...) = Param(x; props...)
+parameterize(x::Unitful.AbstractQuantity; props...) = Param(ustrip(x); untis=unit(x), props...)
+parameterize(p::Param; ignored...) = p
+function parameterize(x::T; props...) where {T}
+    # get field names of T, if available
+    T_fieldnames = isabstracttype(T) ? () : fieldnames(T)
+    # invoke parameterize on all fields
+    new_fields = map(T_fieldnames) do fieldname
+        fieldvalue = getfield(x, fieldname)
+        parameterize(fieldvalue)
+    end
+    ctor = ConstructionBase.constructorof(T)
+    return ctor(new_fields...)
+end
 # Auxiliary functions for generalized boundary implementations;
 """
     boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)

@@ -15,15 +15,18 @@ import CryoGrid.Physics.Heat
 using IfElse
 using ModelParameters
 using Unitful
+using UnPack
 
 export Snowpack, SnowProperties, SnowMassBalance, Snowfall
 
-SnowProperties(
-    consts=Physics.Constants();
-    ρw = consts.ρw,
+SnowThermalProperties = Heat.ThermalProperties
+
+Utils.@properties SnowProperties(
+    ρw = Physics.Constants.ρw,
     ρsn_new = 250.0u"kg/m^3",
     ρsn_old = 500.0u"kg/m^3",
-) = (; ρw, ρsn_new, ρsn_old)
+    heat = SnowThermalProperties(),
+)
 
 """
     SnowpackParameterization
@@ -111,6 +114,18 @@ CryoGrid.BoundaryStyle(::Snowfall) = CryoGrid.Neumann()
 
 # for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
 CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:Prescribed}, ssnow) = nothing
+
+# thermal properties snowpack
+Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
+# volumetric fractions for snowpack
+@inline function Physics.volumetricfractions(::Snowpack, state, i)
+    @inbounds let θwi = state.θwi[i],
+        θw = state.θw[i],
+        θa = 1.0 - θwi,
+        θi = θwi - θw;
+        return (θw, θi, θa)
+    end
+end
 
 include("snow_bulk.jl")
 

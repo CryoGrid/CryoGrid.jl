@@ -15,7 +15,7 @@ abstract type Evapotranspiration end
 
 Represents subsurface water transport processes.
 """
-struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
+struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp<:WaterBalanceProperties} <: CryoGrid.SubSurfaceProcess
     flow::TFlow # vertical flow scheme
     et::TET # evapotranspiration scheme
     prop::TProp # hydraulic parameters/constants
@@ -28,17 +28,20 @@ end
 "Bucket" water scheme for downward advective flow due to gravity.
 """
 Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow
-    fieldcap::Tfc = Param(0.2, domain=0..1)
+    fieldcap::Tfc = 0.2
 end
+CryoGrid.parameterize(flow::BucketScheme) = BucketScheme(
+    fieldcap = CryoGrid.parameterize(flow.fieldcap, domain=0..1, desc="Minimum saturation level, a.k.a 'field capacity'."),
+)
 default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
-WaterBalance(flow::WaterFlow = BucketScheme(), et=nothing; prop = HydraulicProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
+WaterBalance(flow::WaterFlow = BucketScheme(), et=nothing; prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
 """
     kwsat(::SubSurface, water::WaterBalance)
 
 Hydraulic conductivity at saturation.
 """
-kwsat(::SubSurface, water::WaterBalance) = water.prop.kw_sat
+kwsat(sub::SubSurface, water::WaterBalance) = hydraulicproperties(sub).kw_sat
 """
     maxwater(::SubSurface, ::WaterBalance, state, i)
 

@@ -8,9 +8,12 @@ end
 
 using Base: @propagate_inbounds
 using ComponentArrays
+using ConstructionBase
 using Dates
 using LinearAlgebra
+using ModelParameters
 using Reexport
+using Unitful
 
 # Common types and methods
 export Layer, SubSurface, Top, Bottom

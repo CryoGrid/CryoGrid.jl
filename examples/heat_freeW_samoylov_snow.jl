@@ -36,9 +36,8 @@ strat = @Stratigraphy(
 tile = Tile(strat, modelgrid, initT)
 # define time span
 tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
-p = parameters(tile)
-u0, du0 = initialcondition!(tile, tspan, p)
-prob = CryoGridProblem(tile,u0,tspan,p,step_limiter=nothing,savevars=(:T,:snowpack => (:dsn,:T_ub)))
+u0, du0 = initialcondition!(tile, tspan)
+prob = CryoGridProblem(tile, u0, tspan, step_limiter=nothing, savevars=(:T,:snowpack => (:dsn,:T_ub)))
 sol = @time solve(prob, SSPRK22(), dt=300.0, saveat=24*3600.0, progress=true);
 out = CryoGridOutput(sol)
 # Plot it!

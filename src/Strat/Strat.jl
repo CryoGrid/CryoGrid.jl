@@ -16,7 +16,6 @@ using Dates
 using DimensionalData
 using IfElse
 using IntervalSets
-using Lazy: @>>, @>, groupby
 using LinearAlgebra
 using Unitful
 using Reexport

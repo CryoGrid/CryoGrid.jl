@@ -37,7 +37,7 @@ BoundaryStyle(::Type{<:PeriodicBC{P,S}}) where {P,S} = S()
 Boundary process which adds a constant shift/offset to the boundary condition.
 """
 Base.@kwdef struct Bias{P,Tb} <: BoundaryProcess{P}
-    bias::Tb = Param(0.0)
+    bias::Tb = 0.0
     Bias(::Type{P}, bias::Tb) where {P<:SubSurfaceProcess,Tb} = new{P,Tb}(bias)
 end
 @inline boundaryvalue(bc::Bias,l1,p2,l2,s1,s2) = bc.bias

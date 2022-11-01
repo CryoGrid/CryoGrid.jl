@@ -98,12 +98,11 @@ function Tile(
         layer = named_layer.obj
         # (re)build layer
         vars[name] = _collectvars(named_layer)
-        layers[name] = _addlayerfield(named_layer, name)
+        layers[name] = named_layer
         # events
         evs = CryoGrid.events(layer)
-        events[name] = _addlayerfield(evs, name)
+        events[name] = evs
     end
-    inits = _addlayerfield(inits, :init)
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
@@ -172,16 +171,22 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,o
     return minimum(max_dts)
 end
 """
-    initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::AbstractVector)
-    initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector)
+    initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
+    initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing)
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p::AbstractVector) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing, args...) = initialcondition!(tile, convert_tspan(tspan), p)
+function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p=nothing) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
     t0 = tspan[1]
-    du = zero(similar(tile.state.uproto, eltype(p)))
-    u = zero(similar(tile.state.uproto, eltype(p)))
+    # if there are parameters defined on `tile` but the user did not supply a parameter vector,
+    # automatically extract the parameters from the Tile.
+    tile_params = collect(ModelParameters.params(tile))
+    p = isnothing(p) && !isempty(tile_params) ? tile_params : p
+    # choose type for state vectors
+    u_type = isnothing(p) ? eltype(tile.state.uproto) : eltype(p)
+    du = zero(similar(tile.state.uproto, u_type))
+    u = zero(similar(tile.state.uproto, u_type))
     tile = updateparams(tile, u, p, t0)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
@@ -278,6 +283,28 @@ function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:VarStates{layernam
     return LayerState(tile.state, z, u, du, t, dt, Val{layername}(), Val{iip}())
 end
 """
+    parameterize(tile::Tile)
+
+Adds parameter information to all nested types in `tile` by recursively calling `parameterize`.
+"""
+function CryoGrid.parameterize(tile::Tile)
+    ctor = ConstructionBase.constructorof(typeof(tile))
+    new_layers = map(tile.strat) do named_layer
+        name = layername(named_layer)
+        layer = CryoGrid.parameterize(named_layer.obj)
+        Named(name, _addlayerfield(layer, name))
+    end
+    new_inits = map(tile.inits) do init
+        _addlayerfield(CryoGrid.parameterize(init), :init)
+    end
+    new_events = map(keys(tile.events)) do name
+        evs = map(CryoGrid.parameterize, getproperty(tile.events, name))
+        name => _addlayerfield(evs, name)
+    end
+    new_strat = Stratigraphy(boundaries(tile.strat), Tuple(new_layers))
+    return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.hist)
+end
+"""
     variables(tile::Tile)
 
 Returns a tuple of all variables defined in the tile.
@@ -286,7 +313,7 @@ CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, F
 """
     parameters(tile::Tile; kwargs...)
 
-Extracts all parameters from `tile` in a vector.
+Extracts all parameters from `tile`.
 """
 parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
 """
@@ -319,6 +346,7 @@ function updateparams(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,T
     dynamic_values = map(d -> d(u, t), dynamic_ps)
     return Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, Union{TGrid,TStates,StateHistory,Unitful.Quantity},1)[1]
 end
+updateparams(tile::Tile, u, p::Nothing, t) = tile
 """
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.
 """
@@ -329,7 +357,7 @@ function _collectvars(@nospecialize(named_layer::NamedLayer{name,TLayer})) where
     all_vars = tuplejoin(declared_vars, nested_vars)
     @debug "Building layer $name with $(length(all_vars)) variables: $(all_vars)"
     # check for (permissible) duplicates between variables, excluding parameters
-    groups = groupby(var -> varname(var), all_vars)
+    groups = Utils.groupby(var -> varname(var), all_vars)
     for (id,gvars) in filter(g -> length(g.second) > 1, groups)
         # if any duplicate variable deifnitions do not match, raise an error
         @assert all(gvars[i] == gvars[i-1] for i in 2:length(gvars)) "Found one or more conflicting definitions of $id in $gvars"
