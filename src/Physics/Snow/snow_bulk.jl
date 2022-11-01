@@ -271,7 +271,7 @@ function CryoGrid.prognosticstep!(
 end
 # Timestep control
 CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:Physics.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
-function CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:Physics.MaxDelta}, state) where {THeatOp}
+function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:Physics.MaxDelta}, state) where {THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     if getscalar(state.dsn) > snow.para.thresh

@@ -32,13 +32,12 @@ strat = @Stratigraphy(
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 tile = Tile(strat, modelgrid, initT)
-# define time span, 2 years
-tspan = (DateTime(2016,9,30),DateTime(2018,9,30))
+# define time span, 2 years + 3 months
+tspan = (DateTime(2016,9,30),DateTime(2018,12,31))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
-integrator = init(prob, SSPRK22(), dt=300.0)
-step!(integrator)
-sol = @time solve(prob, SSPRK22(), dt=300.0, saveat=24*3600.0, progress=true);
+# forward Euler with initial timestep of 5 minutes
+sol = @time solve(prob, Euler(), dt=300.0, saveat=24*3600.0, progress=true);
 out = CryoGridOutput(sol)
 # Plot it!
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
