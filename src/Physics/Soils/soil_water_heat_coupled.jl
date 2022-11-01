@@ -25,7 +25,7 @@ function Heat.freezethaw!(
         (ψ, ∂ψ∂T) = ∇(Tᵢ -> sfcc(Tᵢ, ψ₀, Val{:ψ}(); θtot, θsat), T)
         (θw, ∂θw∂ψ) = ∇(ψᵢ -> swrc(ψᵢ; θsat), ψ)
         ∂θw∂T = ∂θw∂ψ*∂ψ∂T
-        C = Heat.heatcapacity(soil, volumetricfractions(soil, state, i)...)
+        C = Heat.heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         ∂H∂T = Heat.C_eff(T, C, L, ∂θw∂T, hc_w, hc_i)
         state.∂θw∂T[i] = ∂θw∂T
         state.θw[i] = θw

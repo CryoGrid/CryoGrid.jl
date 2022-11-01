@@ -34,7 +34,7 @@ ordering, so be sure to double check your implementation, otherwise this can cau
 @inline volumetricfractions(::SubSurface, state) = ()
 @inline volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
 """
-    partial(f, ::Val{:θw}, sub::SubSurface, state, i)
+    partial(f, ::Val{:θw}, sub::SubSurface, proc::Process, state, i)
 
 Returns a partially applied function `f` which takes liquid water `θw` as an argument and holds all other
 volumetric fractions constant. `f` must be a function of the form `f(::Layer, ::Process, θfracs...)` where
@@ -43,11 +43,11 @@ volumetric fractions constant. `f` must be a function of the form `f(::Layer, ::
 `θfracs` are zero or more additional constituent fractions. The returned method is a closure which has the
 following properties available: `θw, θi, θa, θfracs, θwi` where `θwi` refers to the sum of `θw` and `θi`.
 """
-function partial(f::F, ::Val{:θw}, sub::SubSurface, state, i) where F
+function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::Process, state, i) where F
     (_, _, θa, θfracs...) = volumetricfractions(sub, state, i)
     θwi = state.θwi[i]
-    return function apply(θw)
-        return f(sub, θw, θwi - θw, θa, θfracs...)
+    function apply(θw)
+        return f(sub, proc, θw, θwi - θw, θa, θfracs...)
     end
 end
 

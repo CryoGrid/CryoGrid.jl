@@ -214,7 +214,7 @@ function CryoGrid.trigger!(
 )
     _, heat = procs
     θfracs = volumetricfractions(snow, state, 1)
-    C = Heat.heatcapacity(snow, θfracs...)
+    C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
     state.H .= state.T.*C
 end
@@ -239,7 +239,7 @@ function CryoGrid.diagnosticstep!(
         Heat.freezethaw!(snow, heat, state)
         # cap temperature at 0°C
         @. state.T = min(state.T, zero(eltype(state.T)))
-        Heat.thermalconductivity!(snow, state)
+        Heat.thermalconductivity!(snow, heat, state)
         @. state.k = state.kc
     else
         # otherwise, set to zero

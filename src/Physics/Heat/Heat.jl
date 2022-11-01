@@ -32,26 +32,6 @@ Base type for different numerical formulations of heat conduction.
 """
 abstract type HeatOperator{progvar} end
 """
-    Diffusion{progvar} <: HeatOperator
-
-Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with prognostic
-`progvar`, typically either temperature `:T` or enthalpy (internal energy) `:H`.
-"""
-struct Diffusion{progvar} <: HeatOperator{progvar}
-    Diffusion(progvar::Symbol) = new{progvar}()
-end
-# define constructor to allow for automatic reconstruction
-ConstructionBase.constructorof(::Type{Diffusion{progvar}}) where {progvar} = () -> Diffusion(progvar)
-"""
-    EnthalpyImplicit <: HeatOperator{:H}
-
-Implicit enthalpy formulation of Swaminathan and Voller (1992) and Langer et al. (2022). Note that this
-heat operator formulation does not compute a divergence `∂H∂t` but only computes the necessary diffusion
-coefficients for use by an appropriate solver. See the `Solvers.LiteImplicit` module for the appropriate
-solver algorithms.
-"""
-struct EnthalpyImplicit <: HeatOperator{:H} end
-"""
 Type alias for `HeatOperator{:H}`, i.e. enthalpy-based heat conduction operators.
 """
 const Enthalpy = HeatOperator{:H}
@@ -81,18 +61,58 @@ struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfa
     freezecurve::Tfc
     dtlim::Tdt  # timestep limiter
 end
+# getter functions
+operator(heat::HeatBalance) = heat.op
+heatproperties(heat::HeatBalance) = heat.prop
+freezecurve(heat::HeatBalance) = heat.freezecurve
+dtlim(heat::HeatBalance) = heat.dtlim
+# default step limiters
 default_dtlim(::Temperature) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
 default_dtlim(::Enthalpy) = Physics.MaxDelta(100u"kJ")
 default_dtlim(::HeatOperator) = nothing
+
+# thermal conductivity and heat capacity methods
+include("thermcond.jl")
+include("heatcap.jl")
+
+# Heat operators
+"""
+    Diffusion{progvar,Tcond,Thc} <: HeatOperator
+
+Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with prognostic
+`progvar`, typically either temperature `:T` or enthalpy (internal energy) `:H`.
+"""
+struct Diffusion{progvar,Tcond,Thc} <: HeatOperator{progvar}
+    cond::Tcond
+    hc::Thc
+    Diffusion(progvar::Symbol, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{progvar,typeof(cond),typeof(hc)}(cond, hc)
+end
+thermalconductivity(op::Diffusion) = op.cond
+heatcapacity(op::Diffusion) = op.hc
+# define constructor to allow for automatic reconstruction
+ConstructionBase.constructorof(::Type{<:Diffusion{progvar}}) where {progvar} = (cond,hc) -> Diffusion(progvar, cond, hc)
+"""
+    EnthalpyImplicit <: HeatOperator{:H}
+
+Implicit enthalpy formulation of Swaminathan and Voller (1992) and Langer et al. (2022). Note that this
+heat operator formulation does not compute a divergence `∂H∂t` but only computes the necessary diffusion
+coefficients for use by an appropriate solver. See the `Solvers.LiteImplicit` module for the appropriate
+solver algorithms.
+"""
+struct EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
+    cond::Tcond
+    hc::Thc
+    EnthalpyImplicit(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
+end
+thermalconductivity(op::EnthalpyImplicit) = op.cond
+heatcapacity(op::EnthalpyImplicit) = op.hc
+
 # convenience constructors for specifying prognostic variable as symbol
 HeatBalance(var::Symbol=:H; kwargs...) = HeatBalance(Val{var}(); kwargs...)
 HeatBalance(::Val{:H}; kwargs...) = HeatBalance(Diffusion(:H); kwargs...)
 HeatBalance(::Val{:T}; kwargs...) = HeatBalance(Diffusion(:T); kwargs...)
 HeatBalance(op; freezecurve=FreeWater(), prop=HeatProperties(), dtlim=default_dtlim(op)) = HeatBalance(op, prop, deepcopy(freezecurve), dtlim)
 HeatBalance(op::Temperature; freezecurve, prop=HeatProperties(), dtlim=default_dtlim(op)) = HeatBalance(op, prop, deepcopy(freezecurve), dtlim)
-
-# getter functions
-freezecurve(heat::HeatBalance) = heat.freezecurve
 
 """
     ThermalProperties
@@ -117,6 +137,26 @@ function CryoGrid.parameterize(prop::ThermalProperties)
 end
 thermalproperties(::TLayer) where {TLayer<:SubSurface} = error("thermal properties not defined for $TLayer")
 
+# Helper methods
+"""
+    enthalpy(T, C, L, θ) = T*C + L*θ
+
+Discrete enthalpy function on temperature, heat capacity, specific latent heat of fusion, and liquid water content.
+"""
+@inline enthalpy(T, C, L, θ) = T*C + L*θ
+"""
+    enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+
+Discrete inverse enthalpy function given H, C, L, and θ.
+"""
+@inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+"""
+    C_eff(T, C, L, ∂θw∂T, hc_w, hc_i) = C + ∂θw∂T*(L + T*(hc_w - hc_i))
+
+Computes the apparent or "effective" heat capacity `∂H∂T` as a function of temperature, volumetric heat capacity,
+latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
+"""
+@inline C_eff(T, C, L, ∂θw∂T, hc_w, hc_i) = C + ∂θw∂T*(L + T*(hc_w - hc_i))
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
 
@@ -133,6 +173,6 @@ include("heat_conduction.jl")
 export ImplicitHeat
 include("heat_implicit.jl")
 
-include("water_heat.jl")
+include("water_heat_coupled.jl")
 
 end

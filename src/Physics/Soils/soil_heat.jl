@@ -81,7 +81,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{FreeWater}, st
     @inbounds for i in 1:length(state.T)
         θwi = state.θwi[i]
         state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
-        state.C[i] = heatcapacity(soil, volumetricfractions(soil, state, i)...)
+        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
     end
 end
@@ -104,7 +104,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
         θw, ∂θw∂T = ∇(T -> f(T; f_argsᵢ...), T)
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
-        state.C[i] = C = heatcapacity(soil, volumetricfractions(soil, state, i)...)
+        state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         state.∂H∂T[i] = Heat.C_eff(T, C, L, ∂θw∂T, hc_w, hc_i)
         state.H[i] = enthalpy(T, C, L, θw)
     end
