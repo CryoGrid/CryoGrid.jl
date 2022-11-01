@@ -269,4 +269,16 @@ function CryoGrid.prognosticstep!(
         prognosticstep!(snow, heat, state)
     end
 end
-``
+# Timestep control
+CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:Physics.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
+function CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:Physics.MaxDelta}, state) where {THeatOp}
+    Δx = Δ(state.grid)
+    dtmax = Inf
+    if getscalar(state.dsn) > snow.para.thresh
+        @inbounds for i in eachindex(Δx)
+            dtmax = min(dtmax, heat.dtlim(state.∂H∂t[i], state.H[i], state.t))
+        end
+        dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
+    end
+    return dtmax
+end

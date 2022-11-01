@@ -17,25 +17,27 @@ z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
 snowmass = SnowMassBalance(
-    para = Snow.Dynamic(
+    para = Snow.DynamicSnow(
         ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
     )
 )
 strat = @Stratigraphy(
     z_top => Top(TemperatureGradient(tair), Snowfall(snowfall)),
-    z_top => :snowpack => Snowpack(Coupled(snowmass, HeatBalance(:H)), para=Snow.Bulk(thresh=2.0u"cm")),
-    z_sub[1] => :topsoil1 => Soil(HeatBalance(:H), para=soilprofile[1].value),
-    z_sub[2] => :topsoil2 => Soil(HeatBalance(:H), para=soilprofile[2].value),
-    z_sub[3] => :sediment1 => Soil(HeatBalance(:H), para=soilprofile[3].value),
-    z_sub[4] => :sediment2 => Soil(HeatBalance(:H), para=soilprofile[4].value),
-    z_sub[5] => :sediment3 => Soil(HeatBalance(:H), para=soilprofile[5].value),
+    z_top => :snowpack => Snowpack(Coupled(snowmass, HeatBalance()), para=Snow.Bulk(thresh=2.0u"cm")),
+    z_sub[1] => :topsoil1 => Soil(HeatBalance(), para=soilprofile[1].value),
+    z_sub[2] => :topsoil2 => Soil(HeatBalance(), para=soilprofile[2].value),
+    z_sub[3] => :sediment1 => Soil(HeatBalance(), para=soilprofile[3].value),
+    z_sub[4] => :sediment2 => Soil(HeatBalance(), para=soilprofile[4].value),
+    z_sub[5] => :sediment3 => Soil(HeatBalance(), para=soilprofile[5].value),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 tile = Tile(strat, modelgrid, initT)
-# define time span
-tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
+# define time span, 2 years
+tspan = (DateTime(2016,9,30),DateTime(2018,9,30))
 u0, du0 = initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, step_limiter=nothing, savevars=(:T,:snowpack => (:dsn,:T_ub)))
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
+integrator = init(prob, SSPRK22(), dt=300.0)
+step!(integrator)
 sol = @time solve(prob, SSPRK22(), dt=300.0, saveat=24*3600.0, progress=true);
 out = CryoGridOutput(sol)
 # Plot it!

@@ -66,32 +66,32 @@ abstract type SnowDensityScheme end
 struct ConstantDensity end
 
 abstract type SnowMassParameterization end
-Base.@kwdef struct Prescribed{Tswe,Tρsn} <: SnowMassParameterization
+Base.@kwdef struct PrescribedSnow{Tswe,Tρsn} <: SnowMassParameterization
     swe::Tswe = 0.0u"m" # depth snow water equivalent [m]
     ρsn::Tρsn = 250.0u"kg/m^3" # snow density [kg m^-3]
 end
-Base.@kwdef struct Dynamic{TAcc,TAbl,TDen} <: SnowMassParameterization
+Base.@kwdef struct DynamicSnow{TAcc,TAbl,TDen} <: SnowMassParameterization
     accumulation::TAcc = LinearAccumulation()
     ablation::TAbl = DegreeDayMelt()
     density::TDen = ConstantDensity()
 end
 
 Base.@kwdef struct SnowMassBalance{Tpara} <: CryoGrid.SubSurfaceProcess
-    para::Tpara = Dynamic()
+    para::Tpara = DynamicSnow()
 end
-accumulation(snow::SnowMassBalance{<:Dynamic}) = snow.para.accumulation
-ablation(snow::SnowMassBalance{<:Dynamic}) = snow.para.ablation
-density(snow::SnowMassBalance{<:Dynamic}) = snow.para.density
+accumulation(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.accumulation
+ablation(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.ablation
+density(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.density
 
 # convenience type aliases
 """
-    PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{Prescribed{Tswe,Tρsn}} where {Tswe,Tρsn}
+    PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{PrescribedSnow{Tswe,Tρsn}} where {Tswe,Tρsn}
 """
-const PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{Prescribed{Tswe,Tρsn}} where {Tswe,Tρsn}
+const PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{PrescribedSnow{Tswe,Tρsn}} where {Tswe,Tρsn}
 """
-    DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{Dynamic{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
+    DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{DynamicSnow{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
 """
-const DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{Dynamic{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
+const DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{DynamicSnow{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
 
 CryoGrid.basevariables(::Snowpack, ::SnowMassBalance) = (
     Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
@@ -99,11 +99,11 @@ CryoGrid.basevariables(::Snowpack, ::SnowMassBalance) = (
 )
 
 swe(::Snowpack, ::SnowMassBalance, state) = state.swe
-swe(::Snowpack, smb::SnowMassBalance{<:Prescribed}, state) = smb.para.swe
-swe(::Snowpack, smb::SnowMassBalance{<:Prescribed{<:Forcing{u"m"}}}, state) = smb.para.swe(state.t)
+swe(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow}, state) = smb.para.swe
+swe(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{<:Forcing{u"m"}}}, state) = smb.para.swe(state.t)
 snowdensity(::Snowpack, ::SnowMassBalance, state) = state.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:Prescribed}, state) = smb.para.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:Prescribed{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = smb.para.ρsn(state.t)
+snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow}, state) = smb.para.ρsn
+snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = smb.para.ρsn(state.t)
 
 # Boundary conditions
 struct Snowfall{Tsn<:Forcing{u"m/s"}} <: BoundaryProcess{SnowMassBalance}
@@ -115,7 +115,7 @@ CryoGrid.BoundaryStyle(::Snowfall) = CryoGrid.Neumann()
 # Implementations
 
 # for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
-CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:Prescribed}, ssnow) = nothing
+CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing
 
 # thermal properties snowpack
 Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
