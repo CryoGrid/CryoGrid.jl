@@ -38,7 +38,7 @@ end
 """
     MineralSediment{Tpor} <: SoilParameterization
 
-Represents a simple, mineral sediment with spatially variable porosity.
+Represents a simple, mineral sediment with (possibly) spatially variable porosity.
 """
 Base.@kwdef struct MineralSediment{Tpor} <: SoilParameterization
     por::Tpor = 0.5

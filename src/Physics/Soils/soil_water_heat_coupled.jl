@@ -16,7 +16,7 @@ function Heat.freezethaw!(
     _get_temperature(::Type{<:Temperature}, i) = state.T[i]
     _get_temperature(::Type{<:Enthalpy}, i) = enthalpyinv(soil, heat, state, i)
     L = heat.prop.L
-    @unpack cw, ci = thermalproperties(soil)
+    @unpack hc_w, hc_i = thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = _get_temperature(THeatForm, i)
         ψ₀ = state.ψ₀[i]
@@ -26,7 +26,7 @@ function Heat.freezethaw!(
         (θw, ∂θw∂ψ) = ∇(ψᵢ -> swrc(ψᵢ; θsat), ψ)
         ∂θw∂T = ∂θw∂ψ*∂ψ∂T
         C = Heat.heatcapacity(soil, volumetricfractions(soil, state, i)...)
-        ∂H∂T = Heat.C_eff(T, C, L, ∂θw∂T, cw, ci)
+        ∂H∂T = Heat.C_eff(T, C, L, ∂θw∂T, hc_w, hc_i)
         state.∂θw∂T[i] = ∂θw∂T
         state.θw[i] = θw
         state.ψ[i] = ψ

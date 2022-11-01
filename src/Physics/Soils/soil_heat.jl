@@ -5,12 +5,12 @@
 # and return a state vector instead of a scalar. The `getscalar` function will
 # handle both the scalar and vector case!
 @inline function Heat.thermalconductivities(soil::Soil)
-    @unpack kw, ki, ka, km, ko = thermalproperties(soil)
-    return kw, ki, ka, km, ko
+    @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
+    return kh_w, kh_i, kh_a, kh_m, kh_o
 end
 @inline function Heat.heatcapacities(soil::Soil)
-    @unpack cw, ci, ca, cm, co = thermalproperties(soil)
-    return cw, ci, ca, cm, co
+    @unpack hc_w, hc_i, hc_a, hc_m, hc_o = thermalproperties(soil)
+    return hc_w, hc_i, hc_a, hc_m, hc_o
 end
 # Define volumetricfractions for Soil layer
 @inline function Physics.volumetricfractions(soil::Soil, state, i)
@@ -26,12 +26,12 @@ end
 # Soil thermal properties
 SoilThermalProperties(
     ::HomogeneousMixture;
-    ko=0.25u"W/m/K", # organic [Hillel (1982)]
-    km=3.8u"W/m/K", # mineral [Hillel (1982)]
-    co=2.5e6u"J/K/m^3", # heat capacity organic
-    cm=2.0e6u"J/K/m^3", # heat capacity mineral
+    kh_o=0.25u"W/m/K", # organic [Hillel (1982)]
+    kh_m=3.8u"W/m/K", # mineral [Hillel (1982)]
+    hc_o=2.5e6u"J/K/m^3", # heat capacity organic
+    hc_m=2.0e6u"J/K/m^3", # heat capacity mineral
     thermal_props...,
-) = ThermalProperties(; ko, co, km, cm, thermal_props...)
+) = ThermalProperties(; kh_o, hc_o, kh_m, hc_m, thermal_props...)
 # Soil properties for heat processes.
 SoilProperties(para::HomogeneousMixture, ::HeatBalance; heat=SoilThermalProperties(para)) = SoilProperties(; heat)
 """
@@ -55,7 +55,7 @@ Initial condition for heat conduction (all state configurations) on soil layer w
 function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
     fc = freezecurve(heat)
     L = heat.prop.L
-    @unpack cw, ci = thermalproperties(soil)
+    @unpack hc_w, hc_i = thermalproperties(soil)
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc.f, soil, heat, state, i)
         hc = partial(heatcapacity, Val{:θw}(), soil, state, i)
@@ -69,7 +69,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state
         state.θw[i] = θw
         state.C[i] = hc(θw)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
-        state.∂H∂T[i] = Heat.C_eff(T, state.C[i], L, ∂θw∂T, cw, ci)
+        state.∂H∂T[i] = Heat.C_eff(T, state.C[i], L, ∂θw∂T, hc_w, hc_i)
     end
 end
 """
@@ -97,7 +97,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
     sfcc = freezecurve(heat)
     f = sfcc.f
     L = heat.prop.L
-    @unpack cw, ci = thermalproprties(soil)
+    @unpack hc_w, hc_i = thermalproprties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = state.T[i]
         f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
@@ -105,7 +105,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
         state.C[i] = C = heatcapacity(soil, volumetricfractions(soil, state, i)...)
-        state.∂H∂T[i] = Heat.C_eff(T, C, L, ∂θw∂T, cw, ci)
+        state.∂H∂T[i] = Heat.C_eff(T, C, L, ∂θw∂T, hc_w, hc_i)
         state.H[i] = enthalpy(T, C, L, θw)
     end
 end
@@ -115,8 +115,8 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
             L = heat.prop.L,
-            cw = heat.prop.cw,
-            ci = heat.prop.ci,
+            hc_w = heat.prop.hc_w,
+            hc_i = heat.prop.hc_i,
             θwi = state.θwi[i], # total water content
             T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L), # initial guess for T
             hc = partial(heatcapacity, Val{:θw}(), soil, state, i),
@@ -127,7 +127,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
             state.T[i] = res.T
             state.θw[i] = res.θw
             state.C[i] = res.C
-            state.∂H∂T[i] = Heat.C_eff(state.T[i], state.C[i], L, res.∂θw∂T, cw, ci)
+            state.∂H∂T[i] = Heat.C_eff(state.T[i], state.C[i], L, res.∂θw∂T, hc_w, hc_i)
         end
     end
 end

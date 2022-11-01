@@ -229,7 +229,7 @@ function CryoGrid.diagnosticstep!(
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
-    @unpack ca, ka = thermalproperties(snow)
+    @unpack hc_a, kh_a = thermalproperties(snow)
     if new_dsn > threshold(snow)
         # if new snow depth is above threshold, set state variables
         @setscalar state.swe = new_swe
@@ -248,8 +248,8 @@ function CryoGrid.diagnosticstep!(
         @setscalar state.dsn = 0.0
         @setscalar state.θwi = 0.0
         @setscalar state.θw = 0.0
-        @setscalar state.C = ca
-        @setscalar state.kc = ka
+        @setscalar state.C = hc_a
+        @setscalar state.kc = kh_a
     end
 end
 # prognosticstep! for free water, enthalpy based HeatBalance on snow layer

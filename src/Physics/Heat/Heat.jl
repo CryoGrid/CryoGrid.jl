@@ -100,12 +100,12 @@ freezecurve(heat::HeatBalance) = heat.freezecurve
 Material thermal properties.
 """
 Utils.@properties ThermalProperties(
-    kw = 0.57u"W/m/K", # thermal conductivity of water [Hillel (1982)]
-    ki = 2.2u"W/m/K", # thermal conductivity of ice [Hillel (1982)]
-    ka = 0.025u"W/m/K", # thermal conductivity of air [Hillel (1982)]
-    cw = 4.2e6u"J/K/m^3", # heat capacity of water
-    ci = 1.9e6u"J/K/m^3", # heat capacity of ice
-    ca = 0.00125e6u"J/K/m^3", # heat capacity of air
+    kh_w = 0.57u"W/m/K", # thermal conductivity of water [Hillel (1982)]
+    kh_i = 2.2u"W/m/K", # thermal conductivity of ice [Hillel (1982)]
+    kh_a = 0.025u"W/m/K", # thermal conductivity of air [Hillel (1982)]
+    hc_w = 4.2e6u"J/K/m^3", # heat capacity of water
+    hc_i = 1.9e6u"J/K/m^3", # heat capacity of ice
+    hc_a = 0.00125e6u"J/K/m^3", # heat capacity of air
 )
 function CryoGrid.parameterize(prop::ThermalProperties)
     return ThermalProperties(

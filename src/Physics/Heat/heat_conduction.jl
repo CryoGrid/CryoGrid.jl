@@ -12,20 +12,20 @@ Discrete inverse enthalpy function given H, C, L, and θ.
 """
 @inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
-    C_eff(T, C, L, ∂θw∂T, cw, ci) = C + ∂θw∂T*(L + T*(cw - ci))
+    C_eff(T, C, L, ∂θw∂T, hc_w, hc_i) = C + ∂θw∂T*(L + T*(hc_w - hc_i))
 
 Computes the apparent or "effective" heat capacity `∂H∂T` as a function of temperature, volumetric heat capacity,
 latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
 """
-@inline C_eff(T, C, L, ∂θw∂T, cw, ci) = C + ∂θw∂T*(L + T*(cw - ci))
+@inline C_eff(T, C, L, ∂θw∂T, hc_w, hc_i) = C + ∂θw∂T*(L + T*(hc_w - hc_i))
 """
     thermalconductivities(::SubSurface, heat::HeatBalance)
 
 Get thermal conductivities for generic `SubSurface` layer.
 """
 @inline function thermalconductivities(sub::SubSurface)
-    @unpack kw, ki, ka = thermalproperties(sub)
-    return (kw, ki, ka)
+    @unpack kh_w, kh_i, kh_a = thermalproperties(sub)
+    return (kh_w, kh_i, kh_a)
 end
 """
     heatcapacities(::SubSurface, heat::HeatBalance)
@@ -33,8 +33,8 @@ end
 Get heat capacities for generic `SubSurface` layer.
 """
 @inline function heatcapacities(sub::SubSurface)
-    @unpack cw, ci, ca = thermalproperties(sub)
-    return cw, ci, ca
+    @unpack hc_w, hc_i, hc_a = thermalproperties(sub)
+    return hc_w, hc_i, hc_a
 end
 
 # Generic heat conduction implementation
