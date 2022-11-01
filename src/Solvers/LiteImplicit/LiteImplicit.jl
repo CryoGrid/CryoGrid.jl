@@ -34,13 +34,24 @@ struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
     D::TA
 end
 
-struct CGLiteSolution{TT,Tu<:AbstractVector{TT},Tt,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
+mutable struct CGLiteSolution{TT,Tu<:AbstractVector{TT},Tt,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
     prob::Tprob
     u::Vector{Tu}
     t::Vector{Tt}
+    retcode::Symbol
 end
 Base.getproperty(sol::CGLiteSolution, name::Symbol) = name == :H ? getfield(sol, :u) : getfield(sol, name)
-Base.propertynames(sol::CGLiteSolution) = (fieldnames(typoeof(sol))..., :H)
+Base.propertynames(sol::CGLiteSolution) = (fieldnames(typeof(sol))..., :H)
+function Base.show(io::IO, m::MIME"text/plain", sol::CGLiteSolution)
+    println(io, string("retcode: ", sol.retcode))
+    # TODO: inmplement interpolation interface?
+    println(io, string("Interpolation: 1st order linear"))
+    print(io, "t: ")
+    show(io, m, sol.t)
+    println(io)
+    print(io, "u: ")
+    show(io, m, sol.u)
+end
 # evaluate the solution at arbitrary time t
 function (sol::CGLiteSolution)(t::Float64)
     N = length(sol.u[1])
@@ -91,7 +102,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     stateproto = prob.savefunc(tile, u0, similar(u0))
     savevals = SavedValues(Float64, typeof(stateproto))
     tile.hist.vals = savevals
-    sol = CGLiteSolution(prob, u_storage, t_storage)
+    sol = CGLiteSolution(prob, u_storage, t_storage, :Default)
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
         similar(prob.u0),
@@ -105,12 +116,16 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
         similar(u0, length(prob.u0.H)-1),
         similar(u0, length(prob.u0.H)),
     )
-    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), collect(prob.p), prob.tspan[1], dt, 1)
+    p = isnothing(prob.p) ? prob.p : collect(prob.p)
+    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), p, prob.tspan[1], convert(eltype(prob.tspan), dt), 1)
 end
 
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
-    integrator = __init(prob, alg, args...; dt=dt, kwargs...)
+    integrator = DiffEqBase.__init(prob, alg, args...; dt=dt, kwargs...)
     for i in integrator end
+    if integrator.sol.retcode == :Default
+        integrator.sol.retcode = :Success
+    end
     return integrator.sol
 end
 
