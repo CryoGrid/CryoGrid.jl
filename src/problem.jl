@@ -65,13 +65,14 @@ function CryoGridProblem(
     expandtstep(tstep::AbstractVector) = tstep
     getsavestate(tile::Tile, u, du) = deepcopy(Strat.getvars(tile.state, Strat.withaxes(u, tile), Strat.withaxes(du, tile), savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Strat.withaxes(u, Tile(integrator)), get_du(integrator))
-    model_tile = Model(tile)
-    if !isnothing(p)
+    tile, p = if isnothing(p) && isempty(ModelParameters.params(tile))
+        tile, nothing
+    else
+        model_tile = Model(tile)
+        p = isnothing(p) ? collect(model_tile[:val]) : p
         model_tile[:val] = p
+        parent(model_tile), p
     end
-    tile = parent(model_tile)
-    # collect parameters
-    p = collect(model_tile[:val])
     du0 = zero(u0)
     # remove units
     tile = stripunits(tile)

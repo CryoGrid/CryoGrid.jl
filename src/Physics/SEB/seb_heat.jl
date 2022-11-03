@@ -25,7 +25,7 @@ BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
 """
-function boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::Heat, ::Soil, stop, ssoil)
+function boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance, ::Soil, stop, ssoil)
 
     # TODO (optimize): pre-compute all forcings at time t here, then pass to functions
 

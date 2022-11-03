@@ -22,22 +22,15 @@ import ConstructionBase
 import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
+export Named, NamedTupleWrapper, DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+include("types.jl")
 export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
-export Named
-export DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
 export dustrip, duconvert, applyunits, normalize_units, normalize_temperature, pstrip
 export fastmap, fastiterate, structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 
-# Convenience constants for units
-const DistUnit{N} = Unitful.FreeUnits{N,Unitful.𝐋,nothing} where {N}
-const DistQuantity{T,U} = Quantity{T,Unitful.𝐋,U} where {T,U<:DistUnit}
-const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
-const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
-const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
-const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TimeUnit}
 # Variable/parameter domains
 const StrictlyPositive = OpenInterval(0,Inf)
 const StrictlyNegative = OpenInterval(-Inf,0)
@@ -49,19 +42,6 @@ StructTypes.StructType(::Type{<:Quantity}) = StructTypes.CustomStruct()
 StructTypes.lower(value::Quantity) = string(value)
 StructTypes.lowertype(value::Type{<:Quantity}) = String
 StructTypes.construct(::Type{Q}, value::String) where {Q<:Quantity} = uconvert(Q, uparse(replace(value, " " => "")))
-
-"""
-    Named{name,T}
-
-Wraps an object of type `T` with a `name` type parameter.
-"""
-struct Named{name,T}
-    obj::T
-    Named(name::Symbol, obj::T) where T = new{name,T}(obj)
-end
-Named(values::Pair{Symbol,T}) where T = Named(values[1], values[2])
-Base.nameof(::Named{name}) where name = name
-ConstructionBase.constructorof(::Type{<:Named{name}}) where name = obj -> Named(name, obj)
 
 """
     applyunits(u::Unitful.Units, x::Number)
@@ -119,6 +99,20 @@ Concatenates one or more tuples together; should generally be type stable.
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
+
+"""
+    groupby(f, xs)
+
+Simple implementation of `group-by` operations which groups together items in a collection
+by the return-value of `f`. Copied from [Lazy.jl](https://github.com/MikeInnes/Lazy.jl/blob/master/src/collections.jl#L44).
+"""
+function groupby(f, xs)
+    result = Dict()
+    for x in xs
+      push!(get!(()->[], result, f(x)), x)
+    end
+    return result
+end
 
 """
     getscalar(x)

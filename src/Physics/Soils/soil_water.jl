@@ -1,3 +1,20 @@
+# Soil hydrological properties
+"""
+Soil properites for water processes.
+"""
+SoilWaterProperties(
+    ::HomogeneousMixture;
+    kw_sat=1e-5u"m/s",
+    hydraulic_props...,
+) = HydraulicProperties(; kw_sat, hydraulic_props...)
+SoilProperties(para::HomogeneousMixture, ::WaterBalance; water=SoilWaterProperties(para)) = SoilProperties(; water)
+"""
+Gets the `HydraulicProperties` for the given soil layer.
+"""
+Hydrology.hydraulicproperties(soil::Soil) = soil.prop.water
+"""
+Base type for different formulations of Richard's equation.
+"""
 abstract type RichardsEqFormulation end
 struct Saturation <: RichardsEqFormulation end
 struct Pressure <: RichardsEqFormulation end
@@ -25,7 +42,7 @@ Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state,
             state.θsat[i] = Hydrology.maxwater(sub, water, state, i)
             state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
             state.θwi[i], state.dθwidψ[i] = ∇(ψ -> swrc(ψ; θsat=state.θsat[i]), state.ψ[i])
-            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with Heat will overwrite this)
+            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
             state.sat[i] = state.θwi[i] / state.θsat[i]
         end
     end
@@ -93,7 +110,7 @@ CryoGrid.variables(::RichardsEq{Saturation}) = (
 function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
     CryoGrid.diagnosticstep!(soil, water, state)
 end
-function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, Heat), state)
+function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.initialcondition!(soil, water, state)
     CryoGrid.initialcondition!(soil, heat, state)

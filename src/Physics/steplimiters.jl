@@ -1,5 +1,6 @@
 # Generic step limiter types
 abstract type StepLimiter end
+CryoGrid.parameterize(limiter::StepLimiter) = limiter
 """
     MaxDelta{T}
 

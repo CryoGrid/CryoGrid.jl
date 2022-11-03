@@ -11,10 +11,15 @@ struct EvapTop <: Evapotranspiration end
 Corresponds to evapotranspiration scheme 2 described in section 2.2.4 of Westermann et al. (2022).
 """
 Base.@kwdef struct DampedET{Tftr,Tdtr,Tdev} <: Evapotranspiration
-    f_tr::Tftr = Param(0.5, domain=0..1, desc="Factor between 0 and 1 weighting transpirative vs. evaporative fluxes.")
-    d_tr::Tdtr = Param(0.5, units=u"m", desc="Damping depth for transpiration.")
-    d_ev::Tdev = Param(0.1, units=u"m", desc="Damping depth for evaporation.")
+    f_tr::Tftr = 0.5
+    d_tr::Tdtr = 0.5u"m"
+    d_ev::Tdev = 0.1u"m"
 end
+CryoGrid.parameterize(et::DampedET) = DampedET(
+    f_tr = CryoGrid.parameterize(et.f_tr, domain=0..1, desc="Factor between 0 and 1 weighting transpirative vs. evaporative fluxes."),
+    d_tr = CryoGrid.parameterize(et.d_tr, domain=0..Inf, desc="Damping depth for transpiration."),
+    d_ev = CryoGrid.parameterize(et.d_ev, domain=0..Inf, desc="Damping depth for evaporation."),
+)
 """
     evapotranspiration!(::SubSurface, ::WaterBalance, state)
 
@@ -47,8 +52,8 @@ Computes the ET base flux as `Qe / (Lsg*ρw)` where `state.Qe` is typically prov
 """
 function ETflux(::SubSurface, water::WaterBalance{<:WaterFlow,<:Evapotranspiration}, state)
     Qe = getscalar(state.Qe)
-    Lsg = water.prop.consts.Lsg # specific latent heat of vaporization
-    ρw = water.prop.consts.ρw
+    Lsg = water.prop.Lsg # specific latent heat of vaporization
+    ρw = water.prop.ρw
     return Qe / (Lsg*ρw)
 end
 """

@@ -1,5 +1,6 @@
 using CryoGrid
-using CryoGrid.Numerics: flux!, nonlineardiffusion!
+using CryoGrid.Numerics: nonlineardiffusion!
+using CryoGrid.Physics
 using Dates
 using DiffEqBase
 using OrdinaryDiffEq
@@ -31,9 +32,9 @@ include("../../types.jl")
 		k = collect(LinRange(0.5,1.0,length(x)))u"W/m/K"
 		ΔT = Δ(xc)
 		Δk = Δ(x)
-		heat = Heat()
+		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
-		bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
+		bc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 		@testset "top: +, bot: -" begin
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
@@ -67,7 +68,7 @@ include("../../types.jl")
 			@test ∂H∂t[end] < 0.0u"W/m^3"
 		end
 		@testset "Neumann boundary" begin
-			bc = ConstantBC(Heat, CryoGrid.Neumann, -1.0u"W/m^2")
+			bc = ConstantBC(HeatBalance, CryoGrid.Neumann, -1.0u"W/m^2")
 			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
@@ -81,9 +82,9 @@ end
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
 		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1]u"°C", ts, :Tair)
 		tgrad = TemperatureGradient(forcing, NFactor(nf=0.5, nt=1.0))
-		heat = Heat()
+		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
-		zerobc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
+		zerobc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
 			diagnosticstep!(Top(zerobc), tgrad, state)
@@ -102,9 +103,9 @@ end
 	# Fourier's solution to heat equation with Dirichlet boundaries
 	T₀ = (sin.(2π.*ustrip.(xc)))u"°C"
 	f_analytic(x,t) = exp(-t*4π^2)*sin(2.0*π*x)
-	heat = Heat()
+	heat = HeatBalance()
 	sub = TestGroundLayer(heat)
-	bc = ConstantBC(Heat, CryoGrid.Dirichlet, 0.0u"°C")
+	bc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 	function ∂T∂t(u,p,t)
 		∂H∂t = similar(u)u"W/m^3"
 		∂H∂t .= zero(eltype(∂H∂t))

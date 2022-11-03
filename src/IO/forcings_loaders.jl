@@ -16,7 +16,7 @@ function loadforcings(::Type{ForcingJSON{1}}, filename::String, units::Pair{Symb
     # convert JSON3 dict for data field to Julia dict
     data = Dict(dict[:data]...)
     # get timestamps and then remove from dict
-    ts = @>> data[:t_span] map(DateNumber) map(todatetime)
+    ts = map(todatetime, map(DateNumber, data[:t_span]))
     delete!(data, :t_span)
     unitdict = Dict(units...)
     vals_with_units = (haskey(unitdict, name) ? replace(vals, nothing => missing)*unitdict[name] : vals for (name, vals) in data)

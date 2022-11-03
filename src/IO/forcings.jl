@@ -6,6 +6,7 @@ Abstract type representing a generic external boundary condition (i.e. "forcing"
 abstract type Forcing{unit,T} end
 @inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
+CryoGrid.parameterize(f::Forcing; props...) = f
 
 """
       TimeSeriesForcing{unit,T,A,I}

@@ -3,7 +3,7 @@ module SEB
 using CryoGrid
 using CryoGrid.Physics
 using CryoGrid.Physics.Boundaries
-using CryoGrid.Physics.HeatConduction
+using CryoGrid.Physics.Heat
 using CryoGrid.Physics.Hydrology
 using CryoGrid.Physics.Soils
 using CryoGrid.Numerics
@@ -77,11 +77,11 @@ Base.@kwdef struct SEBParams{TSolution,TStabFun}
 end
 
 """
-    SurfaceEnergyBalance{TSolution,TStabFun,F} <: BoundaryProcess{Heat}
+    SurfaceEnergyBalance{TSolution,TStabFun,F} <: BoundaryProcess{HeatBalance}
 
 Surface energy balance upper boundary condition.
 """
-struct SurfaceEnergyBalance{TSolution,TStabFun,F} <: BoundaryProcess{Heat}
+struct SurfaceEnergyBalance{TSolution,TStabFun,F} <: BoundaryProcess{HeatBalance}
     forcings::F
     sebparams::SEBParams{TSolution,TStabFun}
     SurfaceEnergyBalance(forcings::NamedTuple, sebparams::SEBParams) = new{typeof(sebparams.solscheme),typeof(sebparams.stabfun),typeof(forcings)}(forcings, sebparams)

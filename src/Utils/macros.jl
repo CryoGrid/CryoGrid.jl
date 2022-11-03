@@ -61,3 +61,51 @@ macro sym_str(val)
         Symbol($val)
     end
 end
+"""
+    properties(expr)
+
+Defines a new container type for properties which subtypes `NamedTupleWrapper`. Usage:
+```julia
+@properties MyProperties(
+    prop1 = 1.0,
+    prop2 = 2.0,
+)
+```
+outputs:
+```julia
+struct MyProperties{TV} <: NamedTupleWrapper
+    values::TV
+    function HydraulicProperties(;
+        prop1 = 1.0,
+        prop2 = 2.0,
+        additional_kwargs...
+    )
+        props = (;prop1, prop2, additional_kwargs...)
+        return new{typeof(props)}(props)
+    end
+end
+```
+"""
+macro properties(expr)
+    @assert expr.head == :call "expression for @properties should be a method call, e.g. @properties MyProperties(a=1,b=2)"
+    name, kwargs... = expr.args
+    # check that all arguments are keyword arguments and throw an error otherwise
+    @assert all(map(kw -> isa(kw, Expr) && kw.head == :kw, kwargs)) "non-keyword arguments are not supported by @properties"
+    # get names of keyword arguments
+    kwargs_names = map(kw -> esc(kw.args[1]), kwargs)
+    # generate struct expression; the liberal and ugly usage of `esc` prevents the generated expression from capturing
+    # variables from the declaring scope.
+    quote
+        struct $(esc(name)){$(esc(:TV))} <: $(esc(:(Utils.NamedTupleWrapper)))
+            values::$(esc(:TV))
+            function $(esc(name))(;
+                $(map(esc, kwargs)...),
+                $(esc(:additional_kwargs))...
+            )
+                $(esc(:props)) = (; $(kwargs_names...), $(esc(:additional_kwargs))...)
+                return new{$(esc(Expr(:call, :typeof, :props)))}($(esc(:props)))
+            end
+            $(esc(name))($(esc(:(values::NamedTuple)))) = new{$(esc(Expr(:call, :typeof, :values)))}($(esc(:values)))
+        end
+    end
+end

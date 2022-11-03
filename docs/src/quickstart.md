@@ -52,7 +52,7 @@ Note that `SoilHeat` uses energy as the state variable by default. To use temper
 
 ```julia
 # :T is the variable name for temperature, :H represents enthalpy/energy.
-# This is used in the specification of the Heat process type.
+# This is used in the specification of the HeatBalance process type.
 # While this will work with any freeze curve, here we use Westermann (2011) as an example.
 model = CryoGrid.Presets.SoilHeatTile(:T, TemperatureGradient(tair), soilprofile, freezecurve=SFCC(Westermann()))
 ```

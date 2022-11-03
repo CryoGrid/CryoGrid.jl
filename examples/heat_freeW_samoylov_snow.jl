@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.Physics
 using Plots
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d");
@@ -16,30 +17,27 @@ z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
 snowmass = SnowMassBalance(
-    para = Snow.Dynamic(
+    para = Snow.DynamicSnow(
         ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
     )
 )
 strat = @Stratigraphy(
-    z_top => Top(Coupled(TemperatureGradient(tair), Snowfall(snowfall))),
-    # prescribed snow
-    # z_top => subsurface(:snowpack, Snowpack(para=Snow.Bulk()), SnowMassBalance(para=Snow.Prescribed(swe=swe, ρsn=ρsn)), Heat(:H)),
-    # "dynamic" snow (i.e. modeled snow accumulation and ablation)
-    z_top => :snowpack => Snowpack(Coupled(snowmass, Heat(:H)), para=Snow.Bulk(thresh=2.0u"cm")),
-    z_sub[1] => :topsoil1 => Soil(Heat(:H), para=soilprofile[1].value),
-    z_sub[2] => :topsoil2 => Soil(Heat(:H), para=soilprofile[2].value),
-    z_sub[3] => :sediment1 => Soil(Heat(:H), para=soilprofile[3].value),
-    z_sub[4] => :sediment2 => Soil(Heat(:H), para=soilprofile[4].value),
-    z_sub[5] => :sediment3 => Soil(Heat(:H), para=soilprofile[5].value),
+    z_top => Top(TemperatureGradient(tair), Snowfall(snowfall)),
+    z_top => :snowpack => Snowpack(Coupled(snowmass, HeatBalance()), para=Snow.Bulk(thresh=2.0u"cm")),
+    z_sub[1] => :topsoil1 => Soil(HeatBalance(), para=soilprofile[1].value),
+    z_sub[2] => :topsoil2 => Soil(HeatBalance(), para=soilprofile[2].value),
+    z_sub[3] => :sediment1 => Soil(HeatBalance(), para=soilprofile[3].value),
+    z_sub[4] => :sediment2 => Soil(HeatBalance(), para=soilprofile[4].value),
+    z_sub[5] => :sediment3 => Soil(HeatBalance(), para=soilprofile[5].value),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 tile = Tile(strat, modelgrid, initT)
-# define time span
-tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
-p = parameters(tile)
-u0, du0 = initialcondition!(tile, tspan, p)
-prob = CryoGridProblem(tile,u0,tspan,p,step_limiter=nothing,savevars=(:T,:snowpack => (:dsn,:T_ub)))
-sol = @time solve(prob, SSPRK22(), dt=300.0, saveat=24*3600.0, progress=true);
+# define time span, 2 years + 3 months
+tspan = (DateTime(2016,9,30),DateTime(2018,12,31))
+u0, du0 = initialcondition!(tile, tspan)
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
+# forward Euler with initial timestep of 5 minutes
+sol = @time solve(prob, Euler(), dt=300.0, saveat=24*3600.0, progress=true);
 out = CryoGridOutput(sol)
 # Plot it!
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"

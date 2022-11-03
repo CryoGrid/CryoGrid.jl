@@ -6,6 +6,7 @@ module Presets
 using CryoGrid
 using CryoGrid.InputOutput: Resource
 using CryoGrid.Numerics
+using CryoGrid.Physics
 using CryoGrid.Strat
 
 using Statistics
@@ -24,7 +25,7 @@ function SoilHeatTile(heatvar, upperbc::BoundaryProcess, soilprofile::Profile, i
     grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         -2.0u"m" => Top(upperbc),
-        Tuple(knot.depth => Symbol(:soil,i) => Soil(Heat(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
+        Tuple(knot.depth => Symbol(:soil,i) => Soil(HeatBalance(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
         1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
     )
     Tile(strat, grid, init, chunk_size=chunk_size)
@@ -43,11 +44,11 @@ Parameters = (
 
 const SamoylovDefault = (
     soilprofile = SoilProfile(
-        0.0u"m" => soilparameters(xic=0.0,por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-        0.1u"m" => soilparameters(xic=0.0,por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-        0.4u"m" => soilparameters(xic=0.30,por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-        3.0u"m" => soilparameters(xic=0.0,por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-        10.0u"m" => soilparameters(xic=0.0,por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+        0.0u"m" => HomogeneousMixture(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+        0.1u"m" => HomogeneousMixture(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+        0.4u"m" => HomogeneousMixture(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+        3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+        10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
     ),
     tempprofile = TemperatureProfile(
         0.0u"m" => -1.0u"°C",
