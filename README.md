@@ -48,13 +48,12 @@ initT = initializer(:T, tempprofile)
 model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, initT)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = parameters(model)
-u0, du0 = initialcondition!(model, tspan, p)
-# CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
+u0, du0 = initialcondition!(model, tspan)
+# CryoGrid wrapper for ODEProblem
+prob = CryoGridProblem(model, u0, tspan, saveat=6*3600, savevars=(:T,))
 # solve discretized system, saving every 6 hours;
 # Trapezoid on a discretized PDE is analogous to the well known Crank-Nicolson method.
-out = @time solve(prob, Trapezoid(), saveat=6*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Trapezoid(), saveat=6*3600, progress=true) |> CryoGridOutput;
 zs = [1.0,5,10,20,30,50,100,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
@@ -65,14 +64,10 @@ Alternatively, we can use a Dall'Amico freeze curve:
 
 ```julia
 model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, freezecurve=SFCC(DallAmico()))
-# Set-up parameters
-p = parameters(model)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-# CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
-# stiff solvers don't work well with Dall'Amico due to the ill-conditioned Jacobian;
-# We can just forward Euler instead.
-out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |> CryoGridOutput;
+prob = CryoGridProblem(model, u0, tspan, saveat=6*3600, savevars=(:T,))
+# forward Euler with initial time step of 2 minutes
+out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600, progress=true) |> CryoGridOutput;
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
 Note that `SoilHeatTile` uses energy as the state variable by default. To use temperature as the state variable instead:
