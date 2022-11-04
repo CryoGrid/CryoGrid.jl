@@ -66,18 +66,22 @@ function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatI
     Δk = CryoGrid.thickness(sub, ssub, last)
     return 2*T_lb*k / Δk
 end
+_ap(::Dirichlet, k, Δk) = k / (Δk^2/2)
+_ap(::Neumann, k, Δk) = 0
 function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatImplicit, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first)
     jH_top = boundaryflux(bc, top, heat, sub, stop, ssub)
+    k = ssub.k[1]
     ssub.DT_bp[1] += jH_top / Δk
-    ssub.DT_ap[1] += 2*ssub.k[1] / Δk^2
+    ssub.DT_ap[1] += _ap(CryoGrid.BoundaryStyle(bc), k, Δk)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, heat::HeatImplicit, bot::Bottom, bc::HeatBC, ssub, sbot)
     Δk = CryoGrid.thickness(sub, ssub, last)
     jH_bot = boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    k = ssub.k[1]
     ssub.DT_bp[end] += jH_bot / Δk
-    ssub.DT_ap[end] += 2*ssub.k[1] / Δk^2
+    ssub.DT_ap[end] += _ap(CryoGrid.BoundaryStyle(bc), k, Δk)
     return nothing
 end
 function CryoGrid.interact!(sub1::SubSurface, ::HeatImplicit, sub2::SubSurface, ::HeatImplicit, s1, s2)
