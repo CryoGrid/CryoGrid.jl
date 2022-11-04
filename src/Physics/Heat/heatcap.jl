@@ -8,12 +8,12 @@ Get heat capacities for generic `SubSurface` layer.
     return hc_w, hc_i, hc_a
 end
 """
-    weighted_average_heatcapacity(cs::NTuple{N}, θs::NTuple{N}) where {N}
+    weighted_average_heatcapacity(cs, θs)
 
 Represents a simple composite heat capacity that is the sum of each constituent heat capacity weighted
 by the volumetric fraction.
 """
-weighted_average_heatcapacity(cs::NTuple{N}, θs::NTuple{N}) where {N} = sum(map(*, cs, θs))
+weighted_average_heatcapacity(cs, θs) = sum(map(*, cs, θs))
 """
     heatcapacity(sub::SubSurface, heat::HeatBalance, θfracs...)
 
