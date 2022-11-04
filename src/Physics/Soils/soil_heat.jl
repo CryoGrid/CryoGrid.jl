@@ -58,7 +58,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state
     @unpack hc_w, hc_i = thermalproperties(soil)
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc.f, soil, heat, state, i)
-        hc = partial(heatcapacity, Val{:θw}(), soil, state, i)
+        hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i)
         if i == 1
             # TODO: this is currently only relevant for the pre-solver scheme and assumes that
             # the total water content is uniform throughout the layer and does not change over time.
@@ -115,11 +115,12 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
             L = heat.prop.L,
-            hc_w = heat.prop.hc_w,
-            hc_i = heat.prop.hc_i,
+            props = thermalproperties(soil),
+            hc_w = props.hc_w,
+            hc_i = props.hc_i,
             θwi = state.θwi[i], # total water content
             T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L), # initial guess for T
-            hc = partial(heatcapacity, Val{:θw}(), soil, state, i),
+            hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
             f = sfcc.f,
             f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
             obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H);
@@ -136,7 +137,7 @@ function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
         θwi = state.θwi[i], # total water content
-        hc = partial(Heat.heatcapacity, Val{:θw}(), soil, state, i),
+        hc = partial(Heat.heatcapacity, Val{:θw}(), soil, heat, state, i),
         T₀ = i > 1 ? state.T[i-1] : (H - L*θwi) / hc(θwi),
         f = sfcc.f,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),

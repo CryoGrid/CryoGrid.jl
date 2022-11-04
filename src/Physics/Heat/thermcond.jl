@@ -14,7 +14,7 @@ Returns the thermal conductivity function for the given `HeatOperator`.
 """
 thermalconductivity(op::HeatOperator) = error("not implemented for $(typeof(op))")
 """
-    quadratic_parallel_conductivity(ks::NTuple{N}, θs::NTuple{N}) where {N}
+    quadratic_parallel_conductivity(ks, θs)
 
 The "quadratic parallel" thermal conductivity formula as defined by Cosenza et al. 2003:
 
@@ -27,7 +27,7 @@ conductivity and water content of soils using numerical modelling,
 European Journal of Soil Science, 54, 581–588,
 https://doi.org/10.1046/j.1365-2389.2003.00539.x, 2003.
 """
-quadratic_parallel_conductivity(ks::NTuple{N}, θs::NTuple{N}) where {N} = sum(map(*, map(sqrt, ks), θs))^2
+quadratic_parallel_conductivity(ks, θs) = sum(map(*, map(sqrt, ks), θs))^2
 """
     geometric_conductivity(ks::NTuple{N}, θs::NTuple{N}) where {N}
 
@@ -35,7 +35,7 @@ Geometric mean of constituent thermal conductivities according to Woodside and M
 
 Woodside, W. & Messmer, J.H. 1961. Thermal conductivity of porous media. I. Unconsolidated sands. Journal of Applied Physics, 32, 1688–1699. 
 """
-geometric_conductivity(ks::NTuple{N}, θs::NTuple{N}) where {N} = prod(map((k,θ) -> k^θ, ks, θs))
+geometric_conductivity(ks, θs) = prod(map((k,θ) -> k^θ, ks, θs))
 """
     thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
 

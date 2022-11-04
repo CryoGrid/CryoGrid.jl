@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.Physics
 using Plots
 
 # Custom grid (though actually pretty much the same as CryoGrid.Presets.DefaultGrid_2cm)
@@ -35,7 +36,7 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -z*u"m" => Top(SurfaceEnergyBalance(Tair, pr, q,wind, Lin, Sin, z, solscheme=SEB.Iterative(),stabfun=SEB.HøgstrømSHEBA())),
+    -z*u"m" => Top(SurfaceEnergyBalance(Tair, pr, q,wind, Lin, Sin, z, solscheme=SEB.Iterative(), stabfun=SEB.HøgstrømSHEBA())),
     soilprofile[1].depth => :soil1 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[1].value),
     soilprofile[2].depth => :soil2 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[2].value),
     soilprofile[3].depth => :soil3 => Soil(HeatBalance(:H, freezecurve=SFCC(DallAmico())), para=soilprofile[3].value),
@@ -49,12 +50,11 @@ tile = Tile(strat, grid, initT);
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
 # solve with forward Euler and construct CryoGridOutput from solution
-out = @time solve(prob, Euler(), dt=2*60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Euler(), dt=120.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1,5,10,15,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
 plot(ustrip.(out.H[Z(zs)]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
 plot(ustrip.(out.T[Z(zs)]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-

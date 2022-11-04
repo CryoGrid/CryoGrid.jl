@@ -181,7 +181,7 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     t0 = tspan[1]
     # if there are parameters defined on `tile` but the user did not supply a parameter vector,
     # automatically extract the parameters from the Tile.
-    tile_params = collect(ModelParameters.params(tile))
+    tile_params = isempty(ModelParameters.params(tile)) ? [] : parameters(tile)
     p = isnothing(p) && !isempty(tile_params) ? tile_params : p
     # choose type for state vectors
     u_type = isnothing(p) ? eltype(tile.state.uproto) : eltype(p)
