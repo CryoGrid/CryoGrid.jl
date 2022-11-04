@@ -12,7 +12,6 @@ const modules = [
        CryoGrid.Heat,
        CryoGrid.Hydrology,
        CryoGrid.Soils,
-       CryoGrid.Solvers,
        CryoGrid.SEB,
        CryoGrid.Strat,
        CryoGrid.Presets,
