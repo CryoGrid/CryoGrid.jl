@@ -131,7 +131,8 @@ function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousMixture}, state)
     ϕ = soil.para.por
     θ = soil.para.sat
     ω = soil.para.org
-    @. state.θwi = soilcomponent(Val{:θwi}(), ϕ, θ, ω)
+    χ = soil.para.xic
+    @. state.θwi = soilcomponent(Val{:θwi}(), ϕ, θ, ω, χ)
     CryoGrid.initialcondition!(soil, processes(soil), state)
 end
 function CryoGrid.initialcondition!(soil::Soil{<:MineralSediment}, state)
