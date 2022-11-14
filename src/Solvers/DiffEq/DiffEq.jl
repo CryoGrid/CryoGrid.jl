@@ -57,10 +57,10 @@ function Strat.Tile(integrator::SciMLBase.DEIntegrator)
     return Strat.updateparams(tile, Strat.withaxes(integrator.u, tile), integrator.p, integrator.t)
 end
 function Strat.Tile(f::ODEFunction)
-    # if f is a Tile (when recompile=true)
     extract_f(tile::Tile) = tile
+    extract_f(f::ODEFunction) = f.f
     extract_f(f::DiffEqBase.Void) = f.f
-    extract_f(f::DiffEqBase.FunctionWrappersWrappers.FunctionWrappersWrapper) = SciMLBase.unwrapped_f(f)
+    extract_f(f) = SciMLBase.unwrapped_f(f)
     return extract_f(f.f)
 end
 """

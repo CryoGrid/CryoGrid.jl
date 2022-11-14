@@ -2,11 +2,10 @@ using CryoGrid
 using CryoGrid.Physics
 using Plots
 
+
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d");
 # use air temperature as upper boundary forcing;
 tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-# swe = TimeSeriesForcing(ustrip.(forcings.data.swe), forcings.timestamps, :swe);
-# ρsn = TimeSeriesForcing(ustrip.(forcings.data.ρsn), forcings.timestamps, :ρsn);
 snowfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.snowfall.*1.0), forcings.timestamps, :snowfall)
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
@@ -33,7 +32,7 @@ strat = @Stratigraphy(
 );
 tile = Tile(strat, modelgrid, initT)
 # define time span, 2 years + 3 months
-tspan = (DateTime(2016,9,30),DateTime(2018,12,31))
+tspan = (DateTime(2000,1,30),DateTime(2020,12,31))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
 # forward Euler with initial timestep of 5 minutes
@@ -45,5 +44,14 @@ cg = Plots.cgrad(:copper,rev=true);
 plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature (°C)", leg=false, dpi=150)
 plt1 = plot!(ustrip(out.snowpack.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
 plot(ustrip(out.swe), ylabel="Depth (m)", label="Snow water equivalent", dpi=150)
-plt2 = plot!(ustrip(out.snowpack.dsn), label="Snow depth", legendtitle="", dpi=150)
-plot(plt1, plt2, size=(1200,400), margins=5*Plots.Measures.mm)
+plt2 = plot!(ustrip(out.snowpack.dsn), label="Snow depth", legend=nothing, legendtitle=nothing, dpi=150)
+plot(plt1, plt2, size=(1600,700), margins=5*Plots.Measures.mm)
+# heatmap
+T_sub = out.T[Z(Between(0.0u"m",10.0u"m"))]
+heatmap(T_sub, yflip=true, size=(1200,600), dpi=150)
+# thaw depth
+td = Diagnostics.thawdepth(out.T)
+plot(td, yflip=true, ylabel="Thaw depth (m)", size=(1200,600))
+# active layer thickness
+alt = Diagnostics.active_layer_thickness(out.T)
+plot(ustrip.(alt.data), ylabel="Active layer thickness (m)", xlabel="Number of years", label="ALT", size=(1200,600))

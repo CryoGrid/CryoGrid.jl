@@ -34,10 +34,11 @@ struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
     D::TA
 end
 
-mutable struct CGLiteSolution{TT,Tu<:AbstractVector{TT},Tt,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
+mutable struct CGLiteSolution{TT,Tu<:AbstractVector{TT},Tt,Talg,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
     prob::Tprob
     u::Vector{Tu}
     t::Vector{Tt}
+    alg::Talg
     retcode::Symbol
 end
 Base.getproperty(sol::CGLiteSolution, name::Symbol) = name == :H ? getfield(sol, :u) : getfield(sol, name)
@@ -71,6 +72,16 @@ function (sol::CGLiteSolution)(t::Float64)
         return sol.u[i-1] .+ t.*(u₂ - u₁) ./ (t₂ - t₁)
     end
 end
+function DiffEqBase.sensitivity_solution(sol::CGLiteSolution, u, t)
+    T = eltype(eltype(u))
+    N = length((size(sol.prob.u0)..., length(u)))
+    interp = LinearInterpolation(t, u)
+    ODESolution{T, N}(u, nothing, nothing, t,
+                      nothing, sol.prob,
+                      sol.alg, interp,
+                      true, length(sol.t),
+                      nothing, sol.retcode)
+end
 
 mutable struct CGLiteIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegrator{Talg,true,Tu,Tt}
     alg::Talg
@@ -88,36 +99,31 @@ SciMLBase.get_du(integrator::CGLiteIntegrator) = integrator.cache.du
 function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
     tile = Tile(prob.f)
     grid = tile.grid
-    u0 = copy(collect(prob.u0))
+    u0 = copy(prob.u0)
     nsteps = Int(ceil((prob.tspan[2] - prob.tspan[1]) / dt)) + 1
-    u_storage = Vector{typeof(u0)}(undef, nsteps)
-    t_storage = zeros(nsteps)
     # initialize storage
-    u_storage[1] = u0
-    t_storage[1] = prob.tspan[1]
-    for i in 2:length(u_storage)
-        u_storage[i] = similar(u0)
-    end
+    u_storage = [u0]
+    t_storage = [prob.tspan[1]]
     # reset SavedValues on tile.hist
     stateproto = prob.savefunc(tile, u0, similar(u0))
     savevals = SavedValues(Float64, typeof(stateproto))
     tile.hist.vals = savevals
-    sol = CGLiteSolution(prob, u_storage, t_storage, :Default)
+    sol = CGLiteSolution(prob, u_storage, t_storage, alg, :Default)
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
         similar(prob.u0),
-        similar(u0, length(prob.u0.H)),
-        similar(u0, length(prob.u0.H)),
-        similar(u0, length(prob.u0.H)),
-        similar(u0, length(prob.u0.H)),
-        similar(u0, length(prob.u0.H)),
-        similar(u0, length(prob.u0.H)-1),
-        similar(u0, length(prob.u0.H)),
-        similar(u0, length(prob.u0.H)-1),
-        similar(u0, length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)-1),
+        similar(u0, eltype(u0), length(prob.u0.H)),
+        similar(u0, eltype(u0), length(prob.u0.H)-1),
+        similar(u0, eltype(u0), length(prob.u0.H)),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    return CGLiteIntegrator(alg, cache, sol, copy(prob.u0), p, prob.tspan[1], convert(eltype(prob.tspan), dt), 1)
+    return CGLiteIntegrator(alg, cache, sol, u0, p, prob.tspan[1], convert(eltype(prob.tspan), dt), 1)
 end
 
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)

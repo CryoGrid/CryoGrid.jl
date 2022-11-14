@@ -12,7 +12,7 @@ struct FunctionInitializer{varname,F} <: VarInitializer{varname}
     f::F
     FunctionInitializer(varname::Symbol, f::F) where {F} = new{varname,F}(f)
 end
-CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::FunctionInitializer) = init.f(args...)
+CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::FunctionInitializer) = init.f(layer, process, state)
 Base.getindex(init::FunctionInitializer, itrv::Interval) = init
 """
     InterpInitializer{varname,P,I,E} <: VarInitializer{varname}

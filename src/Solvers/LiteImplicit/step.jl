@@ -16,15 +16,9 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     # invoke auxiliary state saving function in CryoGridProblem
     push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
     push!(tile.hist.vals.t, integrator.t)
-    # use pre-allocated values up to time limit, then push! afterwards
-    # technically step! should probably do nothing when t > tspan[2] ..?
-    if i <= length(integrator.sol.u)
-        integrator.sol.u[i] .= u
-        integrator.sol.t[i] = t
-    else
-        push!(integrator.sol.u, integrator.u)
-        push!(integrator.sol.t, integrator.t)
-    end
+    # save state in solution
+    push!(integrator.sol.t, integrator.t)
+    push!(integrator.sol.u, integrator.u)
     integrator.step = i
     integrator.t = t
     return nothing

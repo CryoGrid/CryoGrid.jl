@@ -97,7 +97,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
     sfcc = freezecurve(heat)
     f = sfcc.f
     L = heat.prop.L
-    @unpack hc_w, hc_i = thermalproprties(soil)
+    @unpack hc_w, hc_i = Heat.thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = state.T[i]
         f_argsᵢ = sfcckwargs(f, soil, heat, state, i)

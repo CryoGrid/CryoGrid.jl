@@ -2,11 +2,11 @@ using DiffEqCallbacks, SciMLBase
 import DiffEqBase, DiffEqCallbacks
 
 """
-    CryoGridProblem{Tu,Tt,Tp,TT,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,true}
+    CryoGridProblem{iip,Tu,Tt,Tp,TT,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
 
 Represents a CryoGrid discretized PDE forward model configuration using the `SciMLBase`/`DiffEqBase` problem interface.
 """
-struct CryoGridProblem{Tu,Tt,Tp,TT,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,true}
+struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
     f::TT
     u0::Tu
     tspan::NTuple{2,Tt}
@@ -15,7 +15,10 @@ struct CryoGridProblem{Tu,Tt,Tp,TT,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProb
     savefunc::Tsf
     isoutofdomain::Tdf
     kwargs::Tkw
+    CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsf,Tcb,Tdf,Tkw} = new{iip,Tu,Tt,Tp,TF,Tsf,Tcb,Tdf,Tkw}(f,u0,tspan,p,cbs,savefunc,iood,kwargs)
 end
+(prob::Type{<:CryoGridProblem{iip}})(; f=prob.f, u0=prob.u0, tspan=prob.tspan, p=prob.p, callbacks=prob.callbacks, savefunc=prob.savefunc, isoutofdomain=prob.isoutofdomain, kwargs...) where {iip} =
+    CryoGridProblem{iip}(f, u0, tspan, p, callbacks, savefunc, isoutofdomain, kwargs)
 """
     CryoGridProblem(
         tile::Tile,
@@ -91,7 +94,7 @@ function CryoGridProblem(
     tile.hist.vals = savevals
     M = Numerics.build_mass_matrix(tile.state)
 	func = odefunction(tile, u0, p, tspan; mass_matrix=M, specialization, function_kwargs...)
-	return CryoGridProblem(func, u0, tspan, p, callbacks, getsavestate, isoutofdomain, prob_kwargs)
+	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, getsavestate, isoutofdomain, prob_kwargs)
 end
 """
     CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)
@@ -122,10 +125,11 @@ function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, spec
         ODEFunction{true,specialization}(tile; mass_matrix, kwargs...)
     else
         N = length(u0)
+        T = isnothing(p) || isa(p, SciMLBase.NullParameters) ? eltype(u0) : eltype(p)
         J = Tridiagonal(
-                similar(u0, eltype(p), N-1) |> Vector,
-                similar(u0, eltype(p), N) |> Vector,
-                similar(u0, eltype(p), N-1) |> Vector
+                similar(u0, T, N-1) |> Vector,
+                similar(u0, T, N) |> Vector,
+                similar(u0, T, N-1) |> Vector
         )
         ODEFunction{true,specialization}(tile; jac_prototype=J, mass_matrix, kwargs...)
     end

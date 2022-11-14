@@ -62,17 +62,17 @@ function getvars(vs::VarStates{layers,gridvars,TU}, u::ComponentVector, du::Comp
     return (;vars...)
 end
 """
-    DiffCache{N,A,Adual}
+    DiffCache{TCache}
 
 Wrapper around `PreallocationTools.DiffCache` that stores state variables in forward-diff compatible cache arrays.
 """
-struct DiffCache{N,A,Adual}
+struct DiffCache{TCache}
     name::Symbol
-    cache::Prealloc.DiffCache{A,Adual}
+    cache::TCache
     function DiffCache(name::Symbol, A::AbstractArray, chunk_size::Int)
         # use dual cache for automatic compatibility with ForwardDiff
         cache = Prealloc.dualcache(A, chunk_size)
-        new{chunk_size,typeof(cache.du),typeof(cache.dual_du)}(name, cache)
+        new{typeof(cache)}(name, cache)
     end
 end
 Base.show(io::IO, cache::DiffCache) = print(io, "DiffCache $(cache.name) of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
