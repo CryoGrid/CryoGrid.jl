@@ -9,14 +9,15 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
 grid = CryoGrid.Presets.DefaultGrid_5cm
 initT = initializer(:T, tempprofile)
-model = CryoGrid.Presets.SoilHeatTile(:H, TemperatureGradient(tair), soilprofile, initT; grid=grid)
+tile = CryoGrid.Presets.SoilHeatTile(:H, TemperatureGradient(tair), soilprofile, initT; grid=grid)
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-u0, du0 = initialcondition!(model, tspan)
-# CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model, u0, tspan, savevars=(:T,))
-# solve with Crank-Nicolson (Trapezoid) and construct CryoGridOutput from solution
-out = @time solve(prob, Trapezoid(), abstol=1e-4, reltol=1e-4, saveat=24*3600.0, progress=true) |> CryoGridOutput;
+u0, du0 = initialcondition!(tile, tspan)
+# construct CryoGridProblem with tile, initial condition, and timespan;
+# we disable the default timestep limiter since we will use an adaptive solver.
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,), step_limiter=nothing)
+# solve with Crank-Nicolson (trapezoid method) and construct CryoGridOutput from solution
+out = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);
