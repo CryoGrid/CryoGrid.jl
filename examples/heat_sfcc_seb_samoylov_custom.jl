@@ -1,5 +1,4 @@
 using CryoGrid
-using CryoGrid.Physics
 using Plots
 
 # Custom grid (though actually pretty much the same as CryoGrid.Presets.DefaultGrid_2cm)

@@ -44,9 +44,9 @@ volumetric fractions constant. `f` must be a function of the form `f(::Layer, ::
 following properties available: `θw, θi, θa, θfracs, θwi` where `θwi` refers to the sum of `θw` and `θi`.
 """
 function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::Process, state, i) where F
-    (_, _, θa, θfracs...) = volumetricfractions(sub, state, i)
-    θwi = state.θwi[i]
     function apply(θw)
+        (_, _, θa, θfracs...) = volumetricfractions(sub, state, i)
+        θwi = state.θwi[i]
         return f(sub, proc, θw, θwi - θw, θa, θfracs...)
     end
 end

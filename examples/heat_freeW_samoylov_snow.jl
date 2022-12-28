@@ -1,5 +1,4 @@
 using CryoGrid
-using CryoGrid.Physics
 using Plots
 
 

@@ -40,7 +40,7 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
-out = @time solve(prob, Euler(), dt=60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Euler(), dt=900.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [1:10...,20:10:100...]
 cg = Plots.cgrad(:copper,rev=true);

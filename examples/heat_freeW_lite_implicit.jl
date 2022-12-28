@@ -1,5 +1,4 @@
 using CryoGrid
-using CryoGrid.Physics
 using CryoGrid.LiteImplicit
 using Plots
 

@@ -35,7 +35,7 @@ export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
 include("IO/InputOutput.jl")
 @reexport using .InputOutput
 include("Physics/Physics.jl")
-using .Physics
+@reexport using .Physics
 include("Strat/Strat.jl")
 @reexport using .Strat
 parameters = Strat.parameters
