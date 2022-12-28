@@ -34,7 +34,7 @@ function Base.show(io::IO, out::CryoGridOutput)
         println(io, "    $r")
     end
 end
-DimensionalData.stack(out::CryoGridOutput, var::Symbol, vars::Symbol...) = DimStack((;map(n -> n => getproperty(out, n), tuple(var, vars...))...))
+DimensionalData.DimStack(out::CryoGridOutput, var::Symbol, vars::Symbol...) = DimStack((;map(n -> n => getproperty(out, n), tuple(var, vars...))...))
 Base.keys(out::CryoGridOutput) = Base.propertynames(out.data)
 Base.propertynames(out::CryoGridOutput) = tuple(fieldnames(typeof(out))..., propertynames(out.data)...)
 function Base.getproperty(out::CryoGridOutput, sym::Symbol)
