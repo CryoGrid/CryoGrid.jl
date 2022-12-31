@@ -18,16 +18,16 @@ include("../types.jl")
         for (i,named_layer) in enumerate(strat)
             if i == 1
                 @test layername(named_layer) == :top
-                @test typeof(named_layer.obj) <: Top
-                @test typeof(named_layer.obj.proc) <: TestBoundary
+                @test typeof(named_layer.val) <: Top
+                @test typeof(named_layer.val.proc) <: TestBoundary
             elseif i == 2
                 @test layername(named_layer) == :testground
-                @test typeof(named_layer.obj) <: TestGroundLayer
-                @test typeof(named_layer.obj.proc) <: TestGroundProcess
+                @test typeof(named_layer.val) <: TestGroundLayer
+                @test typeof(named_layer.val.proc) <: TestGroundProcess
             elseif i == 3
                 @test layername(named_layer) == :bottom
-                @test typeof(named_layer.obj) <: Bottom
-                @test typeof(named_layer.obj.proc) <: TestBoundary
+                @test typeof(named_layer.val) <: Bottom
+                @test typeof(named_layer.val.proc) <: TestBoundary
             end
         end
     end
@@ -46,20 +46,20 @@ include("../types.jl")
         for (i,named_layer) in enumerate(strat)
             if i == 1
                 @test layername(named_layer) == :top
-                @test typeof(named_layer.obj) <: Top
-                @test typeof(named_layer.obj.proc) <: TestBoundary
+                @test typeof(named_layer.val) <: Top
+                @test typeof(named_layer.val.proc) <: TestBoundary
             elseif i == 2
                 @test layername(named_layer) == :testground1
-                @test typeof(named_layer.obj) <: TestGroundLayer
-                @test typeof(named_layer.obj.proc) <: TestGroundProcess
+                @test typeof(named_layer.val) <: TestGroundLayer
+                @test typeof(named_layer.val.proc) <: TestGroundProcess
             elseif i == 3
                 @test layername(named_layer) == :testground2
-                @test typeof(named_layer.obj) <: TestGroundLayer
-                @test typeof(named_layer.obj.proc) <: TestGroundProcess
+                @test typeof(named_layer.val) <: TestGroundLayer
+                @test typeof(named_layer.val.proc) <: TestGroundProcess
             elseif i == 4
                 @test layername(named_layer) == :bottom
-                @test typeof(named_layer.obj) <: Bottom
-                @test typeof(named_layer.obj.proc) <: TestBoundary
+                @test typeof(named_layer.val) <: Bottom
+                @test typeof(named_layer.val.proc) <: TestBoundary
             end
         end
     end
@@ -78,20 +78,20 @@ include("../types.jl")
         for (i,named_layer) in enumerate(strat)
             if i == 1
                 @test layername(named_layer) == :top
-                @test typeof(named_layer.obj) <: Top
-                @test typeof(named_layer.obj.proc) <: CoupledProcesses{Tuple{TestBoundary,TestBoundary}}
+                @test typeof(named_layer.val) <: Top
+                @test typeof(named_layer.val.proc) <: CoupledProcesses{Tuple{TestBoundary,TestBoundary}}
             elseif i == 2
                 @test layername(named_layer) == :testground1
-                @test typeof(named_layer.obj) <: TestGroundLayer
-                @test typeof(named_layer.obj.proc) <: CoupledProcesses{Tuple{TestGroundProcess,TestGroundProcess}}
+                @test typeof(named_layer.val) <: TestGroundLayer
+                @test typeof(named_layer.val.proc) <: CoupledProcesses{Tuple{TestGroundProcess,TestGroundProcess}}
             elseif i == 3
                 @test layername(named_layer) == :testground2
-                @test typeof(named_layer.obj) <: TestGroundLayer
-                @test typeof(named_layer.obj.proc) <: TestGroundProcess
+                @test typeof(named_layer.val) <: TestGroundLayer
+                @test typeof(named_layer.val.proc) <: TestGroundProcess
             elseif i == 4
                 @test layername(named_layer) == :bottom
-                @test typeof(named_layer.obj) <: Bottom
-                @test typeof(named_layer.obj.proc) <: CoupledProcesses{Tuple{TestBoundary,TestBoundary}}
+                @test typeof(named_layer.val) <: Bottom
+                @test typeof(named_layer.val.proc) <: CoupledProcesses{Tuple{TestBoundary,TestBoundary}}
             end
         end
     end

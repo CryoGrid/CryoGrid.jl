@@ -144,7 +144,7 @@ function _makecallbacks(tile::Tile)
     isgridevent(::Event) = false
     callbacks = []
     for (i,named_layer) in enumerate(tile.strat)
-        events = CryoGrid.events(named_layer.obj)
+        events = CryoGrid.events(named_layer.val)
         layername = Strat.layername(named_layer)
         for ev in events
             # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
@@ -167,7 +167,7 @@ function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layerna
             du = Strat.withaxes(get_du(integrator), tile),
             t = t,
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            return criterion(ev, layer.obj, state)
+            return criterion(ev, layer.val, state)
         end
     end
 end

@@ -8,15 +8,15 @@ const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TimeUnit}
 """
     Named{name,T}
 
-Wraps an object of type `T` with a `name` type parameter.
+Wraps a value of type `T` with a `name` type parameter.
 """
 struct Named{name,T}
-    obj::T
-    Named(name::Symbol, obj::T) where T = new{name,T}(obj)
+    val::T
+    Named(name::Symbol, val::T) where T = new{name,T}(val)
 end
 Named(values::Pair{Symbol,T}) where T = Named(values[1], values[2])
 Base.nameof(::Named{name}) where name = name
-ConstructionBase.constructorof(::Type{<:Named{name}}) where name = obj -> Named(name, obj)
+ConstructionBase.constructorof(::Type{<:Named{name}}) where name = val -> Named(name, val)
 """
     NamedTupleWrapper
 
