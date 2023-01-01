@@ -11,7 +11,7 @@ struct CryoGridEnsembleSetup{TTile<:Tile,Tkwargs}
     prob_kwargs::Tkwargs
     CryoGridEnsembleSetup(tile::Tile, tspan::NTuple{2,DateTime}; prob_kwargs...) = new{typeof(tile),typeof(prob_kwargs)}(tile, tspan, prob_kwargs)
 end
-function default_ensemble_prob_func(setup::CryoGridEnsembleSetup)
+function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMatrix)
     p = CryoGrid.parameters(setup.tile)
     u0, _ = initialcondition!(setup.tile, setup.tspan, p)
     prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
@@ -34,7 +34,7 @@ end
 """
     CryoGridEnsembleProblem(
         setup::CryoGridEnsembleSetup,
-        Φ::AbstractMatrix,
+        Θ::AbstractMatrix,
         param_map::ParameterMapping=ParameterMapping();
         output_dir=".",
         prob_func=default_ensemble_prob_func(setup),
@@ -43,7 +43,7 @@ end
         ensprob_kwargs...
     )
 
-Constructs an `EnsembleProblem` from the given ensemble `setup` for a `m x N` parameter matrix `Φ`, where `N` is the size of
+Constructs an `EnsembleProblem` from the given ensemble `setup` for a `m x N` parameter matrix `Θ`, where `N` is the size of
 the ensemble and `m` is the dimensionality of the ensmeble state space (e.g. the number of parameters). `param_map` must be a
 `ParameterMapping` with a transform function that accepts an `m`-dimensional vector and produces a parameter vector (or `CryoGridParams` instance)
 which matches the output of `CryoGrid.parameters`. By default, `param_map` is the identity function; however, it may be customized to permit the
@@ -70,7 +70,7 @@ function CryoGridEnsembleProblem(
     Θ::AbstractMatrix,
     param_map=identity;
     output_dir=".",
-    prob_func=default_ensemble_prob_func(setup),
+    prob_func=default_ensemble_prob_func(setup, Θ),
     output_func=default_ensemble_output_func(output_dir, "cryogrid_ensemble_run"),
     reduction=(u,data,i) -> (append!(u,data),false),
     ensprob_kwargs...
