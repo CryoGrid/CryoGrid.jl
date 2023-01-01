@@ -11,7 +11,7 @@ struct CryoGridEnsembleSetup{TTile<:Tile,Tkwargs}
     prob_kwargs::Tkwargs
     CryoGridEnsembleSetup(tile::Tile, tspan::NTuple{2,DateTime}; prob_kwargs...) = new{typeof(tile),typeof(prob_kwargs)}(tile, tspan, prob_kwargs)
 end
-function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMatrix)
+function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMatrix, param_map=identity)
     p = CryoGrid.parameters(setup.tile)
     u0, _ = initialcondition!(setup.tile, setup.tspan, p)
     prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
@@ -34,10 +34,9 @@ end
 """
     CryoGridEnsembleProblem(
         setup::CryoGridEnsembleSetup,
-        Θ::AbstractMatrix,
-        param_map::ParameterMapping=ParameterMapping();
+        Θ::AbstractMatrix;
         output_dir=".",
-        prob_func=default_ensemble_prob_func(setup),
+        prob_func=default_ensemble_prob_func(setup, Θ),
         output_func=default_ensemble_output_func(output_dir, "cryogrid_ensemble_run"),
         reduction=(u,data,i) -> (append!(u,data),false),
         ensprob_kwargs...
@@ -67,8 +66,7 @@ See also [`SciMLBase.EnsembleProblem`](@ref), [`CryoGridEnsembleSetup`](@ref), [
 """
 function CryoGridEnsembleProblem(
     setup::CryoGridEnsembleSetup,
-    Θ::AbstractMatrix,
-    param_map=identity;
+    Θ::AbstractMatrix;
     output_dir=".",
     prob_func=default_ensemble_prob_func(setup, Θ),
     output_func=default_ensemble_output_func(output_dir, "cryogrid_ensemble_run"),
