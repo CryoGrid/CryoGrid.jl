@@ -75,5 +75,8 @@ function CryoGridEnsembleProblem(
     reduction=(u,data,i) -> (append!(u,data),false),
     ensprob_kwargs...
 )
+    p = CryoGrid.parameters(setup.tile)
+    u0, _ = initialcondition!(setup.tile, setup.tspan, p)
+    prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
     return EnsembleProblem(prob; prob_func, output_func, reduction, ensprob_kwargs...)
 end
