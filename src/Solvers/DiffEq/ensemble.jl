@@ -25,9 +25,7 @@ end
 function default_ensemble_output_func(outdir, prefix)
     function output_func(sol, i)
         out = CryoGridOutput(sol)
-        filepath = joinpath(outdir, "$(prefix)_i=$i.jld2")
-        save(filepath, out)
-        return filepath
+        return out
     end
     return output_func
 end
