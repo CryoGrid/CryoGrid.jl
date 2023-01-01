@@ -95,7 +95,7 @@ function Tile(
     layers = OrderedDict()
     for named_layer in stripunits(strat)
         name = layername(named_layer)
-        layer = named_layer.obj
+        layer = named_layer.val
         # (re)build layer
         vars[name] = _collectvars(named_layer)
         layers[name] = named_layer
@@ -142,7 +142,7 @@ function step!(
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, dt, Val{true}())
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.diagnosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
+        CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
     end
     # interact! requires special implementation via `stratiterate`
     # this allows for layer states to determine which adjacent layers can and cannot interact
@@ -150,11 +150,11 @@ function step!(
         CryoGrid.interact!(layer1, layer2, state1, state2)
     end
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.prognosticstep!(named_layer.obj, getproperty(state, layername(named_layer)))
+        CryoGrid.prognosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
     end
     fastiterate(layers(strat)) do named_layer
         for name in obsv
-            CryoGrid.observe(Val{name}(), named_layer.obj, getproperty(state, layername(named_layer)))
+            CryoGrid.observe(Val{name}(), named_layer.val, getproperty(state, layername(named_layer)))
         end
     end
     return nothing
@@ -166,7 +166,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,o
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, 1.0, Val{true}())
     max_dts = fastmap(layers(strat)) do named_layer
-        CryoGrid.timestep(named_layer.obj, getproperty(state, layername(named_layer)))
+        CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
     end
     return minimum(max_dts)
 end
@@ -193,8 +193,8 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
     for i in 1:length(strat)-1
-        layerᵢ = strat[i].obj
-        layerᵢ₊₁ = strat[i+1].obj
+        layerᵢ = strat[i].val
+        layerᵢ₊₁ = strat[i+1].val
         stateᵢ = getproperty(state, layername(strat[i]))
         stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
         # first invoke initialcondition! with initializers
@@ -291,7 +291,7 @@ function CryoGrid.parameterize(tile::Tile)
     ctor = ConstructionBase.constructorof(typeof(tile))
     new_layers = map(tile.strat) do named_layer
         name = layername(named_layer)
-        layer = CryoGrid.parameterize(named_layer.obj)
+        layer = CryoGrid.parameterize(named_layer.val)
         Named(name, _addlayerfield(layer, name))
     end
     new_inits = map(tile.inits) do init
@@ -351,7 +351,7 @@ updateparams(tile::Tile, u, p::Nothing, t) = tile
 Collects and validates all declared variables (`Var`s) for the given stratigraphy component.
 """
 function _collectvars(@nospecialize(named_layer::NamedLayer{name,TLayer})) where {name,TLayer}
-    layer = named_layer.obj
+    layer = named_layer.val
     declared_vars = variables(layer)
     nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
     all_vars = tuplejoin(declared_vars, nested_vars)

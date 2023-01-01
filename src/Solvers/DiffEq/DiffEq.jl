@@ -35,6 +35,8 @@ using DiffEqCallbacks
 export TDMASolver
 include("linsolve.jl")
 include("output.jl")
+export CryoGridEnsembleSetup, CryoGridEnsembleProblem
+include("ensemble.jl")
 
 # solve/init interface
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
