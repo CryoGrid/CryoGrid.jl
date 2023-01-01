@@ -71,7 +71,7 @@ function CryoGridEnsembleProblem(
     param_map=identity;
     output_dir=".",
     prob_func=default_ensemble_prob_func(setup),
-    output_func=default_output_func(output_dir, "cryogrid_ensemble_run"),
+    output_func=default_ensemble_output_func(output_dir, "cryogrid_ensemble_run"),
     reduction=(u,data,i) -> (append!(u,data),false),
     ensprob_kwargs...
 )
