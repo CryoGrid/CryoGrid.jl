@@ -98,10 +98,10 @@ function Tile(
         layer = named_layer.val
         # (re)build layer
         vars[name] = _collectvars(named_layer)
-        layers[name] = named_layer
+        layers[name] = _addlayerfield(named_layer, name)
         # events
         evs = CryoGrid.events(layer)
-        events[name] = evs
+        events[name] = _addlayerfield(evs, name)
     end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
@@ -110,6 +110,7 @@ function Tile(
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
+    inits = _addlayerfield(inits, :init)
     return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip, Tuple(observe))
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
