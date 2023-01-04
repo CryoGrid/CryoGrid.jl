@@ -185,7 +185,8 @@ end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state, i)
     hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
-    return enthalpyinv(heat.freezecurve, hc, state.H[i], state.θwi[i], heat.prop.L)
+    θwi = Hydrology.watercontent(sub, state, i)
+    return enthalpyinv(heat.freezecurve, hc, state.H[i], θwi, heat.prop.L)
 end
 @inline function enthalpyinv(::FreeWater, hc::F, H, θwi, L) where {F}
     θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)

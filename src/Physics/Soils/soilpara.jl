@@ -39,13 +39,15 @@ function from_components(θo, por, sat=1.0, xic=0.0)
     return HomogeneousMixture(;por, sat, org, xic)
 end
 """
-    MineralSediment{Tpor} <: SoilParameterization
+    MineralSediment{Tpor,Tsat} <: SoilParameterization
 
 Represents a simple, mineral sediment with (possibly) spatially variable porosity.
 """
-Base.@kwdef struct MineralSediment{Tpor} <: SoilParameterization
+Base.@kwdef struct MineralSediment{Tpor,Tsat} <: SoilParameterization
     por::Tpor = 0.5
+    sat::Tsat = 1.0
 end
 CryoGrid.parameterize(para::MineralSediment) = MineralSediment(
     por = CryoGrid.parameterize(para.por, domain=0..1),
+    sat = CryoGrid.parameterize(para.sat, domain=0..1),
 )

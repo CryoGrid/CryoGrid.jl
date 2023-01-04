@@ -111,15 +111,12 @@ porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
 porosity(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θp}(), soil.para)
 mineral(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θm}(), soil.para)
 organic(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θo}(), soil.para)
-## Heterogeneous soils  
+## Heterogeneous soils
 porosity(::Soil, state) = state.θp
 mineral(::Soil, state) = state.θm
 organic(::Soil, state) = state.θo
 
-CryoGrid.variables(soil::Soil{<:HomogeneousMixture}) = (
-    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
-    CryoGrid.variables(soil, processes(soil))...
-)
+CryoGrid.variables(soil::Soil{<:HomogeneousMixture}) = CryoGrid.variables(soil, processes(soil))
 CryoGrid.variables(soil::Soil) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
     Diagnostic(:θp, OnGrid(Cells), domain=0..1),
@@ -127,20 +124,13 @@ CryoGrid.variables(soil::Soil) = (
     Diagnostic(:θo, OnGrid(Cells), domain=0..1),
     CryoGrid.variables(soil, processes(soil))...,
 )
-function CryoGrid.initialcondition!(soil::Soil{<:HomogeneousMixture}, state)
-    ϕ = soil.para.por
-    θ = soil.para.sat
-    ω = soil.para.org
-    χ = soil.para.xic
-    @. state.θwi = soilcomponent(Val{:θwi}(), ϕ, θ, ω, χ)
-    CryoGrid.initialcondition!(soil, processes(soil), state)
-end
 function CryoGrid.initialcondition!(soil::Soil{<:MineralSediment}, state)
     evaluate(x::Number) = x
     evaluate(f::Function) = f(soil, state)
-    θp = evaluate(soil.para.por)
-    @. state.θwi = θp # assuming saturated conditions
-    @. state.θp = θp
+    ϕ = evaluate(soil.para.por)
+    θ = evaluate(soil.para.sat)
+    @. state.θp = ϕ
+    @. state.θwi = ϕ*θ
     @. state.θm = 1 - state.θp
     @. state.θo = zero(eltype(state.θo))
     CryoGrid.initialcondition!(soil, processes(soil), state)

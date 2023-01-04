@@ -46,7 +46,7 @@ following properties available: `θw, θi, θa, θfracs, θwi` where `θwi` refe
 function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::Process, state, i) where F
     function apply(θw)
         (_, _, θa, θfracs...) = volumetricfractions(sub, state, i)
-        θwi = state.θwi[i]
+        θwi = Hydrology.watercontent(sub, state, i)
         return f(sub, proc, θw, θwi - θw, θa, θfracs...)
     end
 end

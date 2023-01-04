@@ -47,7 +47,15 @@ kwsat(sub::SubSurface, water::WaterBalance) = hydraulicproperties(sub).kw_sat
 
 Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
 """
-@inline maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
+maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
+"""
+    watercontent(::SubSurface, state)
+    watercontent(::SubSurface, state, i)
+
+Returns the total water content `θwi` from the given subsurface layer and/or current state.
+"""
+watercontent(::SubSurface, state) = state.θwi
+watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
 # Helper methods
 """
     reductionfactor(water::WaterBalance, x)

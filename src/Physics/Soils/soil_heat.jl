@@ -14,7 +14,7 @@ end
 end
 # Define volumetricfractions for Soil layer
 @inline function Physics.volumetricfractions(soil::Soil, state, i)
-    return let θwi = state.θwi[i],
+    return let θwi = Hydrology.watercontent(soil, state, i),
         θw = state.θw[i],
         θm = mineral(soil, state, i),
         θo = organic(soil, state, i),
@@ -46,7 +46,7 @@ which should be set according to the layer/process properties or state. The defa
 sets only the total water content, θtot = θwi, and the saturated water content, θsat = θp.
 """
 sfcckwargs(::SFCCFunction, soil::Soil, heat::HeatBalance, state, i) = (
-    θtot = state.θwi[i], # total water content    
+    θtot = Hydrology.watercontent(soil, state, i), # total water content    
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 """
@@ -79,7 +79,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{FreeWater}, st
     L = heat.prop.L
     # initialize liquid water content based on temperature
     @inbounds for i in 1:length(state.T)
-        θwi = state.θwi[i]
+        θwi = Hydrology.watercontent(soil, state, i)
         state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
         state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
@@ -118,7 +118,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
             props = thermalproperties(soil),
             hc_w = props.hc_w,
             hc_i = props.hc_i,
-            θwi = state.θwi[i], # total water content
+            θwi = Hydrology.watercontent(soil, state, i), # total water content
             T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L), # initial guess for T
             hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
             f = sfcc.f,
@@ -136,7 +136,7 @@ function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     sfcc = freezecurve(heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
-        θwi = state.θwi[i], # total water content
+        θwi = Hydrology.watercontent(soil, state, i), # total water content
         hc = partial(Heat.heatcapacity, Val{:θw}(), soil, heat, state, i),
         T₀ = i > 1 ? state.T[i-1] : (H - L*θwi) / hc(θwi),
         f = sfcc.f,

@@ -28,6 +28,8 @@ end
 Hydrology.default_dtlim(::RichardsEq{Pressure}) = Physics.MaxDelta(0.01u"m")
 Hydrology.default_dtlim(::RichardsEq{Saturation}) = Physics.MaxDelta(0.01)
 Hydrology.fieldcapacity(::Soil, water::WaterBalance{<:RichardsEq}) = 0.0
+Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 """
     impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi)
 
@@ -35,7 +37,6 @@ Impedence factor which represents the blockage of water-filled pores by ice (see
 """
 impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi) = 10^(-water.flow.Ω*(1 - θw/θwi))
 swrc(water::WaterBalance{<:RichardsEq}) = water.flow.swrc
-Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 @inline function Hydrology.watercontent!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Pressure}}, state)
     let swrc = swrc(water);
         @inbounds for i in 1:length(state.ψ₀)
