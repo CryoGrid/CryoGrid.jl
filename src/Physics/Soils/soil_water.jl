@@ -27,7 +27,6 @@ Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRCFunction,T
 end
 Hydrology.default_dtlim(::RichardsEq{Pressure}) = Physics.MaxDelta(0.01u"m")
 Hydrology.default_dtlim(::RichardsEq{Saturation}) = Physics.MaxDelta(0.01)
-Hydrology.fieldcapacity(::Soil, water::WaterBalance{<:RichardsEq}) = 0.0
 Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 """
@@ -108,9 +107,6 @@ CryoGrid.variables(::RichardsEq{Saturation}) = (
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
 )
-function CryoGrid.initialcondition!(soil::Soil, water::WaterBalance, state)
-    CryoGrid.diagnosticstep!(soil, water, state)
-end
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.initialcondition!(soil, water, state)
@@ -120,7 +116,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]
     ψ₂ = state2.ψ[1]
-    θfc = Hydrology.fieldcapacity(sub1, water1) # take field capacity from upper layer where water would drain from
+    θfc = Hydrology.minwater(sub1, water1) # take field capacity from upper layer where water would drain from
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     δ₁ = CryoGrid.thickness(sub1, state1, last)

@@ -23,6 +23,12 @@ struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,
     sp::Tsp # user-defined specialization
 end
 """
+    NoFlow <: WaterFlow
+
+Represents a zero flow scheme 
+"""
+struct NoFlow <: WaterFlow end
+"""
     BucketScheme{Tfc} <: WaterFlow
 
 "Bucket" water scheme for downward advective flow due to gravity.
@@ -37,25 +43,33 @@ default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
 WaterBalance(flow::WaterFlow = BucketScheme(), et=nothing; prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
 """
-    kwsat(::SubSurface, water::WaterBalance)
+    SaturationProfile(knots::Pair...)
+
+Alias for `Profile(knots...)` that validates knot values to be in the range [0,1].
+"""
+function SaturationProfile(knots::Pair...)
+    @assert all(map(∈(0..1) ∘ last, knots))
+    return Profile(knots...)
+end
+"""
+    kwsat(::SubSurface, ::WaterBalance)
 
 Hydraulic conductivity at saturation.
 """
-kwsat(sub::SubSurface, water::WaterBalance) = hydraulicproperties(sub).kw_sat
+kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
 """
-    maxwater(::SubSurface, ::WaterBalance, state, i)
+    maxwater(::SubSurface, ::WaterBalance, state, i=nothing)
 
 Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
 """
-maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
+maxwater(::SubSurface, ::WaterBalance, state, i=nothing) = one(eltype(state.sat))
 """
-    watercontent(::SubSurface, state)
-    watercontent(::SubSurface, state, i)
+    minwater(::SubSurface, water::WaterBalance, i=nothing)
 
-Returns the total water content `θwi` from the given subsurface layer and/or current state.
+Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
-watercontent(::SubSurface, state) = state.θwi
-watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
+minwater(::SubSurface, water::WaterBalance, i=nothing) = 0.0
+minwater(::SubSurface, water::WaterBalance{<:BucketScheme}, i=nothing) = water.flow.fieldcap
 # Helper methods
 """
     reductionfactor(water::WaterBalance, x)
@@ -101,8 +115,15 @@ function balancefluxes!(::SubSurface, water::WaterBalance, state)
     end
     state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])
 end
-fieldcapacity(::SubSurface, water::WaterBalance{<:BucketScheme}) = water.flow.fieldcap
-@inline function watercontent!(sub::SubSurface, water::WaterBalance{<:BucketScheme}, state)
+"""
+    watercontent(::SubSurface, state)
+    watercontent(::SubSurface, state, i)
+
+Returns the total water content `θwi` from the given subsurface layer and/or current state.
+"""
+watercontent(::SubSurface, state) = state.θwi
+watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
+@inline function watercontent!(sub::SubSurface, water::WaterBalance, state)
     @inbounds for i in 1:length(state.sat)
         state.θsat[i] = maxwater(sub, water, state, i)
         state.θwi[i] = state.sat[i]*state.θsat[i]
@@ -138,7 +159,7 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
     # loop over grid
     @inbounds for i in 2:N-1 # note that the index is over grid *edges*
         let θwᵢ₋₁ = state.θw[i-1], # cell above edge i
-            θfc = fieldcapacity(sub, water),
+            θfc = minwater(sub, water),
             kw = state.kw[i];
             # compute fluxes over inner grid cell faces
             state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
@@ -194,7 +215,7 @@ function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)
     θw₁ = state1.θw[end]
-    θfc = fieldcapacity(sub1, water1) # take field capacity from upper layer where water would drain from
+    θfc = minwater(sub1, water1) # take field capacity from upper layer where water would drain from
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     δ₁ = CryoGrid.thickness(sub1, state1, last)
@@ -209,7 +230,11 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,TET,<:Physics.MaxDelta}, state) where {TFlow,TET}
+function CryoGrid.timestep(
+    ::SubSurface,
+    water::WaterBalance{TFlow,TET,<:Physics.MaxDelta},
+    state
+) where {TFlow,TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.∂sat∂t[i], state.sat[i], state.t, zero(state.t), one(state.t))
@@ -218,3 +243,17 @@ function CryoGrid.timestep(::SubSurface, water::WaterBalance{TFlow,TET,<:Physics
     end
     return dtmax
 end
+# No flow case
+Hydrology.resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+Hydrology.hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+CryoGrid.variables(::NoFlow) = (
+    Diagnostic(:sat, OnGrid(Cells), domain=0..1), # autmoatically generates ∂sat∂t
+)
+function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}, state)
+    @inbounds for i in eachindex(state.sat)
+        state.θwi[i] = state.sat[i]*maxwater(sub, water, state, i)
+    end
+end
+CryoGrid.prognosticstep!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+CryoGrid.diagnosticstep!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+CryoGrid.timestep(::SubSurface, ::WaterBalance{NoFlow}, state) = Inf

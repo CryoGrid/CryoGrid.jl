@@ -68,7 +68,7 @@ freezecurve(heat::HeatBalance) = heat.freezecurve
 dtlim(heat::HeatBalance) = heat.dtlim
 # default step limiters
 default_dtlim(::Temperature) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
-default_dtlim(::Enthalpy) = Physics.MaxDelta(100u"kJ")
+default_dtlim(::Enthalpy) = Physics.MaxDelta(1u"MJ")
 default_dtlim(::HeatOperator) = nothing
 
 # thermal conductivity and heat capacity methods

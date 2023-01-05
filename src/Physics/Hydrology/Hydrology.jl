@@ -45,7 +45,7 @@ function CryoGrid.parameterize(prop::HydraulicProperties)
     )
 end
 
-export BucketScheme, Evapotranspiration, WaterBalance
+export BucketScheme, NoFlow, Evapotranspiration, WaterBalance, SaturationProfile
 include("water_balance.jl")
 export DampedET, EvapOnly
 include("water_ET.jl")

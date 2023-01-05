@@ -39,7 +39,7 @@ function evapotranspiration!(
         state.w_ev[i] = Δz[i]*exp(-z[i] / et.d_ev)
         state.w_tr[i] = Δz[i]*exp(-z[i] / et.d_tr)
         let θwi = state.θwi[i],
-            θfc = fieldcapacity(sub, water);
+            θfc = minwater(sub, water);
             state.αᶿ[i] = ifelse(θwi < θfc, 0.25(1-cos(π*θwi/θfc))^2, one(θwi))
         end
     end

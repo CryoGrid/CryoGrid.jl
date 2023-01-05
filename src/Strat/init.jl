@@ -60,6 +60,6 @@ Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpIn
 
 Convenience constructor for `VarInitializer` that selects the appropriate initializer type based on the arguments.
 """
-initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, (layer,state,init) -> getproperty(state, varname) .= x)
+initializer(varname::Symbol, x::Number) = FunctionInitializer(varname, (layer,proc,state) -> getproperty(state, varname) .= x)
 initializer(varname::Symbol, f::Function) = FunctionInitializer(varname, f)
 initializer(varname::Symbol, profile::Profile, interp=Interpolations.Linear(), extrap=Interpolations.Flat()) = InterpInitializer(varname, profile, interp, extrap)
