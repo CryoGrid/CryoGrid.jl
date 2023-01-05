@@ -119,7 +119,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
             hc_w = props.hc_w,
             hc_i = props.hc_i,
             θwi = Hydrology.watercontent(soil, state, i), # total water content
-            T₀ = i > 1 ? state.T[i-1] : FreezeCurves.freewater(H, θwi, L), # initial guess for T
+            T₀ = i > 1 ? state.T[i-1] : H/hc_w, # initial guess for T
             hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
             f = sfcc.f,
             f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
