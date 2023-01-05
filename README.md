@@ -74,6 +74,9 @@ prob2 = CryoGridProblem(tile2, u0, tspan, savevars=(:T,))
 out2 = @time solve(prob2, Euler(), dt=300.0, saveat=3*3600.0, progress=true) |> CryoGridOutput;
 plot(out2.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
+
+![Ts_output_freew](res/Ts_H_tair_vg_2010-2011.png)
+
 Note that `SoilHeatTile` uses energy as the state variable by default. To use temperature as the state variable instead:
 
 ```julia
