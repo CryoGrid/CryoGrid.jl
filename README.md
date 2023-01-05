@@ -39,21 +39,20 @@ using Plots
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
 # use air temperature as upper boundary forcing
-tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
+tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # get preset soil and initial temperature profile for Samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
-# initializer for temperature
 initT = initializer(:T, tempprofile)
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
 model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, initT)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-u0, du0 = initialcondition!(model, tspan)
-# CryoGrid wrapper for ODEProblem
-prob = CryoGridProblem(model, u0, tspan, saveat=6*3600, savevars=(:T,))
+u0, du0 = initialcondition!(model, tspan, initT)
+# CryoGrid front-end for ODEProblem
+prob = CryoGridProblem(model, u0, tspan, savevars=(:T,))
 # solve discretized system, saving every 6 hours;
 # Trapezoid on a discretized PDE is analogous to the well known Crank-Nicolson method.
-out = @time solve(prob, Trapezoid(), saveat=6*3600, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Trapezoid(), saveat=6*3600.0, progress=true) |> CryoGridOutput;
 zs = [1.0,5,10,20,30,50,100,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
