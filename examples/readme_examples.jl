@@ -13,10 +13,9 @@ initT = initializer(:T, tempprofile)
 model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, initT)
 # define time span (1 year)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = parameters(model)
-u0, du0 = initialcondition!(model, tspan, p, initT)
+u0, du0 = initialcondition!(model, tspan, initT)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
+prob = CryoGridProblem(model, u0, tspan, savevars=(:T,))
 # solve discretized system, saving every 6 hours;
 # Trapezoid on a discretized PDE is analogous to the well known Crank-Nicolson method.
 out = @time solve(prob, Trapezoid(), saveat=6*3600.0, progress=true) |> CryoGridOutput;
