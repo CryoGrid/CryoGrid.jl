@@ -110,7 +110,9 @@ function Tile(
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
-    inits = _addlayerfield(inits, :init)
+    inits = map(inits) do init
+        _addlayerfield(init, Symbol(:init_, varname(init)))
+    end
     return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip, Tuple(observe))
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
