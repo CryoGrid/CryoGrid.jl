@@ -22,20 +22,13 @@ function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMa
         return new_prob
     end
 end
-function default_ensemble_output_func(outdir, prefix)
-    function output_func(sol, i)
-        out = CryoGridOutput(sol)
-        return out
-    end
-    return output_func
-end
 """
     CryoGridEnsembleProblem(
         setup::CryoGridEnsembleSetup,
         Θ::AbstractMatrix;
         output_dir=".",
         prob_func=default_ensemble_prob_func(setup, Θ),
-        output_func=default_ensemble_output_func(output_dir, "cryogrid_ensemble_run"),
+        output_func=(sol,i) -> CryoGridOutput(sol),
         reduction=(u,data,i) -> (append!(u,data),false),
         ensprob_kwargs...
     )
@@ -65,9 +58,8 @@ See also [`SciMLBase.EnsembleProblem`](@ref), [`CryoGridEnsembleSetup`](@ref), [
 function CryoGridEnsembleProblem(
     setup::CryoGridEnsembleSetup,
     Θ::AbstractMatrix;
-    output_dir=".",
     prob_func=default_ensemble_prob_func(setup, Θ),
-    output_func=default_ensemble_output_func(output_dir, "cryogrid_ensemble_run"),
+    output_func=(sol, i) -> CryoGridOutput(sol),
     reduction=(u,data,i) -> (append!(u,data),false),
     ensprob_kwargs...
 )
