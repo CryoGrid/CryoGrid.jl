@@ -6,33 +6,33 @@ using Plots
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair =&gt; u&quot;°C&quot;);
 # use air temperature as upper boundary forcing
-tair = TimeSeriesForcing(ustrip.(forcings.data.Tair), forcings.timestamps, :Tair);
+tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # get preset soil and initial temperature profile for Samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
-# basic 1-layer heat conduction model (defaults to free water freezing scheme)
-model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile)
-# define time span (1 year)
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-p = parameters(model)
 initT = initializer(:T, tempprofile)
-u0 = initialcondition!(model, tspan, p, initT)
+# choose grid with 5cm spacing
+grid = CryoGrid.Presets.DefaultGrid_5cm
+# basic 1-layer heat conduction model (defaults to free water freezing scheme)
+tile = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), GeothermalHeatFlux(0.053u&quot;W/m^2&quot;), soilprofile, initT, grid=grid)
+# define time span (1 year)
+tspan = (DateTime(2010,11,30),DateTime(2011,11,30))
+u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
-# solve discretized system, saving every 6 hours;
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
+# solve discretized system, saving every 3 hours;
 # Trapezoid on a discretized PDE is analogous to the well known Crank-Nicolson method.
-out = @time solve(prob, Trapezoid(), saveat=6*3600.0, progress=true) |&gt; CryoGridOutput;
-zs = [1.0,5,10,20,30,50,100,500,1000]u&quot;cm&quot;
+out = @time solve(prob, Trapezoid(), saveat=3*3600.0, progress=true) |&gt; CryoGridOutput;
+zs = [2,7,12,22,32,42,50,100,500]u&quot;cm&quot;
 cg = Plots.cgrad(:copper,rev=true)
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]&#39;, ylabel=&quot;Temperature&quot;, leg=false)</code></pre><p><img src="res/Ts_H_tair_freeW_2010-2011.png" alt="Ts_output_freew"/></p><p>Alternatively, we can use a Dall&#39;Amico freeze curve:</p><pre><code class="language-julia hljs">model = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), soilprofile, freezecurve=SFCC(DallAmico()))
-# Set-up parameters
-p = parameters(model)
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]&#39;, ylabel=&quot;Temperature&quot;, leg=false)</code></pre><p><img src="res/Ts_H_tair_freeW_2010-2011.png" alt="Ts_output_freew"/></p><p>Alternatively, we can use a Dall&#39;Amico freeze curve:</p><pre><code class="language-julia hljs">sfcc = SFCC(DallAmico(swrc=VanGenuchten(α=0.02, n=1.8))) # silt/clay-like freeze curve
+tile2 = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), GeothermalHeatFlux(0.053u&quot;W/m^2&quot;), soilprofile, initT, grid=grid, freezecurve=sfcc)
+u0, du0 = initialcondition!(tile2, tspan)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(model,u0,tspan,p,savevars=(:T,))
+prob2 = CryoGridProblem(tile2, u0, tspan, savevars=(:T,))
 # stiff solvers don&#39;t work well with Dall&#39;Amico due to the ill-conditioned Jacobian;
 # We can just forward Euler instead.
-out = @time solve(prob, Euler(), dt=120.0, saveat=6*3600.0, progress=true) |&gt; CryoGridOutput;
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]&#39;, ylabel=&quot;Temperature&quot;, leg=false)</code></pre><p>Note that <code>SoilHeat</code> uses energy as the state variable by default. To use temperature as the state variable instead:</p><pre><code class="language-julia hljs"># :T is the variable name for temperature, :H represents enthalpy/energy.
+out2 = @time solve(prob2, Euler(), dt=300.0, saveat=3*3600.0, progress=true) |&gt; CryoGridOutput;
+plot(out2.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]&#39;, ylabel=&quot;Temperature&quot;, leg=false)</code></pre><p>Note that <code>SoilHeatTile</code> uses energy as the state variable by default. To use temperature as the state variable instead:</p><pre><code class="language-julia hljs"># :T is the variable name for temperature, :H represents enthalpy/energy.
 # This is used in the specification of the HeatBalance process type.
 # While this will work with any freeze curve, here we use Westermann (2011) as an example.
-model = CryoGrid.Presets.SoilHeatTile(:T, TemperatureGradient(tair), soilprofile, freezecurve=SFCC(Westermann()))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../installation/">« Installation</a><a class="docs-footer-nextpage" href="../manual/overview/">Overview »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 5 January 2023 16:23">Thursday 5 January 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+model = CryoGrid.Presets.SoilHeatTile(:T, TemperatureGradient(tair), soilprofile, freezecurve=SFCC(Westermann()))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../installation/">« Installation</a><a class="docs-footer-nextpage" href="../manual/overview/">Overview »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 5 January 2023 16:26">Thursday 5 January 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
