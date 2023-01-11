@@ -9,7 +9,7 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     t = t₀ + dt
     tile = Strat.updateparams(Tile(integrator.sol.prob.f), u, p, t)
     # explicit update, if necessary
-    _explicit_step!(integrator, tile, du, u, p, t)
+    # _explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
     _implicit_step!(integrator, tile, du, u, p, t)
     i = integrator.step + 1
@@ -23,8 +23,6 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     integrator.t = t
     return nothing
 end
-# for Tiles with only heat conduction, no explicit step
-_explicit_step!(integrator::CGLiteIntegrator, tile::HeatOnlyTile, du, u, p, t) = nothing
 function _explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     dt = 1.0
     t_next = integrator.t

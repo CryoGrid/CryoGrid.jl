@@ -92,6 +92,7 @@ mutable struct CGLiteIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegr
     p::Tp
     t::Tt
     dt::Tt
+    tdir::Int
     step::Int
 end
 SciMLBase.done(integrator::CGLiteIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
@@ -124,7 +125,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
         similar(u0, eltype(u0), length(prob.u0.H)),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    return CGLiteIntegrator(alg, cache, sol, u0, p, prob.tspan[1], convert(eltype(prob.tspan), dt), 1)
+    return CGLiteIntegrator(alg, cache, sol, u0, p, prob.tspan[1], convert(eltype(prob.tspan), dt), 1, 1)
 end
 
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
