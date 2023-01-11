@@ -53,7 +53,7 @@ function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     # iterative scheme for enthalpy update
     iter_count = 1
     ϵ_max = Inf
-    while ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters
+    while (ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters) || iter_count < integrator.alg.miniters
         # invoke Tile step function
         CryoGrid.Strat.step!(tile, du, u, p, t, dt)
         dHdT = getvar(Val{:∂H∂T}(), tile, u; interp=false)
@@ -89,7 +89,7 @@ function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
         iter_count += 1
     end
     if iter_count > integrator.alg.maxiters && ϵ_max > integrator.alg.tolerance
-        @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
+        integrator.alg.verbose && @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
         integrator.sol.retcode = :MaxIters
     end
     return dH

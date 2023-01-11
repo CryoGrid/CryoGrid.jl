@@ -16,6 +16,7 @@ Base.@kwdef struct LiteImplicitEuler <: SciMLBase.AbstractODEAlgorithm
     miniters::Int = 2
     maxiters::Int = 1000
     tolerance::Float64 = 1e-3
+    verbose::Bool = true
 end
 DiffEqBase.check_prob_alg_pairing(::CryoGridProblem, ::LiteImplicitEuler) = nothing
 DiffEqBase.check_prob_alg_pairing(prob, alg::LiteImplicitEuler) = throw(DiffEqBase.ProblemSolverPairingError(prob, alg))
