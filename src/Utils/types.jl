@@ -29,8 +29,8 @@ dispatch for `Base.values`.
 abstract type NamedTupleWrapper end
 Base.values(wrapper::NamedTupleWrapper) = wrapper.values
 function Base.getproperty(wrapper::TC, name::Symbol) where {TC<:NamedTupleWrapper}
-    if name ∈ fieldnames(TC)
-        getfield(wrapper, name)
+    if name == :values
+        getfield(wrapper, :values)
     else
         getproperty(values(wrapper), name)
     end
