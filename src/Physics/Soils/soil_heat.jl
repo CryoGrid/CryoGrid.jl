@@ -67,7 +67,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state
         T = state.T[i]
         θw, ∂θw∂T = ∇(T -> fc(T; fc_kwargsᵢ...), T)
         state.θw[i] = θw
-        state.C[i] = hc(θw)
+        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
         state.∂H∂T[i] = Heat.C_eff(T, state.C[i], L, ∂θw∂T, hc_w, hc_i)
     end
@@ -156,7 +156,7 @@ CryoGrid.parameterize(sfcc::SFCC) = SFCC(
 CryoGrid.parameterize(f::PainterKarra) = PainterKarra(
     f.freezethaw,
     CryoGrid.parameterize(f.β, domain=OpenInterval(0,Inf), desc="Painter-Karra fitting parmaeter which controls the influence of temperature on the matric potential."),
-    CryoGrid.parameterize(f.ω, domain=0..(1/β), desc="Painter-Karra fitting parameter which controls the depression of the melting point from saturation level."),
+    CryoGrid.parameterize(f.ω, domain=0..(1/f.β), desc="Painter-Karra fitting parameter which controls the depression of the melting point from saturation level."),
     f.g,
     CryoGrid.parameterize(f.swrc),
 )
