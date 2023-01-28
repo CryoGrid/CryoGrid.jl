@@ -23,9 +23,9 @@ but this can be changed via the `freezecurve` parameter. For example, to use the
 """
 function SoilHeatTile(heatvar, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
-        -2.0u"m" => Top(upperbc),
+        grid[1] => Top(upperbc),
         Tuple(knot.depth => Symbol(:soil,i) => Soil(HeatBalance(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
-        1000.0u"m" => Bottom(lowerbc)
+        grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, grid, init, chunk_size=chunk_size)
 end

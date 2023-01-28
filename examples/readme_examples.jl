@@ -24,7 +24,7 @@ out = @time solve(prob, Trapezoid(), saveat=3*3600.0, progress=true) |> CryoGrid
 zs = [2,7,12,22,32,42,50,100,500]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
-savefig("res/Ts_H_tair_freeW_2010-2011.png")
+# savefig("res/Ts_H_tair_freeW_2010-2011.png")
 
 sfcc = SFCC(DallAmico(swrc=VanGenuchten(α=0.02, n=1.8))) # silt/clay-like freeze curve
 tile2 = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT, grid=grid, freezecurve=sfcc)
@@ -35,4 +35,4 @@ prob2 = CryoGridProblem(tile2, u0, tspan, savevars=(:T,))
 # We can just forward Euler instead.
 out2 = @time solve(prob2, Euler(), dt=300.0, saveat=3*3600.0, progress=true) |> CryoGridOutput;
 plot(out2.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
-savefig("res/Ts_H_tair_vg_2010-2011.png")
+# savefig("res/Ts_H_tair_vg_2010-2011.png")

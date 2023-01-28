@@ -18,9 +18,9 @@ CryoGrid.parameterize(para::HomogeneousMixture) = HomogeneousMixture(
 )
 # Helper functions for obtaining soil compositions from characteristic fractions.
 soilcomponent(::Val{var}, para::HomogeneousMixture) where var = soilcomponent(Val{var}(), para.por, para.sat, para.org, para.xic)
+soilcomponent(::Val{:θwi}, ϕ, θ, ω, χ) = χ + ϕ*θ
 soilcomponent(::Val{:θp}, ϕ, θ, ω, χ) = (1-χ)*ϕ
 soilcomponent(::Val{:θa}, ϕ, θ, ω, χ) = (1-χ)*ϕ*(1-θ)
-soilcomponent(::Val{:θwi}, ϕ, θ, ω, χ) = χ + ϕ*θ
 soilcomponent(::Val{:θm}, ϕ, θ, ω, χ) = (1-χ)*(1-ϕ)*(1-ω)
 soilcomponent(::Val{:θo}, ϕ, θ, ω, χ) = (1-χ)*(1-ϕ)*ω
 """
