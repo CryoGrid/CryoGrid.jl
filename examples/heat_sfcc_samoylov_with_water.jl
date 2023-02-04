@@ -1,0 +1,69 @@
+using CryoGrid
+using FreezeCurves
+using Dates
+using Plots
+
+forcings = loadforcings(
+    CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
+    :Tair => u"°C",
+    :rainfall => u"mm",
+);
+# use air temperature as upper boundary forcing;
+tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
+pr = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.rainfall./3u"hr"), forcings.timestamps, :rainfall)
+# define time span for simulation
+tspan = (DateTime(2010,1,1),DateTime(2011,1,1))
+T0 = values(tair[tspan[1]])[1]
+# "simple" heat conduction model w/ 5 cm grid spacing
+grid = CryoGrid.Presets.DefaultGrid_5cm
+tempprofile = TemperatureProfile(
+    0.0u"m" => T0,
+    1.0u"m" => -8.0u"°C",
+    20.0u"m" => -10u"°C",
+    1000.0u"m" => 1.0u"°C"
+)
+# soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
+soilprofile = SoilProfile(
+    0.0u"m" => HomogeneousMixture(por=0.80,sat=0.7,org=0.75), 
+    0.1u"m" => HomogeneousMixture(por=0.80,sat=0.8,org=0.25),
+    0.4u"m" => HomogeneousMixture(por=0.55,sat=0.9,org=0.25),
+    3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0),
+    10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0),
+    100.0u"m" => HomogeneousMixture(por=0.10,sat=0.1,org=0.0),
+);
+initT = initializer(:T, tempprofile)
+# initialize saturation to match soil profile
+initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
+# soil water retention curve and freeze curve
+swrc = VanGenuchten(α=0.1, n=1.8)
+sfcc = SFCC(PainterKarra(ω=0.2, swrc=swrc), FreezeCurves.Solvers.SFCCNewtonSolver())
+# water flow: bucket scheme vs richard's eq
+waterflow = BucketScheme()
+# waterflow = RichardsEq(swrc=swrc)
+# heat operator
+op = Heat.Diffusion(:H)
+# @Stratigraphy macro lets us list multiple subsurface layers
+strat = @Stratigraphy(
+    -2.0*u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
+    soilprofile[1].depth => :soil1 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[1].value),
+    soilprofile[2].depth => :soil2 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[2].value),
+    soilprofile[3].depth => :soil3 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[3].value),
+    soilprofile[4].depth => :soil4 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[4].value),
+    soilprofile[5].depth => :soil5 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[5].value),
+    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
+);
+grid = CryoGrid.Presets.DefaultGrid_2cm
+tile = Tile(strat, grid, initT, initsat);
+u0, du0 = initialcondition!(tile, tspan)
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600, savevars=(:T,:θw,:θwi))
+out = @time solve(prob, Euler(), dt=60.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
+# check mass conservation
+water_added = values(sum(pr[tspan[1]:Hour(3):tspan[2]].tarray.*(3*3600.0u"s")))[1]
+water_mass = Diagnostics.integrate(out.θwi, tile.grid)
+Δwater = water_mass[end] - water_mass[1]
+# Plot it!
+zs = [1:10...,20:10:100...]
+cg = Plots.cgrad(:copper,rev=true);
+plot(out.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(out.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+plot(out.sat[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)

@@ -53,7 +53,7 @@ sfcckwargs(::SFCCFunction, soil::Soil, heat::HeatBalance, state, i) = (
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
 function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
-    fc = freezecurve(heat)
+    fc = heat.freezecurve
     L = heat.prop.L
     @unpack hc_w, hc_i = thermalproperties(soil)
     @inbounds for i in 1:length(state.T)
@@ -69,7 +69,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state
         state.θw[i] = θw
         state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
-        state.∂H∂T[i] = Heat.C_eff(T, state.C[i], L, ∂θw∂T, hc_w, hc_i)
+        state.∂H∂T[i] = Heat.dHdT(T, state.C[i], L, ∂θw∂T, hc_w, hc_i)
     end
 end
 """
@@ -91,10 +91,10 @@ end
 
 Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
-For heat conduction with temperature, we can simply evaluate the freeze curve to get C_eff, θw, and H.
+For heat conduction with temperature, we can simply evaluate the freeze curve to get dHdT, θw, and H.
 """
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
-    sfcc = freezecurve(heat)
+    sfcc = heat.freezecurve
     f = sfcc.f
     L = heat.prop.L
     @unpack hc_w, hc_i = Heat.thermalproperties(soil)
@@ -105,13 +105,13 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
         state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
-        state.∂H∂T[i] = Heat.C_eff(T, C, L, ∂θw∂T, hc_w, hc_i)
+        state.∂H∂T[i] = Heat.dHdT(T, C, L, ∂θw∂T, hc_w, hc_i)
         state.H[i] = enthalpy(T, C, L, θw)
     end
 end
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
-    sfcc = freezecurve(heat)
+    sfcc = heat.freezecurve
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
             L = heat.prop.L,
@@ -128,12 +128,12 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
             state.T[i] = res.T
             state.θw[i] = res.θw
             state.C[i] = res.C
-            state.∂H∂T[i] = Heat.C_eff(state.T[i], state.C[i], L, res.∂θw∂T, hc_w, hc_i)
+            state.∂H∂T[i] = Heat.dHdT(state.T[i], state.C[i], L, res.∂θw∂T, hc_w, hc_i)
         end
     end
 end
 function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state, i)
-    sfcc = freezecurve(heat)
+    sfcc = heat.freezecurve
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
         θwi = Hydrology.watercontent(soil, state, i), # total water content

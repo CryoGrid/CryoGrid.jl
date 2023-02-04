@@ -1,4 +1,4 @@
-variables(top::Top, seb::SurfaceEnergyBalance) = (
+variables(::Top, ::SurfaceEnergyBalance) = (
     Diagnostic(:Sout, Scalar, u"W/(m^2)"),    # outgoing shortwave radiation [J/(s*m^2)]
     Diagnostic(:Lout, Scalar, u"W/(m^2)"),    # outgoing longwave radiation [J/(s*m^2)]
     Diagnostic(:Qnet, Scalar, u"W/(m^2)"),    # net radiation budget at surface [J/(s*m^2)]
@@ -26,19 +26,18 @@ BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
 """
 function boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance, ::Soil, stop, ssoil)
-
     # TODO (optimize): pre-compute all forcings at time t here, then pass to functions
 
     # 1. calculate radiation budget
     # outgoing shortwave radiation as reflected
-    @setscalar stop.Sout = let α = seb.sebparams.α,
+    @setscalar stop.Sout = let α = seb.para.α,
         Sin = seb.forcings.Sin(stop.t);
         -α * Sin  # Eq. (2) in Westermann et al. (2016)
     end
 
     # outgoing longwave radiation composed of emitted and reflected radiation
-    @setscalar stop.Lout = let ϵ = seb.sebparams.ϵ,
-        σ = seb.sebparams.σ,
+    @setscalar stop.Lout = let ϵ = seb.para.ϵ,
+        σ = seb.para.σ,
         T₀ = ssoil.T[1],
         Lin = seb.forcings.Lin(stop.t);
         -ϵ * σ * normalize_temperature(T₀)^4 - (1 - ϵ) * Lin # Eq. (3) in Westermann et al. (2016)
@@ -64,18 +63,21 @@ function boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance, ::Soil, 
     @setscalar stop.Qe = Q_E(seb, stop, ssoil);
 
     # 3. determine ground heat flux as the residual of the radiative and turbulent fluxes
-    @setscalar stop.Qg = let Qnet = getscalar(stop.Qnet), Qₕ = getscalar(stop.Qh), Qₑ = getscalar(stop.Qe);
-        Qnet - Qₕ - Qₑ # essentially Eq. (1) in Westermann et al. (2016)
-    end
+    @setscalar stop.Qg =
+        let Qnet = getscalar(stop.Qnet),
+            Qₕ = getscalar(stop.Qh),
+            Qₑ = getscalar(stop.Qe);
+            Qnet - Qₕ - Qₑ # essentially Eq. (1) in Westermann et al. (2016)
+        end
 
     # 4. return the ground heat flux to the uppermost soil grid cell
-    return stop.Qg |> getscalar
+    return getscalar(stop.Qg)
 end
 
 """
 Density of air at given tempeature and pressure
 """
-density_air(seb::SurfaceEnergyBalance,T, p) = p / (normalize_temperature(T) * seb.sebparams.Rₐ);
+density_air(seb::SurfaceEnergyBalance,T, p) = p / (normalize_temperature(T) * seb.para.Rₐ);
 
 """
 Saturation pressure of water/ice according to the empirical August-Roche-Magnus formula
@@ -98,10 +100,10 @@ L_sg(T) = 1000 * (2834.1 - 0.29 * T - 0.004 * T^2);
 Friction velocity according to Monin-Obukhov theory
 """
 function ustar(seb::SurfaceEnergyBalance, stop)
-    let κ = seb.sebparams.κ,
+    let κ = seb.para.κ,
         uz = seb.forcings.wind(stop.t),                                           # wind speed at height z
         z = seb.forcings.z,                                                       # height z of wind forcing
-        z₀ = seb.sebparams.z₀,                                                   # aerodynamic roughness length [m]
+        z₀ = seb.para.z₀,                                                   # aerodynamic roughness length [m]
         Lstar = stop.Lstar |> getscalar;
         κ * uz ./ (log(z / z₀) - Ψ_M(seb, z / Lstar, z₀ / Lstar))                # Eq. (7) in Westermann et al. (2016)
     end
@@ -112,10 +114,10 @@ Obukhov length according to Monin-Obukhov theory, iterative determination as in 
 - uses the turubulent fluxes Qe and Qh as well as the friction velocity of the previous time step
 """
 function Lstar(seb::SurfaceEnergyBalance{Iterative}, stop, ssoil)
-    res = let κ = seb.sebparams.κ,
-        g = seb.sebparams.g,
-        Rₐ = seb.sebparams.Rₐ,
-        cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ, # specific heat capacity of air at constant pressure
+    res = let κ = seb.para.κ,
+        g = seb.para.g,
+        Rₐ = seb.para.Rₐ,
+        cₚ = seb.para.cₐ / seb.para.ρₐ, # specific heat capacity of air at constant pressure
         Tair = seb.forcings.Tair(stop.t),
         Tₕ = normalize_temperature(Tair), # air temperature at height z over surface
         p = seb.forcings.p(stop.t), # atmospheric pressure at surface
@@ -137,21 +139,21 @@ Obukhov length, analytical solution of Monin-Obukhov theory according to Byun 19
 - only uses the current surface temperature as input
 """
 function Lstar(seb::SurfaceEnergyBalance{Analytical}, stop, ssoil)
-    res = let g = seb.sebparams.g,
-            Rₐ = seb.sebparams.Rₐ,
-            cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                             # specific heat capacity of air at constant pressure
+    res = let g = seb.para.g,
+            Rₐ = seb.para.Rₐ,
+            cₚ = seb.para.cₐ / seb.para.ρₐ,                             # specific heat capacity of air at constant pressure
             Tₕ = normalize_temperature(seb.forcings.Tair(stop.t)),                                        # air temperature at height z over surface
             T₀ = normalize_temperature(ssoil.T[1]),                                                      # surface temperature
             p = seb.forcings.p(stop.t),                                            # atmospheric pressure at surface (height z)
             p₀ = seb.forcings.p(stop.t),                                           # normal pressure (for now assumed to be equal to p)
             uz = seb.forcings.wind(stop.t),                                        # wind speed at height z
             z = seb.forcings.z,                                                    # height z of wind forcing
-            z₀ = seb.sebparams.z₀,                                                # aerodynamic roughness length [m]
-            Pr₀ = seb.sebparams.Pr₀,                                              # turbulent Prandtl number
-            γₕ = seb.sebparams.γₕ,
-            γₘ = seb.sebparams.γₘ,
-            βₕ = seb.sebparams.βₕ,
-            βₘ = seb.sebparams.βₘ;
+            z₀ = seb.para.z₀,                                                # aerodynamic roughness length [m]
+            Pr₀ = seb.para.Pr₀,                                              # turbulent Prandtl number
+            γₕ = seb.para.γₕ,
+            γₘ = seb.para.γₘ,
+            βₕ = seb.para.βₕ,
+            βₘ = seb.para.βₘ;
 
         Θₕ = Tₕ * (p₀/p)^(Rₐ/cₚ);                                                 # potential temperature (for now identical to actual temperature)
         Θ₀ = T₀ * (p₀/p)^(Rₐ/cₚ);
@@ -191,16 +193,16 @@ end
 Sensible heat flux, defined as positive if it is a flux towards the surface
 """
 function Q_H(seb::SurfaceEnergyBalance, stop, ssoil)
-    let κ = seb.sebparams.κ,
-        Rₐ = seb.sebparams.Rₐ,
+    let κ = seb.para.κ,
+        Rₐ = seb.para.Rₐ,
         Tₕ = seb.forcings.Tair(stop.t),                                                # air temperature
         T₀ = ssoil.T[1],                                                              # surface temperature
-        cₚ = seb.sebparams.cₐ / seb.sebparams.ρₐ,                                     # specific heat capacity of air at constant pressure
+        cₚ = seb.para.cₐ / seb.para.ρₐ,                                     # specific heat capacity of air at constant pressure
         z = seb.forcings.z,                                                            # height at which forcing data are provided
         Lstar = stop.Lstar |> getscalar,
         ustar = stop.ustar |> getscalar,
         p = seb.forcings.p(stop.t),
-        z₀ = seb.sebparams.z₀,
+        z₀ = seb.para.z₀,
         ρₐ = density_air(seb, Tₕ, p); # density of air at surface air temperature and surface pressure [kg/m^3]
 
         rₐᴴ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(seb, z / Lstar, z₀ / Lstar))            # Eq. (6) in Westermann et al. (2016)
@@ -216,20 +218,20 @@ Represents evapo(transpi)ration/condensation at positive surface temperatures an
 sublimation/resublimation at negative surface temperatures
 """
 function Q_E(seb::SurfaceEnergyBalance, stop, ssoil)
-    let κ = seb.sebparams.κ,
-        γ = seb.sebparams.γ,
-        Rₐ = seb.sebparams.Rₐ,
+    let κ = seb.para.κ,
+        γ = seb.para.γ,
+        Rₐ = seb.para.Rₐ,
         Tₕ = seb.forcings.Tair(stop.t),                                                # air temperature at height z over surface
         T₀ = ssoil.T[1],                                                              # surface temperature
         p = seb.forcings.p(stop.t),                                                    # atmospheric pressure at surface
         qₕ = seb.forcings.q(stop.t),                                                   # specific humidity at height h over surface
         z = seb.forcings.z,                                                            # height at which forcing data are provided
-        rₛ = seb.sebparams.rₛ,                                                        # surface resistance against evapotranspiration / sublimation [1/m]
+        rₛ = seb.para.rₛ,                                                        # surface resistance against evapotranspiration / sublimation [1/m]
         Lstar = stop.Lstar |> getscalar,
         ustar = stop.ustar |> getscalar,
         Llg = L_lg(ssoil.T[1]),
         Lsg = L_sg(ssoil.T[1]),
-        z₀ = seb.sebparams.z₀,                                                        # aerodynamic roughness length [m]
+        z₀ = seb.para.z₀,                                                        # aerodynamic roughness length [m]
         ρₐ = density_air(seb, Tₕ, seb.forcings.p(stop.t));       # density of air at surface air temperature and surface pressure [kg/m^3]
 
         q₀ = γ * estar(T₀) / p                                                        # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
@@ -302,8 +304,8 @@ Integrated stability function for heat/water transport
     Businger 1971
 """
 function Ψ_HW(seb::SurfaceEnergyBalance{T,Businger},ζ₁::Float64, ζ₂::Float64) where T
-    let γₕ = seb.sebparams.γₕ,
-        βₕ = seb.sebparams.βₕ;
+    let γₕ = seb.para.γₕ,
+        βₕ = seb.para.βₕ;
         if ζ₁ <= 0 # neutral and unstable conditions (according to Businger, 1971)
             return 2*log( ( (1-γₕ*ζ₁)^0.5 + 1 ) / ( (1-γₕ*ζ₂)^0.5 + 1 ) );      # eq. (15) in Byun 1990
         else     # stable stratification (according to Busigner, 1971)
@@ -317,8 +319,8 @@ Integrated stability function for momentum transport
     Busigner 1971
 """
 function Ψ_M(seb::SurfaceEnergyBalance{T,Businger},ζ₁::Float64, ζ₂::Float64) where T
-    let γₘ = seb.sebparams.γₘ,
-        βₘ = seb.sebparams.βₘ;
+    let γₘ = seb.para.γₘ,
+        βₘ = seb.para.βₘ;
         if ζ₁ <= 0 # neutral and unstable conditions (according to Businger, 1971)
             x=(1-γₘ*ζ₁)^0.25;
             x₀=(1-γₘ*ζ₂)^0.25;

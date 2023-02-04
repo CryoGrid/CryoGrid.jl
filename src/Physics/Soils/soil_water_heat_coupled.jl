@@ -10,7 +10,7 @@ function Heat.freezethaw!(
     state
 ) where {TREqForm,THeatForm}
     water, heat = ps
-    sfcc = freezecurve(heat)
+    sfcc = heat.freezecurve
     swrc = FreezeCurves.swrc(sfcc.f)
     # helper function for computing temperature (inverse enthalpy, if necessary)
     _get_temperature(::Type{<:Temperature}, i) = state.T[i]
@@ -26,7 +26,7 @@ function Heat.freezethaw!(
         (θw, ∂θw∂ψ) = ∇(ψᵢ -> swrc(ψᵢ; θsat), ψ)
         ∂θw∂T = ∂θw∂ψ*∂ψ∂T
         C = Heat.heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
-        ∂H∂T = Heat.C_eff(T, C, L, ∂θw∂T, hc_w, hc_i)
+        ∂H∂T = Heat.dHdT(T, C, L, ∂θw∂T, hc_w, hc_i)
         state.∂θw∂T[i] = ∂θw∂T
         state.θw[i] = θw
         state.ψ[i] = ψ

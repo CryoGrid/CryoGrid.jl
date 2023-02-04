@@ -6,9 +6,13 @@ using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using ConstructionBase
+using Dates
 using IfElse
 using Reexport
 using Unitful
+
+import Flatten: flattenable
 
 export volumetricfractions, partial
 
@@ -51,8 +55,11 @@ function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::Process, state, i) wh
     end
 end
 
+export ConstantBC, PeriodicBC, Bias
+include("simple_bc.jl")
+include("composite_bc.jl")
 include("steplimiters.jl")
-include("Boundaries/Boundaries.jl")
+# Sub modules
 include("Hydrology/Hydrology.jl")
 include("Heat/Heat.jl")
 include("Snow/Snow.jl")
@@ -60,7 +67,6 @@ include("Soils/Soils.jl")
 include("SEB/SEB.jl")
 include("Sources/Sources.jl")
 
-@reexport using .Boundaries
 @reexport using .Heat
 @reexport using .Hydrology
 @reexport using .Snow

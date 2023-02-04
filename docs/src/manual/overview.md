@@ -58,7 +58,7 @@ variables(soil::Soil, heat::HeatBalance{:H}) = (
     Diagnostic(:kc, OnGrid(Cells), u"W//m/K"),
     # this last line just appends any state variables or parameters
     # defined by the freeze curve to the tuple.
-    variables(soil, heat, freezecurve(heat))...,
+    variables(soil, heat, heat.freezecurve)...,
 )
 ```
 

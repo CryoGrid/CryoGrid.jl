@@ -5,7 +5,7 @@ using UnPack
 import NonlinearSolve
 import SciMLBase
 
-const DefaultHeatProperties = HeatProperties()
+const DefaultHeatProperties = HeatBalanceProperties()
 const DefaultThermalProperties = ThermalProperties()
 
 Utils.@properties StefanParameters(

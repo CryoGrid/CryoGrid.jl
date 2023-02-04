@@ -63,6 +63,6 @@ Computes the thermal conductivity for the given layer from the current state and
     # Harmonic mean of inner conductivities
     @inbounds let k = (@view state.k[2:end-1]),
         Δk = Δ(state.grids.k);
-        harmonicmean!(k, state.kc, Δk)
+        Numerics.harmonicmean!(k, state.kc, Δk)
     end
 end

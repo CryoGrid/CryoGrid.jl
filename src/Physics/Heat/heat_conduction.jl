@@ -1,14 +1,3 @@
-# Generic heat conduction implementation
-"""
-    freezethaw!(sub::SubSurface, heat::HeatBalance, state)
-
-Calculates freezing and thawing effects, including evaluation of the freeze curve.
-In general, this function should compute at least the liquid/frozen water contents
-and the corresponding heat capacity. Other variables such as temperature or enthalpy
-should also be computed depending on the thermal scheme being implemented.
-"""
-freezethaw!(::SubSurface, ::HeatBalance, state) = error("missing implementation of freezethaw!")
-
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
@@ -105,7 +94,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
             k₂ = s2.kc[1],
             Δ₁ = Δk₁[end],
             Δ₂ = Δk₂[1];
-            harmonicmean(k₁, k₂, Δ₁, Δ₂)
+            Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
         end
     # calculate heat flux between cells (positive downward)
     Qᵢ = @inbounds let z₁ = CryoGrid.midpoint(sub1, s1, last),
@@ -127,7 +116,7 @@ function CryoGrid.prognosticstep!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:En
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     return nothing
 end
 """
@@ -137,7 +126,7 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     # Compute temperature flux by dividing by ∂H∂T;
     # ∂H∂T should be computed by the freeze curve.
     @inbounds @. state.∂T∂t = state.∂H∂t / state.∂H∂T
@@ -209,4 +198,27 @@ total water content (θwi), and liquid water content (θw).
         state.∂H∂T[i] = state.T[i] ≈ 0.0 ? 1e8 : state.C[i]
     end
     return nothing
+end
+
+# Water/heat coupling
+CryoGrid.initialcondition!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state) = CryoGrid.diagnosticstep!(sub, ps, state)
+function CryoGrid.diagnosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+    water, heat = ps
+    # Reset fluxes
+    Hydrology.resetfluxes!(sub, water, state)
+    # Compute water diagnostics
+    Hydrology.watercontent!(sub, water, state)
+    # HeatBalance diagnostics
+    Heat.diagnosticstep!(sub, heat, state)
+    # then hydraulic conductivity (requires liquid water content from heat conduction)
+    Hydrology.hydraulicconductivity!(sub, water, state)
+end
+function CryoGrid.prognosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+    water, heat = ps
+    CryoGrid.prognosticstep!(sub, water, state)
+    L = heat.prop.L
+    @unpack hc_w, hc_i = thermalproperties(sub)
+    # heat flux due to change in water content
+    @. state.∂H∂t += state.∂θwi∂t*(state.T*(hc_w - hc_i) + L)
+    CryoGrid.prognosticstep!(sub, heat, state)
 end
