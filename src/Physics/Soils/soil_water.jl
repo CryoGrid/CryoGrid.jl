@@ -1,4 +1,4 @@
-# Soil hydrological properties
+# Soil hydraulic properties
 """
 Soil properites for water processes.
 """
@@ -22,7 +22,6 @@ Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRCFunction,T
     form::Tform = Saturation()
     swrc::Tswrc = VanGenuchten()
     Ω::TΩ = 1e-3 # smoothness for ice impedence factor
-    advection_only::Bool = false
     sp::Tsp = nothing
 end
 Hydrology.default_dtlim(::RichardsEq{Pressure}) = Physics.MaxDelta(0.01u"m")
@@ -89,10 +88,8 @@ function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure
     return nothing
 end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
-    if !water.flow.advection_only
-        # compute diffusive fluxes from pressure, if enabled
-        Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
-    end
+    # compute diffusive fluxes from pressure, if enabled
+    Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
     return nothing
 end
 # CryoGrid methods

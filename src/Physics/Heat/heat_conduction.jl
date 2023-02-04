@@ -1,3 +1,9 @@
+function resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
+    # Reset energy fluxes to zero; this is redundant when H is the prognostic variable
+    # but necessary when it is not.
+    @. state.∂H∂t = zero(eltype(state.∂H∂t))
+    @. state.jH = zero(eltype(state.jH))
+end
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
@@ -27,12 +33,6 @@ CryoGrid.basevariables(::HeatBalance) = (
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
     Diagnostic(:θw, OnGrid(Cells), domain=0..1),
 )
-function resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
-    # Reset energy fluxes to zero; this is redundant when H is the prognostic variable
-    # but necessary when it is not.
-    @. state.∂H∂t = zero(eltype(state.∂H∂t))
-    @. state.jH = zero(eltype(state.jH))
-end
 """
 Diagonstic step for heat conduction (all state configurations) on any subsurface layer.
 """
@@ -198,27 +198,4 @@ total water content (θwi), and liquid water content (θw).
         state.∂H∂T[i] = state.T[i] ≈ 0.0 ? 1e8 : state.C[i]
     end
     return nothing
-end
-
-# Water/heat coupling
-CryoGrid.initialcondition!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state) = CryoGrid.diagnosticstep!(sub, ps, state)
-function CryoGrid.diagnosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
-    water, heat = ps
-    # Reset fluxes
-    Hydrology.resetfluxes!(sub, water, state)
-    # Compute water diagnostics
-    Hydrology.watercontent!(sub, water, state)
-    # HeatBalance diagnostics
-    Heat.diagnosticstep!(sub, heat, state)
-    # then hydraulic conductivity (requires liquid water content from heat conduction)
-    Hydrology.hydraulicconductivity!(sub, water, state)
-end
-function CryoGrid.prognosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
-    water, heat = ps
-    CryoGrid.prognosticstep!(sub, water, state)
-    L = heat.prop.L
-    @unpack hc_w, hc_i = thermalproperties(sub)
-    # heat flux due to change in water content
-    @. state.∂H∂t += state.∂θwi∂t*(state.T*(hc_w - hc_i) + L)
-    CryoGrid.prognosticstep!(sub, heat, state)
 end

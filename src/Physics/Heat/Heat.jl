@@ -1,10 +1,5 @@
 module Heat
 
-import CryoGrid
-import CryoGrid.Physics
-
-import ConstructionBase
-
 using CryoGrid
 using CryoGrid.InputOutput: Forcing
 using CryoGrid.Physics
@@ -19,10 +14,16 @@ using ModelParameters
 using Unitful
 using UnPack
 
+import CryoGrid
+import CryoGrid.Physics
+
+import ConstructionBase
+
 export FreeWater, FreezeCurve
 
 export HeatBalance, ThermalProperties
 include("types.jl")
+
 export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
 include("methods.jl")
 
@@ -37,6 +38,8 @@ include("heat_bc.jl")
 
 export heatconduction!
 include("heat_conduction.jl")
+
+include("heat_water.jl")
 
 export HeatBalanceImplicit
 include("heat_implicit.jl")
