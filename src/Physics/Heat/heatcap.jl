@@ -21,7 +21,7 @@ Computes the heat capacity as a weighted average over constituent capacities wit
 """
 @inline function heatcapacity(sub::SubSurface, heat::HeatBalance, θfracs...)
     cs = heatcapacities(sub)
-    f = heatcapacity(operator(heat))
+    f = heatcapacity(heat.op)
     return f(cs, θfracs)
 end
 """

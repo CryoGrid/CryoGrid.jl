@@ -12,6 +12,10 @@ const Enthalpy = HeatOperator{:H}
 Type alias for `HeatOperator{:T}`, i.e. temperature-based heat conduction operators.
 """
 const Temperature = HeatOperator{:T}
+
+thermalconductivity(op::HeatOperator) = op.cond
+heatcapacity(op::HeatOperator) = op.hc
+
 # Heat Balance type
 """
     HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess

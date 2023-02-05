@@ -8,12 +8,6 @@ Get thermal conductivities for generic `SubSurface` layer.
     return (kh_w, kh_i, kh_a)
 end
 """
-    thermalconductivity(op::HeatOperator)
-
-Returns the thermal conductivity function for the given `HeatOperator`.
-"""
-thermalconductivity(op::HeatOperator) = error("not implemented for $(typeof(op))")
-"""
     quadratic_parallel_conductivity(ks, θs)
 
 The "quadratic parallel" thermal conductivity formula as defined by Cosenza et al. 2003:
@@ -43,7 +37,7 @@ Computes the thermal conductivity as a squared weighted sum over constituent con
 """
 @inline function thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
     ks = thermalconductivities(sub)
-    f = thermalconductivity(operator(heat))
+    f = thermalconductivity(heat.op)
     return f(ks, θfracs)
 end
 """
