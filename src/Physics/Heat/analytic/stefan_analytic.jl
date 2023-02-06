@@ -9,8 +9,8 @@ const DefaultHeatProperties = HeatBalanceProperties()
 const DefaultThermalProperties = ThermalProperties()
 
 Utils.@properties StefanParameters(
-    c_l = DefaultThermalProperties.hc_w,
-    c_s = DefaultThermalProperties.hc_i,
+    c_l = DefaultThermalProperties.ch_w,
+    c_s = DefaultThermalProperties.ch_i,
     k_l = DefaultThermalProperties.kh_w,
     k_s = DefaultThermalProperties.kh_i,
     ρ = DefaultHeatProperties.ρw,

@@ -67,26 +67,28 @@ Utils.@properties HeatBalanceProperties(
 )
 # do not parameterize heat properties
 CryoGrid.parameterize(prop::HeatBalanceProperties) = prop
+
 """
     ThermalProperties
 
-Material thermal properties.
+Basic material thermal properties.
 """
 Utils.@properties ThermalProperties(
     kh_w = 0.57u"J/s/m/K", # thermal conductivity of water [Hillel (1982)]
     kh_i = 2.2u"J/s/m/K", # thermal conductivity of ice [Hillel (1982)]
     kh_a = 0.025u"J/s/m/K", # thermal conductivity of air [Hillel (1982)]
-    hc_w = 4.2e6u"J/K/m^3", # heat capacity of water
-    hc_i = 1.9e6u"J/K/m^3", # heat capacity of ice
-    hc_a = 0.00125e6u"J/K/m^3", # heat capacity of air
+    ch_w = 4.2e6u"J/K/m^3", # heat capacity of water
+    ch_i = 1.9e6u"J/K/m^3", # heat capacity of ice
+    ch_a = 0.00125e6u"J/K/m^3", # heat capacity of air
 )
-function CryoGrid.parameterize(prop::ThermalProperties)
-    return ThermalProperties(
-        map(values(prop)) do val
-            # this currently assumes that all properties have a strictly positive domain!
-            CryoGrid.parameterize(val, domain=StrictlyPositive)
-        end
-    )
+function CryoGrid.parameterize(props::ThermalProperties)
+    @set! props.kh_w = CryoGrid.parameterize(props.kh_w)
+    @set! props.kh_i = CryoGrid.parameterize(props.kh_i)
+    @set! props.kh_a = CryoGrid.parameterize(props.kh_a)
+    @set! props.ch_w = CryoGrid.parameterize(props.ch_w)
+    @set! props.ch_i = CryoGrid.parameterize(props.ch_i)
+    @set! props.ch_a = CryoGrid.parameterize(props.ch_a)
+    return props
 end
 
 # default step limiters

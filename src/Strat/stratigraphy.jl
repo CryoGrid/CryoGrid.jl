@@ -87,7 +87,7 @@ Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod("$b => $
 ConstructionBase.getproperties(strat::Stratigraphy) = (;map(Pair, Base.keys(strat), Base.values(strat))...)
 function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)
     layers_patched = map(layers(strat)) do layer
-        get(patch, layername(layer), layer)
+        Named(layername(layer), get(patch, layername(layer), layer.val))
     end
     return Stratigraphy(boundaries(strat), layers_patched)
 end

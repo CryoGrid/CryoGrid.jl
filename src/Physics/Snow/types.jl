@@ -2,7 +2,7 @@ Utils.@properties SnowProperties(
     ρw = Physics.Constants.ρw,
     ρsn_new = 250.0u"kg/m^3",
     ρsn_old = 500.0u"kg/m^3",
-    heat = SnowThermalProperties(),
+    heat = ThermalProperties(),
 )
 
 """

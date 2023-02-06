@@ -11,6 +11,7 @@ using Base: @propagate_inbounds
 using IfElse
 using FreezeCurves: FreezeCurves, FreezeCurve, FreeWater
 using ModelParameters
+using Setfield
 using Unitful
 using UnPack
 

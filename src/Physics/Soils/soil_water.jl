@@ -2,16 +2,13 @@
 """
 Soil properites for water processes.
 """
-SoilWaterProperties(
-    ::HomogeneousMixture;
+SoilProperties(
+    ::SoilParameterization,
+    ::WaterBalance;
     kw_sat=1e-5u"m/s",
-    hydraulic_props...,
-) = HydraulicProperties(; kw_sat, hydraulic_props...)
-SoilProperties(para::HomogeneousMixture, ::WaterBalance; water=SoilWaterProperties(para)) = SoilProperties(; water)
-"""
-Gets the `HydraulicProperties` for the given soil layer.
-"""
-Hydrology.hydraulicproperties(soil::Soil) = soil.prop.water
+    ignored...,
+) = (water=HydraulicProperties(; kw_sat),)
+
 """
 Base type for different formulations of Richard's equation.
 """
@@ -26,8 +23,9 @@ Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRCFunction,T
 end
 Hydrology.default_dtlim(::RichardsEq{Pressure}) = Physics.MaxDelta(0.01u"m")
 Hydrology.default_dtlim(::RichardsEq{Saturation}) = Physics.MaxDelta(0.01)
-Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
+# water content for soils without water balance
+Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
 """
     impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi)
 
@@ -64,7 +62,7 @@ end
     kw_sat = Hydrology.kwsat(sub, water)
     vg = Soils.swrc(water)
     Δkw = Δ(state.grids.kw)
-    @inbounds for i in 1:length(state.kwc)
+    @inbounds for i in eachindex(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
             θwi = state.θwi[i],

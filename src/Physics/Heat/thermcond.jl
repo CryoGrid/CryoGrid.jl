@@ -1,8 +1,3 @@
-"""
-    thermalconductivities(::SubSurface, heat::HeatBalance)
-
-Get thermal conductivities for generic `SubSurface` layer.
-"""
 @inline function thermalconductivities(sub::SubSurface)
     @unpack kh_w, kh_i, kh_a = thermalproperties(sub)
     return (kh_w, kh_i, kh_a)
@@ -43,7 +38,7 @@ end
 """
     thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
 
-Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `C`.
+Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `k`.
 """
 @inline function thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
     @inbounds for i in 1:length(state.T)

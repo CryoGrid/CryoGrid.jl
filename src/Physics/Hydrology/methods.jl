@@ -5,19 +5,20 @@ Hydraulic conductivity at saturation.
 """
 function kwsat end
 """
-    maxwater(::SubSurface, ::WaterBalance, state, i=nothing)
+    maxwater(::SubSurface, ::WaterBalance, state, i)
 
 Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
 """
 function maxwater end
 """
-    minwater(::SubSurface, water::WaterBalance, i=nothing)
+    minwater(::SubSurface, water::WaterBalance)
 
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
 function minwater end
 """
     watercontent(::SubSurface, state)
+    watercontent(::SubSurface, ::Process, state)
     watercontent(::SubSurface, state, i)
 
 Returns the total water content `θwi` from the given subsurface layer and/or current state.

@@ -74,6 +74,9 @@ end
 Base.show(io::IO, ::CoupledProcesses{T}) where T = print(io, "Coupled($(join(T.parameters, " with ")))")
 Base.iterate(cp::CoupledProcesses) = Base.iterate(cp.processes)
 Base.iterate(cp::CoupledProcesses, state) = Base.iterate(cp.processes, state)
+Base.length(cp::CoupledProcesses) = length(cp.processes)
+Base.firstindex(cp::CoupledProcesses) = firstindex(cp.processes)
+Base.lastindex(cp::CoupledProcesses) = lastindex(cp.processes)
 @propagate_inbounds Base.getindex(cp::CoupledProcesses, i) = cp.processes[i]
 Base.Broadcast.broadcastable(p::Process) = Ref(p) # allow broadcasting of Process types
 """

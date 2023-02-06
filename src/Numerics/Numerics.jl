@@ -1,11 +1,5 @@
 module Numerics
 
-import Base.==
-import ConstructionBase
-import ForwardDiff
-import ModelParameters
-import PreallocationTools as Prealloc
-
 using CryoGrid.Utils
 
 using Base: @inbounds, @propagate_inbounds
@@ -20,6 +14,12 @@ using LoopVectorization
 using Unitful
 using StaticArrays
 using StructTypes
+
+import Base.==
+import ConstructionBase
+import ForwardDiff
+import ModelParameters
+import PreallocationTools as Prealloc
 
 export GridSpec, Edges, Cells
 export Profile, ProfileKnot

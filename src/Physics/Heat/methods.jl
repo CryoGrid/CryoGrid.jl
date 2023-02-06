@@ -11,9 +11,24 @@ function thermalproperties end
 Calculates freezing and thawing effects, including evaluation of the freeze curve.
 In general, this function should compute at least the liquid/frozen water contents
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
-should also be computed depending on the thermal scheme being implemented.
+may also need to be computed depending on the thermal scheme being implemented.
 """
 function freezethaw! end
+
+"""
+    thermalconductivities(::SubSurface)
+
+Get thermal conductivities for generic `SubSurface` layer.
+"""
+function thermalconductivities end
+
+"""
+    heatcapacities(::SubSurface)
+
+Get heat capacities for generic `SubSurface` layer.
+"""
+function heatcapacities end
+
 # Helper methods
 """
     enthalpy(T, C, L, θ) = T*C + L*θ
@@ -28,12 +43,12 @@ Discrete inverse enthalpy function given H, C, L, and θ.
 """
 @inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
-    dHdT(T, C, L, ∂θw∂T, hc_w, hc_i) = C + ∂θw∂T*(L + T*(hc_w - hc_i))
+    dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 
 Computes the apparent or "effective" heat capacity `∂H∂T` as a function of temperature, volumetric heat capacity,
 latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
 """
-@inline dHdT(T, C, L, ∂θw∂T, hc_w, hc_i) = C + ∂θw∂T*(L + T*(hc_w - hc_i))
+@inline dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
 

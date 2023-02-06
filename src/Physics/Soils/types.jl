@@ -6,24 +6,11 @@ Base type for parameterizations of soil consituents.
 abstract type SoilParameterization end
 
 """
-Generic container for numerical constants related to soil processes.
-"""
-Utils.@properties SoilProperties()
-
-"""
-    SoilProperties(para::SoilParameterization, proc::Process)
-
-Constructor for `SoilProperties` based on the given parameterization and process. This method should have
-dispatches added for each process or coupled processes that require additional properties to be defined.
-"""
-SoilProperties(para::SoilParameterization, proc::Process) = error("not implemented for types $(typeof(para)) and $(typeof(proc))")
-
-"""
     Soil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
 
 Generic Soil layer.
 """
-Base.@kwdef struct Soil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
+struct Soil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
     proc::TP # subsurface process(es)
     para::Tpara # soil parameterization
     prop::Tprop # soil properties
@@ -33,15 +20,16 @@ end
     Soil(
         proc::Process;
         para::SoilParameterization=HomogeneousMixture(),
-        prop::SoilProperties=SoilProperties(para, proc),
         sp=nothing,
+        prop_kwargs...,
     )
 
-Constructs a `Soil` layer with the given process(es) `proc`, parameterization `para`, and soil properties `prop`.
+Constructs a `Soil` layer with the given process(es) `proc` and parameterization `para`. Additional
+keyword arguments are passed through to `SoilProperties`.
 """
 Soil(
     proc::Process;
     para::SoilParameterization=HomogeneousMixture(),
-    prop::SoilProperties=SoilProperties(para, proc),
     sp=nothing,
-) = Soil(proc, para, prop, sp)
+    prop_kwargs...,
+) = Soil(proc, para, soilproperties(para, proc; prop_kwargs...), sp)

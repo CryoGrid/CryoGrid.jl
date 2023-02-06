@@ -23,7 +23,7 @@ import CryoGrid.Physics
 import CryoGrid.Physics.Heat
 import CryoGrid.Physics.Hydrology
 
-# from FreezeCurves
+# from FreezeCurves.jl
 export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie
 export VanGenuchten, BrooksCorey
 
@@ -32,50 +32,21 @@ const Temperature = Heat.Temperature
 const Enthalpy = Heat.Enthalpy
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, SoilParameterization, SoilProperties
+export Soil, SoilParameterization
 include("types.jl")
 
-export porosity, mineral, organic
+export SoilProfile, SoilProperties, soilproperties, porosity, mineral, organic
 include("methods.jl")
 
-export HomogeneousMixture, SoilProfile, soilcomponent
+export HomogeneousMixture, MineralSediment, soilcomponent
 include("soil_para.jl")
-
-## Homogeneous soils
-porosity(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θp}(), soil.para)
-mineral(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θm}(), soil.para)
-organic(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θo}(), soil.para)
-
-"""
-    SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...)
-
-Alias for `Profile(pairs...)` assigning soil parameterizations to specific depths.
-"""
-SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
 
 export RichardsEq
 include("soil_water.jl")
-include("soil_heat.jl")
-include("soil_water_heat_coupled.jl")
 
-CryoGrid.variables(soil::Soil{<:HomogeneousMixture}) = CryoGrid.variables(soil, processes(soil))
-CryoGrid.variables(soil::Soil) = (
-    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θp, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θm, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θo, OnGrid(Cells), domain=0..1),
-    CryoGrid.variables(soil, processes(soil))...,
-)
-function CryoGrid.initialcondition!(soil::Soil{<:MineralSediment}, state)
-    evaluate(x::Number) = x
-    evaluate(f::Function) = f(soil, state)
-    ϕ = evaluate(soil.para.por)
-    θ = evaluate(soil.para.sat)
-    @. state.θp = ϕ
-    @. state.θwi = ϕ*θ
-    @. state.θm = 1 - state.θp
-    @. state.θo = zero(eltype(state.θo))
-    CryoGrid.initialcondition!(soil, processes(soil), state)
-end
+export SoilThermalProperties
+include("soil_heat.jl")
+
+include("soil_water_heat_coupled.jl")
 
 end

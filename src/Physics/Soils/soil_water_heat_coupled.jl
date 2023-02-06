@@ -1,8 +1,3 @@
-# Soil properties
-SoilProperties(para::HomogeneousMixture, ::Coupled(WaterBalance, HeatBalance);
-    heat=SoilThermalProperties(para),
-    water=SoilWaterProperties(para),
-) = SoilProperties(; heat, water)
 # Freeze/thaw dynamics
 function Heat.freezethaw!(
     soil::Soil,
@@ -16,7 +11,7 @@ function Heat.freezethaw!(
     _get_temperature(::Type{<:Temperature}, i) = state.T[i]
     _get_temperature(::Type{<:Enthalpy}, i) = enthalpyinv(soil, heat, state, i)
     L = heat.prop.L
-    @unpack hc_w, hc_i = thermalproperties(soil)
+    @unpack ch_w, ch_i = thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = _get_temperature(THeatForm, i)
         ψ₀ = state.ψ₀[i]
@@ -26,7 +21,7 @@ function Heat.freezethaw!(
         (θw, ∂θw∂ψ) = ∇(ψᵢ -> swrc(ψᵢ; θsat), ψ)
         ∂θw∂T = ∂θw∂ψ*∂ψ∂T
         C = Heat.heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
-        ∂H∂T = Heat.dHdT(T, C, L, ∂θw∂T, hc_w, hc_i)
+        ∂H∂T = Heat.dHdT(T, C, L, ∂θw∂T, ch_w, ch_i)
         state.∂θw∂T[i] = ∂θw∂T
         state.θw[i] = θw
         state.ψ[i] = ψ

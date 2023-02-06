@@ -155,7 +155,7 @@ Forward fills missing values in vector `x`.
 """
 function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
     local lastval::Union{Missing,E} = missing
-    @inbounds for i in 1:length(x)
+    @inbounds for i in eachindex(x)
         lastval = ismissing(x[i]) ? lastval : x[i]
         x[i] = lastval
     end
