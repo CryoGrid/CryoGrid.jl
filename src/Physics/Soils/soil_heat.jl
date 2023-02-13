@@ -56,7 +56,6 @@ which should be set according to the layer/process properties or state. The defa
 sets only the total water content, θtot = θwi, and the saturated water content, θsat = θp.
 """
 sfcckwargs(::SFCCFunction, soil::Soil, heat::HeatBalance, state, i) = (
-    θtot = Hydrology.watercontent(soil, state, i), # total water content    
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 
@@ -132,12 +131,14 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
             props = thermalproperties(soil),
             ch_w = props.ch_w,
             ch_i = props.ch_i,
-            θwi = Hydrology.watercontent(soil, state, i), # total water content
+            θwi = Hydrology.watercontent(soil, state, i),
+            por = porosity(soil, state, i),
+            sat = θwi / por,
             T₀ = i > 1 ? state.T[i-1] : H/ch_w, # initial guess for T
             hc = partial(heatcapacity, Val{:θw}(), soil, heat, state, i),
             f = sfcc.f,
             f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
-            obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, nothing);
+            obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, sat);
             res = FreezeCurves.sfccsolve(obj, sfcc.solver, T₀, Val{true}())
             state.T[i] = res.T
             state.θw[i] = res.θw
@@ -151,12 +152,14 @@ function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     sfcc = heat.freezecurve
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
-        θwi = Hydrology.watercontent(soil, state, i), # total water content
+        θwi = Hydrology.watercontent(soil, state, i),
+        por = porosity(soil, state, i),
+        sat = θwi / por,
         hc = partial(Heat.heatcapacity, Val{:θw}(), soil, heat, state, i),
         T₀ = i > 1 ? state.T[i-1] : (H - L*θwi) / hc(θwi),
         f = sfcc.f,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
-        obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, nothing);
+        obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, sat);
         T_sol = FreezeCurves.sfccsolve(obj, sfcc.solver, T₀, Val{false}())
         return T_sol
     end
@@ -210,4 +213,3 @@ CryoGrid.parameterize(f::BrooksCorey) = BrooksCorey(
 )
 # do not parameterize default freeze curve properties
 CryoGrid.parameterize(prop::FreezeCurves.SoilFreezeThawProperties) = prop
-CryoGrid.parameterize(prop::FreezeCurves.SoilWaterProperties) = prop

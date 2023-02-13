@@ -1,7 +1,7 @@
 name = "CryoGrid"
 uuid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
 authors = ["Brian Groenke <brian.groenke@awi.de>", "Moritz Langer <moritz.langer@awi.de>"]
-version = "0.13.8"
+version = "0.14.0"
 
 [deps]
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
@@ -51,7 +51,7 @@ DimensionalData = "0.19,0.20,0.21,0.24"
 Downloads = "1"
 Flatten = "0.4"
 ForwardDiff = "0"
-FreezeCurves = "0.5"
+FreezeCurves = "0.6"
 IfElse = "0.1"
 Interpolations = "0"
 IntervalSets = "0.7"
