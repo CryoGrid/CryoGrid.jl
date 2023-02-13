@@ -136,3 +136,59 @@ state object for the i'th layer in the stratigraphy.
     push!(expr.args, :(return nothing))
     return expr
 end
+
+@inline function CryoGrid.initialcondition!(strat::Stratigraphy, state::TileState, inits)
+    # initialcondition! is only called once so we don't need to worry about performance;
+    # we can just loop over everything naively
+    for i in 1:length(strat)-1
+        layerᵢ = strat[i].val
+        layerᵢ₊₁ = strat[i+1].val
+        stateᵢ = getproperty(state, layername(strat[i]))
+        stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
+        # first invoke initialcondition! with initializers
+        for init in inits
+            if i == 1 && haskey(stateᵢ.states, varname(init))
+                CryoGrid.initialcondition!(layerᵢ, stateᵢ, init)
+            end
+            if haskey(stateᵢ₊₁.states, varname(init))
+                CryoGrid.initialcondition!(layerᵢ₊₁, stateᵢ₊₁, init)
+            end
+            if haskey(stateᵢ.states, varname(init)) && haskey(stateᵢ₊₁.states, varname(init))
+                CryoGrid.initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁, init)
+            end
+        end
+        # then invoke initialcondition! standalone
+        if i == 1
+            CryoGrid.initialcondition!(layerᵢ, stateᵢ)
+        end
+        CryoGrid.initialcondition!(layerᵢ₊₁, stateᵢ₊₁)
+        CryoGrid.initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
+    end
+end
+
+@inline function CryoGrid.diagnosticstep!(strat::Stratigraphy, state::TileState)
+    fastiterate(layers(strat)) do named_layer
+        CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
+    end
+end
+
+@inline function CryoGrid.interact!(strat::Stratigraphy, state::TileState)
+    # interact! requires special implementation via `stratiterate`
+    # this allows for layer states to determine which adjacent layers can and cannot interact
+    stratiterate(strat, state) do layer1, layer2, state1, state2
+        CryoGrid.interact!(layer1, layer2, state1, state2)
+    end
+end
+
+@inline function CryoGrid.prognosticstep!(strat::Stratigraphy, state::TileState)
+    fastiterate(layers(strat)) do named_layer
+        CryoGrid.prognosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
+    end
+end
+
+@inline function CryoGrid.timestep(strat::Stratigraphy, state::TileState)
+    max_dts = fastmap(layers(strat)) do named_layer
+        CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
+    end
+    return minimum(max_dts)
+end

@@ -29,13 +29,13 @@ import Flatten
 import Interpolations
 import ModelParameters: update
 
+export TileState, LayerState
+include("state.jl")
+
 export Stratigraphy, @Stratigraphy, NamedLayer
 export layernames, layertypes, layers, boundaries, layername, stratiterate
 export top, bottom, subsurface
 include("stratigraphy.jl")
-
-export TileState, LayerState
-include("state.jl")
 
 export ConstantInitializer, InterpInitializer, initializer, init!
 include("init.jl")
