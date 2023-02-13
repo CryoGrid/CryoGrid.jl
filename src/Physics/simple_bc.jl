@@ -38,14 +38,8 @@ ConstructionBase.constructorof(::Type{<:PeriodicBC{P,S}}) where {P,S} = (args...
 CryoGrid.boundaryvalue(bc::PeriodicBC,l1,p2,l2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*s1.t + bc.phaseshift) + bc.level
 CryoGrid.BoundaryStyle(::Type{<:PeriodicBC{P,S}}) where {P,S} = S()
 
-"""
-    Bias{P,Tb} <: BoundaryProcess{P}
-
-Boundary process which adds a constant shift/offset to the boundary condition.
-"""
-Base.@kwdef struct Bias{P,Tb} <: BoundaryProcess{P}
-    bias::Tb = 0.0
-    Bias(::Type{P}, bias::Tb) where {P<:SubSurfaceProcess,Tb} = new{P,Tb}(bias)
-end
-CryoGrid.boundaryvalue(bc::Bias,l1,p2,l2,s1,s2) = bc.bias
-CryoGrid.BoundaryStyle(::Type{<:Bias}) = Dirichlet()
+# convenience constructors
+ConstantValue(::Type{P}, value::T) where {P<:SubSurfaceProcess,T} = ConstantBC(P, Dirichlet, value)
+PeriodicValue(::Type{P}, args...) where {P<:SubSurfaceProcess,T} = PeriodicBC(P, Dirichlet, args...)
+ConstantFlux(::Type{P}, value::T) where {P<:SubSurfaceProcess,T} = ConstantBC(P, Neumann, value)
+PeriodicFlux(::Type{P}, args...) where {P<:SubSurfaceProcess,T} = PeriodicBC(P, Neumann, args...)

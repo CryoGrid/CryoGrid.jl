@@ -55,7 +55,8 @@ function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::Process, state, i) wh
     end
 end
 
-export ConstantBC, PeriodicBC, Bias
+export ConstantBC, PeriodicBC
+export ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux
 include("simple_bc.jl")
 include("composite_bc.jl")
 include("steplimiters.jl")
