@@ -15,7 +15,7 @@ Base type for different formulations of Richard's equation.
 abstract type RichardsEqFormulation end
 struct Saturation <: RichardsEqFormulation end
 struct Pressure <: RichardsEqFormulation end
-Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRCFunction,Tsp,TΩ} <: Hydrology.WaterFlow
+Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRC,Tsp,TΩ} <: Hydrology.WaterFlow
     form::Tform = Saturation()
     swrc::Tswrc = VanGenuchten()
     Ω::TΩ = 1e-3 # smoothness for ice impedence factor

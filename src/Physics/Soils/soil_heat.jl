@@ -49,13 +49,13 @@ end
 end
 
 """
-    sfcckwargs(f::SFCCFunction, soil::Soil, heat::HeatBalance, state, i)
+    sfcckwargs(f::SFCC, soil::Soil, heat::HeatBalance, state, i)
 
-Builds a named tuple of values corresponding to each keyword arguments of the SFCCFunction `f`
+Builds a named tuple of values corresponding to each keyword arguments of the SFCC `f`
 which should be set according to the layer/process properties or state. The default implementation
 sets only the total water content, θtot = θwi, and the saturated water content, θsat = θp.
 """
-sfcckwargs(::SFCCFunction, soil::Soil, heat::HeatBalance, state, i) = (
+sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 

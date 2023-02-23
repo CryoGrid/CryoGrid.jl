@@ -12,7 +12,7 @@ soilprofile = SoilProfile(
 initT = initializer(:T, tempprofile)
 sfcc = SFCC(DallAmico(swrc=VanGenuchten(α=0.05, n=1.8)))
 tile = CryoGrid.Presets.SoilHeatTile(
-    :T,
+    :H,
     ConstantBC(HeatBalance, CryoGrid.Neumann, 0.0u"W/m^2"),
     ConstantBC(HeatBalance, CryoGrid.Neumann, 0.0u"W/m^2"),
     soilprofile,
@@ -23,6 +23,7 @@ tile = CryoGrid.Presets.SoilHeatTile(
 # define time span
 tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
 u0, du0 = initialcondition!(tile, tspan)
+@btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:H,:jH,:∂H∂t,:θw), step_limiter=nothing, saveat=900.0)
 @info "Running model"
