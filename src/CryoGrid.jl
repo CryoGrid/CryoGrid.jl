@@ -13,7 +13,12 @@ using Dates
 using LinearAlgebra
 using ModelParameters
 using Reexport
-using Unitful
+
+# Re-exported packages
+@reexport using Dates: Dates, Date, DateTime
+@reexport using DimensionalData
+@reexport using IntervalSets
+@reexport using Unitful
 
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
@@ -49,12 +54,6 @@ include("coupling.jl")
 # Problem interface
 export CryoGridProblem
 include("problem.jl")
-
-# Re-exported packages
-@reexport using Dates: Dates, DateTime
-@reexport using DimensionalData
-@reexport using IntervalSets
-@reexport using Unitful
 
 # include dependent submodules
 include("Solvers/Solvers.jl")

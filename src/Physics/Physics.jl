@@ -62,17 +62,16 @@ include("composite_bc.jl")
 include("steplimiters.jl")
 # Sub modules
 include("Hydrology/Hydrology.jl")
-include("Heat/Heat.jl")
-include("Snow/Snow.jl")
-include("Soils/Soils.jl")
-include("SEB/SEB.jl")
-include("Sources/Sources.jl")
-
-@reexport using .Heat
 @reexport using .Hydrology
+include("Heat/Heat.jl")
+@reexport using .Heat
+include("Snow/Snow.jl")
 @reexport using .Snow
+include("Soils/Soils.jl")
 @reexport using .Soils
+include("SEB/SEB.jl")
 @reexport using .SEB
+include("Sources/Sources.jl")
 @reexport using .Sources
 
 end
