@@ -59,6 +59,7 @@ include("Snow/Snow.jl")
 include("Soils/Soils.jl")
 include("SEB/SEB.jl")
 include("Sources/Sources.jl")
+include("Lakes/Lakes.jl")
 
 @reexport using .Boundaries
 @reexport using .Heat
@@ -67,5 +68,6 @@ include("Sources/Sources.jl")
 @reexport using .Soils
 @reexport using .SEB
 @reexport using .Sources
+@reexport using .Lakes
 
 end
