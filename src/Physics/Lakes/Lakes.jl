@@ -1,8 +1,12 @@
 module Lakes
+
 import CryoGrid
-using CryoGrid.Physics
+
+using CryoGrid
+using CryoGrid.Physics.Heat
 using CryoGrid.Utils
 using CryoGrid.Numerics
+
 using Unitful
 
 export Lake
@@ -20,7 +24,7 @@ end
 
 Lake(proc::Tproc; kwargs...) where {Tproc} = Lake(;proc, kwargs...)
 
-CryoGrid.variables(lake::Lake, heat::CryoGrid.HeatBalance) = (
+CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
     CryoGrid.variables(heat)...,
     Diagnostic(:ρ_w, Scalar, u"kg*m^-3", domain=0..Inf, desc = "density of water with temperature"),
     Diagnostic(:T_ub, Scalar, u"°C"),
