@@ -42,6 +42,8 @@ struct ProfileKnot{D,T}
     depth::D
     value::T
 end
+Base.iterate(knot::ProfileKnot) = iterate((knot.depth, knot.value))
+Base.iterate(knot::ProfileKnot, state) = iterate((knot.depth, knot.value), state)
 Base.show(io::IO, knot::ProfileKnot) = print(io, "$(knot.depth): $(knot.value)")
 struct Profile{N,TKnots}
     knots::TKnots

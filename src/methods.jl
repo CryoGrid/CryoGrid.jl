@@ -2,8 +2,7 @@
 """
     processes(l::Layer)
 
-Fetches the process attached to this layer, if any. Default implementation retrieves the
-`proc` field on the given layer `l`. Two or more processes may be attached as a `CoupledProcess`.
+Fetches the process attached to this layer, if any.
 """
 processes(l::Layer) = l.proc
 """

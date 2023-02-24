@@ -6,33 +6,21 @@ Base type for parameterizations of soil consituents.
 abstract type SoilParameterization end
 
 """
-    Soil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
+    Soil{Tpara,Tproc} <: SubSurface{Tproc}
 
-Generic Soil layer.
+Base type for all soil or soil-like layers.
 """
-struct Soil{Tpara<:SoilParameterization,Tprop,Tsolver,Tsp,TP} <: SubSurface{TP}
-    proc::TP # subsurface process(es)
+abstract type Soil{Tpara,Tproc} <: SubSurface{Tproc} end
+
+"""
+    HomogeneousSoil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
+
+Generic, homogeneous Soil layer, i.e. material is assumed to be uniformly mixed.
+"""
+struct HomogeneousSoil{Tpara<:SoilParameterization,Tproc,Tsp,Tprop,Tsolver} <: Soil{Tpara,Tproc}
     para::Tpara # soil parameterization
     prop::Tprop # soil properties
+    proc::Tproc # subsurface processes
     solver::Tsolver
     sp::Tsp # user-defined specialization
 end
-"""
-    Soil(
-        proc::Process;
-        para::SoilParameterization=HomogeneousMixture(),
-        solver=default_sfccsolver(proc),
-        sp=nothing,
-        prop_kwargs...,
-    )
-
-Constructs a `Soil` layer with the given process(es) `proc` and parameterization `para`. Additional
-keyword arguments are passed through to `SoilProperties`.
-"""
-Soil(
-    proc::Process;
-    para::SoilParameterization=HomogeneousMixture(),
-    solver=default_sfccsolver(proc),
-    sp=nothing,
-    prop_kwargs...,
-) = Soil(proc, para, soilproperties(para, proc; prop_kwargs...), solver, sp)

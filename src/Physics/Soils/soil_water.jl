@@ -2,7 +2,7 @@
 """
 Soil properites for water processes.
 """
-SoilProperties(
+soilproperties(
     ::SoilParameterization,
     ::WaterBalance;
     kw_sat=1e-5u"m/s",
@@ -47,7 +47,7 @@ end
 @inline function Hydrology.watercontent!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Saturation}}, state)
     let f = swrc(water),
         f⁻¹ = inv(f),
-        θres = f.water.θres;
+        θres = f.vol.θres;
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = θsat = Hydrology.maxwater(sub, water, state, i)
             state.θwi[i] = θwi = state.sat[i]*θsat

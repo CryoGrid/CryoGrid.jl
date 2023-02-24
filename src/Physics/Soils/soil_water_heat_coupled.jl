@@ -2,22 +2,24 @@ default_sfccsolver(::Coupled(WaterBalance,HeatBalance)) = SFCCPreSolver(Solvers.
 # Initialization
 function CryoGrid.initialcondition!(
     soil::Soil,
-    ps::Coupled(WaterBalance{<:RichardsEq{TREqForm}}, HeatBalance{<:SFCC,THeatForm}),
-    state
-) where {TREqForm,THeatForm}
+    ps::Coupled(WaterBalance{<:RichardsEq}, HeatBalance{<:SFCC}),
+    state,
+)
     water, heat = ps
     # initialize water
     CryoGrid.diagnosticstep!(soil, water, state)
     # initialize heat
     fc = heat.freezecurve
+    solver = sfccsolver(soil)
     L = heat.prop.L
     hc = partial_heatcapacity(soil, heat)
+    θsat = porosity(soil, state)
     @unpack ch_w, ch_i = thermalproperties(soil)
-    FreezeCurves.Solvers.initialize!(fc.solver, fc.f, hc; fc_kwargsᵢ...)
+    FreezeCurves.Solvers.initialize!(solver, fc, hc; θsat)
     @inbounds for i in 1:length(state.T)
-        fc_kwargsᵢ = sfcckwargs(fc.f, soil, heat, state, i)
+        fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         T = state.T[i]
-        θw, ∂θw∂T = ∇(T -> fc(T; fc_kwargsᵢ...), T)
+        θw, ∂θw∂T = ∇(T -> fc(T, state.sat[i]; fc_kwargsᵢ...), T)
         state.θw[i] = θw
         state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])

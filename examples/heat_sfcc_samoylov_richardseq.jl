@@ -44,11 +44,10 @@ op = Heat.Diffusion(:H)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -2.0*u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
-    soilprofile[1].depth => :soil1 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=soilprofile[1].value),
-    soilprofile[2].depth => :soil2 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=soilprofile[2].value),
-    soilprofile[3].depth => :soil3 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=soilprofile[3].value),
-    soilprofile[4].depth => :soil4 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[4].value),
-    soilprofile[5].depth => :soil5 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[5].value),
+    map(enumerate(soilprofile)) do (i, (depth, para))
+        name = Symbol(:soil, i)
+        depth => name => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=para)
+    end,
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
@@ -59,8 +58,8 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi))
 # expect it to take about 10-15 minutes per year on a typical workstation/laptop; minor speed-ups might be possible by tweaking the dt limiters
 integrator = init(prob, Euler(), dt=60.0, saveat=3*3600.0)
 @time while integrator.t < prob.tspan[end]
-    # run the integrator forward in daily increments
-    step!(integrator, 24*3600.0)
+    # run the integrator forward in 10-day increments
+    step!(integrator, 10*24*3600.0)
     t = convert_t(integrator.t)
     @info "t=$t, current dt=$(integrator.dt*u"s")"
 end
@@ -73,6 +72,6 @@ water_mass = Diagnostics.integrate(out.θwi, tile.grid)
 # Plot it!
 zs = [1,5,10,15,20,30,40,50,100,150,200]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-plot(out.sat[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
+plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+plot(out.sat[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)

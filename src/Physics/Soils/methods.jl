@@ -50,8 +50,8 @@ and process(es). The default implementation simply constructs a `NamedTuple` fro
 keyword arguments.
 """
 soilproperties(para::SoilParameterization, proc::Process; prop_kwargs...) = (; prop_kwargs...)
-# Default behavior for coupled processes is to invoke SoilProperties on each individually and merge the results
-soilproperties(para::SoilParameterization, procs::CoupledProcesses; prop_kwargs...) = reduce(merge, map(p -> SoilProperties(para, p; prop_kwargs...), procs))
+# Default behavior for coupled processes is to invoke soilproperties on each individually and merge the results
+soilproperties(para::SoilParameterization, procs::CoupledProcesses; prop_kwargs...) = reduce(merge, map(p -> soilproperties(para, p; prop_kwargs...), procs))
 
 """
     sfccsolver(::Soil)
@@ -59,6 +59,8 @@ soilproperties(para::SoilParameterization, procs::CoupledProcesses; prop_kwargs.
 Retrieve the SFCC solver for the given `Soil` layer, if defined.
 """
 sfccsolver(soil::Soil) = soil.solver
+
+# Constructors
 
 """
     SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...)
