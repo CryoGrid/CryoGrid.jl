@@ -1,34 +1,31 @@
-# Soil hydrological properties
+# Soil hydraulic properties
 """
 Soil properites for water processes.
 """
-SoilWaterProperties(
-    ::HomogeneousMixture;
+soilproperties(
+    ::SoilParameterization,
+    ::WaterBalance;
     kw_sat=1e-5u"m/s",
-    hydraulic_props...,
-) = HydraulicProperties(; kw_sat, hydraulic_props...)
-SoilProperties(para::HomogeneousMixture, ::WaterBalance; water=SoilWaterProperties(para)) = SoilProperties(; water)
-"""
-Gets the `HydraulicProperties` for the given soil layer.
-"""
-Hydrology.hydraulicproperties(soil::Soil) = soil.prop.water
+    ignored...,
+) = (water=HydraulicProperties(; kw_sat),)
+
 """
 Base type for different formulations of Richard's equation.
 """
 abstract type RichardsEqFormulation end
 struct Saturation <: RichardsEqFormulation end
 struct Pressure <: RichardsEqFormulation end
-Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRCFunction,Tsp,TΩ} <: Hydrology.WaterFlow
+Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRC,Tsp,TΩ} <: Hydrology.WaterFlow
     form::Tform = Saturation()
     swrc::Tswrc = VanGenuchten()
     Ω::TΩ = 1e-3 # smoothness for ice impedence factor
-    advection_only::Bool = false
     sp::Tsp = nothing
 end
-Hydrology.default_dtlim(::RichardsEq{Pressure}) = Physics.MaxDelta(0.01u"m")
-Hydrology.default_dtlim(::RichardsEq{Saturation}) = Physics.MaxDelta(0.01)
-Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.default_dtlim(::RichardsEq{Pressure}) = CryoGrid.MaxDelta(0.01u"m")
+Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.01)
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
+# water content for soils without water balance
+Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
 """
     impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi)
 
@@ -50,7 +47,7 @@ end
 @inline function Hydrology.watercontent!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Saturation}}, state)
     let f = swrc(water),
         f⁻¹ = inv(f),
-        θres = f.water.θres;
+        θres = f.vol.θres;
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = θsat = Hydrology.maxwater(sub, water, state, i)
             state.θwi[i] = θwi = state.sat[i]*θsat
@@ -65,7 +62,7 @@ end
     kw_sat = Hydrology.kwsat(sub, water)
     vg = Soils.swrc(water)
     Δkw = Δ(state.grids.kw)
-    @inbounds for i in 1:length(state.kwc)
+    @inbounds for i in eachindex(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
             θwi = state.θwi[i],
@@ -89,10 +86,8 @@ function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure
     return nothing
 end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
-    if !water.flow.advection_only
-        # compute diffusive fluxes from pressure, if enabled
-        Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
-    end
+    # compute diffusive fluxes from pressure, if enabled
+    Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
     return nothing
 end
 # CryoGrid methods
@@ -134,7 +129,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:Physics.MaxDelta}, state) where {TET}
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))

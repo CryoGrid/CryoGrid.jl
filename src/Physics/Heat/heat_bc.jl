@@ -21,7 +21,7 @@ function CryoGrid.diagnosticstep!(::Top, bc::TemperatureGradient, state)
     @setscalar state.T_ub = bc.T(state.t)
 end
 
-Base.@kwdef struct NFactor{W,S} <: BoundaryEffect
+Base.@kwdef struct NFactor{W,S} <: CryoGrid.BoundaryEffect
     nf::W = 1.0 # applied when Tair <= 0
     nt::S = 1.0 # applied when Tair > 0
 end

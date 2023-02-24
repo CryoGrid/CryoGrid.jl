@@ -1,18 +1,7 @@
-"""
-    thermalconductivities(::SubSurface, heat::HeatBalance)
-
-Get thermal conductivities for generic `SubSurface` layer.
-"""
 @inline function thermalconductivities(sub::SubSurface)
     @unpack kh_w, kh_i, kh_a = thermalproperties(sub)
     return (kh_w, kh_i, kh_a)
 end
-"""
-    thermalconductivity(op::HeatOperator)
-
-Returns the thermal conductivity function for the given `HeatOperator`.
-"""
-thermalconductivity(op::HeatOperator) = error("not implemented for $(typeof(op))")
 """
     quadratic_parallel_conductivity(ks, θs)
 
@@ -43,13 +32,13 @@ Computes the thermal conductivity as a squared weighted sum over constituent con
 """
 @inline function thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
     ks = thermalconductivities(sub)
-    f = thermalconductivity(operator(heat))
+    f = thermalconductivity(heat.op)
     return f(ks, θfracs)
 end
 """
     thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
 
-Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `C`.
+Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `k`.
 """
 @inline function thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
     @inbounds for i in 1:length(state.T)
@@ -63,6 +52,6 @@ Computes the thermal conductivity for the given layer from the current state and
     # Harmonic mean of inner conductivities
     @inbounds let k = (@view state.k[2:end-1]),
         Δk = Δ(state.grids.k);
-        harmonicmean!(k, state.kc, Δk)
+        Numerics.harmonicmean!(k, state.kc, Δk)
     end
 end

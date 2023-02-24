@@ -1,6 +1,7 @@
 # Generic step limiter types
 abstract type StepLimiter end
 CryoGrid.parameterize(limiter::StepLimiter) = limiter
+
 """
     MaxDelta{T}
 
@@ -8,8 +9,8 @@ Allow a maximum change of `Δmax` in the integrated quantity.
 """
 Base.@kwdef struct MaxDelta{T} <: StepLimiter
     Δmax::T
-    upper_limit_factor::Float64 = 1.0
-    lower_limit_factor::Float64 = 1.0
+    upper_limit_factor::Float64 = 0.99
+    lower_limit_factor::Float64 = 0.99
 end
 MaxDelta(Δmax) = MaxDelta(;Δmax)
 function (limiter::MaxDelta)(du, u, t)

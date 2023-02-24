@@ -8,7 +8,7 @@ tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 grid = CryoGrid.Presets.DefaultGrid_5cm
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-sfcc = SFCC(DallAmico(swrc=VanGenuchten(α=0.1, n=2.0)))
+sfcc = DallAmico(swrc=VanGenuchten(α=0.1, n=2.0))
 tile = CryoGrid.Presets.SoilHeatTile(:H, TemperatureGradient(tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT; grid=grid, freezecurve=sfcc)
 # define time span
 tspan = (DateTime(2010,11,30),DateTime(2011,11,30))

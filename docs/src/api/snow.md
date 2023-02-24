@@ -1,7 +1,7 @@
-# Boundary conditions and forcings
+# Snow
 
 ```@autodocs
-Modules = [Boundaries]
+Modules = [Snow]
 Private = false
 Order = [:type, :function, :macro]
 ```

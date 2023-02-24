@@ -1,16 +1,13 @@
 module SEB
 
+import CryoGrid
+
 using CryoGrid
-using CryoGrid.Physics
-using CryoGrid.Physics.Boundaries
-using CryoGrid.Physics.Heat
-using CryoGrid.Physics.Hydrology
-using CryoGrid.Physics.Soils
+using CryoGrid.Heat
+using CryoGrid.Hydrology
+using CryoGrid.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
-
-import CryoGrid: BoundaryProcess, BoundaryStyle, Neumann, Top
-import CryoGrid: initialcondition!, variables, boundaryvalue
 
 using Unitful
 
@@ -79,12 +76,12 @@ Surface energy balance upper boundary condition.
 """
 struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatBalance}
     forcings::F
-    sebparams::TPara
+    para::TPara
     # type-dependent parameters
     solscheme::TSolution
     stabfun::TStabFun
-    SurfaceEnergyBalance(forcings::NamedTuple, sebparams::SEBParams, solscheme::SolutionScheme, stabfun::StabilityFunctions) =
-        new{typeof(solscheme),typeof(stabfun),typeof(sebparams),typeof(forcings)}(forcings, sebparams, solscheme, stabfun)
+    SurfaceEnergyBalance(forcings::NamedTuple, para::SEBParams, solscheme::SolutionScheme, stabfun::StabilityFunctions) =
+        new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
     function SurfaceEnergyBalance(
         Tair::Forcing{u"°C"},
         p::Forcing{u"kPa"},
@@ -93,12 +90,12 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
         Lin::Forcing{u"W/m^2"},
         Sin::Forcing{u"W/m^2"},
         z;
-        sebparams::SEBParams = SEBParams(),
+        para::SEBParams = SEBParams(),
         solscheme::SolutionScheme = Iterative(),
         stabfun::StabilityFunctions = HøgstrømSHEBA(),
     )
         forcings = (; Tair, p, q, wind, Lin, Sin, z);
-        SurfaceEnergyBalance(forcings, sebparams, solscheme, stabfun)
+        SurfaceEnergyBalance(forcings, para, solscheme, stabfun)
     end
 end
 

@@ -41,9 +41,9 @@ out = CryoGridOutput(sol)
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature (°C)", leg=false, dpi=150)
-plt1 = plot!(ustrip(out.snowpack.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
+plt1 = plot!(ustrip.(out.snowpack.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
 plot(ustrip(out.swe), ylabel="Depth (m)", label="Snow water equivalent", dpi=150)
-plt2 = plot!(ustrip(out.snowpack.dsn), label="Snow depth", legend=nothing, legendtitle=nothing, dpi=150)
+plt2 = plot!(ustrip.(out.snowpack.dsn), label="Snow depth", legend=nothing, legendtitle=nothing, dpi=150)
 plot(plt1, plt2, size=(1600,700), margins=5*Plots.Measures.mm)
 # heatmap
 T_sub = out.T[Z(Between(0.0u"m",10.0u"m"))]
