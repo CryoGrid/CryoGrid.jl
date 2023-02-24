@@ -1,13 +1,8 @@
 module Lakes
 
-import CryoGrid
-
 using CryoGrid
-using CryoGrid.Physics.Heat
 using CryoGrid.Utils
 using CryoGrid.Numerics
-
-using Unitful
 
 export Lake
 
@@ -74,7 +69,7 @@ function CryoGrid.interact!(
     stop,
     slake
 )
-    slake.T_ub = CryoGrid.boundaryvalue(bc, top, heat, lake, stop, slake)
+    @setscalar slake.T_ub = CryoGrid.boundaryvalue(bc, top, heat, lake, stop, slake)
     # boundary flux
     slake.jH[1] += CryoGrid.boundaryflux(bc, top, heat, lake, stop, slake)
     return nothing
