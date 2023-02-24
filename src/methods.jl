@@ -2,8 +2,7 @@
 """
     processes(l::Layer)
 
-Fetches the process attached to this layer, if any. Default implementation retrieves the
-`proc` field on the given layer `l`. Two or more processes may be attached as a `CoupledProcess`.
+Fetches the process attached to this layer, if any.
 """
 processes(l::Layer) = l.proc
 """
@@ -123,6 +122,7 @@ If `x` is a struct type, `x` will be recursively unpacked and `parameterize` cal
 parameterize(x::Number; props...) = Param(x; props...)
 parameterize(x::Unitful.AbstractQuantity; props...) = Param(ustrip(x); untis=unit(x), props...)
 parameterize(p::Param; ignored...) = p
+parameterize(f::Function; ignored...) = f
 function parameterize(x::T; props...) where {T}
     # get field names of T, if available
     T_fieldnames = isabstracttype(T) ? () : fieldnames(T)

@@ -144,17 +144,10 @@ function step!(
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, dt, Val{true}())
-    fastiterate(layers(strat)) do named_layer
-        CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
-    end
-    # interact! requires special implementation via `stratiterate`
-    # this allows for layer states to determine which adjacent layers can and cannot interact
-    stratiterate(strat, state) do layer1, layer2, state1, state2
-        CryoGrid.interact!(layer1, layer2, state1, state2)
-    end
-    fastiterate(layers(strat)) do named_layer
-        CryoGrid.prognosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
-    end
+    CryoGrid.diagnosticstep!(strat, state)
+    CryoGrid.interact!(strat, state)
+    CryoGrid.prognosticstep!(strat, state)
+    # invoke observe method for debugging
     fastiterate(layers(strat)) do named_layer
         for name in obsv
             CryoGrid.observe(Val{name}(), named_layer.val, getproperty(state, layername(named_layer)))
@@ -162,16 +155,18 @@ function step!(
     end
     return nothing
 end
+"""
+    timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+
+Computes the maximum permissible forward timestep for this `Tile` given the current `u`, `p`, and `t`.
+"""
 function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = updateparams(_tile, u, p, t)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t, 1.0, Val{true}())
-    max_dts = fastmap(layers(strat)) do named_layer
-        CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
-    end
-    return minimum(max_dts)
+    CryoGrid.timestep(strat::Stratigraphy, state)
 end
 """
     initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
@@ -193,32 +188,7 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     tile = updateparams(tile, u, p, t0)
     strat = tile.strat
     state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
-    # initialcondition! is only called once so we don't need to worry about performance;
-    # we can just loop over everything naively
-    for i in 1:length(strat)-1
-        layerᵢ = strat[i].val
-        layerᵢ₊₁ = strat[i+1].val
-        stateᵢ = getproperty(state, layername(strat[i]))
-        stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
-        # first invoke initialcondition! with initializers
-        for init in tile.inits
-            if i == 1 && haskey(stateᵢ.states, varname(init))
-                initialcondition!(layerᵢ, stateᵢ, init)
-            end
-            if haskey(stateᵢ₊₁.states, varname(init))
-                initialcondition!(layerᵢ₊₁, stateᵢ₊₁, init)
-            end
-            if haskey(stateᵢ.states, varname(init)) && haskey(stateᵢ₊₁.states, varname(init))
-                initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁, init)
-            end
-        end
-        # then invoke initialcondition! standalone
-        if i == 1
-            initialcondition!(layerᵢ, stateᵢ)
-        end
-        initialcondition!(layerᵢ₊₁, stateᵢ₊₁)
-        initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
-    end
+    CryoGrid.initialcondition!(strat, state, tile.inits)
     return u, du    
 end
 """

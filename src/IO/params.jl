@@ -8,7 +8,7 @@ of parameter values.
 """
 struct CryoGridParams{T} <: DenseArray{T,1}
     table::Model # param table
-    CryoGridParams(table::AbstractModel) where {T} = new{eltype(table[:val])}(table)
+    CryoGridParams(table::AbstractModel) = new{eltype(table[:val])}(table)
 end
 Base.values(ps::CryoGridParams) = ps.table[:val]
 Base.axes(ps::CryoGridParams) = axes(collect(values(ps)))

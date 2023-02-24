@@ -10,7 +10,7 @@ the structure of the JSON file. Units can (and should) be supplied as additional
 `loadforcings("example.json", :Tair=>u"°C", :Ptot=>u"mm")`
 """
 loadforcings(filename::String, units...; spec::Type{T}=_autodetect_forcing_format(filename)) where {T <: ForcingInputFormat} = loadforcings(T, filename, units...)
-loadforcings(resource::Resource, units...; outdir=DEFAULT_FORCINGS_DIR) where {T <: ForcingInputFormat} = loadforcings(resource.format, fetch(resource, outdir), units...)
+loadforcings(resource::Resource, units...; outdir=DEFAULT_FORCINGS_DIR) = loadforcings(resource.format, fetch(resource, outdir), units...)
 function loadforcings(::Type{ForcingJSON{1}}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
     dict = open(filename, "r") do file; JSON3.read(file) end
     # convert JSON3 dict for data field to Julia dict

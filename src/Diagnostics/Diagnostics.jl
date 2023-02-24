@@ -136,7 +136,7 @@ end
 Integrates the quantity `X` over the given `grid`, which is assumed to be spatially alligned, i.e.
 `length(grid) == length(dims(X,Z)) + 1` and `cells(grid) .≈ dims(X,Z)` are necessary preconditions.
 """
-function integrate(X::AbstractDimArray, grid::Grid{Edges,G,<:DistQuantity}; upper_limit=0u"m", lower_limit=10u"m") where G
+function integrate(X::AbstractDimArray, grid::Grid{Edges,G,<:DistQuantity}; upper_limit=0u"m", lower_limit=Inf*u"m") where G
     _check_arr_dims(X)
     X = permutedims(X, (Z,Ti))
     @assert length(grid) == size(X,1) + 1

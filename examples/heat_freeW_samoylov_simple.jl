@@ -20,7 +20,7 @@ prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,), step_limiter=nothing)
 # solve with Crank-Nicolson (trapezoid method) and construct CryoGridOutput from solution
 out = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
-zs = [1:10...,20:10:100...]
+zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.H[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.T[Z(zs)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)

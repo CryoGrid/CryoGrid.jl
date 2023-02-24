@@ -1,11 +1,6 @@
-"""
-    heatcapacities(::SubSurface, heat::HeatBalance)
-
-Get heat capacities for generic `SubSurface` layer.
-"""
 @inline function heatcapacities(sub::SubSurface)
-    @unpack hc_w, hc_i, hc_a = thermalproperties(sub)
-    return hc_w, hc_i, hc_a
+    @unpack ch_w, hc_i, hc_a = thermalproperties(sub)
+    return ch_w, hc_i, hc_a
 end
 """
     weighted_average_heatcapacity(cs, θs)
@@ -21,7 +16,7 @@ Computes the heat capacity as a weighted average over constituent capacities wit
 """
 @inline function heatcapacity(sub::SubSurface, heat::HeatBalance, θfracs...)
     cs = heatcapacities(sub)
-    f = heatcapacity(operator(heat))
+    f = heatcapacity(heat.op)
     return f(cs, θfracs)
 end
 """

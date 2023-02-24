@@ -1,14 +1,9 @@
-# Generic heat conduction implementation
-"""
-    freezethaw!(sub::SubSurface, heat::HeatBalance, state)
-
-Calculates freezing and thawing effects, including evaluation of the freeze curve.
-In general, this function should compute at least the liquid/frozen water contents
-and the corresponding heat capacity. Other variables such as temperature or enthalpy
-should also be computed depending on the thermal scheme being implemented.
-"""
-freezethaw!(::SubSurface, ::HeatBalance, state) = error("missing implementation of freezethaw!")
-
+function resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
+    # Reset energy fluxes to zero; this is redundant when H is the prognostic variable
+    # but necessary when it is not.
+    @. state.∂H∂t = zero(eltype(state.∂H∂t))
+    @. state.jH = zero(eltype(state.jH))
+end
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
@@ -38,12 +33,6 @@ CryoGrid.basevariables(::HeatBalance) = (
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
     Diagnostic(:θw, OnGrid(Cells), domain=0..1),
 )
-function resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
-    # Reset energy fluxes to zero; this is redundant when H is the prognostic variable
-    # but necessary when it is not.
-    @. state.∂H∂t = zero(eltype(state.∂H∂t))
-    @. state.jH = zero(eltype(state.jH))
-end
 """
 Diagonstic step for heat conduction (all state configurations) on any subsurface layer.
 """
@@ -105,7 +94,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
             k₂ = s2.kc[1],
             Δ₁ = Δk₁[end],
             Δ₂ = Δk₂[1];
-            harmonicmean(k₁, k₂, Δ₁, Δ₂)
+            Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
         end
     # calculate heat flux between cells (positive downward)
     Qᵢ = @inbounds let z₁ = CryoGrid.midpoint(sub1, s1, last),
@@ -127,7 +116,7 @@ function CryoGrid.prognosticstep!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:En
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     return nothing
 end
 """
@@ -137,14 +126,14 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     # Compute temperature flux by dividing by ∂H∂T;
     # ∂H∂T should be computed by the freeze curve.
     @inbounds @. state.∂T∂t = state.∂H∂t / state.∂H∂T
     return nothing
 end
 # CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy,<:Physics.CFL}, state) = Inf
+CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy,<:CryoGrid.CFL}, state) = Inf
 """
     timestep(::SubSurface, ::HeatBalance{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
 
@@ -152,7 +141,7 @@ Implementation of `timestep` for `HeatBalance` using the Courant-Fredrichs-Lewy 
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
-function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics.CFL}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.CFL}, state) where {Tfc,THeatOp}
     derivative(::Enthalpy, state) = state.∂H∂t
     derivative(::Temperature, state) = state.∂T∂t
     prognostic(::Enthalpy, state) = state.H
@@ -173,7 +162,7 @@ function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics
     dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
-function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics.MaxDelta}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.MaxDelta}, state) where {Tfc,THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
@@ -184,13 +173,12 @@ function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state, i)
-    hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
     θwi = Hydrology.watercontent(sub, state, i)
-    return enthalpyinv(heat.freezecurve, hc, state.H[i], θwi, heat.prop.L)
-end
-@inline function enthalpyinv(::FreeWater, hc::F, H, θwi, L) where {F}
+    H = state.H[i]
+    L = heat.prop.L
     θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
-    C = hc(θw)
+    θfracs = volumetricfractions(sub, state, i)
+    C = heatcapacity(sub, heat, θfracs...)
     T = (I_t*(H-Lθ) + I_f*H)/C
     return T, θw, C
 end

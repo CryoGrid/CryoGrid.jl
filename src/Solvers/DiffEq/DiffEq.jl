@@ -7,7 +7,6 @@ using CryoGrid
 using CryoGrid: Event, ContinuousEvent, DiscreteEvent, ContinuousTrigger, Increasing, Decreasing
 using CryoGrid.InputOutput
 using CryoGrid.Numerics
-using CryoGrid.Physics: HeatBalance
 using CryoGrid.Strat: Stratigraphy
 using CryoGrid.Utils
 

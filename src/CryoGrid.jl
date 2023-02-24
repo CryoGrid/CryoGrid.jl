@@ -10,16 +10,29 @@ using Base: @propagate_inbounds
 using ComponentArrays
 using ConstructionBase
 using Dates
+using IfElse
 using LinearAlgebra
 using ModelParameters
 using Reexport
-using Unitful
+
+# Re-exported packages
+@reexport using Dates: Dates, Date, DateTime
+@reexport using DimensionalData
+@reexport using IfElse
+@reexport using IntervalSets
+@reexport using ModelParameters
+@reexport using Setfield: @set, @set!
+@reexport using Unitful
+@reexport using UnPack
+
+import Flatten
 
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
-export DiscreteEvent, ContinuousEvent, GridContinuousEvent
 export Coupled, Coupled2, Coupled3, Coupled4
+export DiscreteEvent, ContinuousEvent, GridContinuousEvent
+export BoundaryStyle
 include("types.jl")
 export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!, observe
@@ -35,7 +48,6 @@ export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
 include("IO/InputOutput.jl")
 @reexport using .InputOutput
 include("Physics/Physics.jl")
-@reexport using .Physics
 include("Strat/Strat.jl")
 @reexport using .Strat
 parameters = Strat.parameters
@@ -48,12 +60,6 @@ include("coupling.jl")
 # Problem interface
 export CryoGridProblem
 include("problem.jl")
-
-# Re-exported packages
-@reexport using Dates: Dates, DateTime
-@reexport using DimensionalData
-@reexport using IntervalSets
-@reexport using Unitful
 
 # include dependent submodules
 include("Solvers/Solvers.jl")

@@ -1,6 +1,5 @@
 using CryoGrid
 using CryoGrid.Numerics: nonlineardiffusion!
-using CryoGrid.Physics
 using Dates
 using DiffEqBase
 using OrdinaryDiffEq
