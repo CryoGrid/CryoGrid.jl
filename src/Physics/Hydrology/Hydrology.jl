@@ -4,13 +4,8 @@ import CryoGrid
 import ConstructionBase
 
 using CryoGrid
-using CryoGrid.Physics
 using CryoGrid.Numerics
 using CryoGrid.Utils
-
-using IfElse
-using ModelParameters
-using Unitful
 
 export WaterBalanceProperties, HydraulicProperties
 

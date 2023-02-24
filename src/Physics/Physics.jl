@@ -1,17 +1,3 @@
-module Physics
-
-import CryoGrid
-
-using CryoGrid
-using CryoGrid.Numerics
-using CryoGrid.Utils
-
-using ConstructionBase
-using Dates
-using IfElse
-using Reexport
-using Unitful
-
 import Flatten: flattenable
 
 export volumetricfractions
@@ -56,5 +42,3 @@ include("SEB/SEB.jl")
 @reexport using .SEB
 include("Sources/Sources.jl")
 @reexport using .Sources
-
-end

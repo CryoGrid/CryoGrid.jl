@@ -4,8 +4,8 @@
 Numerical constants shared across water balance implementations.
 """
 Base.@kwdef struct WaterBalanceProperties{Tρw,TLsg,Trb,Trc}
-    ρw::Tρw = Physics.Constants.ρw
-    Lsg::TLsg = Physics.Constants.Lsg
+    ρw::Tρw = CryoGrid.Constants.ρw
+    Lsg::TLsg = CryoGrid.Constants.Lsg
     r_β::Trb = 1e3 # reduction factor scale parameter
     r_c::Trc = 0.96325 # reduction factor shift parameter
 end
@@ -68,6 +68,6 @@ end
 CryoGrid.parameterize(flow::BucketScheme) = BucketScheme(
     fieldcap = CryoGrid.parameterize(flow.fieldcap, domain=0..1, desc="Minimum saturation level, a.k.a 'field capacity'."),
 )
-default_dtlim(::BucketScheme) = Physics.MaxDelta(0.1)
-default_dtlim(::WaterFlow) = Physics.MaxDelta(Inf)
+default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.1)
+default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)
 WaterBalance(flow::WaterFlow = BucketScheme(), et=nothing; prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)

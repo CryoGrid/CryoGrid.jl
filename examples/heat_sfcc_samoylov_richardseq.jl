@@ -44,9 +44,9 @@ op = Heat.Diffusion(:H)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -2.0*u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
-    soilprofile[1].depth => :soil1 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=Physics.MaxDelta(50u"kJ"))), para=soilprofile[1].value),
-    soilprofile[2].depth => :soil2 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=Physics.MaxDelta(50u"kJ"))), para=soilprofile[2].value),
-    soilprofile[3].depth => :soil3 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=Physics.MaxDelta(50u"kJ"))), para=soilprofile[3].value),
+    soilprofile[1].depth => :soil1 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=soilprofile[1].value),
+    soilprofile[2].depth => :soil2 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=soilprofile[2].value),
+    soilprofile[3].depth => :soil3 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=soilprofile[3].value),
     soilprofile[4].depth => :soil4 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[4].value),
     soilprofile[5].depth => :soil5 => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc)), para=soilprofile[5].value),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),

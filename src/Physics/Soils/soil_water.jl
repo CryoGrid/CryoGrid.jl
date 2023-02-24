@@ -21,8 +21,8 @@ Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRC,Tsp,TΩ} 
     Ω::TΩ = 1e-3 # smoothness for ice impedence factor
     sp::Tsp = nothing
 end
-Hydrology.default_dtlim(::RichardsEq{Pressure}) = Physics.MaxDelta(0.01u"m")
-Hydrology.default_dtlim(::RichardsEq{Saturation}) = Physics.MaxDelta(0.01)
+Hydrology.default_dtlim(::RichardsEq{Pressure}) = CryoGrid.MaxDelta(0.01u"m")
+Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.01)
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
@@ -129,7 +129,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:Physics.MaxDelta}, state) where {TET}
+function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))

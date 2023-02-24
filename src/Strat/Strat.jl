@@ -7,7 +7,6 @@ using CryoGrid
 using CryoGrid: Parameterization, DynamicParameterization
 using CryoGrid.InputOutput: Forcing, CryoGridParams
 using CryoGrid.Numerics
-using CryoGrid.Physics
 using CryoGrid.Utils
 
 using ComponentArrays

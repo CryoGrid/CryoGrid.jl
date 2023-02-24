@@ -47,7 +47,7 @@ CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow)
 # thermal properties snowpack
 Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
 # volumetric fractions for snowpack
-@inline function Physics.volumetricfractions(::Snowpack, state, i)
+@inline function CryoGrid.volumetricfractions(::Snowpack, state, i)
     @inbounds let θwi = state.θwi[i],
         θw = state.θw[i],
         θa = 1.0 - θwi,

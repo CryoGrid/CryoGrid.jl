@@ -101,4 +101,4 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSu
     return nothing
 end
 # do nothing in prognostic step
-CryoGrid.prognosticstep!(::SubSurface, ::HeatBalanceImplicit, state) where {Tfc} = nothing
+CryoGrid.prognosticstep!(::SubSurface, ::HeatBalanceImplicit, state) = nothing

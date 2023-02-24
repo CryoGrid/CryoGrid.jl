@@ -1,24 +1,16 @@
 module Heat
 
+import CryoGrid
+import CryoGrid.Hydrology
+
+import ConstructionBase
+
 using CryoGrid
-using CryoGrid.InputOutput: Forcing
-using CryoGrid.Physics
-using CryoGrid.Physics.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds
-using IfElse
-using FreezeCurves: FreezeCurves, FreezeCurve, FreeWater
-using ModelParameters
-using Setfield
-using Unitful
-using UnPack
-
-import CryoGrid
-import CryoGrid.Physics
-
-import ConstructionBase
+using FreezeCurves
 
 export FreeWater, FreezeCurve
 

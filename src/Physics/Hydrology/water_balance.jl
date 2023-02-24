@@ -159,7 +159,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
 end
 function CryoGrid.timestep(
     sub::SubSurface,
-    water::WaterBalance{TFlow,TET,<:Physics.MaxDelta},
+    water::WaterBalance{TFlow,TET,<:CryoGrid.MaxDelta},
     state
 ) where {TFlow,TET}
     dtmax = Inf

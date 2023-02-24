@@ -1,16 +1,13 @@
 module SEB
 
+import CryoGrid
+
 using CryoGrid
-using CryoGrid.Physics
-using CryoGrid.Physics
-using CryoGrid.Physics.Heat
-using CryoGrid.Physics.Hydrology
-using CryoGrid.Physics.Soils
+using CryoGrid.Heat
+using CryoGrid.Hydrology
+using CryoGrid.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
-
-import CryoGrid: BoundaryProcess, BoundaryStyle, Neumann, Top
-import CryoGrid: initialcondition!, variables, boundaryvalue
 
 using Unitful
 

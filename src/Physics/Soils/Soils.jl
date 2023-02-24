@@ -2,9 +2,6 @@ module Soils
 
 using CryoGrid
 using CryoGrid.Numerics
-using CryoGrid.Physics
-using CryoGrid.Physics.Heat
-using CryoGrid.Physics.Hydrology
 using CryoGrid.Utils
 
 using IfElse
@@ -20,9 +17,8 @@ using UnPack
 
 import CryoGrid
 import CryoGrid.InputOutput
-import CryoGrid.Physics
-import CryoGrid.Physics.Heat
-import CryoGrid.Physics.Hydrology
+import CryoGrid.Heat
+import CryoGrid.Hydrology
 
 # from FreezeCurves.jl
 export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie

@@ -37,7 +37,7 @@ end
 end
 
 # Define volumetricfractions for Soil layer
-@inline function Physics.volumetricfractions(soil::Soil, state, i)
+@inline function CryoGrid.volumetricfractions(soil::Soil, state, i)
     return let θwi = Hydrology.watercontent(soil, state, i),
         θw = state.θw[i],
         θm = mineral(soil, state, i),

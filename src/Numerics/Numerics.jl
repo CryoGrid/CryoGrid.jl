@@ -47,7 +47,7 @@ struct Profile{N,TKnots}
     knots::TKnots
     Profile(::Tuple{}) = new{0,Tuple{}}(())
     Profile(knots::Tuple{Vararg{<:ProfileKnot,N}}) where N = new{N,typeof(knots)}(knots)
-    Profile(pairs::Tuple{Vararg{<:Pair}}) where D = Profile(map(Base.splat(ProfileKnot), pairs))
+    Profile(pairs::Tuple{Vararg{<:Pair}}) = Profile(map(Base.splat(ProfileKnot), pairs))
     Profile(pairs::Pair...) = Profile(pairs)
 end
 function Base.show(io::IO, mime::MIME"text/plain", profile::Profile)

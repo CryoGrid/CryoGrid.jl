@@ -40,6 +40,6 @@ CryoGrid.BoundaryStyle(::Type{<:PeriodicBC{P,S}}) where {P,S} = S()
 
 # convenience constructors
 ConstantValue(::Type{P}, value::T) where {P<:SubSurfaceProcess,T} = ConstantBC(P, Dirichlet, value)
-PeriodicValue(::Type{P}, args...) where {P<:SubSurfaceProcess,T} = PeriodicBC(P, Dirichlet, args...)
+PeriodicValue(::Type{P}, args...) where {P<:SubSurfaceProcess} = PeriodicBC(P, Dirichlet, args...)
 ConstantFlux(::Type{P}, value::T) where {P<:SubSurfaceProcess,T} = ConstantBC(P, Neumann, value)
-PeriodicFlux(::Type{P}, args...) where {P<:SubSurfaceProcess,T} = PeriodicBC(P, Neumann, args...)
+PeriodicFlux(::Type{P}, args...) where {P<:SubSurfaceProcess} = PeriodicBC(P, Neumann, args...)

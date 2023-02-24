@@ -133,7 +133,7 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<
     return nothing
 end
 # CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy,<:Physics.CFL}, state) = Inf
+CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy,<:CryoGrid.CFL}, state) = Inf
 """
     timestep(::SubSurface, ::HeatBalance{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
 
@@ -141,7 +141,7 @@ Implementation of `timestep` for `HeatBalance` using the Courant-Fredrichs-Lewy 
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
-function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics.CFL}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.CFL}, state) where {Tfc,THeatOp}
     derivative(::Enthalpy, state) = state.∂H∂t
     derivative(::Temperature, state) = state.∂T∂t
     prognostic(::Enthalpy, state) = state.H
@@ -162,7 +162,7 @@ function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics
     dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
-function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics.MaxDelta}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.MaxDelta}, state) where {Tfc,THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
@@ -178,7 +178,7 @@ end
     L = heat.prop.L
     θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
     θfracs = volumetricfractions(sub, state, i)
-    C = heatcapacity(sub, heat, θfracs)
+    C = heatcapacity(sub, heat, θfracs...)
     T = (I_t*(H-Lθ) + I_f*H)/C
     return T, θw, C
 end

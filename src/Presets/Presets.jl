@@ -6,7 +6,6 @@ module Presets
 using CryoGrid
 using CryoGrid.InputOutput: Resource
 using CryoGrid.Numerics
-using CryoGrid.Physics
 using CryoGrid.Strat
 
 using Statistics

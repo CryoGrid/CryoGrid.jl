@@ -61,8 +61,8 @@ end
 Numerical constants for pararameterizing heat processes.
 """
 Utils.@properties HeatBalanceProperties(
-    ρw = Physics.Constants.ρw,
-    Lsl = Physics.Constants.Lsl,
+    ρw = CryoGrid.Constants.ρw,
+    Lsl = CryoGrid.Constants.Lsl,
     L = ρw*Lsl,
 )
 # do not parameterize heat properties
@@ -92,8 +92,8 @@ function CryoGrid.parameterize(props::ThermalProperties)
 end
 
 # default step limiters
-default_dtlim(::Temperature) = Physics.CFL(maxdelta=Physics.MaxDelta(Inf))
-default_dtlim(::Enthalpy) = Physics.MaxDelta(1u"MJ")
+default_dtlim(::Temperature) = CryoGrid.CFL(maxdelta=CryoGrid.MaxDelta(Inf))
+default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(1u"MJ")
 default_dtlim(::HeatOperator) = nothing
 
 # convenience constructors for specifying prognostic variable as symbol

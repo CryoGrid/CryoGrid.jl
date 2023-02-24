@@ -83,7 +83,7 @@ Same as `fastmap` but simply invokes `f!` on each argument set without construct
     push!(expr.args, :(return nothing))
     return expr
 end
-_genexpr(f::Symbol, iters, j) where F = :($f($(map(i -> :(iters[$i][$j]), 1:length(iters))...)))
+_genexpr(f::Symbol, iters, j) = :($f($(map(i -> :(iters[$i][$j]), 1:length(iters))...)))
 
 # special case: make sure temperatures are in °C
 normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)
