@@ -42,3 +42,5 @@ include("SEB/SEB.jl")
 @reexport using .SEB
 include("Sources/Sources.jl")
 @reexport using .Sources
+include("Lakes/Lakes.jl")
+@reexport using .Lakes
