@@ -18,6 +18,14 @@ const Enthalpy = Heat.Enthalpy
 
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
+function partial_heatcapacity(snow::Snowpack, heat::HeatBalance)
+    function heatcap(θw, θwi, θsat)
+        θi = θwi - θw
+        θa = θsat - θwi
+        return heatcapacity(snow, heat, θw, θi, θa)
+    end
+end
+
 CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
 CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = -getscalar(state.dsn) / 2
 
@@ -68,7 +76,7 @@ function CryoGrid.trigger!(
     # Case 2: Increasing snow depth; initialize temperature and enthalpy state
     # using current upper boundary temperature.
     _, heat = procs
-    θfracs = volumetricfractions(snow, heat, state, 1)
+    θfracs = volumetricfractions(snow, state, 1)
     state.C .= C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
     state.H .= state.T.*C
@@ -119,12 +127,7 @@ function CryoGrid.diagnosticstep!(
     # only update snowdepth if swe greater than threshold, otherwise, set to zero.
     @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
     # get heat capacity as a function of liquid water content
-    f_hc = partial(heatcapacity, Val{:θw}(), snow, heat, state, 1)
-    # set temperature and liquid water content according to free water freeze curve,
-    # but capping the liquid fraction according to the 'max_unfrozen' parameter.
-    max_unfrozen = ablation(smb).max_unfrozen
-    θwi_cap = θwi*max_unfrozen
-    T, θw, C = Heat.enthalpyinv(heat.freezecurve, f_hc, getscalar(state.H), θwi_cap, heat.prop.L)
+    T, θw, C = Heat.enthalpyinv(snow, heat, state, i)
     # do not allow temperature to exceed 0°C
     @. state.T = min(T, zero(T))
     @. state.θw = θw

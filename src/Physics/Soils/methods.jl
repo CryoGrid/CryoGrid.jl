@@ -28,7 +28,10 @@ Retrieves the porosity for the given layer at grid cell `i`, if provided.
 Defaults to using the scalar porosity defined on `soil`.
 """
 porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
-porosity(::Soil, state) = state.θp
+porosity(::Soil, state) = state.θsat
+
+saturation(soil::Soil, state, i) = Utils.getscalar(saturation(soil, state), i)
+saturation(::Soil, state) = state.sat
 
 """
     soilproperties(soil::Soil)
@@ -49,6 +52,13 @@ keyword arguments.
 soilproperties(para::SoilParameterization, proc::Process; prop_kwargs...) = (; prop_kwargs...)
 # Default behavior for coupled processes is to invoke SoilProperties on each individually and merge the results
 soilproperties(para::SoilParameterization, procs::CoupledProcesses; prop_kwargs...) = reduce(merge, map(p -> SoilProperties(para, p; prop_kwargs...), procs))
+
+"""
+    sfccsolver(::Soil)
+
+Retrieve the SFCC solver for the given `Soil` layer, if defined.
+"""
+sfccsolver(soil::Soil) = soil.solver
 
 """
     SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...)

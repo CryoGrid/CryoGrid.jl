@@ -10,7 +10,7 @@ soilprofile = SoilProfile(
     0.0u"m" => HomogeneousMixture()
 )
 initT = initializer(:T, tempprofile)
-sfcc = SFCC(DallAmico(swrc=VanGenuchten(α=0.05, n=1.8)))
+sfcc = DallAmico(swrc=VanGenuchten(α=0.05, n=1.8))
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
     ConstantBC(HeatBalance, CryoGrid.Neumann, 0.0u"W/m^2"),

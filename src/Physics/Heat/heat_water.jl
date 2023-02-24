@@ -1,5 +1,7 @@
 # Water/heat coupling
-CryoGrid.initialcondition!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state) = CryoGrid.diagnosticstep!(sub, ps, state)
+function CryoGrid.initialcondition!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+    CryoGrid.diagnosticstep!(sub, ps, state)
+end
 function CryoGrid.diagnosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     # Reset fluxes

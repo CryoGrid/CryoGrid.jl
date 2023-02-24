@@ -10,16 +10,18 @@ abstract type SoilParameterization end
 
 Generic Soil layer.
 """
-struct Soil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
+struct Soil{Tpara<:SoilParameterization,Tprop,Tsolver,Tsp,TP} <: SubSurface{TP}
     proc::TP # subsurface process(es)
     para::Tpara # soil parameterization
     prop::Tprop # soil properties
+    solver::Tsolver
     sp::Tsp # user-defined specialization
 end
 """
     Soil(
         proc::Process;
         para::SoilParameterization=HomogeneousMixture(),
+        solver=default_sfccsolver(proc),
         sp=nothing,
         prop_kwargs...,
     )
@@ -30,6 +32,7 @@ keyword arguments are passed through to `SoilProperties`.
 Soil(
     proc::Process;
     para::SoilParameterization=HomogeneousMixture(),
+    solver=default_sfccsolver(proc),
     sp=nothing,
     prop_kwargs...,
-) = Soil(proc, para, soilproperties(para, proc; prop_kwargs...), sp)
+) = Soil(proc, para, soilproperties(para, proc; prop_kwargs...), solver, sp)

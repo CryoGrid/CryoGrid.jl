@@ -11,6 +11,7 @@ using IfElse
 using IntervalSets
 using ForwardDiff
 using FreezeCurves
+using FreezeCurves.Solvers
 using ModelParameters
 using Setfield
 using StaticArrays

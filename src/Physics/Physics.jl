@@ -14,7 +14,7 @@ using Unitful
 
 import Flatten: flattenable
 
-export volumetricfractions, partial
+export volumetricfractions
 
 Constants = (
     ρw = 1000.0u"kg/m^3", # density of water at standard conditions
@@ -37,23 +37,6 @@ ordering, so be sure to double check your implementation, otherwise this can cau
 """
 @inline volumetricfractions(::SubSurface, state) = ()
 @inline volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
-"""
-    partial(f, ::Val{:θw}, sub::SubSurface, proc::Process, state, i)
-
-Returns a partially applied function `f` which takes liquid water `θw` as an argument and holds all other
-volumetric fractions constant. `f` must be a function of the form `f(::Layer, ::Process, θfracs...)` where
-`θfracs` are an arbitrary number of constituent volumetric fractions. Note that this method assumes that
-`volumetricfractions` and `f` both obey the implicit ordering convention: `(θw, θi, θa, θfracs...)` where
-`θfracs` are zero or more additional constituent fractions. The returned method is a closure which has the
-following properties available: `θw, θi, θa, θfracs, θwi` where `θwi` refers to the sum of `θw` and `θi`.
-"""
-function partial(f::F, ::Val{:θw}, sub::SubSurface, proc::Process, state, i) where F
-    function apply(θw)
-        (_, _, θa, θfracs...) = volumetricfractions(sub, state, i)
-        θwi = Hydrology.watercontent(sub, state, i)
-        return f(sub, proc, θw, θwi - θw, θa, θfracs...)
-    end
-end
 
 export ConstantBC, PeriodicBC
 export ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux

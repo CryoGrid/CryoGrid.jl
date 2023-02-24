@@ -10,6 +10,7 @@ Base.@kwdef struct HomogeneousMixture{Tpor,Tsat,Torg,Txic} <: SoilParameterizati
     org::Torg = 0.0 # organic fraction of solid; mineral fraction is 1-org
     xic::Txic = 0.0 # excess ice fraction of total volume
 end
+saturation(soil::Soil{<:HomogeneousMixture}, state=nothing) = soil.para.sat
 porosity(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θp}(), soil.para)
 mineral(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θm}(), soil.para)
 organic(soil::Soil{<:HomogeneousMixture}, state=nothing) = soilcomponent(Val{:θo}(), soil.para)
@@ -64,7 +65,7 @@ CryoGrid.parameterize(para::MineralSediment) = MineralSediment(
 )
 CryoGrid.variables(soil::Soil{<:MineralSediment}) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θp, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θsat, OnGrid(Cells), domain=0..1),
     CryoGrid.variables(soil, processes(soil))...,
 )
 function CryoGrid.initialcondition!(soil::Soil{<:MineralSediment}, state)
@@ -72,7 +73,7 @@ function CryoGrid.initialcondition!(soil::Soil{<:MineralSediment}, state)
     evaluate(f::Function) = f(soil, state)
     ϕ = evaluate(soil.para.por)
     θ = evaluate(soil.para.sat)
-    @. state.θp = ϕ
+    @. state.θsat = ϕ
     @. state.θwi = ϕ*θ
     CryoGrid.initialcondition!(soil, processes(soil), state)
 end

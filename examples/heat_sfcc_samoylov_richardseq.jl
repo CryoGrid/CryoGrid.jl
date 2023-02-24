@@ -36,11 +36,6 @@ initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
 # soil water retention curve and freeze curve
 swrc = VanGenuchten(α=0.1, n=1.8)
 sfcc = PainterKarra(ω=0.2, swrc=swrc)
-
-presolver = SFCCPreSolver(Solvers.SFCCPreSolverCacheND(:H,:sat))
-Solvers.initialize!(presolver, ustrip(sfcc), θw -> 2e5.*θw .+ 1e5)
-presolver.cache.lut
-
 # water flow: bucket scheme vs richard's eq
 # waterflow = BucketScheme()
 waterflow = RichardsEq(swrc=swrc)

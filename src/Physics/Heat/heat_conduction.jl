@@ -173,13 +173,12 @@ function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:Physics
 end
 # Free water freeze curve
 @inline function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state, i)
-    hc = partial(heatcapacity, Val{:θw}(), sub, heat, state, i)
     θwi = Hydrology.watercontent(sub, state, i)
-    return enthalpyinv(heat.freezecurve, hc, state.H[i], θwi, heat.prop.L)
-end
-@inline function enthalpyinv(::FreeWater, hc::F, H, θwi, L) where {F}
+    H = state.H[i]
+    L = heat.prop.L
     θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
-    C = hc(θw)
+    θfracs = volumetricfractions(sub, state, i)
+    C = heatcapacity(sub, heat, θfracs)
     T = (I_t*(H-Lθ) + I_f*H)/C
     return T, θw, C
 end
