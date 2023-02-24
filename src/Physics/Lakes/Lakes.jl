@@ -19,6 +19,11 @@ end
 
 Lake(proc::Tproc; kwargs...) where {Tproc} = Lake(;proc, kwargs...)
 
+# Material properties
+Heat.thermalproperties(lake::Lake) = lake.prop
+Hydrology.watercontent(::Lake, state) = 1.0
+CryoGrid.volumetricfractions(::Lake, state, i) = (state.θw[i], 1 - state.θw[i], 0.0)
+
 CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
     CryoGrid.variables(heat)...,
     Diagnostic(:ρ_w, Scalar, u"kg*m^-3", domain=0..Inf, desc = "density of water with temperature"),
@@ -42,16 +47,15 @@ function CryoGrid.diagnosticstep!(sub::Lake, heat::HeatBalance, state)
     Heat.freezethaw!(sub, heat, state)
 
     # force unfrozen water to Tair
-    if all(state.Θw .>= 1.)
+    if all(state.θw .>= 1.)
         state.T .= state.T_ub
-        state.H .= Heat.enthalpy(state.T, state.C, heat.prop.L, state.Θw)
+        state.H .= Heat.enthalpy.(state.T, state.C, heat.prop.L, state.θw)
     end
 
     # Update thermal conductivity
     Heat.thermalconductivity!(sub, heat, state)
     return nothing
 end
-
 
 function CryoGrid.prognosticstep!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes

@@ -2,6 +2,8 @@ using CryoGrid
 using Plots
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
+# define time span
+tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 # use air temperature as upper boundary forcing;
 tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 T0 = values(tair[tspan[1]])[1]
@@ -22,26 +24,28 @@ soilprofile = SoilProfile(
 );
 initT = initializer(:T, tempprofile)
 # Heat diffusion with temperature as prognostic state variable
-op = Heat.Diffusion(:H)
 # Construct soil layers
 soil_layers = map(enumerate(soilprofile)) do (i, (depth, para))
     name = Symbol(:soil, i)
-    depth => name => Soil(HeatBalance(op, dtlim=CryoGrid.MaxDelta(50u"kJ")), para=para)
+    depth => name => Soil(HeatBalance(), para=para)
 end
 # Build stratigraphy:
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -2.0*u"m" => Top(TemperatureGradient(tair)),
-    -2.0u"m" => Lake(),
+    -2.0u"m" => :lake => Lake(HeatBalance()),
     soil_layers...,
-    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
+    998.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
-# define time span
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+# shift grid up by 2 m
+modelgrid = Grid(CryoGrid.Presets.DefaultGrid_5cm .- 2.0u"m")
+tile = Tile(strat, modelgrid, initT)
 u0, du0 = initialcondition!(tile, tspan)
 # construct CryoGridProblem with tile, initial condition, and timespan;
 # we disable the default timestep limiter since we will use an adaptive solver.
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
+# test step function (good to do debugging here)
+tile(du0, u0, prob.p, prob.tspan[1])
 @info "Running model"
 out = @time solve(prob, Euler(), dt=300.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
