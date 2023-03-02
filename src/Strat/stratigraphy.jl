@@ -102,7 +102,7 @@ state object for the i'th layer in the stratigraphy.
 @generated function stratiterate(f!::F, strat::Stratigraphy{N,TLayers}, state) where {F,N,TLayers}
     expr = Expr(:block)
     # build expressions for checking whether each layer is active
-    can_interact_exprs = map(i -> :(CryoGrid.thickness(strat[$i].val, getproperty(state, layername(strat[$i]))) > 0), tuple(1:N...))
+    can_interact_exprs = map(i -> :(CryoGrid.isactive(strat[$i].val, getproperty(state, layername(strat[$i])))), tuple(1:N...))
     push!(
         expr.args,
         quote

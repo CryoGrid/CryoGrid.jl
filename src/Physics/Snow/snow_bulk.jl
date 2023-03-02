@@ -28,6 +28,7 @@ end
 
 CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
 CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = -getscalar(state.dsn) / 2
+CryoGrid.isactive(snow::BulkSnowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
 # Events
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (

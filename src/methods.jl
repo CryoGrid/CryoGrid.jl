@@ -80,6 +80,14 @@ and separate dispatches must be provided for interactions in reverse order.
 interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 """
+    isactive(::Layer, state)
+
+Returns a boolean whether or not this layer is currently active in the stratigraphy and should interact with other layers.
+Note that `diagnosticstep!` and `prognosticstep!` are always invoked regardless of the current state of `isactive`.
+The default implementation of `isactive` always returns `true`.
+"""
+isactive(::Layer, state) = true
+"""
     timestep(::Layer, ::Process, state)
 
 Retrieves the recommended timestep for the given `Process` defined on the given `Layer`.
