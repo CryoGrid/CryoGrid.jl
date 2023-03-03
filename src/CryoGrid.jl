@@ -2,8 +2,11 @@ module CryoGrid
 
 global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
 function debug(debug::Bool)
-    @warn "Enabling/disabling debug mode after the module has been loaded will not update existing types and may cause errors."
     global CRYOGRID_DEBUG = debug
+    # disable loop vectorization in debug mode
+    Numerics.turbo(!debug)
+    CRYOGRID_DEBUG && @warn "Debug mode enabled! Some performance features such as loop vectorization are now turned off by default."
+    return CRYOGRID_DEBUG
 end
 
 using Base: @propagate_inbounds

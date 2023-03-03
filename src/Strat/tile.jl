@@ -135,6 +135,12 @@ function step!(
     CryoGrid.diagnosticstep!(strat, state)
     CryoGrid.interact!(strat, state)
     CryoGrid.prognosticstep!(strat, state)
+    if CRYOGRID_DEBUG
+        @inbounds for i in eachindex(u)
+            @assert isfinite(u[i]) "Found NaN/Inf value in current state vector at index $i"
+            @assert isfinite(du[i]) "Found NaN/Inf value in computed time derivatives at index $i"
+        end
+    end
     return nothing
 end
 """
@@ -374,7 +380,7 @@ function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
     chunk_size = isnothing(chunk_size) ? length(para) : chunk_size
-    states = StateVars(vars, Grid(ustrip(grid), grid.geometry), chunk_size, arrayproto)
+    states = StateVars(vars, Grid(ustrip.(grid), grid.geometry), chunk_size, arrayproto)
     return states
 end
 
