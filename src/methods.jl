@@ -97,27 +97,6 @@ actual chosen timestep will depend on the integrator being used and other user c
 timestep(layer::Layer, state) = timestep(layer, processes(layer), state)
 timestep(::Layer, ::Process, state) = Inf
 """
-    observe(::Val{name}, ::Layer, ::Process, state1)
-
-Called at the end of each step. Can be used by the user to add additional observables via `@log` without affecting the
-model implementation. As such, this function should **not** be used in implementations, but only by users and code which
-monitors/consumes CryoGrid model outputs.
-
-Example:
-```julia
-observe(::Val{:meanT}, ::SubSurface, ::HeatBalance, state) = @log meanT = mean(state.T)
-# build model
-...
-setup = Tile(stratigraphy, grid, observed=[:meanT])
-# solve
-...
-# retrieve results
-@show out.log.meanT # will be a DimArray of meanT at each timestep.
-```
-"""
-observe(::Val{name}, layer::Layer, state) where name = observe(Val{name}(), layer, processes(layer), state)
-observe(::Val{name}, ::Layer, ::Process, state) where name = nothing
-"""
     parameterize(x::T) where {T}
     parameterize(x::Unitful.AbstractQuantity; props...)
     parameterize(p::Param; ignored...)

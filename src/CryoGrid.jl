@@ -35,7 +35,7 @@ export DiscreteEvent, ContinuousEvent, GridContinuousEvent
 export BoundaryStyle
 include("types.jl")
 export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
-export boundaryflux, boundaryvalue, criterion, criterion!, trigger!, observe
+export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
 
 # Submodules

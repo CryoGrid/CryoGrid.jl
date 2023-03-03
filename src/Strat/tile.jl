@@ -34,11 +34,11 @@ Out-of-place step function for tile `T`. Computes and returns du/dt as vector wi
 step(::T,u,p,t) where {T<:AbstractTile} = error("no implementation of out-of-place step for $T")
 
 """
-    Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
+    Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
 
 Defines the full specification of a single CryoGrid tile; i.e. stratigraphy, grid, and state variables.
 """
-struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
+struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
@@ -52,20 +52,19 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} <: AbstractTile{iip}
         inits::TInits,
         events::TEvents,
         hist::StateHistory=StateHistory(),
-        iip::Bool=true,
-        observe::Tuple{Vararg{Symbol}}=()) where
+        iip::Bool=true) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
-        new{TStrat,TGrid,TStates,TInits,TEvents,iip,observe}(strat,grid,state,inits,events,hist)
+        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,hist)
     end
 end
-ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} =
-    (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip, obsv)
+ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
+    (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:events}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
-Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv} = print(io, "Tile (iip=$iip) with layers $(map(layername, layers(tile.strat))), observables=$obsv, $TGrid, $TStrat")
+Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} = print(io, "Tile (iip=$iip) with layers $(map(layername, layers(tile.strat))), $TGrid, $TStrat")
 
 """
     Tile(
@@ -74,7 +73,6 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
         @nospecialize(inits::VarInitializer...);
         arrayproto::Type{A}=Vector,
         iip::Bool=true,
-        observe::Vector{Symbol}=Symbol[],
         chunk_size=nothing,
     )
 
@@ -87,7 +85,6 @@ function Tile(
     @nospecialize(inits::VarInitializer...);
     arrayproto::Type{A}=Vector,
     iip::Bool=true,
-    observe::Vector{Symbol}=Symbol[],
     chunk_size=nothing,
 ) where {A<:AbstractArray}
     strat = stripunits(strat)
@@ -104,12 +101,12 @@ function Tile(
     inits = map(inits) do init
         _addlayerfield(init, Symbol(:init_, varname(init)))
     end
-    return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip, Tuple(observe))
+    return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip)
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 """
-    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,obsv}
+    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
 Time derivative step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
@@ -122,13 +119,13 @@ prognosticstep!(layer[i], ...)
 ```
 """
 function step!(
-    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true,obsv},
+    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
     _du,
     _u,
     p,
     t,
     dt=1.0,
-) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,obsv}
+) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
@@ -138,20 +135,14 @@ function step!(
     CryoGrid.diagnosticstep!(strat, state)
     CryoGrid.interact!(strat, state)
     CryoGrid.prognosticstep!(strat, state)
-    # invoke observe method for debugging
-    fastiterate(layers(strat)) do named_layer
-        for name in obsv
-            CryoGrid.observe(Val{name}(), named_layer.val, getproperty(state, layername(named_layer)))
-        end
-    end
     return nothing
 end
 """
-    timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+    timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
 
 Computes the maximum permissible forward timestep for this `Tile` given the current `u`, `p`, and `t`.
 """
-function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
@@ -166,7 +157,7 @@ end
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
 CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}, tspan::NTuple{2,Float64}, p=nothing) where {TStrat,TGrid,TStates,TInits,TEvents,iip,obsv}
+function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, tspan::NTuple{2,Float64}, p=nothing) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
     t0 = tspan[1]
     # if there are parameters defined on `tile` but the user did not supply a parameter vector,
     # automatically extract the parameters from the Tile.
