@@ -135,7 +135,7 @@ function step!(
     CryoGrid.diagnosticstep!(strat, state)
     CryoGrid.interact!(strat, state)
     CryoGrid.prognosticstep!(strat, state)
-    if CRYOGRID_DEBUG
+    if CryoGrid.CRYOGRID_DEBUG
         @inbounds for i in eachindex(u)
             @assert isfinite(u[i]) "Found NaN/Inf value in current state vector at index $i"
             @assert isfinite(du[i]) "Found NaN/Inf value in computed time derivatives at index $i"
