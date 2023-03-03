@@ -83,6 +83,7 @@ Base.iterate(strat::Stratigraphy) = (layers(strat)[1],layers(strat)[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
 Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod("$b => $n" for (n,b) in zip(layers(strat), boundaries(strat))))")
+Base.NamedTuple(strat::Stratigraphy) = (; map(named_layer -> nameof(named_layer) => named_layer, layers(strat))...)
 # ConstructionBase
 ConstructionBase.getproperties(strat::Stratigraphy) = (;map(Pair, Base.keys(strat), Base.values(strat))...)
 function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)

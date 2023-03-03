@@ -7,7 +7,7 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     p = integrator.p
     dt = integrator.dt
     t = t₀ + dt
-    tile = Strat.updateparams(Tile(integrator.sol.prob.f), u, p, t)
+    tile = Strat.resolve(Tile(integrator.sol.prob.f), u, p, t)
     # explicit update, if necessary
     # _explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state

@@ -21,17 +21,18 @@ Evaluates the continuous solution at time `t`.
 (out::CryoGridOutput)(t::DateTime) = out(Dates.datetime2epochms(t)/1000.0)
 # Overrides from Base
 function Base.show(io::IO, out::CryoGridOutput)
+    withindent(str) = "    $str"
     countvars(x) = 1
     countvars(nt::NamedTuple) = sum(map(countvars, nt))
-    format(res::Tuple) = join(res, ", ")
-    describe(key, val) = "$key => $(typeof(val).name.wrapper) of $(eltype(val)) with dimensions $(size(val))"
-    describe(key, val::NamedTuple) = "$key => $(format(map(describe, keys(val), values(val))))"
+    format(res::Tuple) = join(res, "\n")
+    describe(key, val) = withindent("$key => $(typeof(val).name.wrapper) of $(eltype(val)) with dimensions $(size(val))")
+    describe(key, val::NamedTuple) = withindent("$key => \n$(format(map(withindent ∘ describe, keys(val), values(val))))")
     data = out.data
     nvars = countvars(data)
     println(io, "CryoGridOutput with $(length(out.ts)) time steps ($(out.ts[1]) to $(out.ts[end])) and $(nvars != 1 ? "$nvars variables" : "1 variable"):")
     strs = map(describe, keys(data), values(data))
     for r in strs
-        println(io, "    $r")
+        println(io, r)
     end
 end
 DimensionalData.DimStack(out::CryoGridOutput, var::Symbol, vars::Symbol...) = DimStack((;map(n -> n => getproperty(out, n), tuple(var, vars...))...))

@@ -1,5 +1,3 @@
-# Variable dimensions
-abstract type VarDim{S} end
 struct OnGrid{S} <: VarDim{S}
     offset::Int # G -> G' where G is the edge grid
     OnGrid(::Type{S}, offset::Int=0) where {S<:GridSpec} = new{S}(offset)
@@ -12,7 +10,6 @@ dimlength(::Shape{dims}, grid::Grid) where dims = prod(dims)
 dimlength(d::OnGrid{Cells}, grid::Grid) = length(cells(grid)) + d.offset
 dimlength(d::OnGrid{Edges}, grid::Grid) = length(edges(grid)) + d.offset
 
-abstract type Var{name,S<:VarDim,T,units,domain} end
 """
     Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 

@@ -10,7 +10,6 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using ComponentArrays
-using DataStructures: OrderedDict
 using Dates
 using DimensionalData
 using IfElse
