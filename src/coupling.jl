@@ -103,17 +103,3 @@ Default implementation of `timestep` for coupled process types. Calls each proce
     push!(expr.args, :(return dtmax))
     return expr
 end
-"""
-    observe(::Val{name}, l::Layer, ps::CoupledProcesses{P}, state) where {P}
-
-Default implementation of `observe` for coupled process types. Calls each process in sequence.
-"""
-@generated function observe(val::Val{name}, l::Layer, ps::CoupledProcesses{P}, state) where {name,P}
-    expr = Expr(:block)
-    for i in 1:length(P.parameters)
-        quote
-            observe(val,l,ps[$i],state)
-        end |> Base.Fix1(push!, expr.args)
-    end
-    return expr
-end

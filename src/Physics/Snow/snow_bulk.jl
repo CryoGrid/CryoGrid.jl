@@ -28,6 +28,7 @@ end
 
 CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
 CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = -getscalar(state.dsn) / 2
+CryoGrid.isactive(snow::BulkSnowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
 # Events
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
@@ -126,12 +127,8 @@ function CryoGrid.diagnosticstep!(
     dsn = getscalar(state.swe) / θwi
     # only update snowdepth if swe greater than threshold, otherwise, set to zero.
     @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
-    # get heat capacity as a function of liquid water content
-    T, θw, C = Heat.enthalpyinv(snow, heat, state, i)
-    # do not allow temperature to exceed 0°C
-    @. state.T = min(T, zero(T))
-    @. state.θw = θw
-    @. state.C = C
+    # evaluate freezing/thawing processes for snow layer
+    Heat.freezethaw!(snow, heat, state)
     # compute thermal conductivity
     Heat.thermalconductivity!(snow, heat, state)
     @. state.k = state.kc

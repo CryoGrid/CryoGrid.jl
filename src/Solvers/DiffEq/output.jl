@@ -13,7 +13,8 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
     tile = Tile(sol.prob.f) # Tile
     ts = tile.hist.vals.t # use save callback time points
     t_mask = map(∈(save_interval), ts) # indices within t interval
-    u_all = reduce(hcat, sol.(ts[t_mask])) # build prognostic state from continuous solution
+    u_all = sol.(ts[t_mask])
+    u_mat = reduce(hcat, u_all) # build prognostic state from continuous solution
     pax = ComponentArrays.indexmap(getaxes(tile.state.uproto)[1])
     # get saved diagnostic states and timestamps only in given interval
     savedstates = tile.hist.vals.saveval[t_mask]
@@ -22,11 +23,13 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
     progvars = tuplejoin(filter(isprognostic, allvars), filter(isalgebraic, allvars))
     diagvars = filter(isdiagnostic, allvars)
     fluxvars = filter(isflux, allvars)
-    outputs = Dict{Symbol,Any}()
-    for var in progvars
+    outputs = OrderedDict()
+    # add all on-grid prognostic variables
+    for var in filter(isongrid, progvars)
         name = varname(var)
-        outputs[name] = withdims(var, u_all[pax[name],:], tile.grid, ts_datetime)
+        outputs[name] = withdims(var, u_mat[pax[name],:], tile.grid, ts_datetime)
     end
+    # add all on-grid diagnostic variables
     for var in filter(isongrid, tuplejoin(diagvars, fluxvars))
         name = varname(var)
         states = collect(skipmissing([name ∈ keys(state) ? state[name] : missing for state in savedstates]))
@@ -35,22 +38,28 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
             outputs[name] = withdims(var, arr, tile.grid, ts_datetime)
         end
     end
+    # handle per-layer variables
     for layer in Strat.layernames(tile.strat)
-        # if layer name appears in saved states, then add these variables to the output.
-        if haskey(savedstates[1], layer)
-            layerouts = map(savedstates) do state
+        # if layer name appears in saved states or prognostic state axes, then add these variables to the output.
+        if haskey(savedstates[1], layer) || haskey(pax, layer)
+            # map over all savedstates and create named tuples for each time step
+            layerouts = map(u_all, savedstates) do u, state
                 layerstate = state[layer]
-                layerout = Dict()
+                layerout = OrderedDict()
                 for var in keys(layerstate)
                     layerout[var] = layerstate[var]
                 end
-                (;layerout...)
+                # convert to named tuple
+                diagnostic_output = (;layerout...)
+                u_layer = u[layer]
+                prognostic_output = (;map(name -> name => u_layer[name], keys(u_layer))...)
+                return merge(prognostic_output, diagnostic_output)
             end
             layerouts_combined = reduce(layerouts[2:end]; init=layerouts[1]) do out1, out2
                 map(vcat, out1, out2)
             end
-            # for each variable in the named tuple, find the corresponding diagnostic variable in `diagvars`
-            layervars = (; map(name -> name => first(filter(var -> varname(var) == name, diagvars)), keys(layerouts_combined))...)
+            # for each variable in the named tuple, find the corresponding variables
+            layervars = (; map(name -> name => first(filter(var -> varname(var) == name, allvars)), keys(layerouts_combined))...)
             # map each output to a variable and call withdims to wrap in a DimArray
             outputs[layer] = map((var,out) -> withdims(var, reshape(out,1,:), nothing, ts_datetime), layervars, layerouts_combined)
         end

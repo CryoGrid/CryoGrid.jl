@@ -13,6 +13,7 @@ using CryoGrid.Utils
 import CryoGrid.Strat
 
 using ComponentArrays
+using DataStructures
 using Dates
 using DimensionalData
 using Flatten
@@ -55,7 +56,9 @@ Constructs a `Tile` from a `SciMLBase` integrator.
 """
 function Strat.Tile(integrator::SciMLBase.DEIntegrator)
     tile = Strat.Tile(integrator.sol.prob.f)
-    return Strat.updateparams(tile, Strat.withaxes(integrator.u, tile), integrator.p, integrator.t)
+    du = get_du(integrator)
+    u = integrator.u
+    return Strat.resolve(tile, Strat.withaxes(du, tile), Strat.withaxes(u, tile), integrator.p, integrator.t)
 end
 function Strat.Tile(f::ODEFunction)
     extract_f(tile::Tile) = tile

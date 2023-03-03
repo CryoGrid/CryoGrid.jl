@@ -29,14 +29,14 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
 end
 function CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::InterpInitializer{var}) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
-    depths = collect(map(knot -> dustrip(knot.depth), profile.knots))
+    depths = collect(map(knot -> ustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
     z = getproperty(state.grids, var)
     if length(depths) > 1
         f = Interpolations.extrapolate(
             Interpolations.interpolate(
                 (depths,),
-                collect(map(knot -> dustrip(knot.value), profile.knots)),
+                collect(map(knot -> ustrip(knot.value), profile.knots)),
                 Interpolations.Gridded(interp)
             ),
             extrap
@@ -46,7 +46,7 @@ function CryoGrid.initialcondition!(layer::Layer, process::Process, state, init:
     else
         # if only one knot is defined, set to this value over all z;
         # this is necessary because interpolate does not support interpolation grids of length 1
-        y = dustrip(profile.knots[1].value)
+        y = ustrip(profile.knots[1].value)
         @. u = y
         return u
     end
