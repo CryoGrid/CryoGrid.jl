@@ -28,7 +28,7 @@ export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
 export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
-export dustrip, duconvert, applyunits, normalize_units, normalize_temperature, pstrip
+export applyunits, normalize_units, normalize_temperature, pstrip
 export fastmap, fastiterate, structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 
 # Variable/parameter domains
@@ -161,18 +161,6 @@ function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
     end
     return x
 end
-
-"""
-Debug ustrip. Remove units if and only if debug mode is NOT enabled.
-"""
-dustrip(x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(x)
-dustrip(x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, x)
-dustrip(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : ustrip(u,x)
-dustrip(u::Unitful.Units, x::AbstractVector{<:Quantity{T}}) where {T} = CryoGrid.CRYOGRID_DEBUG ? x : reinterpret(T, uconvert.(u, x))
-"""
-Debug uconvert.
-"""
-duconvert(u::Unitful.Units, x::Number) = CryoGrid.CRYOGRID_DEBUG ? x : uconvert(u, x)
 
 """
     pstrip(obj; keep_units=false)

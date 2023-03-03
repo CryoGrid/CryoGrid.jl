@@ -374,7 +374,7 @@ function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
     chunk_size = isnothing(chunk_size) ? length(para) : chunk_size
-    states = StateVars(vars, Grid(dustrip(grid), grid.geometry), chunk_size, arrayproto)
+    states = StateVars(vars, Grid(ustrip(grid), grid.geometry), chunk_size, arrayproto)
     return states
 end
 
