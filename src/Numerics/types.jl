@@ -10,4 +10,4 @@ struct Edges <: GridSpec end
 struct Cells <: GridSpec end
 
 abstract type Geometry end
-struct UnitVolume <: Geometry end
+struct UnitRectangle <: Geometry end

@@ -182,7 +182,7 @@ end
 """
     Parameterization
 
-Base type for generic parameterizations of constants or unknown quantities.
+Base type for generic parameterizations of processes or components.
 """
 abstract type Parameterization end
 """

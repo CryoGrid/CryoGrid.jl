@@ -26,7 +26,7 @@ function turbo(value::Bool)
     global USE_TURBO = value
 end
 
-export Var, GridSpec, Edges, Cells, UnitVolume
+export Var, GridSpec, Edges, Cells, UnitRectangle
 include("types.jl")
 
 export Profile, ProfileKnot

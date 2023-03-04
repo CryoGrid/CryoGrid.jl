@@ -15,7 +15,7 @@ struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
     deltas::GridValues{A}
     bounds::UnitRange{Int}
     Grid(::Type{S}, values::GridValues{A}, deltas::GridValues{A}, geom::G, bounds::UnitRange{Int}=1:length(values)) where {S<:GridSpec,Q,A<:AbstractVector{Q},G<:Geometry} = new{S,G,Q,A}(geom,values,deltas,bounds)
-    function Grid(vals::AbstractVector{Q}, geometry::G=UnitVolume()) where {G<:Geometry,Q<:Number}
+    function Grid(vals::AbstractVector{Q}, geometry::G=UnitRectangle()) where {G<:Geometry,Q<:Number}
         @assert issorted(vals) "grid values should be in ascending order"
         nedges = length(vals)
         ncells = nedges - 1
@@ -95,8 +95,8 @@ function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where 
 end
 
 # unit volume
-@inline volume(grid::Grid{Cells,UnitVolume,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
-@inline area(::Grid{Edges,UnitVolume,Q}) where Q = oneunit(Q)^2
+@inline volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
+@inline area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
 
 # grid discretizations
 """
