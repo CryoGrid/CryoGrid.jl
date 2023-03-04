@@ -44,6 +44,7 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
     state::TStates # state variables
     inits::TInits # initializers
     events::TEvents # events
+    metadata::Dict # metadata
     hist::StateHistory # mutable "history" type for state tracking
     function Tile(
         strat::TStrat,
@@ -51,14 +52,15 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
         state::TStates,
         inits::TInits,
         events::TEvents,
+        metadata::Dict=Dict(),
         hist::StateHistory=StateHistory(),
         iip::Bool=true) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
-        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,hist)
+        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,metadata,hist)
     end
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
-    (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip)
+    (strat, grid, state, inits, events, metadata, hist) -> Tile(strat, grid, state, inits, events, metadata, hist, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -69,24 +71,27 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
 """
     Tile(
         @nospecialize(strat::Stratigraphy),
-        @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
+        @nospecialize(discretization_strategy::DiscretizationStrategy),
         @nospecialize(inits::VarInitializer...);
+        metadata::Dict=Dict(),
         arrayproto::Type{A}=Vector,
         iip::Bool=true,
         chunk_size=nothing,
     )
 
-Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
+Constructs a `Tile` from the given stratigraphy and discretization strategy. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
 function Tile(
     @nospecialize(strat::Stratigraphy),
-    @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
+    @nospecialize(discretization_strategy::DiscretizationStrategy),
     @nospecialize(inits::VarInitializer...);
+    metadata::Dict=Dict(),
     arrayproto::Type{A}=Vector,
     iip::Bool=true,
     chunk_size=nothing,
 ) where {A<:AbstractArray}
+    grid = Numerics.makegrid(discretization_strategy, collect(boundaries(strat)))
     strat = stripunits(strat)
     layers = _collectlayers(strat)
     events = _collectevents(strat)
@@ -101,9 +106,10 @@ function Tile(
     inits = map(inits) do init
         _addlayerfield(init, Symbol(:init_, varname(init)))
     end
-    return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip)
+    return Tile(strat, grid, states, inits, (;events...), metadata, StateHistory(), iip)
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
+Tile(strat::Stratigraphy, grid::Grid{Edges}; kwargs...) = Tile(strat, PresetGrid(grid); kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}

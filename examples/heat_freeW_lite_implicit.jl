@@ -18,10 +18,9 @@ tempprofile_linear = TemperatureProfile(
     10.0u"m" => -10.0u"°C", 
     1000.0u"m" => 10.2u"°C"
 )
-modelgrid = CryoGrid.Presets.DefaultGrid_2cm
-z_top = -2.0u"m"
+z_top = 0.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
-z_bot = modelgrid[end]
+z_bot = 1000.0u"m"
 upperbc = TemperatureGradient(tair, NFactor())
 initT = initializer(:T, tempprofile_linear)
 @info "Building stratigraphy"
@@ -36,7 +35,7 @@ strat = @Stratigraphy(
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"
-tile = @time Tile(strat, modelgrid, initT)
+tile = @time Tile(strat, AutoGrid(), initT)
 # define time span, 5 years
 tspan = (DateTime(2010,12,30), DateTime(2015,12,30))
 tspan_sol = convert_tspan(tspan)

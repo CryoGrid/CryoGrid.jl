@@ -12,6 +12,7 @@ using IntervalSets
 using LinearAlgebra
 using LoopVectorization
 using Unitful
+using UnPack
 using StaticArrays
 using StructTypes
 
@@ -27,6 +28,7 @@ function turbo(value::Bool)
 end
 
 export Var, GridSpec, Edges, Cells, UnitRectangle
+export DiscretizationStrategy, PresetGrid, AutoGrid, makegrid
 include("types.jl")
 
 export Profile, ProfileKnot
