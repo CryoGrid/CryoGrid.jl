@@ -18,7 +18,7 @@ tempprofile_linear = TemperatureProfile(
     10.0u"m" => -10.0u"°C", 
     1000.0u"m" => 10.2u"°C"
 )
-modelgrid = Grid(CryoGrid.Presets.DefaultGrid_2cm .- 2.0u"m")
+modelgrid = Grid(vcat(-2.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
 z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
@@ -45,7 +45,10 @@ u0, du0 = @time initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 lake_state = getstate(:lake, tile, u0, du0, prob.tspan[1])
 # debug one step
-@run tile(du0, u0, prob.p, prob.tspan[1])
+CryoGrid.debug(true)
+tile(du0, u0, prob.p, prob.tspan[1])
+integrator = init(prob, LiteImplicitEuler(), dt=24*3600)
+step!(integrator)
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)

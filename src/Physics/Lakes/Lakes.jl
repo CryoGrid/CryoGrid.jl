@@ -72,7 +72,7 @@ function CryoGrid.diagnosticstep!(
     @inbounds for i in eachindex(state.θw)
         isthawed = isthawed && state.θw[i] ≈ 1.0
     end
-    I_t = Float64(isthawed)
+    I_f = 1 - Float64(isthawed)
     # Compute diffusion coefficients
     an = state.DT_an
     as = state.DT_as
@@ -84,10 +84,10 @@ function CryoGrid.diagnosticstep!(
     dxpn = @view dxp[1:end-1]
     dxps = @view dxp[2:end]
     @. an[2:end] = k_inner / dx / dxpn
-    @. as[1:end-1] = (k_inner / dx / dxps)*I_t
+    @. as[1:end-1] = (k_inner / dx / dxps)*I_f
     @. ap[1:end-1] += as[1:end-1]
     @. ap[2:end] += an[2:end]
-    @. an[2:end] *= I_t
+    @. an[2:end] *= I_f
     return nothing
 end
 
