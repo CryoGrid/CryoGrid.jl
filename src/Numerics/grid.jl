@@ -45,7 +45,7 @@ end
 function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     @assert interval.left <= interval.right "Invalid interval: $interval"
     # Determine indices which lie in the given interval
-    l_ind = searchsortedfirst(grid, interval.left)
+    l_ind = searchsortedlast(grid, interval.left)
     r_ind = searchsortedlast(grid, interval.right)
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
@@ -111,16 +111,16 @@ discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(sim
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}
     # get lengths
-    gridvar_ns = map(v -> dimlength(vardims(v), grid), gridvars)
-    layervar_ns = map(vars -> map(v -> dimlength(vardims(v), grid), vars), layervars)
-    Ng = length(gridvar_ns) > 0 ? sum(gridvar_ns) : 0
-    Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_ns))
+    gridvar_sizes = map(v -> dimlength(vardims(v), grid), gridvars)
+    layervar_sizes = map(vars -> map(v -> dimlength(vardims(v), grid), vars), layervars)
+    Ng = length(gridvar_sizes) > 0 ? sum(gridvar_sizes) : 0
+    Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_sizes))
     # build axis indices;
     # non-grid prognostic variables get collected at the top of the vector, in the order provided
     i = 1
-    layervar_ax = map(layervars, layervar_ns) do pvars, sizes
+    layervar_ax = map(layervars, layervar_sizes) do vars, sizes
         j = 1
-        coords = map(pvars, sizes) do var, N
+        coords = map(vars, sizes) do var, N
             coord = varname(var) => j:j+N-1
             j += N
             return coord
@@ -128,14 +128,13 @@ function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars:
         i += j
         return (; coords...)
     end
-    # pointvar_coords = (varname(p) => i:(i+n-1) for (p,n,i) in zip(pointvars, pointvar_ns, cumsum(vcat([1],collect(pointvar_ns[1:end-1])))))
     # grid variables get interlaced throughout the rest of the vector; i.e. for variable i, its grid points are:
     # i:k:kn where k is the number of grid variables and n is the length of the grid.
     gridvar_ax = (;(varname(p) => st:length(gridvars):(Ng+Nl) for (p,st) in zip(gridvars, (Nl+1):(1+Nl+length(gridvars))))...)
     # select only non-empty layers
     layervar_ax = (;(name => layervar_ax[name] for name in keys(layervar_ax) if length(layervar_ax[name]) > 0)...)
-    # allocate component array; assumes all variables have (and should!) have the same type
+    # allocate component array; assumes all prognostic variables have the same type (and they should!)
     u = zero(similar(A, Ng+Nl))
-    u_ax = map(ax -> ViewAxis(ax[1][1]:ax[end][end], Axis(ax)), layervar_ax)
+    u_ax = map(ax -> ViewAxis(first(ax)[1]:last(ax)[end], Axis(ax)), layervar_ax)
     return ComponentVector(u, (Axis(merge(u_ax, gridvar_ax)),))
 end
