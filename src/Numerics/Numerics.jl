@@ -44,7 +44,10 @@ export Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
-export StateVars, DiffCache, retrieve, getvar, getvars
+export DiffCache, retrieve
+include("diffcache.jl")
+
+export StateVars, getvar, getvars
 include("statevars.jl")
 
 end

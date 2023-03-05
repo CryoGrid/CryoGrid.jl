@@ -11,6 +11,34 @@ struct StateVars{names,griddvars,TU,TD,TV,DF,DG}
     diag::NamedTuple{names,DF} # non-grid non-prognostic variables
     griddiag::NamedTuple{griddvars,DG} # grid non-prognostic variables
 end
+# This ugly and confusing type alias is just to help enforce the structure of arguments used to construct state types.
+# It is neither strictly necessary nor important, just there to help prevent user error :)
+const GroupedVars = NamedTuple{names,<:Tuple{Vararg{<:Tuple{Vararg{<:Var}}}}} where {names}
+"""
+    StateVars(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunk_size::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
+"""
+function StateVars(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.AbstractDiscretization), chunk_size::Int, ::Type{A}=Vector) where {A<:AbstractVector}
+    _flatten(vars) = Flatten.flatten(vars, Flatten.flattenable, Var)
+    diagvars = map(group -> filter(isdiagnostic, group), vars)
+    progvars = map(group -> filter(isprognostic, group), vars)
+    algvars = map(group -> filter(isalgebraic, group), vars)
+    # create variables for time delta variables (divergence/residual)
+    dpvars = map(group -> map(Delta, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
+    gridprogvars = Tuple(unique(filter(isongrid, tuplejoin(_flatten(progvars), _flatten(algvars)))))
+    freeprogvars = map(group -> filter(!isongrid, group), progvars)
+    vartypes = map(vartype, tuplejoin(gridprogvars, _flatten(freeprogvars)))
+    @assert all(map(==(first(vartypes)), vartypes)) "All prognostic variables must have same data type"
+    uproto = prognosticstate(A{first(vartypes)}, D, freeprogvars, gridprogvars)
+    # build non-gridded (i.e. "free") diagnostic state vectors
+    freediagvars = map(group -> filter(!isongrid, group), diagvars)
+    freediagstate = map(group -> (;map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunk_size), group)...), freediagvars)
+    # build gridded diagnostic state vectors
+    griddiagvars = Tuple(unique(filter(isongrid, _flatten(diagvars))))
+    griddiagstate = map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunk_size), griddiagvars)
+    # join prognostic variables with delta and flux variables, then build nested named tuples in each group with varnames as keys
+    allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
+    return StateVars(uproto, D, allvars, (;freediagstate...), (;griddiagstate...))
+end
 @generated function getvar(::Val{name}, vs::StateVars{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
     pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u))) # get prognostic variable index map (name -> indices)
     dnames = map(n -> deltaname(n), keys(pax)) # get names of delta/derivative variables
@@ -60,59 +88,6 @@ function getvars(vs::StateVars{layers,gridvars,TU}, u::ComponentVector, du::Comp
         end
     end
     return (;vars...)
-end
-"""
-    DiffCache{TCache}
-
-Wrapper around `PreallocationTools.DiffCache` that stores state variables in forward-diff compatible cache arrays.
-"""
-struct DiffCache{TCache}
-    name::Symbol
-    cache::TCache
-    function DiffCache(name::Symbol, A::AbstractArray, chunk_size::Int)
-        # use dual cache for automatic compatibility with ForwardDiff
-        cache = Prealloc.dualcache(A, chunk_size)
-        new{typeof(cache)}(name, cache)
-    end
-end
-Base.show(io::IO, cache::DiffCache) = print(io, "DiffCache $(cache.name) of length $(length(cache.cache.du)) with eltype $(eltype(cache.cache.du))")
-Base.show(io::IO, mime::MIME{Symbol("text/plain")}, cache::DiffCache) = show(io, cache)
-_retrieve(cache_var::AbstractArray{T}, ::AbstractArray{T}) where {T} = cache_var
-_retrieve(cache_var::AbstractArray{T}, u::AbstractArray{U}) where {T,U} = copyto!(similar(u, length(cache_var)), cache_var)
-retrieve(dc::DiffCache) = dc.cache.du
-retrieve(dc::DiffCache, u::AbstractArray{T}) where {T<:ForwardDiff.Dual} = copyto!(similar(dc.cache.du, T), dc.cache.du)
-retrieve(dc::DiffCache, u::AbstractArray{T}) where {T} = _retrieve(dc.cache.du, u)
-retrieve(dc::DiffCache, u::AbstractArray{T}, t) where {T} = retrieve(dc, u)
-# these cover cases for Rosenbrock solvers where only t has differentiable type
-retrieve(dc::DiffCache, u::AbstractArray, t::T) where {T<:ForwardDiff.Dual} = copyto!(similar(dc.cache.du, T), dc.cache.du)
-retrieve(dc::DiffCache, u::AbstractArray{T}, t::T) where {T<:ForwardDiff.Dual} = retrieve(dc, u)
-# This ugly and confusing type alias is just to help enforce the structure of arguments used to construct state types.
-# It is neither strictly necessary nor important, just there to help prevent user error :)
-const GroupedVars = NamedTuple{names,<:Tuple{Vararg{<:Tuple{Vararg{<:Var}}}}} where {names}
-"""
-    StateVars(vars::GroupedVars, D::Numerics.AbstractDiscretization, chunk_size::Int, arrayproto::Type{A}=Vector) where {A<:AbstractVector}
-"""
-function StateVars(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.AbstractDiscretization), chunk_size::Int, ::Type{A}=Vector) where {A<:AbstractVector}
-    _flatten(vars) = Flatten.flatten(vars, Flatten.flattenable, Var)
-    diagvars = map(group -> filter(isdiagnostic, group), vars)
-    progvars = map(group -> filter(isprognostic, group), vars)
-    algvars = map(group -> filter(isalgebraic, group), vars)
-    # create variables for time delta variables (divergence/residual)
-    dpvars = map(group -> map(Delta, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
-    gridprogvars = Tuple(unique(filter(isongrid, tuplejoin(_flatten(progvars), _flatten(algvars)))))
-    freeprogvars = map(group -> filter(!isongrid, group), progvars)
-    vartypes = map(vartype, tuplejoin(gridprogvars, _flatten(freeprogvars)))
-    @assert all(map(==(first(vartypes)), vartypes)) "All prognostic variables must have same data type"
-    uproto = prognosticstate(A{first(vartypes)}, D, freeprogvars, gridprogvars)
-    # build non-gridded (i.e. "free") diagnostic state vectors
-    freediagvars = map(group -> filter(!isongrid, group), diagvars)
-    freediagstate = map(group -> (;map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunk_size), group)...), freediagvars)
-    # build gridded diagnostic state vectors
-    griddiagvars = Tuple(unique(filter(isongrid, _flatten(diagvars))))
-    griddiagstate = map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunk_size), griddiagvars)
-    # join prognostic variables with delta and flux variables, then build nested named tuples in each group with varnames as keys
-    allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
-    return StateVars(uproto, D, allvars, (;freediagstate...), (;griddiagstate...))
 end
 """
     build_mass_matrix(u::ComponentVector, states::StateVars)

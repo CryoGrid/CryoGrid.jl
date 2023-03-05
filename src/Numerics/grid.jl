@@ -104,7 +104,6 @@ end
 
 Produces a discretization of the given variable based on `T` and array type `A`.
 """
-discretize(::Type{A}, ::D, ::Var) where {Q,T,N,D<:AbstractDiscretization{Q,N},A<:AbstractArray{T,N}} = error("missing discretize implementation for $D")
 discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Array{vartype(var),N}, d, var)
 discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, grid)))
 
