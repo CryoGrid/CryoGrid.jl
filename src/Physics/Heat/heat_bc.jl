@@ -11,7 +11,7 @@ struct TemperatureGradient{E,F} <: BoundaryProcess{HeatBalance}
     effect::E # effect
     TemperatureGradient(T::F, effect::E=nothing) where {F<:Forcing{u"°C"},E} = new{E,F}(T, effect)
 end
-CryoGrid.BoundaryStyle(::Type{<:TemperatureGradient}) = Dirichlet()
+CryoGrid.BoundaryCondition(::Type{<:TemperatureGradient}) = Dirichlet()
 @inline CryoGrid.boundaryvalue(bc::TemperatureGradient, l1, ::HeatBalance, l2, s1, s2) = getscalar(s1.T_ub)
 
 CryoGrid.variables(::Top, bc::TemperatureGradient) = (

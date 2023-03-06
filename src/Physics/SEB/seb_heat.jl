@@ -20,7 +20,7 @@ function initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
     @setscalar state.ustar = 10.;
 end
 
-BoundaryStyle(::Type{<:SurfaceEnergyBalance}) = Neumann()
+BoundaryCondition(::Type{<:SurfaceEnergyBalance}) = Neumann()
 
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)

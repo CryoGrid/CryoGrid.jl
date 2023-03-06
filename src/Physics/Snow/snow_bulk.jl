@@ -85,7 +85,7 @@ function CryoGrid.trigger!(
 end
 # heat upper boundary (for all bulk implementations)
 function CryoGrid.interact!(top::Top, bc::HeatBC, snow::BulkSnowpack, heat::HeatBalance, stop, ssnow)
-    CryoGrid.interact!(CryoGrid.BoundaryStyle(bc), top, bc, snow, heat, stop, ssnow)
+    CryoGrid.interact!(CryoGrid.BoundaryCondition(bc), top, bc, snow, heat, stop, ssnow)
     return nothing
 end
 function CryoGrid.interact!(

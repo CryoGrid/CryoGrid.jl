@@ -89,19 +89,21 @@ Base.isless(::Type{P1}, ::Type{P2}) where {P1<:Process,P2<:Process} = false
 Base.isless(p1::Process, p2::Process) = isless(typeof(p1), typeof(p2))
 # Boundary condition trait
 """
-Trait that specifies the "style" or kind of boundary condition. This can be used to write generic
+    BoundaryCondition
+
+Trait that specifies the kind of boundary condition. This can be used to write generic
 implementations of `interact!` that are (relatively) agnostic to specific implementations of
 `BoundaryProcess`. A good example of this can be found in the `boundaryflux` method interface.
 """
-abstract type BoundaryStyle end
+abstract type BoundaryCondition end
 """
-`BoundaryStyle` instance for Dirichlet boundary conditions.
+`BoundaryCondition` instance for Dirichlet boundary conditions.
 """
-struct Dirichlet <: BoundaryStyle end
+struct Dirichlet <: BoundaryCondition end
 """
-`BoundaryStyle` instance for Neumann boundary conditions.
+`BoundaryCondition` instance for Neumann boundary conditions.
 """
-struct Neumann <: BoundaryStyle end
+struct Neumann <: BoundaryCondition end
 
 # Layers
 """

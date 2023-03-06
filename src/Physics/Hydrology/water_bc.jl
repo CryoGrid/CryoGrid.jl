@@ -15,7 +15,7 @@ forcing at the current time `t`.
 struct Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
     rain::Train
 end
-CryoGrid.BoundaryStyle(::Type{<:Rainfall}) = Neumann()
+CryoGrid.BoundaryCondition(::Type{<:Rainfall}) = Neumann()
 function CryoGrid.boundaryvalue(bc::Rainfall, ::Top, ::WaterBalance, ::SubSurface, stop, ssub)
     rainfall_rate = bc.rain(stop.t)
     # take the minimum of the current rainfall rate and the hydraulic conductivity at the top of the upper grid cell;

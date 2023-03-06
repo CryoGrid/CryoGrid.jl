@@ -35,7 +35,7 @@ export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
-export BoundaryStyle
+export BoundaryCondition
 include("types.jl")
 export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!

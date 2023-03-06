@@ -124,14 +124,14 @@ end
 # Auxiliary functions for generalized boundary implementations;
 """
     boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
-    boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
+    boundaryflux(s::BoundaryCondition, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
 
-Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
+Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryCondition(B),...) to allow for generic implementations by boundary condition type.
 Note that this method uses a different argument order convention than `interact!`. This is intended to faciliate stratigraphy independent implementations
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
-boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, sbc, ssub)
-boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
+boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BoundaryCondition(bc), bc, b, p, sub, sbc, ssub)
+boundaryflux(s::BoundaryCondition, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
 """
     boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
 
@@ -141,18 +141,19 @@ of certain boundary conditions (e.g. a simple Dirichlet boundary could be applie
 """
 boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
 """
-    BoundaryStyle(::Type{T})
+    BoundaryCondition(::Type{T})
 
 Can be overriden by `BoundaryProcess` types to indicate the type of boundary condition, e.g:
 
 ```
-BoundaryStyle(::Type{BP}) = Dirichlet()
+BoundaryCondition(::Type{BP}) = Dirichlet()
 ```
 
 where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
-BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
-BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
+BoundaryCondition(::Type{BP}) where {BP<:BoundaryProcess} = error("No boundary condition type specified for boundary process $BP")
+BoundaryCondition(bc::BoundaryProcess) = BoundaryCondition(typeof(bc))
+
 # Events
 """
     events(::Layer, ::Process)
