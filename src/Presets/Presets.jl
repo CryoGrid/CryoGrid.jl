@@ -26,7 +26,7 @@ function SoilHeatTile(heatvar, upperbc::BoundaryProcess, lowerbc::BoundaryProces
         Tuple(knot.depth => Symbol(:soil,i) => Soil(HeatBalance(heatvar, freezecurve=freezecurve), para=knot.value) for (i,knot) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
-    return Tile(strat, grid, init, chunk_size=chunk_size)
+    return Tile(strat, PresetGrid(grid), init, chunk_size=chunk_size)
 end
 SoilHeatTile(upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve} = SoilHeatTile(:H, upperbc, lowerbc, soilprofile, init; grid=grid, freezecurve=freezecurve)
 

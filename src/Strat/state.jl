@@ -5,15 +5,15 @@ using CryoGrid.Numerics: Delta
 
 Represents the state of a single component (layer + processes) in the stratigraphy.
 """
-struct LayerState{iip,TGrid,TStates,TGrids,Tt,Tdt,Tz,varnames}
+struct LayerState{iip,TGrid,TStates,TGrids,TBounds,Tt,Tdt,varnames}
     grid::TGrid
     grids::NamedTuple{varnames,TGrids}
     states::NamedTuple{varnames,TStates}
-    bounds::NTuple{2,Tz}
+    bounds::TBounds
     t::Tt
     dt::Tdt
-    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, bounds::NTuple{2,Tz}, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
-        {TG,Tvg,Tvs,Tt,Tdt,Tz,varnames,iip} = new{iip,TG,Tvs,Tvg,Tt,Tdt,Tz,varnames}(grid, grids, states, bounds, t, dt)
+    LayerState(grid::TG, grids::NamedTuple{varnames,Tvg}, states::NamedTuple{varnames,Tvs}, bounds::TB, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
+        {TG,TB,Tvg,Tvs,Tt,Tdt,varnames,iip} = new{iip,TG,Tvs,Tvg,TB,Tt,Tdt,varnames}(grid, grids, states, bounds, t, dt)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
@@ -24,7 +24,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
     end
 end
 Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :grids, :states, :bounds, :t, :dt, :z)
-@inline function LayerState(sv::StateVars, zs::NTuple{2}, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
+@inline function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
     z_inds = subgridinds(edges(sv.grid), zs[1]..zs[2])
     return LayerState(
         sv.grid[z_inds],
@@ -61,7 +61,7 @@ function Base.getproperty(state::TileState, sym::Symbol)
     end
 end
 Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:states,:t,:dt)
-@inline @generated function TileState(sv::StateVars{names}, zs::NTuple, u=copy(sv.uproto), du=similar(sv.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
+@inline @generated function TileState(sv::StateVars{names}, zs, u=copy(sv.uproto), du=similar(sv.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
     layerstates = (
         quote
             bounds_i = (bounds[$i][1], bounds[$i][2])
@@ -83,7 +83,7 @@ end
 # internal method dispatches for type stable construction of state types
 @inline _makegrid(::Var{name,<:OnGrid{Cells}}, sv::StateVars, z_inds) where {name} = cells(sv.grid[infimum(z_inds)..supremum(z_inds)])
 @inline _makegrid(::Var{name,<:OnGrid{Edges}}, sv::StateVars, z_inds) where {name} = sv.grid[z_inds]
-@inline _makegrid(var::Var, sv::StateVars, z_inds) = 1:dimlength(vardims(var), sv.grid)
+@inline _makegrid(var::Var, sv::StateVars, z_inds) = 1:dimlength(vardims(var), length(edges(sv.grid)))
 @inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
 @inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = error("prognostic variables on grid edges not supported")
 @inline _makestate(::Val{layername}, ::Prognostic{name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {name,layername} = view(view(u, Val{layername}()), Val{name}())

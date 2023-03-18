@@ -105,7 +105,7 @@ end
 Produces a discretization of the given variable based on `T` and array type `A`.
 """
 discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Array{vartype(var),N}, d, var)
-discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, grid)))
+discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, length(edges(grid)))))
 
 makegrid(strategy::PresetGrid, ::AbstractVector{<:DistQuantity}) = strategy.grid
 function makegrid(strategy::AutoGrid, depths::AbstractVector{T}) where {T<:DistQuantity}
@@ -140,8 +140,8 @@ end
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}
     # get lengths
-    gridvar_sizes = map(v -> dimlength(vardims(v), grid), gridvars)
-    layervar_sizes = map(vars -> map(v -> dimlength(vardims(v), grid), vars), layervars)
+    gridvar_sizes = map(v -> dimlength(vardims(v), length(edges(grid))), gridvars)
+    layervar_sizes = map(vars -> map(v -> dimlength(vardims(v), length(edges(grid))), vars), layervars)
     Ng = length(gridvar_sizes) > 0 ? sum(gridvar_sizes) : 0
     Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_sizes))
     # build axis indices;

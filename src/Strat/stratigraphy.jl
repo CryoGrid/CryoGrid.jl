@@ -1,16 +1,11 @@
 const RESERVED_LAYER_NAMES = (:top, :bottom, :strat, :init, :event)
 
+# NamedLayer type (alias of Named for Layer types)
 const NamedLayer{name,TLayer} = Named{name,TLayer} where {name,TLayer<:Layer}
 @inline layertype(layer::NamedLayer) = layertype(typeof(layer))
 @inline layertype(::Type{<:NamedLayer{name,TLayer}}) where {name,TLayer} = TLayer
 @inline layername(layer::NamedLayer) = layername(typeof(layer))
 @inline layername(::Type{<:NamedLayer{name}}) where {name} = name
-
-"""
-Type bound for stratigraphy boundaries. Boundaries may be specified as fixed distance quantities
-or via some arbitrary parameterization.
-"""
-const StratBoundaryType = Union{<:DistQuantity,<:AbstractParam,<:Parameterization}
 
 """
     Stratigraphy{N,TLayers,TBoundaries}
@@ -22,21 +17,21 @@ struct Stratigraphy{N,TLayers,TBoundaries}
     layers::TLayers
     Stratigraphy(boundaries::NTuple{N,Any}, layers::NTuple{N,NamedLayer}) where {N} = new{N,typeof(layers),typeof(boundaries)}(boundaries, layers)
     Stratigraphy(
-        top::Pair{<:StratBoundaryType,<:Top},
-        sub::Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}},
-        bot::Pair{<:StratBoundaryType,<:Bottom}
+        top::Pair{<:DistQuantity,<:Top},
+        sub::Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}},
+        bot::Pair{<:DistQuantity,<:Bottom}
     ) = Stratigraphy(top,(sub,),bot)
     Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
-        @nospecialize(top::Pair{<:StratBoundaryType,<:Top}),
-        @nospecialize(sub::AbstractVector{<:Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}}}),
-        @nospecialize(bot::Pair{<:StratBoundaryType,<:Bottom})
+        @nospecialize(top::Pair{<:DistQuantity,<:Top}),
+        @nospecialize(sub::AbstractVector{<:Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}}}),
+        @nospecialize(bot::Pair{<:DistQuantity,<:Bottom})
     ) = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
-        @nospecialize(top::Pair{<:StratBoundaryType,<:Top}),
-        @nospecialize(sub::Tuple{Vararg{Pair{<:StratBoundaryType,<:Pair{Symbol,<:SubSurface}}}}),
-        @nospecialize(bot::Pair{<:StratBoundaryType,<:Bottom})
+        @nospecialize(top::Pair{<:DistQuantity,<:Top}),
+        @nospecialize(sub::Tuple{Vararg{Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}}}}),
+        @nospecialize(bot::Pair{<:DistQuantity,<:Bottom})
     )
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         top = top[1] => Named(:top => top[2])
@@ -63,17 +58,17 @@ macro Stratigraphy(args...)
         :(Stratigraphy($(esc(args[1])), tuple($(esc.(args[2:end-1])...)), $(esc(args[end]))))
     end
 end
-@inline layers(strat::Stratigraphy) = getfield(strat, :layers)
-@inline boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
-@inline boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), z_bottom)
-@inline boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
-@inline layernames(strat::Stratigraphy) = map(layername, layers(strat))
-@inline layertypes(::Type{<:Stratigraphy{N,TLayers}}) where {N,TLayers} = map(layertype, TLayers.parameters)
-@inline Base.keys(strat::Stratigraphy) = layernames(strat)
-@inline Base.values(strat::Stratigraphy) = layers(strat)
-@inline Base.propertynames(strat::Stratigraphy) = Base.keys(strat)
-@inline Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
-@inline Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
+layers(strat::Stratigraphy) = getfield(strat, :layers)
+boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
+boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), z_bottom)
+boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
+layernames(strat::Stratigraphy) = map(layername, layers(strat))
+layertypes(::Type{<:Stratigraphy{N,TLayers}}) where {N,TLayers} = map(layertype, TLayers.parameters)
+Base.keys(strat::Stratigraphy) = layernames(strat)
+Base.values(strat::Stratigraphy) = layers(strat)
+Base.propertynames(strat::Stratigraphy) = Base.keys(strat)
+Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
+Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
 @generated Base.getindex(strat::Stratigraphy{N,TC}, ::Val{sym}) where {N,TC,sym} = :(layers(strat)[$(findfirst(T -> layername(T) == sym, TC.parameters))])
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(layers(strat))
@@ -92,6 +87,7 @@ function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)
     end
     return Stratigraphy(boundaries(strat), layers_patched)
 end
+
 """
     stratiterate(f!::F, strat::Stratigraphy{N,TLayers}, state) where {F,N,TLayers}
 
@@ -192,4 +188,74 @@ end
         CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
     end
     return minimum(max_dts)
+end
+
+CryoGrid.hasfixedvolume(::Type{TStrat}) where {TStrat<:Stratigraphy} = return all(map(CryoGrid.hasfixedvolume, layertypes(TStrat)))
+
+# collecting/grouping components
+CryoGrid.events(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
+function CryoGrid.variables(strat::Stratigraphy)
+    layervars = map(CryoGrid.variables, NamedTuple(strat))
+    stratvars = if !CryoGrid.hasfixedvolume(typeof(strat))
+        # otherwise, if any layer has dynamic volume, make layer boundaries prognostic
+        map(NamedTuple(strat)) do _
+            (
+                Prognostic(Symbol(:z), Scalar, u"m"),
+            )
+        end
+    else
+        # return empty tuple (no additional variables) for each layer
+        map(layer -> (), NamedTuple(strat))
+    end
+    return map(layervars, stratvars) do lv, sv
+        tuplejoin(lv, sv)
+    end
+end
+function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))
+    layer = named_layer.val
+    declared_vars = variables(layer)
+    nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
+    all_vars = tuplejoin(declared_vars, nested_vars)
+    # check for (permissible) duplicates between variables, excluding parameters
+    groups = Utils.groupby(var -> varname(var), all_vars)
+    for (id,vargroup) in filter(g -> length(g.second) > 1, groups)
+        # if any duplicate variable deifnitions do not match, raise an error
+        @assert all(vargroup[i] == vargroup[i-1] for i in 2:length(vargroup)) "Found one or more conflicting definitions of $id in $vargroup"
+    end
+    diag_vars = filter(isdiagnostic, all_vars)
+    prog_vars = filter(isprognostic, all_vars)
+    alg_vars = filter(isalgebraic, all_vars)
+    # check for duplicated algebraic/prognostic vars
+    prog_alg_duplicated = prog_vars ∩ alg_vars
+    @assert isempty(prog_alg_duplicated) "Variables $(prog_alg_duplicated) cannot be both prognostic and algebraic."
+    # check for re-definition of diagnostic variables as prognostic
+    prog_alg = prog_vars ∪ alg_vars
+    diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
+    # check for conflicting definitions of differential vars
+    diff_varnames = map(v -> varname(Delta(v)), prog_alg)
+    @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
+    # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
+    diag_vars = filter(v -> v ∉ diag_prog, diag_vars)
+    # filter remaining duplicates
+    diag_vars = unique(diag_vars)
+    prog_vars = unique(prog_vars)
+    alg_vars = unique(alg_vars)
+    # convert back to tuples
+    diag_vars, prog_vars, alg_vars = Tuple(diag_vars), Tuple(prog_vars), Tuple(alg_vars)
+    return tuplejoin(diag_vars, prog_vars, alg_vars)
+end
+
+"""
+Rebuilds the `obj` adding `name` to the `layer` field to all `Param`s, if any are defined.
+"""
+function _addlayerfield(@nospecialize(obj), name::Symbol)
+    params = ModelParameters.params(obj)
+    if length(params) > 0
+        # create sub-model and add layer name to all parameters
+        m = Model(obj)
+        m[:layer] = repeat([name], length(params))
+        return parent(m)
+    else
+        return obj
+    end
 end

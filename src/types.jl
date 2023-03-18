@@ -87,23 +87,6 @@ order constraints when coupling processes together.
 """
 Base.isless(::Type{P1}, ::Type{P2}) where {P1<:Process,P2<:Process} = false
 Base.isless(p1::Process, p2::Process) = isless(typeof(p1), typeof(p2))
-# Boundary condition trait
-"""
-    BoundaryCondition
-
-Trait that specifies the kind of boundary condition. This can be used to write generic
-implementations of `interact!` that are (relatively) agnostic to specific implementations of
-`BoundaryProcess`. A good example of this can be found in the `boundaryflux` method interface.
-"""
-abstract type BoundaryCondition end
-"""
-`BoundaryCondition` instance for Dirichlet boundary conditions.
-"""
-struct Dirichlet <: BoundaryCondition end
-"""
-`BoundaryCondition` instance for Neumann boundary conditions.
-"""
-struct Neumann <: BoundaryCondition end
 
 # Layers
 """

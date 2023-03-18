@@ -93,9 +93,11 @@ function Tile(
 ) where {A<:AbstractArray}
     grid = Numerics.makegrid(discretization_strategy, collect(boundaries(strat)))
     strat = stripunits(strat)
-    layers = _collectlayers(strat)
-    events = _collectevents(strat)
-    vars = _collectvars(strat)
+    events = CryoGrid.events(strat)
+    vars = CryoGrid.variables(strat)
+    layers = map(NamedTuple(strat)) do named_layer
+        _addlayerfield(named_layer, nameof(named_layer))
+    end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
@@ -137,7 +139,9 @@ function step!(
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, dt, Val{true}())
+    zs = map(getscalar, boundaries(tile, u))
+    # zs = boundaries(strat)
+    state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
     CryoGrid.diagnosticstep!(strat, state)
     CryoGrid.interact!(strat, state)
     CryoGrid.prognosticstep!(strat, state)
@@ -159,7 +163,8 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip},
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, 1.0, Val{true}())
+    zs = map(getscalar, boundaries(tile, u))
+    state = TileState(tile.state, zs, u, du, t, 1.0, Val{true}())
     CryoGrid.timestep(strat::Stratigraphy, state)
 end
 """
@@ -181,9 +186,46 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     u = zero(similar(tile.state.uproto, u_type))
     tile = resolve(tile, u, p, t0)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
+    # get stratigraphy boundaries
+    zs = if CryoGrid.hasfixedvolume(TStrat)
+        # case 1: static boundaries (fixed volume)
+        boundaries(strat)
+    else
+        # case 2: dynamic boundaries
+        z0 = boundaries(strat)
+        # get boundary state variables
+        zvars = boundaries(tile, u)
+        # initialize boundary state variables
+        map(z0, zvars) do z, zv
+            zv .= z
+            return z
+        end        
+    end
+    state = TileState(tile.state, zs, u, du, t0, 1.0, Val{iip}())
     CryoGrid.initialcondition!(strat, state, tile.inits)
     return u, du    
+end
+# constant vs. varying boundary cases
+@generated function boundaries(tile::Tile{TStrat}, u) where {TStrat}
+    if CryoGrid.hasfixedvolume(TStrat)
+        quote
+            diagnostic_boundaries(tile, u)
+        end
+    else
+        quote
+            prognostic_boundaries(tile, u)
+        end
+    end
+end
+function diagnostic_boundaries(tile::Tile, u)
+    return boundaries(tile.strat)
+end
+function prognostic_boundaries(tile::Tile, u)
+    layernames = layernmaes(tile.strat)
+    zs = map(layernames) do name
+        getproperty(u, name).z
+    end
+    return zs
 end
 """
     domain(tile::Tile)
@@ -323,58 +365,6 @@ end
 resolve(tile::Tile, u, p::Nothing, t) = tile
 
 # ==== Internal methods for initializing types and state variables ====
-
-# collecting/grouping components
-_collectlayers(strat::Stratigraphy) = map(named_layer -> _addlayerfield(named_layer, nameof(named_layer)), NamedTuple(strat))
-_collectevents(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
-_collectvars(strat::Stratigraphy) = map(_collectvars, NamedTuple(strat))
-function _collectvars(@nospecialize(named_layer::NamedLayer))
-    layer = named_layer.val
-    declared_vars = variables(layer)
-    nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
-    all_vars = tuplejoin(declared_vars, nested_vars)
-    # check for (permissible) duplicates between variables, excluding parameters
-    groups = Utils.groupby(var -> varname(var), all_vars)
-    for (id,vargroup) in filter(g -> length(g.second) > 1, groups)
-        # if any duplicate variable deifnitions do not match, raise an error
-        @assert all(vargroup[i] == vargroup[i-1] for i in 2:length(vargroup)) "Found one or more conflicting definitions of $id in $vargroup"
-    end
-    diag_vars = filter(isdiagnostic, all_vars)
-    prog_vars = filter(isprognostic, all_vars)
-    alg_vars = filter(isalgebraic, all_vars)
-    # check for duplicated algebraic/prognostic vars
-    prog_alg_duplicated = prog_vars ∩ alg_vars
-    @assert isempty(prog_alg_duplicated) "Variables $(prog_alg_duplicated) cannot be both prognostic and algebraic."
-    # check for re-definition of diagnostic variables as prognostic
-    prog_alg = prog_vars ∪ alg_vars
-    diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
-    # check for conflicting definitions of differential vars
-    diff_varnames = map(v -> varname(Delta(v)), prog_alg)
-    @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
-    # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
-    diag_vars = filter(v -> v ∉ diag_prog, diag_vars)
-    # filter remaining duplicates
-    diag_vars = unique(diag_vars)
-    prog_vars = unique(prog_vars)
-    alg_vars = unique(alg_vars)
-    # convert back to tuples
-    diag_vars, prog_vars, alg_vars = Tuple(diag_vars), Tuple(prog_vars), Tuple(alg_vars)
-    return tuplejoin(diag_vars, prog_vars, alg_vars)
-end
-"""
-Rebuilds the `obj` adding `name` to the `layer` field to all `Param`s, if any are defined.
-"""
-function _addlayerfield(@nospecialize(obj), name::Symbol)
-    params = ModelParameters.params(obj)
-    if length(params) > 0
-        # create sub-model and add layer name to all parameters
-        m = Model(obj)
-        m[:layer] = repeat([name], length(params))
-        return parent(m)
-    else
-        return obj
-    end
-end
 """
 Initialize `StateVars` which holds the caches for all defined state variables.
 """

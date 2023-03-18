@@ -140,19 +140,6 @@ Note that this method uses a different argument order convention than `interact!
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
 boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
-"""
-    BoundaryCondition(::Type{T})
-
-Can be overriden by `BoundaryProcess` types to indicate the type of boundary condition, e.g:
-
-```
-BoundaryCondition(::Type{BP}) = Dirichlet()
-```
-
-where `BP` is a `BoundaryProcess` that provides the boundary conditions.
-"""
-BoundaryCondition(::Type{BP}) where {BP<:BoundaryProcess} = error("No boundary condition type specified for boundary process $BP")
-BoundaryCondition(bc::BoundaryProcess) = BoundaryCondition(typeof(bc))
 
 # Events
 """
