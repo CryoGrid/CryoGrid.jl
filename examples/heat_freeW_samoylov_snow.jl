@@ -1,11 +1,11 @@
 using CryoGrid
+using Interpolations: Constant
 using Plots
-
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d");
 # use air temperature as upper boundary forcing;
 tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-snowfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.snowfall.*1.0), forcings.timestamps, :snowfall)
+snowfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.snowfall.*1.0), forcings.timestamps, :snowfall, interpolation_mode=Constant())
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
@@ -29,9 +29,9 @@ strat = @Stratigraphy(
     z_sub[5] => :sediment3 => Soil(HeatBalance(), para=soilprofile[5].value),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
-tile = Tile(strat, modelgrid, initT)
+tile = Tile(strat, PresetGrid(modelgrid), initT)
 # define time span, 2 years + 3 months
-tspan = (DateTime(2000,1,30),DateTime(2020,12,31))
+tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
 # forward Euler with initial timestep of 5 minutes

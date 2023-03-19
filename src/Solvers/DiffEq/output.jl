@@ -44,10 +44,13 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
         if haskey(savedstates[1], layer) || haskey(pax, layer)
             # map over all savedstates and create named tuples for each time step
             layerouts = map(u_all, savedstates) do u, state
-                layerstate = state[layer]
                 layerout = OrderedDict()
-                for var in keys(layerstate)
-                    layerout[var] = layerstate[var]
+                if haskey(state, layer)
+                    layerstate = state[layer]
+                    for var in keys(layerstate)
+                        layerout[var] = layerstate[var]
+                    end
+                else
                 end
                 # convert to named tuple
                 diagnostic_output = (;layerout...)

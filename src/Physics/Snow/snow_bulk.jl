@@ -160,7 +160,6 @@ function CryoGrid.prognosticstep!(
     end
     if getscalar(state.swe) > 0.0 && getscalar(state.T_ub) > 0.0
         ddf = ablation(smb).factor # [m/K/s]
-        jH_upper = state.jH[1] # [J/m^3]
         T_ub = getscalar(state.T_ub) # upper boundary temperature
         Tref = 0.0*unit(T_ub) # just in case T_ub has units
         # calculate the melt rate per second via the degree day model

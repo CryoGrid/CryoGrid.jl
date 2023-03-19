@@ -194,10 +194,10 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
         # case 2: dynamic boundaries
         z0 = boundaries(strat)
         # get boundary state variables
-        zvars = boundaries(tile, u)
+        zstates = boundaries(tile, u)
         # initialize boundary state variables
-        map(z0, zvars) do z, zv
-            zv .= z
+        map(z0, zstates) do z, z_state
+            z_state .= z
             return z
         end        
     end
@@ -221,8 +221,8 @@ function diagnostic_boundaries(tile::Tile, u)
     return boundaries(tile.strat)
 end
 function prognostic_boundaries(tile::Tile, u)
-    layernames = layernmaes(tile.strat)
-    zs = map(layernames) do name
+    names = layernames(tile.strat)
+    zs = map(names) do name
         getproperty(u, name).z
     end
     return zs

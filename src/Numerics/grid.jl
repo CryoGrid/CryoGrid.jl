@@ -47,6 +47,8 @@ function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     # Determine indices which lie in the given interval
     l_ind = searchsortedlast(grid, interval.left)
     r_ind = searchsortedlast(grid, interval.right)
+    l_ind = max(l_ind, 1)
+    r_ind = min(r_ind, length(grid))
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
 @inline bounds(grid::Grid{Edges}) = grid.bounds
@@ -146,15 +148,16 @@ function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars:
     Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_sizes))
     # build axis indices;
     # non-grid prognostic variables get collected at the top of the vector, in the order provided
+    # i is the top-level index in the state vector for all layer diagnostic variables
     i = 1
     layervar_ax = map(layervars, layervar_sizes) do vars, sizes
-        j = 1
+        j = 1 # within-layer offset from top level index
         coords = map(vars, sizes) do var, N
-            coord = varname(var) => j:j+N-1
+            coord = varname(var) => (i,j:j+N-1)
             j += N
             return coord
         end
-        i += j
+        i += j-1
         return (; coords...)
     end
     # grid variables get interlaced throughout the rest of the vector; i.e. for variable i, its grid points are:
@@ -164,6 +167,7 @@ function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars:
     layervar_ax = (;(name => layervar_ax[name] for name in keys(layervar_ax) if length(layervar_ax[name]) > 0)...)
     # allocate component array; assumes all prognostic variables have the same type (and they should!)
     u = zero(similar(A, Ng+Nl))
-    u_ax = map(ax -> ViewAxis(first(ax)[1]:last(ax)[end], Axis(ax)), layervar_ax)
+    toplevelindices(axes) = first(axes)[1]:first(axes)[1]+last(axes)[2][end]-1
+    u_ax = map(ax -> ViewAxis(toplevelindices(ax), Axis(map(last, ax))), layervar_ax)
     return ComponentVector(u, (Axis(merge(u_ax, gridvar_ax)),))
 end
