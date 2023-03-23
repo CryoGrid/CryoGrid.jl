@@ -2,9 +2,12 @@
 """
     processes(l::Layer)
 
-Fetches the process attached to this layer, if any.
+Fetches the process(es) attached to this layer, if any. Returned value must be of type `Process`. If the layer has more than one process,
+they should be combined together with `Coupled(procs...)`.
 """
-processes(l::Layer) = l.proc
+processes(l::Layer) = error("not implemented for layer of type $(typeof(l)); maybe you forgot to add a method CryoGrid.processes(::$(nameof(typeof(l)))) = ...?")
+processes(top::Top) = top.proc
+processes(bot::Bottom) = bot.proc
 """
     variables(layer::Layer, process::Process)
     variables(::Layer)

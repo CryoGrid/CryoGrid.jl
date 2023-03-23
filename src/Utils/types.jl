@@ -5,6 +5,15 @@ const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
 const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TimeUnit}
+
+"""
+    Optional{T}
+
+Option type, alias for `Union{Nothing,T}`. Intended for cases where a property/field
+may be optionally provided and is `nothing` otherwise.
+"""
+const Optional{T} = Union{Nothing,T} where {T}
+
 """
     Named{name,T}
 

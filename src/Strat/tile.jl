@@ -101,7 +101,7 @@ function Tile(
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
-    states = _initvarstates(strat, grid, vars, chunk_size, arrayproto)
+    states = _initstatevars(strat, grid, vars, chunk_size, arrayproto)
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
@@ -110,9 +110,8 @@ function Tile(
     end
     return Tile(strat, grid, states, inits, (;events...), metadata, StateHistory(), iip)
 end
-Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
-Tile(strat::Stratigraphy, grid::Grid{Edges}; kwargs...) = Tile(strat, PresetGrid(grid); kwargs...)
-Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
+Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
+Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
@@ -396,7 +395,7 @@ resolve(tile::Tile, u, p::Nothing, t) = tile
 """
 Initialize `StateVars` which holds the caches for all defined state variables.
 """
-function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::NamedTuple), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
+function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::NamedTuple), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
     layernames = [layername(layer) for layer in strat]
     npvars = (length(filter(isprognostic, var)) + length(filter(isalgebraic, var)) for var in vars) |> sum
     ndvars = (length(filter(isdiagnostic, var)) for var in vars) |> sum

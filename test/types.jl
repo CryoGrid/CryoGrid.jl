@@ -1,6 +1,9 @@
-struct TestGroundLayer{TProc} <: SubSurface{TProc}
+import CryoGrid
+
+struct TestGroundLayer{TProc} <: CryoGrid.SubSurface
     proc::TProc
 end
-struct TestGroundProcess <: SubSurfaceProcess end
-struct TestBoundary <: BoundaryProcess{TestGroundProcess} end
+CryoGrid.processes(layer::TestGroundLayer) = layer.proc
+struct TestGroundProcess <: CryoGrid.SubSurfaceProcess end
+struct TestBoundary <: CryoGrid.BoundaryProcess{TestGroundProcess} end
 struct DummyInitializer{varname} <: CryoGrid.Strat.VarInitializer{varname} end

@@ -18,7 +18,7 @@ Default material hydraulic properties.
 Utils.@properties HydraulicProperties(
     kw_sat = 1e-5u"m/s",
 )
-hydraulicproperties(sub::SubSurface) = error("hydraulic properties not defined for layer $(typeof(sub))")
+hydraulicproperties(::SubSurface) = HydraulicProperties()
 function CryoGrid.parameterize(prop::HydraulicProperties)
     return HydraulicProperties(
         map(values(prop)) do val

@@ -22,7 +22,7 @@ import ConstructionBase
 import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
-export Named, NamedTupleWrapper, DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+export Optional, Named, NamedTupleWrapper, DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 include("types.jl")
 export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")

@@ -90,34 +90,34 @@ Base.isless(p1::Process, p2::Process) = isless(typeof(p1), typeof(p2))
 
 # Layers
 """
-    Layer{TProc<:Process}
+    Layer
 
 Abstract base type for all layers.
 """
-abstract type Layer{TProc<:Process} end
+abstract type Layer end
 """
-    SubSurface{TProc<:SubSurfaceProcesses} <: Layer{TProc}
+    SubSurface <: Layer
 
 Abstract base type for layers in the stratigraphy, e.g. soil, snow, pond, etc.
 """
-abstract type SubSurface{TProc<:SubSurfaceProcesses} <: Layer{TProc} end
+abstract type SubSurface <: Layer end
 """
-    Top{TProc<:BoundaryProcesses} <: Layer{TProc}
+    Top{TProc<:BoundaryProcesses} <: Layer
 
 Generic "top" layer that marks the upper boundary of the subsurface grid.
 """
-struct Top{TProc<:BoundaryProcesses} <: Layer{TProc}
+struct Top{TProc<:BoundaryProcesses} <: Layer
     proc::TProc
     Top(proc::BoundaryProcesses) = new{typeof(proc)}(proc)
     # convenience constructor that automatically couples the processes
     Top(proc1::BoundaryProcess, proc2::BoundaryProcess, procs::BoundaryProcess...) = Top(Coupled(proc1, proc2, procs...))
 end
 """
-    Bottom{TProc<:BoundaryProcesses} <: Layer{TProc}
+    Bottom{TProc<:BoundaryProcesses} <: Layer
 
 Generic "bottom" layer that marks the lower boundary of the subsurface grid.
 """
-struct Bottom{TProc<:BoundaryProcesses} <: Layer{TProc}
+struct Bottom{TProc<:BoundaryProcesses} <: Layer
     proc::TProc
     Bottom(proc::BoundaryProcesses) = new{typeof(proc)}(proc)
     # convenience constructor that automatically couples the processes

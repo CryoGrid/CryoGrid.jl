@@ -49,6 +49,24 @@ function from_components(θo, por, sat=1.0, xic=0.0)
 end
 
 """
+    Soil(
+        para::HomogeneousMixture=HomogeneousMixture(),
+        heat::HeatBalance=HeatBalance(),
+        water=nothing;
+        kwargs...
+    )
+
+Constructs a `HomogeneousSoil` layer with the given process(es) `proc` and parameterization `para`. Additional
+keyword arguments are passed through to `SoilProperties`.
+"""
+Soil(
+    para::HomogeneousMixture=HomogeneousMixture(),
+    heat::HeatBalance=HeatBalance(),
+    water=nothing;
+    kwargs...
+) = HomogeneousSoil(; para, heat, water, kwargs...)
+
+"""
     MineralSediment{Tpor,Tsat} <: SoilParameterization
 
 Represents a simple, homogeneous, mineral sediment with (possibly) spatially variable porosity.

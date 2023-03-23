@@ -117,7 +117,7 @@ prob = CryoGridProblem(tile, tspan, p)
 
 `JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `Tile`s.
 """
-odefunction(tile::TTile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...) where {TTile<:Tile} = odefunction(JacobianStyle(TTile), tile, u0, p, tspan; mass_matrix, specialization, kwargs...)
+odefunction(tile::TTile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...) where {TTile<:Tile} = odefunction(JacobianStyle(tile), tile, u0, p, tspan; mass_matrix, specialization, kwargs...)
 odefunction(::DefaultJac, tile::Tile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...) = ODEFunction{true,specialization}(tile; mass_matrix, kwargs...)
 function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, specialization=SciMLBase.AutoSpecialize, kwargs...)
     if :jac_prototype in keys(kwargs)

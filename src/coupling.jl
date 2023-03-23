@@ -1,7 +1,7 @@
 variables(ps::CoupledProcesses) = tuplejoin((variables(p) for p in ps.process)...)
 variables(layer::Layer, ps::CoupledProcesses) = tuplejoin((variables(layer,p) for p in ps.processes)...)
 events(layer::Layer, ps::CoupledProcesses) = tuplejoin((events(layer,p) for p in ps.processes)...)
-# invoke `f` on all processes in `ps` sequentially
+# invoke `f!` on all processes in `ps` sequentially
 function _invoke_sequential(f!::F, l::Layer, ps::CoupledProcesses, args...) where {F}
     Utils.fastiterate(ps.processes) do proc
         f!(l, proc, args...)
@@ -19,7 +19,7 @@ CryoGrid.prognosticstep!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke
 Default implementation of `interact!` for coupled process (CoupledProcesses) types. Generates a specialized implementation that calls
 `interact!` on all pairs of processes between the two layers. Since it is a generated function, the process matching
 occurs at compile-time and the emitted code will simply be a sequence of `interact!` calls. Pairs of processes which
-lack a definition of `interact!` should be automatically omitted by the compiler.
+lack a definition of `interact!` will be automatically omitted by the compiler.
 """
 @generated function interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
     p1types = Tuple(P1.parameters)

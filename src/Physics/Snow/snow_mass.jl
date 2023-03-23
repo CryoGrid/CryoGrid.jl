@@ -1,30 +1,14 @@
-Utils.@properties SnowProperties(
+Utils.@properties SnowMassProperties(
     ρw = CryoGrid.Constants.ρw,
     ρsn_new = 250.0u"kg/m^3",
     ρsn_old = 500.0u"kg/m^3",
-    heat = ThermalProperties(),
 )
 
 """
-    SnowpackParameterization
+    SnowAblationScheme
 
-Base type for snowpack paramterization schemes.
+Base type for different snow ablation (i.e. melting or redistribution) schemes.
 """
-abstract type SnowpackParameterization <: CryoGrid.Parameterization end
-
-"""
-    Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
-
-Generic representation of a ground surface snow pack.
-"""
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp,Tproc} <: CryoGrid.SubSurface{Tproc}
-    para::Tpara = Bulk()
-    prop::Tprop = SnowProperties()
-    sp::Tsp = nothing
-    proc::Tproc
-end
-Snowpack(proc::Tproc; kwargs...) where {Tproc} = Snowpack(;proc, kwargs...)
-
 abstract type SnowAblationScheme end
 
 Base.@kwdef struct DegreeDayMelt{Tfactor,Tmax} <: SnowAblationScheme

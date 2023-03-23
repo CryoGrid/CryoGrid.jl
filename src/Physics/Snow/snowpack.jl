@@ -1,3 +1,30 @@
+Base.@kwdef struct SnowpackProperties{Tmp,Thp,Twp}
+    mass::Tmp = SnowMassProperties()
+    heat::Thp = ThermalProperties()
+    water::Twp = HydraulicProperties()
+end
+
+"""
+    SnowpackParameterization
+
+Base type for snowpack paramterization schemes.
+"""
+abstract type SnowpackParameterization <: CryoGrid.Parameterization end
+
+"""
+    Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
+
+Generic representation of a ground surface snow pack.
+"""
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tprop,Tsp} <: CryoGrid.SubSurface
+    para::Tpara = Bulk()
+    mass::Tmass = SnowMassBalance()
+    heat::Theat = HeatBalance()
+    water::Twater = nothing
+    prop::Tprop = SnowpackProperties()
+    sp::Tsp = nothing
+end
+
 # Snow methods
 """
     threshold(::Snowpack)
@@ -52,6 +79,8 @@ Get the snow density scheme from the given `SnowMassBalance` parameterization.
 density(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.density
 
 # Default implementations of CryoGrid methods for Snowpack
+CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,Nothing}) = Coupled(snow.mass, snow.heat)
+CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,<:WaterBalance}) = Coupled(snow.mass, snow.water, snow.heat)
 CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) - last(state.bounds))
 CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = (getscalar(state.z) + last(state.bounds)) / 2
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)

@@ -1,14 +1,3 @@
-# Soil hydraulic properties
-"""
-Soil properites for water processes.
-"""
-soilproperties(
-    ::SoilParameterization,
-    ::WaterBalance;
-    kw_sat=1e-5u"m/s",
-    ignored...,
-) = (water=HydraulicProperties(; kw_sat),)
-
 """
 Base type for different formulations of Richard's equation.
 """
@@ -102,11 +91,6 @@ CryoGrid.variables(::RichardsEq{Saturation}) = (
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
 )
-function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
-    water, heat = ps
-    CryoGrid.initialcondition!(soil, water, state)
-    CryoGrid.initialcondition!(soil, heat, state)
-end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]
