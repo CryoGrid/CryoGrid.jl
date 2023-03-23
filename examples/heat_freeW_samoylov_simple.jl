@@ -9,7 +9,14 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
 grid = CryoGrid.Presets.DefaultGrid_5cm
 initT = initializer(:T, tempprofile)
-tile = CryoGrid.Presets.SoilHeatTile(:H, TemperatureGradient(tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT; grid=grid)
+tile = CryoGrid.Presets.SoilHeatTile(
+    :H,
+    TemperatureGradient(tair),
+    GeothermalHeatFlux(0.053u"W/m^2"),
+    soilprofile,
+    initT;
+    grid=grid
+)
 # define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)

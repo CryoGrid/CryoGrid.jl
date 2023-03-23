@@ -12,26 +12,18 @@ tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 pr = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.rainfall./3u"hr"), forcings.timestamps, :rainfall)
 grid = CryoGrid.Presets.DefaultGrid_5cm
 _, tempprofile = CryoGrid.Presets.SamoylovDefault
-# soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
-soilprofile = SoilProfile(
-    0.0u"m" => HomogeneousMixture(por=0.80,sat=0.5,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-    0.1u"m" => HomogeneousMixture(por=0.80,sat=0.7,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-    0.4u"m" => HomogeneousMixture(por=0.55,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-    3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-    10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
-    100.0u"m" => HomogeneousMixture(por=0.10,sat=1.0,org=0.0),
-);
 initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
+heatop = Heat.Diffusion(:H)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0*u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
-    soilprofile[1].depth => :soil1 => Soil(Coupled(WaterBalance(BucketScheme()), HeatBalance()), para=soilprofile[1].value),
-    soilprofile[2].depth => :soil2 => Soil(Coupled(WaterBalance(BucketScheme()), HeatBalance()), para=soilprofile[2].value),
-    soilprofile[3].depth => :soil3 => Soil(Coupled(WaterBalance(BucketScheme()), HeatBalance()), para=soilprofile[3].value),
-    soilprofile[4].depth => :soil4 => Soil(Coupled(WaterBalance(BucketScheme()), HeatBalance()), para=soilprofile[4].value),
-    soilprofile[5].depth => :soil5 => Soil(Coupled(WaterBalance(BucketScheme()), HeatBalance()), para=soilprofile[5].value),
-    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
+    -2.0u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
+    0.0u"m" => :topsoil1 => Soil(HomogeneousMixture(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    0.1u"m" => :topsoil2 => Soil(HomogeneousMixture(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    0.4u"m" => :sediment1 => Soil(HomogeneousMixture(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    3.0u"m" => :sediment2 => Soil(HomogeneousMixture(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    10.0u"m" => :sediment3 => Soil(HomogeneousMixture(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 tile = Tile(strat, grid, initT, initsat);
 # define time span

@@ -50,21 +50,17 @@ end
 
 """
     Soil(
-        para::HomogeneousMixture=HomogeneousMixture(),
-        heat::HeatBalance=HeatBalance(),
-        water=nothing;
+        para::HomogeneousMixture=HomogeneousMixture();
         kwargs...
     )
 
-Constructs a `HomogeneousSoil` layer with the given process(es) `proc` and parameterization `para`. Additional
-keyword arguments are passed through to `SoilProperties`.
+Constructs a `HomogeneousSoil` layer given `para` as well as any additional
+fields passed as keyword arguments.
 """
 Soil(
-    para::HomogeneousMixture=HomogeneousMixture(),
-    heat::HeatBalance=HeatBalance(),
-    water=nothing;
+    para::HomogeneousMixture=HomogeneousMixture();
     kwargs...
-) = HomogeneousSoil(; para, heat, water, kwargs...)
+) = HomogeneousSoil(; para, kwargs...)
 
 """
     MineralSediment{Tpor,Tsat} <: SoilParameterization
