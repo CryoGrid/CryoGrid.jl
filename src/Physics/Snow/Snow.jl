@@ -19,6 +19,7 @@ SnowThermalProperties = Heat.ThermalProperties
 export Snowpack, SnowProperties, SnowMassBalance
 include("types.jl")
 
+export swe, snowdensity
 include("methods.jl")
 
 export Snowfall

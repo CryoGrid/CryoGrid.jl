@@ -1,3 +1,10 @@
+# Snow methods
+"""
+    threshold(::Snowpack)
+
+Retrieves the snow cover threshold for this `Snowpack` layer to become active.
+"""
+threshold(::Snowpack) = 0.01 # meters
 """
     swe(::Snowpack, ::SnowMassBalance, state)
 
@@ -15,6 +22,13 @@ Retrieve the current snow density.
 snowdensity(::Snowpack, ::SnowMassBalance, state) = state.ρsn
 snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow}, state) = smb.para.ρsn
 snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = smb.para.ρsn(state.t)
+
+"""
+    snowdepth(::Snowpack, ::SnowMassBalance, state)
+
+Retrieve the current snow depth.
+"""
+snowdepth(snow::Snowpack, ::SnowMassBalance, state) = CryoGrid.thickness(snow, state)
 
 """
     accumulation(snow::SnowMassBalance{<:DynamicSnow})
@@ -38,6 +52,10 @@ Get the snow density scheme from the given `SnowMassBalance` parameterization.
 density(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.density
 
 # Default implementations of CryoGrid methods for Snowpack
+CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) - last(state.bounds))
+CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = (getscalar(state.z) + last(state.bounds)) / 2
+CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
+CryoGrid.hasfixedvolume(::Type{<:Snowpack}) = false
 CryoGrid.basevariables(::Snowpack, ::SnowMassBalance) = (
     Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
     Diagnostic(:T_ub, Scalar, u"°C"),

@@ -21,7 +21,7 @@ snowmass = SnowMassBalance(
 )
 strat = @Stratigraphy(
     z_top => Top(TemperatureGradient(tair), Snowfall(snowfall)),
-    z_top => :snowpack => Snowpack(Coupled(snowmass, HeatBalance()), para=Snow.Bulk(thresh=2.0u"cm")),
+    z_sub[1] => :snowpack => Snowpack(Coupled(snowmass, HeatBalance()), para=Snow.Bulk(thresh=2.0u"cm")),
     z_sub[1] => :topsoil1 => Soil(HeatBalance(), para=soilprofile[1].value),
     z_sub[2] => :topsoil2 => Soil(HeatBalance(), para=soilprofile[2].value),
     z_sub[3] => :sediment1 => Soil(HeatBalance(), para=soilprofile[3].value),
@@ -33,10 +33,17 @@ tile = Tile(strat, PresetGrid(modelgrid), initT)
 # define time span, 2 years + 3 months
 tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
 u0, du0 = initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
-# forward Euler with initial timestep of 5 minutes
-sol = @time solve(prob, Euler(), dt=300.0, saveat=24*3600.0, progress=true);
+prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
+
+# for testing: set up integrator and take one step
+integrator = init(prob, Euler(), dt=300.0, saveat=3*3600.0)
+# advance 24 hours
+@time step!(integrator, 24*3600.0)
+
+# solve full tspan with forward Euler and initial timestep of 5 minutes
+sol = @time solve(prob, Euler(), dt=300.0, saveat=3*3600.0, progress=true);
 out = CryoGridOutput(sol)
+
 # Plot it!
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);

@@ -19,6 +19,7 @@ prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,), step_limiter=nothing)
 @info "Running model"
 # solve with Crank-Nicolson (trapezoid method) and construct CryoGridOutput from solution
 out = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true) |> CryoGridOutput;
+
 # Plot it!
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);

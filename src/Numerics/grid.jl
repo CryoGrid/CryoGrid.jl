@@ -47,6 +47,7 @@ function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     # Determine indices which lie in the given interval
     l_ind = searchsortedlast(grid, interval.left)
     r_ind = searchsortedlast(grid, interval.right)
+    l_ind = l_ind == r_ind ? l_ind - 1 : l_ind
     l_ind = max(l_ind, 1)
     r_ind = min(r_ind, length(grid))
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)

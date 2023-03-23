@@ -24,8 +24,6 @@ Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp,Tproc} <: 
     proc::Tproc
 end
 Snowpack(proc::Tproc; kwargs...) where {Tproc} = Snowpack(;proc, kwargs...)
-# Implement trait for dynamic layer volume
-CryoGrid.hasfixedvolume(::Type{<:Snowpack}) = false
 
 abstract type SnowAblationScheme end
 

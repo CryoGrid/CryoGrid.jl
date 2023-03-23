@@ -139,7 +139,7 @@ function step!(
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
-    zs = map(getscalar, boundaries(tile, u))
+    zs = map(getscalar, boundaries!(tile, u))
     # zs = boundaries(strat)
     state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
     CryoGrid.diagnosticstep!(strat, state)
@@ -163,7 +163,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip},
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
-    zs = map(getscalar, boundaries(tile, u))
+    zs = map(getscalar, boundaries!(tile, u))
     state = TileState(tile.state, zs, u, du, t, 1.0, Val{true}())
     CryoGrid.timestep(strat::Stratigraphy, state)
 end
@@ -187,45 +187,10 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     tile = resolve(tile, u, p, t0)
     strat = tile.strat
     # get stratigraphy boundaries
-    zs = if CryoGrid.hasfixedvolume(TStrat)
-        # case 1: static boundaries (fixed volume)
-        boundaries(strat)
-    else
-        # case 2: dynamic boundaries
-        z0 = boundaries(strat)
-        # get boundary state variables
-        zstates = boundaries(tile, u)
-        # initialize boundary state variables
-        map(z0, zstates) do z, z_state
-            z_state .= z
-            return z
-        end        
-    end
+    zs = initboundaries!(tile, u)
     state = TileState(tile.state, zs, u, du, t0, 1.0, Val{iip}())
     CryoGrid.initialcondition!(strat, state, tile.inits)
     return u, du    
-end
-# constant vs. varying boundary cases
-@generated function boundaries(tile::Tile{TStrat}, u) where {TStrat}
-    if CryoGrid.hasfixedvolume(TStrat)
-        quote
-            diagnostic_boundaries(tile, u)
-        end
-    else
-        quote
-            prognostic_boundaries(tile, u)
-        end
-    end
-end
-function diagnostic_boundaries(tile::Tile, u)
-    return boundaries(tile.strat)
-end
-function prognostic_boundaries(tile::Tile, u)
-    names = layernames(tile.strat)
-    zs = map(names) do name
-        getproperty(u, name).z
-    end
-    return zs
 end
 """
     domain(tile::Tile)
@@ -236,10 +201,13 @@ domain endpoint are checked; variables with unbounded domains are ignored.
 """
 function domain(tile::Tile)
     # select only variables which have a finite domain
-    vars = filter(x -> any(map(isfinite, extrema(vardomain(x)))), filter(isprognostic, variables(tile)))
+    vars = map(variables(tile.strat)) do vars
+        filter(var -> any(map(isfinite, extrema(vardomain(var)))) && isprognostic(var), vars)
+    end
+    gridvars = filter(isongrid, tuplejoin(vars...))
     function isoutofdomain(_u,p,t)::Bool
         u = withaxes(_u, tile)
-        for var in vars
+        for var in gridvars
             domain = vardomain(var)
             uvar = getproperty(u, varname(var))
             @inbounds for i in 1:length(uvar)
@@ -248,7 +216,67 @@ function domain(tile::Tile)
                 end 
             end
         end
+        for layer in keys(vars)
+            layer_vars = filter(!isongrid, getproperty(vars, layer))
+            for var in layer_vars
+                domain = vardomain(var)
+                uvar = getproperty(getproperty(u, layer), varname(var))
+                @inbounds for i in 1:length(uvar)
+                    if uvar[i] ∉ domain
+                        return true
+                    end 
+                end
+            end
+        end
         return false
+    end
+end
+# dynamic layer boundaries
+@generated function _layerthick(tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer}
+    if CryoGrid.hasfixedvolume(TLayer)
+        # Case 1: Layer has static volume, retrieve from diagnostic cache
+        quote
+            retrieve(getproperty(tile.state.diag, name).Δz, u)
+        end
+    else
+        # Case 2: Layer has dynamic volume, retrieve from prognostic state
+        quote
+            getproperty(u, name).Δz
+        end
+    end
+end
+function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
+    if CryoGrid.hasfixedvolume(TStrat)
+        # Micro-optimization: if all layers in the stratigraphy have static volume, skip all of the fancy stuff
+        boundaries(tile.strat)
+    else
+        # Otherwise do all of this complicated bullshit...
+        zbot = tile.state.grid[end]
+        # calculate grid boundaries starting from the bottom moving up to the surface
+        zs = accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
+            name = nameof(named_layer)
+            diag_layer = getproperty(tile.state.diag, name)
+            z_state = retrieve(diag_layer.z, u)
+            Δz = getscalar(_layerthick(tile, named_layer, u))
+            @setscalar z_state = z_acc - max(Δz, zero(Δz))
+            z = getscalar(z_state)
+            # strip ForwardDiff type if necessary and round to avoid numerical issues
+            return round(Numerics.ForwardDiff.value(z), digits=12)
+        end
+        return reverse(zs)
+    end
+end
+function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
+    zbot = tile.state.grid[end]
+    bounds = boundarypairs(tile.strat, zbot)
+    map(bounds, layers(tile.strat)) do (z1, z2), named_layer
+        name = nameof(named_layer)
+        diag_layer = getproperty(tile.state.diag, name)
+        z = retrieve(diag_layer.z, u)
+        Δz = _layerthick(tile, named_layer, u)
+        @setscalar Δz = z2 - z1
+        @setscalar z = z1
+        return z1
     end
 end
 """
@@ -341,7 +369,7 @@ end
 """
     resolve(tile::Tile, du, u, p, t)
 
-Resolves or updates the given `tile` by:
+Resolves/updates the given `tile` by:
 (1) Replacing all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
 (2) Resolving the boundary depths of the `Stratigraphy` layers by invoking `resolveboundaries`.
 (3) Replacing all instances of `DynamicParameterization` with their resolved values given the current state.

@@ -195,20 +195,24 @@ CryoGrid.hasfixedvolume(::Type{TStrat}) where {TStrat<:Stratigraphy} = return al
 # collecting/grouping components
 CryoGrid.events(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
 function CryoGrid.variables(strat::Stratigraphy)
-    layervars = map(CryoGrid.variables, NamedTuple(strat))
-    stratvars = if !CryoGrid.hasfixedvolume(typeof(strat))
-        # otherwise, if any layer has dynamic volume, make layer boundaries prognostic
-        map(NamedTuple(strat)) do _
+    strat_nt = NamedTuple(strat)
+    layervars = map(CryoGrid.variables, strat_nt)
+    return map(layervars, strat_nt) do vars, named_layer
+        if CryoGrid.hasfixedvolume(typeof(named_layer.val))
             (
-                Prognostic(Symbol(:z), Scalar, u"m"),
+                vars...,
+                Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
+                # technically the domain for z should be double bounded by the surrounding layers...
+                # unfortunately there is no way to represent that here, so we just have to ignore it
+                Diagnostic(:z, Scalar, u"m"),
+            )
+        else
+            (
+                vars...,
+                Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
+                Diagnostic(:z, Scalar, u"m"),
             )
         end
-    else
-        # return empty tuple (no additional variables) for each layer
-        map(layer -> (), NamedTuple(strat))
-    end
-    return map(layervars, stratvars) do lv, sv
-        tuplejoin(lv, sv)
     end
 end
 function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))

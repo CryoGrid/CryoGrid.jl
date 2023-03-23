@@ -26,10 +26,6 @@ function partial_heatcapacity(snow::Snowpack, heat::HeatBalance)
     end
 end
 
-CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
-CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = -getscalar(state.dsn) / 2
-CryoGrid.isactive(snow::BulkSnowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
-
 # Events
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),
@@ -125,7 +121,7 @@ function CryoGrid.diagnosticstep!(
     @setscalar state.θwi = θwi = ρsn / snow.prop.ρw
     @setscalar state.ρsn = ρsn
     dsn = getscalar(state.swe) / θwi
-    # only update snowdepth if swe greater than threshold, otherwise, set to zero.
+    # only update snow depth if swe greater than threshold, otherwise, set to zero.
     @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
     # evaluate freezing/thawing processes for snow layer
     Heat.freezethaw!(snow, heat, state)
@@ -169,6 +165,10 @@ function CryoGrid.prognosticstep!(
         # this is due to the energy being (theoretically) "consumed" to melt the snow
         state.jH[1] *= 1 - (dmelt > zero(dmelt))
     end
+    ρsn = snowdensity(snow, smb, state)
+    ρw = snow.prop.ρw
+    # compute time derivative for moving boundary
+    @. state.∂Δz∂t += state.∂swe∂t*ρw/ρsn
     return nothing
 end
 

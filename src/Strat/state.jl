@@ -17,13 +17,13 @@ struct LayerState{iip,TGrid,TStates,TGrids,TBounds,Tt,Tdt,varnames}
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
-    return if sym ∈ (:grid, :grids, :states, :bounds, :t, :dt, :z)
+    return if sym ∈ (:grid, :grids, :states, :bounds, :t, :dt)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)
     end
 end
-Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :grids, :states, :bounds, :t, :dt, :z)
+Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :grids, :states, :bounds, :t, :dt)
 @inline function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
     z_inds = subgridinds(edges(sv.grid), zs[1]..zs[2])
     return LayerState(
