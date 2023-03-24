@@ -69,8 +69,8 @@ We can take as an example the implementation of `prognosticstep!` for enthalpy-b
 
 ```julia
 function CryoGrid.prognosticstep!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
-    Δk = Δ(state.grids.k) # cell sizes
-    ΔT = Δ(state.grids.T) # midpoint distances
+    Δk = Δ(state.grid) # cell sizes
+    ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
     nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     return nothing
@@ -81,4 +81,4 @@ end
 
     Prognostic state variables like `H` in the example above **should not be directly modified** in user code. This is especially important when using higher order or implicit integrators as unexpected changes to prognostic state may destroy the accuracy of their internal interpolant. For modeling discontinuities, use [`Events`](@ref) instead.
 
-Note that `state` is of type [`LayerState`](@ref) with fields corresponding to the variables declared by the `variables` function for `Soil` and `HeatBalance`. Additionally, output arrays for the time derivatives are provided (here `∂H∂t`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grids` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.
+Note that `state` is of type [`LayerState`](@ref) with fields corresponding to the variables declared by the `variables` function for `Soil` and `HeatBalance`. Additionally, output arrays for the time derivatives are provided (here `∂H∂t`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grid` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.
