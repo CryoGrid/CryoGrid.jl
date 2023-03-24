@@ -50,7 +50,7 @@ end
 @inline function Hydrology.hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
     kw_sat = Hydrology.kwsat(sub, water)
     vg = Soils.swrc(water)
-    Δkw = Δ(state.grids.kw)
+    Δkw = Δ(state.grid)
     @inbounds for i in eachindex(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
@@ -76,7 +76,7 @@ function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure
 end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     # compute diffusive fluxes from pressure, if enabled
-    Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
+    Numerics.flux!(state.jw, state.ψ, Δ(cells(state.grid)), state.kw)
     return nothing
 end
 # CryoGrid methods

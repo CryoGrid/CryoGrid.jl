@@ -137,7 +137,7 @@ function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance, state)
     evapotranspirative_fluxes!(sub, water, state)
     wateradvection!(sub, water, state)
     balancefluxes!(sub, water, state)
-    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grids.jw))
+    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grid))
     waterprognostic!(sub, water, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)

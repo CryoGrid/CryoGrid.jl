@@ -31,7 +31,8 @@ function CryoGrid.initialcondition!(layer::Layer, process::Process, state, init:
     profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(map(knot -> ustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
-    z = getproperty(state.grids, var)
+    z = cells(state.grid)
+    @assert length(z) == length(u)
     if length(depths) > 1
         f = Interpolations.extrapolate(
             Interpolations.interpolate(

@@ -113,8 +113,8 @@ end
 Prognostic step for heat conduction (enthalpy) on subsurface layer.
 """
 function CryoGrid.prognosticstep!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
-    Δk = Δ(state.grids.k) # cell sizes
-    ΔT = Δ(state.grids.T) # midpoint distances
+    Δk = Δ(state.grid) # cell sizes
+    ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
     Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     return nothing
@@ -123,8 +123,8 @@ end
 Prognostic step for heat conduction (temperature) on subsurface layer.
 """
 function CryoGrid.prognosticstep!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:Temperature}, state)
-    Δk = Δ(state.grids.k) # cell sizes
-    ΔT = Δ(state.grids.T) # midpoint distances
+    Δk = Δ(state.grid) # cell sizes
+    ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
     Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     # Compute temperature flux by dividing by ∂H∂T;
