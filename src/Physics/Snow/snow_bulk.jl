@@ -26,10 +26,6 @@ function partial_heatcapacity(snow::Snowpack, heat::HeatBalance)
     end
 end
 
-CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
-CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = -getscalar(state.dsn) / 2
-CryoGrid.isactive(snow::BulkSnowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
-
 # Events
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),
@@ -85,7 +81,7 @@ function CryoGrid.trigger!(
 end
 # heat upper boundary (for all bulk implementations)
 function CryoGrid.interact!(top::Top, bc::HeatBC, snow::BulkSnowpack, heat::HeatBalance, stop, ssnow)
-    CryoGrid.interact!(CryoGrid.BoundaryStyle(bc), top, bc, snow, heat, stop, ssnow)
+    CryoGrid.interact!(CryoGrid.BoundaryCondition(bc), top, bc, snow, heat, stop, ssnow)
     return nothing
 end
 function CryoGrid.interact!(
@@ -125,7 +121,7 @@ function CryoGrid.diagnosticstep!(
     @setscalar state.θwi = θwi = ρsn / snow.prop.ρw
     @setscalar state.ρsn = ρsn
     dsn = getscalar(state.swe) / θwi
-    # only update snowdepth if swe greater than threshold, otherwise, set to zero.
+    # only update snow depth if swe greater than threshold, otherwise, set to zero.
     @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
     # evaluate freezing/thawing processes for snow layer
     Heat.freezethaw!(snow, heat, state)
@@ -160,7 +156,6 @@ function CryoGrid.prognosticstep!(
     end
     if getscalar(state.swe) > 0.0 && getscalar(state.T_ub) > 0.0
         ddf = ablation(smb).factor # [m/K/s]
-        jH_upper = state.jH[1] # [J/m^3]
         T_ub = getscalar(state.T_ub) # upper boundary temperature
         Tref = 0.0*unit(T_ub) # just in case T_ub has units
         # calculate the melt rate per second via the degree day model
@@ -170,6 +165,10 @@ function CryoGrid.prognosticstep!(
         # this is due to the energy being (theoretically) "consumed" to melt the snow
         state.jH[1] *= 1 - (dmelt > zero(dmelt))
     end
+    ρsn = snowdensity(snow, smb, state)
+    ρw = snow.prop.ρw
+    # compute time derivative for moving boundary
+    @. state.∂Δz∂t += state.∂swe∂t*ρw/ρsn
     return nothing
 end
 

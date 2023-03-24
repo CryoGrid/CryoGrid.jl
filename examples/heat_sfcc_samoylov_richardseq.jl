@@ -21,15 +21,6 @@ tempprofile = TemperatureProfile(
     20.0u"m" => -10u"°C",
     1000.0u"m" => 1.0u"°C"
 )
-# soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
-soilprofile = SoilProfile(
-    0.0u"m" => HomogeneousMixture(por=0.80,sat=0.8,org=0.75), 
-    0.1u"m" => HomogeneousMixture(por=0.80,sat=0.9,org=0.25),
-    0.4u"m" => HomogeneousMixture(por=0.55,sat=0.95,org=0.25),
-    3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0),
-    10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0),
-    100.0u"m" => HomogeneousMixture(por=0.10,sat=0.1,org=0.0),
-);
 initT = initializer(:T, tempprofile)
 # initialize saturation to match soil profile
 initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
@@ -43,12 +34,13 @@ waterflow = RichardsEq(swrc=swrc)
 op = Heat.Diffusion(:H)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0*u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
-    map(enumerate(soilprofile)) do (i, (depth, para))
-        name = Symbol(:soil, i)
-        depth => name => Soil(Coupled(WaterBalance(waterflow), HeatBalance(op, freezecurve=sfcc, dtlim=CryoGrid.MaxDelta(50u"kJ"))), para=para)
-    end,
-    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
+    -2.0u"m" => Top(upperbc),
+    0.0u"m" => :topsoil1 => Soil(HomogeneousMixture(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    0.1u"m" => :topsoil2 => Soil(HomogeneousMixture(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    0.4u"m" => :sediment1 => Soil(HomogeneousMixture(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    3.0u"m" => :sediment2 => Soil(HomogeneousMixture(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    10.0u"m" => :sediment3 => Soil(HomogeneousMixture(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop), water=WaterBalance(BucketScheme())),
+    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
 tile = Tile(strat, grid, initT, initsat);

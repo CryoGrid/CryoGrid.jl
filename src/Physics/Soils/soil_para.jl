@@ -49,6 +49,20 @@ function from_components(θo, por, sat=1.0, xic=0.0)
 end
 
 """
+    Soil(
+        para::HomogeneousMixture=HomogeneousMixture();
+        kwargs...
+    )
+
+Constructs a `HomogeneousSoil` layer given `para` as well as any additional
+fields passed as keyword arguments.
+"""
+Soil(
+    para::HomogeneousMixture=HomogeneousMixture();
+    kwargs...
+) = HomogeneousSoil(; para, kwargs...)
+
+"""
     MineralSediment{Tpor,Tsat} <: SoilParameterization
 
 Represents a simple, homogeneous, mineral sediment with (possibly) spatially variable porosity.

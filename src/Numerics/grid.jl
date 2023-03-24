@@ -15,7 +15,7 @@ struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
     deltas::GridValues{A}
     bounds::UnitRange{Int}
     Grid(::Type{S}, values::GridValues{A}, deltas::GridValues{A}, geom::G, bounds::UnitRange{Int}=1:length(values)) where {S<:GridSpec,Q,A<:AbstractVector{Q},G<:Geometry} = new{S,G,Q,A}(geom,values,deltas,bounds)
-    function Grid(vals::AbstractVector{Q}, geometry::G=UnitVolume()) where {G<:Geometry,Q<:Number}
+    function Grid(vals::AbstractVector{Q}, geometry::G=UnitRectangle()) where {G<:Geometry,Q<:Number}
         @assert issorted(vals) "grid values should be in ascending order"
         nedges = length(vals)
         ncells = nedges - 1
@@ -47,6 +47,9 @@ function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     # Determine indices which lie in the given interval
     l_ind = searchsortedlast(grid, interval.left)
     r_ind = searchsortedlast(grid, interval.right)
+    l_ind = l_ind == r_ind ? l_ind - 1 : l_ind
+    l_ind = max(l_ind, 1)
+    r_ind = min(r_ind, length(grid))
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
 @inline bounds(grid::Grid{Edges}) = grid.bounds
@@ -94,9 +97,9 @@ function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where 
     return grid
 end
 
-# unit volume
-@inline volume(grid::Grid{Cells,UnitVolume,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
-@inline area(::Grid{Edges,UnitVolume,Q}) where Q = oneunit(Q)^2
+# unit rectangle defaults
+@inline volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
+@inline area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
 
 # grid discretizations
 """
@@ -104,28 +107,58 @@ end
 
 Produces a discretization of the given variable based on `T` and array type `A`.
 """
-discretize(::Type{A}, ::D, ::Var) where {Q,T,N,D<:AbstractDiscretization{Q,N},A<:AbstractArray{T,N}} = error("missing discretize implementation for $D")
 discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Array{vartype(var),N}, d, var)
-discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, grid)))
+discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, length(edges(grid)))))
+
+makegrid(strategy::PresetGrid, ::AbstractVector{<:DistQuantity}) = strategy.grid
+function makegrid(strategy::AutoGrid, depths::AbstractVector{T}) where {T<:DistQuantity}
+    @unpack z0, min_thick, max_cells_per_layer = strategy
+    @assert length(depths) >= 3 "AutoGrid requires depth profile of length >= 3"
+    # index counter starting from first depth >= z_min
+    dz = min_thick
+    grid = T[] # initialize empty vector of type T
+    for (z1, z2) in zip(depths[1:end-2], depths[2:end-1])
+        n = Int(ceil((z2 - z1) / dz))
+        # if the estimated number of cells is greater than the maximum,
+        # recalculate the step size using the maximum
+        if n > max_cells_per_layer
+            dz = (z2 - z1) / max_cells_per_layer
+            n = max_cells_per_layer
+        end
+        # skip depths above z0
+        z1 = max(z1, z0)
+        if z2 > z1
+            # add grid edges from z1 to z2 - dz to avoid duplication
+            append!(grid, LinRange(z1, z2 - dz, n))
+            # double current step size
+            dz = dz*2
+        end
+    end
+    # use exponential spacing for last layer
+    n_remaining = min(max_cells_per_layer, Int(ceil((depths[end] - grid[end])/dz)))
+    append!(grid, exp2.(LinRange(log2(ustrip(grid[end] + dz)), log2(ustrip(depths[end])), n_remaining)).*unit(T))
+    return Grid(round.(T, grid, digits=8))
+end
 
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}
     # get lengths
-    gridvar_sizes = map(v -> dimlength(vardims(v), grid), gridvars)
-    layervar_sizes = map(vars -> map(v -> dimlength(vardims(v), grid), vars), layervars)
+    gridvar_sizes = map(v -> dimlength(vardims(v), length(edges(grid))), gridvars)
+    layervar_sizes = map(vars -> map(v -> dimlength(vardims(v), length(edges(grid))), vars), layervars)
     Ng = length(gridvar_sizes) > 0 ? sum(gridvar_sizes) : 0
     Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_sizes))
     # build axis indices;
     # non-grid prognostic variables get collected at the top of the vector, in the order provided
+    # i is the top-level index in the state vector for all layer diagnostic variables
     i = 1
     layervar_ax = map(layervars, layervar_sizes) do vars, sizes
-        j = 1
+        j = 1 # within-layer offset from top level index
         coords = map(vars, sizes) do var, N
-            coord = varname(var) => j:j+N-1
+            coord = varname(var) => (i,j:j+N-1)
             j += N
             return coord
         end
-        i += j
+        i += j-1
         return (; coords...)
     end
     # grid variables get interlaced throughout the rest of the vector; i.e. for variable i, its grid points are:
@@ -135,6 +168,7 @@ function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars:
     layervar_ax = (;(name => layervar_ax[name] for name in keys(layervar_ax) if length(layervar_ax[name]) > 0)...)
     # allocate component array; assumes all prognostic variables have the same type (and they should!)
     u = zero(similar(A, Ng+Nl))
-    u_ax = map(ax -> ViewAxis(first(ax)[1]:last(ax)[end], Axis(ax)), layervar_ax)
+    toplevelindices(axes) = first(axes)[1]:first(axes)[1]+last(axes)[2][end]-1
+    u_ax = map(ax -> ViewAxis(toplevelindices(ax), Axis(map(last, ax))), layervar_ax)
     return ComponentVector(u, (Axis(merge(u_ax, gridvar_ax)),))
 end

@@ -10,16 +10,8 @@ SoilThermalProperties(
     ch_i = DefaultThermalProperties.ch_i,
     ch_a = DefaultThermalProperties.ch_a,
     ch_o=2.5e6u"J/K/m^3", # heat capacity organic
-    ch_m=2.0e6u"J/K/m^3", # heat capacity mineral,
-    ignored...
+    ch_m=2.0e6u"J/K/m^3", # heat capacity mineral
 ) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o)
-
-# Soil properties constructor for heat transfer processes
-soilproperties(
-    para::SoilParameterization,
-    heat::HeatBalance;
-    props...,
-) = (heat=SoilThermalProperties(; props...),)
 
 """
 Gets the `ThermalProperties` for the given soil layer.
@@ -181,10 +173,6 @@ end
 # Freeze curve parameters;
 # Since the freeze curve functions are specified in FreezeCurves.jl, we must (or rather should) provide
 # CryoGrid.parameterize implementations for them here to specify parameter information.
-CryoGrid.parameterize(sfcc::SFCC) = SFCC(
-    CryoGrid.parameterize(sfcc.f),
-    sfcc.solver,
-)
 CryoGrid.parameterize(f::PainterKarra) = PainterKarra(
     f.freezethaw,
     CryoGrid.parameterize(f.β, domain=OpenInterval(0,Inf), desc="Painter-Karra fitting parmaeter which controls the influence of temperature on the matric potential."),

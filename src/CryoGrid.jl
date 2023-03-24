@@ -35,8 +35,9 @@ export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
-export BoundaryStyle
 include("types.jl")
+export BoundaryCondition, hasfixedvolume
+include("traits.jl")
 export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
@@ -47,7 +48,8 @@ using .Utils
 export convert_t, convert_tspan, pstrip, @pstrip, @sym_str
 include("Numerics/Numerics.jl")
 using .Numerics
-export Grid, cells, edges, subgridinds, Δ, volume, area, initializer, getvar
+export DiscretizationStrategy, AutoGrid, PresetGrid, Grid, cells, edges, subgridinds, Δ, volume, area
+export initializer, getvar
 include("IO/InputOutput.jl")
 @reexport using .InputOutput
 include("Physics/Physics.jl")

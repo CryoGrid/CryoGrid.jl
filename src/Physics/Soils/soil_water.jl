@@ -1,14 +1,3 @@
-# Soil hydraulic properties
-"""
-Soil properites for water processes.
-"""
-soilproperties(
-    ::SoilParameterization,
-    ::WaterBalance;
-    kw_sat=1e-5u"m/s",
-    ignored...,
-) = (water=HydraulicProperties(; kw_sat),)
-
 """
 Base type for different formulations of Richard's equation.
 """
@@ -61,7 +50,7 @@ end
 @inline function Hydrology.hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
     kw_sat = Hydrology.kwsat(sub, water)
     vg = Soils.swrc(water)
-    Δkw = Δ(state.grids.kw)
+    Δkw = Δ(state.grid)
     @inbounds for i in eachindex(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
@@ -87,7 +76,7 @@ function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure
 end
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     # compute diffusive fluxes from pressure, if enabled
-    Numerics.flux!(state.jw, state.ψ, Δ(state.grids.ψ), state.kw)
+    Numerics.flux!(state.jw, state.ψ, Δ(cells(state.grid)), state.kw)
     return nothing
 end
 # CryoGrid methods
@@ -102,11 +91,6 @@ CryoGrid.variables(::RichardsEq{Saturation}) = (
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
 )
-function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
-    water, heat = ps
-    CryoGrid.initialcondition!(soil, water, state)
-    CryoGrid.initialcondition!(soil, heat, state)
-end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]

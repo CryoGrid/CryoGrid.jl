@@ -12,6 +12,7 @@ using IntervalSets
 using LinearAlgebra
 using LoopVectorization
 using Unitful
+using UnPack
 using StaticArrays
 using StructTypes
 
@@ -26,7 +27,8 @@ function turbo(value::Bool)
     global USE_TURBO = value
 end
 
-export Var, GridSpec, Edges, Cells, UnitVolume
+export Var, GridSpec, Edges, Cells, UnitRectangle
+export DiscretizationStrategy, PresetGrid, AutoGrid, makegrid
 include("types.jl")
 
 export Profile, ProfileKnot
@@ -42,7 +44,10 @@ export Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
-export StateVars, DiffCache, retrieve, getvar, getvars
+export DiffCache, retrieve
+include("diffcache.jl")
+
+export StateVars, getvar, getvars
 include("statevars.jl")
 
 end

@@ -14,12 +14,12 @@ using ModelParameters
 using Unitful
 using UnPack
 
-SnowThermalProperties = Heat.ThermalProperties
+export SnowMassBalance
+include("snow_mass.jl")
 
-export Snowpack, SnowProperties, SnowMassBalance
-include("types.jl")
-
-include("methods.jl")
+export Snowpack, SnowProperties
+export swe, snowdensity
+include("snowpack.jl")
 
 export Snowfall
 include("snow_bc.jl")

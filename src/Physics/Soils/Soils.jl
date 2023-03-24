@@ -29,11 +29,9 @@ const Temperature = Heat.Temperature
 const Enthalpy = Heat.Enthalpy
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, HomogeneousSoil, SoilParameterization
-include("types.jl")
-
-export SoilProfile, SoilProperties, soilproperties, porosity, mineral, organic
-include("methods.jl")
+export Soil, HomogeneousSoil, SoilParameterization, SoilProfile, SoilProperties
+export soilproperties, porosity, mineral, organic
+include("soil.jl")
 
 export HomogeneousMixture, MineralSediment, soilcomponent
 include("soil_para.jl")
@@ -44,26 +42,7 @@ include("soil_water.jl")
 export SoilThermalProperties
 include("soil_heat.jl")
 
-include("soil_water_heat_coupled.jl")
-
-"""
-    Soil(
-        proc::Process;
-        para::HomogeneousMixture=HomogeneousMixture(),
-        solver=default_sfccsolver(proc),
-        sp=nothing,
-        prop_kwargs...,
-    )
-
-Constructs a `HomogeneousSoil` layer with the given process(es) `proc` and parameterization `para`. Additional
-keyword arguments are passed through to `SoilProperties`.
-"""
-Soil(
-    proc::Process;
-    para::HomogeneousMixture=HomogeneousMixture(),
-    solver=default_sfccsolver(proc),
-    sp=nothing,
-    prop_kwargs...,
-) = HomogeneousSoil(para, soilproperties(para, proc; prop_kwargs...), proc, solver, sp)
+# water/heat coupling methods
+include("soil_water_heat.jl")
 
 end

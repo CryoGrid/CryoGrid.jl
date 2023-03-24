@@ -44,6 +44,7 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
     state::TStates # state variables
     inits::TInits # initializers
     events::TEvents # events
+    metadata::Dict # metadata
     hist::StateHistory # mutable "history" type for state tracking
     function Tile(
         strat::TStrat,
@@ -51,14 +52,15 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
         state::TStates,
         inits::TInits,
         events::TEvents,
+        metadata::Dict=Dict(),
         hist::StateHistory=StateHistory(),
         iip::Bool=true) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
-        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,hist)
+        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,metadata,hist)
     end
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
-    (strat, grid, state, inits, events, hist) -> Tile(strat, grid, state, inits, events, hist, iip)
+    (strat, grid, state, inits, events, metadata, hist) -> Tile(strat, grid, state, inits, events, metadata, hist, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -69,42 +71,47 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
 """
     Tile(
         @nospecialize(strat::Stratigraphy),
-        @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
+        @nospecialize(discretization_strategy::DiscretizationStrategy),
         @nospecialize(inits::VarInitializer...);
+        metadata::Dict=Dict(),
         arrayproto::Type{A}=Vector,
         iip::Bool=true,
         chunk_size=nothing,
     )
 
-Constructs a `Tile` from the given stratigraphy and grid. `arrayproto` keyword arg should be an array instance
+Constructs a `Tile` from the given stratigraphy and discretization strategy. `arrayproto` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
 function Tile(
     @nospecialize(strat::Stratigraphy),
-    @nospecialize(grid::Grid{Edges,<:Numerics.Geometry,<:DistQuantity}),
+    @nospecialize(discretization_strategy::DiscretizationStrategy),
     @nospecialize(inits::VarInitializer...);
+    metadata::Dict=Dict(),
     arrayproto::Type{A}=Vector,
     iip::Bool=true,
     chunk_size=nothing,
 ) where {A<:AbstractArray}
+    grid = Numerics.makegrid(discretization_strategy, collect(boundaries(strat)))
     strat = stripunits(strat)
-    layers = _collectlayers(strat)
-    events = _collectevents(strat)
-    vars = _collectvars(strat)
+    events = CryoGrid.events(strat)
+    vars = CryoGrid.variables(strat)
+    layers = map(NamedTuple(strat)) do named_layer
+        _addlayerfield(named_layer, nameof(named_layer))
+    end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
-    states = _initvarstates(strat, grid, vars, chunk_size, arrayproto)
+    states = _initstatevars(strat, grid, vars, chunk_size, arrayproto)
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
     inits = map(inits) do init
         _addlayerfield(init, Symbol(:init_, varname(init)))
     end
-    return Tile(strat, grid, states, inits, (;events...), StateHistory(), iip)
+    return Tile(strat, grid, states, inits, (;events...), metadata, StateHistory(), iip)
 end
-Tile(strat::Stratigraphy, grid::Grid{Cells}; kwargs...) = Tile(strat, edges(grid); kwargs...)
-Tile(strat::Stratigraphy, grid::Grid{Edges,<:Numerics.Geometry,T}; kwargs...) where {T} = error("grid must have values with units of length, e.g. try using `Grid((x)u\"m\")` where `x` are your grid points.")
+Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
+Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
@@ -131,7 +138,9 @@ function step!(
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, dt, Val{true}())
+    zs = map(getscalar, boundaries!(tile, u))
+    # zs = boundaries(strat)
+    state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
     CryoGrid.diagnosticstep!(strat, state)
     CryoGrid.interact!(strat, state)
     CryoGrid.prognosticstep!(strat, state)
@@ -153,7 +162,8 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip},
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t, 1.0, Val{true}())
+    zs = map(getscalar, boundaries!(tile, u))
+    state = TileState(tile.state, zs, u, du, t, 1.0, Val{true}())
     CryoGrid.timestep(strat::Stratigraphy, state)
 end
 """
@@ -175,7 +185,9 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     u = zero(similar(tile.state.uproto, u_type))
     tile = resolve(tile, u, p, t0)
     strat = tile.strat
-    state = TileState(tile.state, boundaries(strat), u, du, t0, 1.0, Val{iip}())
+    # get stratigraphy boundaries
+    zs = initboundaries!(tile, u)
+    state = TileState(tile.state, zs, u, du, t0, 1.0, Val{iip}())
     CryoGrid.initialcondition!(strat, state, tile.inits)
     return u, du    
 end
@@ -188,10 +200,13 @@ domain endpoint are checked; variables with unbounded domains are ignored.
 """
 function domain(tile::Tile)
     # select only variables which have a finite domain
-    vars = filter(x -> any(map(isfinite, extrema(vardomain(x)))), filter(isprognostic, variables(tile)))
+    vars = map(variables(tile.strat)) do vars
+        filter(var -> any(map(isfinite, extrema(vardomain(var)))) && isprognostic(var), vars)
+    end
+    gridvars = filter(isongrid, tuplejoin(vars...))
     function isoutofdomain(_u,p,t)::Bool
         u = withaxes(_u, tile)
-        for var in vars
+        for var in gridvars
             domain = vardomain(var)
             uvar = getproperty(u, varname(var))
             @inbounds for i in 1:length(uvar)
@@ -200,7 +215,67 @@ function domain(tile::Tile)
                 end 
             end
         end
+        for layer in keys(vars)
+            layer_vars = filter(!isongrid, getproperty(vars, layer))
+            for var in layer_vars
+                domain = vardomain(var)
+                uvar = getproperty(getproperty(u, layer), varname(var))
+                @inbounds for i in 1:length(uvar)
+                    if uvar[i] ∉ domain
+                        return true
+                    end 
+                end
+            end
+        end
         return false
+    end
+end
+# dynamic layer boundaries
+@generated function _layerthick(tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer}
+    if CryoGrid.hasfixedvolume(TLayer)
+        # Case 1: Layer has static volume, retrieve from diagnostic cache
+        quote
+            retrieve(getproperty(tile.state.diag, name).Δz, u)
+        end
+    else
+        # Case 2: Layer has dynamic volume, retrieve from prognostic state
+        quote
+            getproperty(u, name).Δz
+        end
+    end
+end
+function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
+    if CryoGrid.hasfixedvolume(TStrat)
+        # Micro-optimization: if all layers in the stratigraphy have static volume, skip all of the fancy stuff
+        boundaries(tile.strat)
+    else
+        # Otherwise do all of this complicated bullshit...
+        zbot = tile.state.grid[end]
+        # calculate grid boundaries starting from the bottom moving up to the surface
+        zs = accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
+            name = nameof(named_layer)
+            diag_layer = getproperty(tile.state.diag, name)
+            z_state = retrieve(diag_layer.z, u)
+            Δz = getscalar(_layerthick(tile, named_layer, u))
+            @setscalar z_state = z_acc - max(Δz, zero(Δz))
+            z = getscalar(z_state)
+            # strip ForwardDiff type if necessary and round to avoid numerical issues
+            return round(Numerics.ForwardDiff.value(z), digits=12)
+        end
+        return reverse(zs)
+    end
+end
+function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
+    zbot = tile.state.grid[end]
+    bounds = boundarypairs(tile.strat, zbot)
+    map(bounds, layers(tile.strat)) do (z1, z2), named_layer
+        name = nameof(named_layer)
+        diag_layer = getproperty(tile.state.diag, name)
+        z = retrieve(diag_layer.z, u)
+        Δz = _layerthick(tile, named_layer, u)
+        @setscalar Δz = z2 - z1
+        @setscalar z = z1
+        return z1
     end
 end
 """
@@ -293,7 +368,7 @@ end
 """
     resolve(tile::Tile, du, u, p, t)
 
-Resolves or updates the given `tile` by:
+Resolves/updates the given `tile` by:
 (1) Replacing all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
 (2) Resolving the boundary depths of the `Stratigraphy` layers by invoking `resolveboundaries`.
 (3) Replacing all instances of `DynamicParameterization` with their resolved values given the current state.
@@ -317,62 +392,10 @@ end
 resolve(tile::Tile, u, p::Nothing, t) = tile
 
 # ==== Internal methods for initializing types and state variables ====
-
-# collecting/grouping components
-_collectlayers(strat::Stratigraphy) = map(named_layer -> _addlayerfield(named_layer, nameof(named_layer)), NamedTuple(strat))
-_collectevents(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
-_collectvars(strat::Stratigraphy) = map(_collectvars, NamedTuple(strat))
-function _collectvars(@nospecialize(named_layer::NamedLayer))
-    layer = named_layer.val
-    declared_vars = variables(layer)
-    nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
-    all_vars = tuplejoin(declared_vars, nested_vars)
-    # check for (permissible) duplicates between variables, excluding parameters
-    groups = Utils.groupby(var -> varname(var), all_vars)
-    for (id,vargroup) in filter(g -> length(g.second) > 1, groups)
-        # if any duplicate variable deifnitions do not match, raise an error
-        @assert all(vargroup[i] == vargroup[i-1] for i in 2:length(vargroup)) "Found one or more conflicting definitions of $id in $vargroup"
-    end
-    diag_vars = filter(isdiagnostic, all_vars)
-    prog_vars = filter(isprognostic, all_vars)
-    alg_vars = filter(isalgebraic, all_vars)
-    # check for duplicated algebraic/prognostic vars
-    prog_alg_duplicated = prog_vars ∩ alg_vars
-    @assert isempty(prog_alg_duplicated) "Variables $(prog_alg_duplicated) cannot be both prognostic and algebraic."
-    # check for re-definition of diagnostic variables as prognostic
-    prog_alg = prog_vars ∪ alg_vars
-    diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
-    # check for conflicting definitions of differential vars
-    diff_varnames = map(v -> varname(Delta(v)), prog_alg)
-    @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
-    # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
-    diag_vars = filter(v -> v ∉ diag_prog, diag_vars)
-    # filter remaining duplicates
-    diag_vars = unique(diag_vars)
-    prog_vars = unique(prog_vars)
-    alg_vars = unique(alg_vars)
-    # convert back to tuples
-    diag_vars, prog_vars, alg_vars = Tuple(diag_vars), Tuple(prog_vars), Tuple(alg_vars)
-    return tuplejoin(diag_vars, prog_vars, alg_vars)
-end
-"""
-Rebuilds the `obj` adding `name` to the `layer` field to all `Param`s, if any are defined.
-"""
-function _addlayerfield(@nospecialize(obj), name::Symbol)
-    params = ModelParameters.params(obj)
-    if length(params) > 0
-        # create sub-model and add layer name to all parameters
-        m = Model(obj)
-        m[:layer] = repeat([name], length(params))
-        return parent(m)
-    else
-        return obj
-    end
-end
 """
 Initialize `StateVars` which holds the caches for all defined state variables.
 """
-function _initvarstates(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::NamedTuple), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
+function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::NamedTuple), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
     layernames = [layername(layer) for layer in strat]
     npvars = (length(filter(isprognostic, var)) + length(filter(isalgebraic, var)) for var in vars) |> sum
     ndvars = (length(filter(isdiagnostic, var)) for var in vars) |> sum

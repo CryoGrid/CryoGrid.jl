@@ -6,9 +6,9 @@ struct Shape{S} <: VarDim{S} Shape(dims::Int...) = new{dims}() end
 const Scalar = Shape()
 ConstructionBase.constructorof(::Type{OnGrid{S}}) where {S} = f -> OnGrid(S, f)
 ConstructionBase.constructorof(::Type{Shape{S}}) where {S} = f -> Shpae(S...)
-dimlength(::Shape{dims}, grid::Grid) where dims = prod(dims)
-dimlength(d::OnGrid{Cells}, grid::Grid) = length(cells(grid)) + d.offset
-dimlength(d::OnGrid{Edges}, grid::Grid) = length(edges(grid)) + d.offset
+dimlength(::Shape{dims}, N::Int) where dims = prod(dims)
+dimlength(d::OnGrid{Cells}, gridlen::Int) = gridlen + d.offset - 1
+dimlength(d::OnGrid{Edges}, gridlen::Int) = gridlen + d.offset
 
 """
     Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}

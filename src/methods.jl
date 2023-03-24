@@ -2,9 +2,12 @@
 """
     processes(l::Layer)
 
-Fetches the process attached to this layer, if any.
+Fetches the process(es) attached to this layer, if any. Returned value must be of type `Process`. If the layer has more than one process,
+they should be combined together with `Coupled(procs...)`.
 """
-processes(l::Layer) = l.proc
+processes(l::Layer) = error("not implemented for layer of type $(typeof(l)); maybe you forgot to add a method CryoGrid.processes(::$(nameof(typeof(l)))) = ...?")
+processes(top::Top) = top.proc
+processes(bot::Bottom) = bot.proc
 """
     variables(layer::Layer, process::Process)
     variables(::Layer)
@@ -124,14 +127,14 @@ end
 # Auxiliary functions for generalized boundary implementations;
 """
     boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
-    boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
+    boundaryflux(s::BoundaryCondition, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
 
-Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryStyle(B),...) to allow for generic implementations by boundary condition type.
+Computes the flux dH/dt at the boundary layer. Calls boundaryflux(BoundaryCondition(B),...) to allow for generic implementations by boundary condition type.
 Note that this method uses a different argument order convention than `interact!`. This is intended to faciliate stratigraphy independent implementations
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
-boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BoundaryStyle(bc), bc, b, p, sub, sbc, ssub)
-boundaryflux(s::BoundaryStyle, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
+boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BoundaryCondition(bc), bc, b, p, sub, sbc, ssub)
+boundaryflux(s::BoundaryCondition, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
 """
     boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
 
@@ -140,19 +143,7 @@ Note that this method uses a different argument order convention than `interact!
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
 boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
-"""
-    BoundaryStyle(::Type{T})
 
-Can be overriden by `BoundaryProcess` types to indicate the type of boundary condition, e.g:
-
-```
-BoundaryStyle(::Type{BP}) = Dirichlet()
-```
-
-where `BP` is a `BoundaryProcess` that provides the boundary conditions.
-"""
-BoundaryStyle(::Type{BP}) where {BP<:BoundaryProcess} = error("No style specified for boundary process $BP")
-BoundaryStyle(bc::BoundaryProcess) = BoundaryStyle(typeof(bc))
 # Events
 """
     events(::Layer, ::Process)

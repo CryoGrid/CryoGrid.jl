@@ -13,7 +13,7 @@ function spinup(setup::Tile, tspan::NTuple{2,DateTime}, p, tol, layername; maxde
     out = CryoGridOutput(sol)
     H = out.vars[layername].H
     initialstate = getstate(setup, prob.u0, similar(prob.u0), prob.tspan[1])
-    grid = initialstate[layername].grids.H
+    grid = initialstate[layername].grid
     max_ind = argmin(abs.(grid*1u"m" .- maxdepth))
     dz = Δ(grid)[1:max_ind]
     H_sub = H[1:max_ind,:]
