@@ -18,7 +18,7 @@ tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 forcings = loadforcings(
     CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
     :Tair => u"°C",
-    :pressure => u"kPa",
+    :pressure => u"Pa",
     :wind => u"m/s",
     :Lin => u"W/m^2",
     :Sin => u"W/m^2",
