@@ -90,8 +90,10 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
     # type-dependent parameters
     solscheme::TSolution
     stabfun::TStabFun
+    # Default constructor with exact fields for reconstruction
     SurfaceEnergyBalance(forcings::NamedTuple, para::SEBParams, solscheme::SolutionScheme, stabfun::StabilityFunctions) =
         new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
+    # User facing constructor
     function SurfaceEnergyBalance(
         Tair::Forcing{u"°C"}, # air temperature
         pr::Forcing{u"Pa"}, # air pressure
