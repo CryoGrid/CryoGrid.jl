@@ -58,7 +58,7 @@ function Strat.Tile(integrator::SciMLBase.DEIntegrator)
     tile = Strat.Tile(integrator.sol.prob.f)
     du = get_du(integrator)
     u = integrator.u
-    return Strat.resolve(tile, Strat.withaxes(du, tile), Strat.withaxes(u, tile), integrator.p, integrator.t)
+    return Strat.resolve(tile, Strat.withaxes(u, tile), integrator.p, integrator.t)
 end
 function Strat.Tile(f::ODEFunction)
     extract_f(tile::Tile) = tile
