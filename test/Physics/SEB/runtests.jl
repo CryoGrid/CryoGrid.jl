@@ -51,9 +51,6 @@ include("../../testutils.jl")
             z,
             solscheme = SEB.Analytical(),
         )
-        # TODO: would be good to have SEB work correctly with units to verify correctness;
-        # however, at the moment it seems there are some constants that are used without units
-        # which means that it unfortunately will not work
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
         layer = Top(seb)
