@@ -1,11 +1,11 @@
 """
-    SEBInputs{TT,TR,TP,TQ,TW,TZ}
+    SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ}
 
 Non-prognostic input variables to the SEB that are assumed to be known a priori.
 """
-Base.@kwdef struct SEBInputs{TT,TR,TP,TQ,TW,TZ}
-    Ts::TT
-    Tair::TT
+Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ}
+    Ts::TT1
+    Tair::TT2
     Lin::TR
     Sin::TR
     pr::TP
@@ -48,15 +48,15 @@ end
 
 
 """
-    SEBOutputs{TQs,TQg,TQnet,TL,TU}
+    SEBOutputs{TQs,TQg,TQnet,TSout,TLout,TL,TU}
 
 Outputs of surface energy balance computation that include both the updated `state` as well as
 the net radiation `Qnet` and outgoing radiation components `Sout` and `Lout`.
 """
-Base.@kwdef struct SEBOutputs{TQs,TQg,TQnet,TL,TU}
+Base.@kwdef struct SEBOutputs{TQs,TQg,TQnet,TSout,TLout,TL,TU}
     state::SEBState{TQs,TL,TU}
     Qg::TQg
     Qnet::TQnet
-    Sout::TQnet
-    Lout::TQnet
+    Sout::TSout
+    Lout::TLout
 end

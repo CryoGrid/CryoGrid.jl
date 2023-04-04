@@ -40,7 +40,7 @@ include("../../testutils.jl")
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
     end
-    @testset "Iterative" begin
+    @testset "Analytical" begin
         seb = SurfaceEnergyBalance(
             const_Tair,
             const_pr,
@@ -73,7 +73,6 @@ include("../../testutils.jl")
         z,
         solscheme=SEB.Numerical()
     )
-
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
         layer = Top(seb)

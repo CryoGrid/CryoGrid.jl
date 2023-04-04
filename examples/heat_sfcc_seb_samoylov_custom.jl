@@ -30,12 +30,12 @@ wind = TimeSeriesForcing(forcings.data.wind, forcings.timestamps, :wind);
 Lin  = TimeSeriesForcing(forcings.data.Lin, forcings.timestamps, :Lin);
 Sin  = TimeSeriesForcing(forcings.data.Sin, forcings.timestamps, :Sin);
 z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
-tspan = (DateTime(2010,1,1), DateTime(2011,1,1))
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
+seb = SurfaceEnergyBalance(Tair, pr, q, wind, Lin, Sin, z)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -z*u"m" => Top(SurfaceEnergyBalance(Tair, pr, q,wind, Lin, Sin, z, solscheme=SEB.Iterative(), stabfun=SEB.HøgstrømSHEBA())),
+    -z*u"m" => Top(seb),
     soilprofile[1].depth => :soil1 => Soil(soilprofile[1].value, heat=HeatBalance(:H, freezecurve=DallAmico())),
     soilprofile[2].depth => :soil2 => Soil(soilprofile[2].value, heat=HeatBalance(:H, freezecurve=DallAmico())),
     soilprofile[3].depth => :soil3 => Soil(soilprofile[3].value, heat=HeatBalance(:H, freezecurve=DallAmico())),
@@ -46,14 +46,15 @@ strat = @Stratigraphy(
 grid = Grid(gridvals);
 tile = Tile(strat, grid, initT);
 # define time span
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
-# CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
-# solve with forward Euler and construct CryoGridOutput from solution
-out = @time solve(prob, Euler(), dt=120.0, saveat=24*3600.0, progress=true) |> CryoGridOutput;
+# CryoGrid front-end for ODEProblem; note that we disable CryoGrid's timestep limiter since we use an adaptive integrator
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:top => (:Qh,:Qe,:Qg,)), step_limiter=nothing)
+# solve with 3rd order Strong Stability Preserving Runge-Kutta
+sol = @time solve(prob, SSPRK43(), saveat=3*3600.0, progress=true)
+out = CryoGridOutput(sol)
 # Plot it!
-zs = [1,5,10,15,20:10:100...]
+zs = [1,5,10,15,20,25,30,40,50,]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(ustrip.(out.H[Z(zs)]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(ustrip.(out.T[Z(zs)]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+plot(ustrip.(out.H[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)

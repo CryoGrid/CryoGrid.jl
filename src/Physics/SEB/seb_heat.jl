@@ -37,6 +37,7 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance,
     @setscalar stop.Qe = seb_output.state.Qe
     @setscalar stop.Lstar = seb_output.state.Lstar
     @setscalar stop.ustar = seb_output.state.ustar
+    return getscalar(stop.Qg)
 end
 function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, ::HeatBalance, ::Soil, stop, ssoil)
     initialstate = SEBState(seb, stop, ssoil)
@@ -50,6 +51,7 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, :
     @setscalar stop.Qe = seb_output.state.Qe
     @setscalar stop.Lstar = seb_output.state.Lstar
     @setscalar stop.ustar = seb_output.state.ustar
+    return getscalar(stop.Qg)
 end
 
 function (seb::SurfaceEnergyBalance)(state::SEBState)
@@ -73,6 +75,15 @@ function (seb::SurfaceEnergyBalance)(state::SEBState)
     end
 
     # 2. calcuate turbulent heat flux budget
+    Qh, Qe, Lstar, ustar = turbulent_fluxes(seb, state)
+
+    # 3. determine ground heat flux as the residual of the radiative and turbulent fluxes
+    Qg = Qnet - Qh - Qe # essentially Eq. (1) in Westermann et al. (2016)
+    newstate = SEBState(; Qh, Qe, Lstar, ustar, inputs=state.inputs)
+    return SEBOutputs(; state=newstate, Qg, Qnet, Sout, Lout)
+end
+
+function turbulent_fluxes(seb::SurfaceEnergyBalance, state::SEBState)
     # determine atmospheric stability conditions
     Lstar = L_star(seb, state);
     ustar = u_star(seb, state);
@@ -80,11 +91,21 @@ function (seb::SurfaceEnergyBalance)(state::SEBState)
     Qh = Q_H(seb, state);
     # latent heat flux
     Qe = Q_E(seb, state);
+    return Qh, Qe, Lstar, ustar
+end
 
-    # 3. determine ground heat flux as the residual of the radiative and turbulent fluxes
-    Qg = Qnet - Qh - Qe # essentially Eq. (1) in Westermann et al. (2016)
-    newstate = SEBState(; Qh, Qe, Lstar, ustar, inputs=state.inputs)
-    return SEBOutputs(; state=newstate, Qg, Qnet, Sout, Lout)
+function turbulent_fluxes(seb::SurfaceEnergyBalance{<:Iterative}, state::SEBState)
+    # determine atmospheric stability conditions
+    Lstar = L_star(seb, state);
+    # update state for iterative scheme
+    @set! state.Lstar = Lstar
+    ustar = u_star(seb, state);
+    @set! state.ustar = ustar
+    # sensible heat flux
+    Qh = Q_H(seb, state);
+    # latent heat flux
+    Qe = Q_E(seb, state);
+    return Qh, Qe, Lstar, ustar
 end
 
 """

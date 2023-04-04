@@ -11,6 +11,7 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using NonlinearSolve
+using Setfield
 using StaticArrays: @SVector
 using Unitful
 
