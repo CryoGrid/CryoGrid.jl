@@ -29,7 +29,7 @@ strat = @Stratigraphy(
     z_sub[5] => :sediment3 => Soil(soilprofile[5].value, heat=HeatBalance()),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
-tile = Tile(strat, PresetGrid(modelgrid), initT)
+tile = Tile(strat, modelgrid, initT)
 # define time span, 2 years + 3 months
 tspan = (DateTime(2010,9,30),DateTime(2012,9,30))
 u0, du0 = initialcondition!(tile, tspan)

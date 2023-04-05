@@ -252,19 +252,7 @@ end
         end
     else
         quote
-            # Otherwise do all of this complicated bullshit...
-            zbot = tile.state.grid[end]
-            # calculate grid boundaries starting from the bottom moving up to the surface
-            zs = accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
-                name = nameof(named_layer)
-                diag_layer = getproperty(tile.state.diag, name)
-                z_state = retrieve(diag_layer.z, u)
-                Δz = getscalar(_layerthick(tile, named_layer, u))
-                @setscalar z_state = z_acc - max(Δz, zero(Δz))
-                z = getscalar(z_state)
-                # strip ForwardDiff type if necessary and round to avoid numerical issues
-                return round(Numerics.ForwardDiff.value(z), digits=12)
-            end
+            zs = computeboundaries(tile, u)
             return reverse(zs)
         end
     end
@@ -280,6 +268,20 @@ function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
         @setscalar Δz = z2 - z1
         @setscalar z = z1
         return z1
+    end
+end
+function computeboundaries(tile::Tile, u)
+    # calculate grid boundaries starting from the bottom moving up to the surface
+    zbot = tile.state.grid[end]
+    return accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
+        name = nameof(named_layer)
+        diag_layer = getproperty(tile.state.diag, name)
+        z_state = retrieve(diag_layer.z, u)
+        Δz = getscalar(_layerthick(tile, named_layer, u))
+        @setscalar z_state = z_acc - max(Δz, zero(Δz))
+        z = getscalar(z_state)
+        # strip ForwardDiff type if necessary and round to avoid numerical issues
+        return round(Numerics.ForwardDiff.value(z), digits=12)
     end
 end
 """

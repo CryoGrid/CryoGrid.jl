@@ -37,12 +37,13 @@ function CryoGrid.criterion(
     smb::SnowMassBalance,
     state,
 )
+    ρw = snow.prop.mass.ρw
     # get current snow water equivalent (from forcing or state variable)
     new_swe = getscalar(swe(snow, smb, state))
     # get current snow density
     new_ρsn = getscalar(snowdensity(snow, smb, state))
     # compute actual snow depth/height
-    new_dsn = new_swe*snow.prop.ρw/new_ρsn
+    new_dsn = new_swe*ρw/new_ρsn
     # use threshold adjusted depth as residual;
     # i.e. the event will fire when snow depth crosses this threshold.
     return new_dsn - threshold(snow)
@@ -116,9 +117,10 @@ function CryoGrid.diagnosticstep!(
     state
 ) where {TAcc,TAbl<:DegreeDayMelt,TDen<:ConstantDensity}
     smb, heat = procs
-    ρsn = snow.prop.ρsn_new
+    ρsn = snow.prop.mass.ρsn_new
+    ρw = snow.prop.mass.ρw
     Heat.resetfluxes!(snow, heat, state)
-    @setscalar state.θwi = θwi = ρsn / snow.prop.ρw
+    @setscalar state.θwi = θwi = ρsn / ρw
     @setscalar state.ρsn = ρsn
     dsn = getscalar(state.swe) / θwi
     # only update snow depth if swe greater than threshold, otherwise, set to zero.
@@ -166,7 +168,7 @@ function CryoGrid.prognosticstep!(
         state.jH[1] *= 1 - (dmelt > zero(dmelt))
     end
     ρsn = snowdensity(snow, smb, state)
-    ρw = snow.prop.ρw
+    ρw = snow.prop.mass.ρw
     # compute time derivative for moving boundary
     @. state.∂Δz∂t += state.∂swe∂t*ρw/ρsn
     return nothing
@@ -190,9 +192,10 @@ function CryoGrid.criterion(
     smb::PrescribedSnowMassBalance,
     state,
 )
+    ρw = snow.prop.mass.ρw
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
-    new_dsn = new_swe*snow.prop.ρw/new_ρsn
+    new_dsn = new_swe*ρw/new_ρsn
     return new_dsn - threshold(snow)
 end
 function CryoGrid.trigger!(
@@ -223,7 +226,7 @@ function CryoGrid.diagnosticstep!(
     state
 )
     smb, heat = procs
-    ρw = snow.prop.ρw
+    ρw = snow.prop.mass.ρw
     Heat.resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)

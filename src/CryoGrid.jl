@@ -18,6 +18,9 @@ using LinearAlgebra
 using ModelParameters
 using Reexport
 
+import Flatten
+import Interpolations
+
 # Re-exported packages
 @reexport using Dates: Dates, Date, DateTime
 @reexport using DimensionalData
@@ -28,7 +31,7 @@ using Reexport
 @reexport using Unitful
 @reexport using UnPack
 
-import Flatten
+export Interpolations
 
 # Common types and methods
 export Layer, SubSurface, Top, Bottom
