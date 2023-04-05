@@ -54,9 +54,13 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
                 end
                 # convert to named tuple
                 diagnostic_output = (;layerout...)
-                u_layer = u[layer]
-                prognostic_output = (;map(name -> name => u_layer[name], keys(u_layer))...)
-                return merge(prognostic_output, diagnostic_output)
+                if haskey(u, layer)
+                    u_layer = u[layer]
+                    prognostic_output = (;map(name -> name => u_layer[name], keys(u_layer))...)
+                    return merge(prognostic_output, diagnostic_output)
+                else
+                    return diagnostic_output
+                end
             end
             layerouts_combined = reduce(layerouts[2:end]; init=layerouts[1]) do out1, out2
                 map(vcat, out1, out2)

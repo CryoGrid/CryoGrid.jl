@@ -27,7 +27,7 @@ Base.@kwdef struct HomogeneousSoil{Tpara<:SoilParameterization,Theat<:Optional{H
     prop::Tprop = SoilProperties() # soil properties
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = nothing # water balance
-    solver::Tsolver = nothing # SFCC solver, if relevant
+    solver::Tsolver = SFCCPreSolver() # SFCC solver, if relevant
     sp::Tsp = nothing # user-defined specialization
 end
 

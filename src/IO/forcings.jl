@@ -6,7 +6,13 @@ Abstract type representing a generic external boundary condition (i.e. "forcing"
 abstract type Forcing{unit,T} end
 @inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(ustrip(u"s", float(Dates.datetime2epochms(t))u"ms"))
-CryoGrid.parameterize(f::Forcing; props...) = f
+
+struct ConstantForcing{unit,T} <: Forcing{unit,T}
+      value::T
+      ConstantForcing(qty::Unitful.AbstractQuantity) = new{unit(qty),typeof(qty)}(qty)
+      ConstantForcing(qty::Number) = new{Unitful.NoUnits,typeof(qty)}(qty)
+end
+(f::ConstantForcing)(t::Number) = f.value
 
 """
       TimeSeriesForcing{unit,T,A,I}
@@ -29,6 +35,7 @@ struct TimeSeriesForcing{unit,T,A,I} <: Forcing{unit,T}
             new{u,T,A,typeof(interpolant)}(tarray, interpolant)
       end
 end
+CryoGrid.parameterize(f::TimeSeriesForcing; props...) = f
 Flatten.flattenable(::Type{<:TimeSeriesForcing}, ::Type) = false
 
 Base.show(io::IO, forcing::TimeSeriesForcing{u}) where u = print(io, "TimeSeriesForcing $(first(colnames(forcing.tarray))) [$u] of length $(length(forcing.tarray)) with time span $(extrema(timestamp(forcing.tarray)))")

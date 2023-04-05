@@ -91,7 +91,7 @@ end
 include("ioutils.jl")
 export CryoGridParams
 include("params.jl")
-export Forcing, TimeSeriesForcing
+export Forcing, ConstantForcing, TimeSeriesForcing
 include("forcings.jl")
 export CryoGridOutput
 include("output.jl")

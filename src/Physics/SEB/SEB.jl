@@ -1,6 +1,7 @@
 module SEB
 
 import CryoGrid
+import Flatten
 
 using CryoGrid
 using CryoGrid.Heat
@@ -9,27 +10,37 @@ using CryoGrid.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using NonlinearSolve
+using Setfield
+using StaticArrays: @SVector
 using Unitful
 
 export SurfaceEnergyBalance, SEBParams
-export Businger, HøgstrømSHEBA, Iterative, Analytical, Numerical
 
 abstract type SolutionScheme end
 """
-Byun 1990
+    Analytical
+
+Analytical formulation from Byun 1990.
 """
 struct Analytical <: SolutionScheme end
 
 """
-equation by Westermann2016, but use Newton solver
-- not implemented yet
-"""
-struct Numerical <: SolutionScheme end
+    Iterative
 
-"""
-Westermann2016, use info from last time step
+Westermann 2016, use state from last time step.
 """
 struct Iterative <: SolutionScheme end
+
+"""
+    Numerical
+
+Equations from Westermann 2016, but use nonlinear solver.
+"""
+Base.@kwdef struct Numerical{TSolver} <: SolutionScheme
+    solver::TSolver = NewtonRaphson()
+end
+Flatten.flattenable(::Type{<:Numerical}, ::Type) = false
 
 abstract type StabilityFunctions end
 
@@ -53,16 +64,16 @@ Utils.@properties SEBParams(
 
     # "natural" constant
     σ = 5.6704e-8u"J/(s*m^2*K^4)",   # Stefan-Boltzmann constant
-    κ = 0.4u"1",                          # von Kármán constant [-]
-    γ = 0.622u"1",                        # Psychrometric constant [-]
-    Rₐ = 287.058u"J/(kg*K)",       # specific gas constant of air [J/(kg*K)]
-    g = 9.81u"m/s^2",                 # gravitational acceleration [m/s^2]
+    κ = 0.4u"1",                     # von Kármán constant [-]
+    γ = 0.622u"1",                   # Psychrometric constant [-]
+    Rₐ = 287.058u"J/(kg*K)",         # specific gas constant of air [J/(kg*K)]
+    g = 9.81u"m/s^2",                # gravitational acceleration [m/s^2]
 
     # material properties (assumed to be constant)
     ρₐ = 1.293u"kg/m^3",             # density of air at standard pressure and 0°C [kg/m^3]
     cₐ = 1005.7u"J/(kg*K)" * ρₐ,     # volumetric heat capacity of dry air at standard pressure and 0°C [J/(m^3*K)]
 
-    Pr₀ = 0.74,                             # turbulent Prandtl number
+    Pr₀ = 0.74,                      # turbulent Prandtl number
     βₘ = 4.7,
     βₕ = βₘ/Pr₀,
     γₘ = 15.0,
@@ -80,25 +91,29 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
     # type-dependent parameters
     solscheme::TSolution
     stabfun::TStabFun
+    # Default constructor with exact fields for reconstruction
     SurfaceEnergyBalance(forcings::NamedTuple, para::SEBParams, solscheme::SolutionScheme, stabfun::StabilityFunctions) =
         new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
+    # User facing constructor
     function SurfaceEnergyBalance(
-        Tair::Forcing{u"°C"},
-        p::Forcing{u"kPa"},
-        q::Forcing{u"kg/kg"},
-        wind::Forcing{u"m/s"},
-        Lin::Forcing{u"W/m^2"},
-        Sin::Forcing{u"W/m^2"},
-        z;
+        Tair::Forcing{u"°C"}, # air temperature
+        pr::Forcing{u"Pa"}, # air pressure
+        qh::Forcing{u"kg/kg"}, # humidity
+        wind::Forcing{u"m/s"}, # non-directional wind speed
+        Lin::Forcing{u"W/m^2"}, # long-wave incoming radiation
+        Sin::Forcing{u"W/m^2"}, # short-wave incoming radiation
+        z; # height [m] of air temperature and wind forcing
         para::SEBParams = SEBParams(),
-        solscheme::SolutionScheme = Iterative(),
+        solscheme::SolutionScheme = Numerical(),
         stabfun::StabilityFunctions = HøgstrømSHEBA(),
     )
-        forcings = (; Tair, p, q, wind, Lin, Sin, z);
+        forcings = (; Tair, pr, qh, wind, Lin, Sin, z);
         SurfaceEnergyBalance(forcings, para, solscheme, stabfun)
     end
 end
 
+include("seb_state.jl")
+include("seb_solve.jl")
 include("seb_heat.jl")
 include("seb_water.jl")
 

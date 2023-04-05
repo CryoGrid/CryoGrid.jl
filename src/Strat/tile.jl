@@ -244,25 +244,29 @@ end
         end
     end
 end
-function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
+@generated function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
     if CryoGrid.hasfixedvolume(TStrat)
         # Micro-optimization: if all layers in the stratigraphy have static volume, skip all of the fancy stuff
-        boundaries(tile.strat)
-    else
-        # Otherwise do all of this complicated bullshit...
-        zbot = tile.state.grid[end]
-        # calculate grid boundaries starting from the bottom moving up to the surface
-        zs = accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
-            name = nameof(named_layer)
-            diag_layer = getproperty(tile.state.diag, name)
-            z_state = retrieve(diag_layer.z, u)
-            Δz = getscalar(_layerthick(tile, named_layer, u))
-            @setscalar z_state = z_acc - max(Δz, zero(Δz))
-            z = getscalar(z_state)
-            # strip ForwardDiff type if necessary and round to avoid numerical issues
-            return round(Numerics.ForwardDiff.value(z), digits=12)
+        quote
+            boundaries(tile.strat)
         end
-        return reverse(zs)
+    else
+        quote
+            # Otherwise do all of this complicated bullshit...
+            zbot = tile.state.grid[end]
+            # calculate grid boundaries starting from the bottom moving up to the surface
+            zs = accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
+                name = nameof(named_layer)
+                diag_layer = getproperty(tile.state.diag, name)
+                z_state = retrieve(diag_layer.z, u)
+                Δz = getscalar(_layerthick(tile, named_layer, u))
+                @setscalar z_state = z_acc - max(Δz, zero(Δz))
+                z = getscalar(z_state)
+                # strip ForwardDiff type if necessary and round to avoid numerical issues
+                return round(Numerics.ForwardDiff.value(z), digits=12)
+            end
+            return reverse(zs)
+        end
     end
 end
 function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
@@ -366,7 +370,7 @@ function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, 
     return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt, Val{iip}())
 end
 """
-    resolve(tile::Tile, du, u, p, t)
+    resolve(tile::Tile, u, p, t)
 
 Resolves/updates the given `tile` by:
 (1) Replacing all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
@@ -375,8 +379,8 @@ Resolves/updates the given `tile` by:
 
 Returns the reconstructed `Tile` instance.
 """
-function resolve(tile::Tile{TStrat,TGrid,TStates}, du, u, p, t) where {TStrat,TGrid,TStates}
-    IgnoreTypes = Union{TGrid,TStates,StateHistory,Unitful.Quantity}
+function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
+    IgnoreTypes = Union{TGrid,TStates,StateHistory,Unitful.Quantity,Numerics.ForwardDiff.Dual}
     # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct method directly...
     # so that's what we do here. The last integer argument denotes the index of the first parameter.

@@ -46,7 +46,7 @@ struct TileState{iip,TGrid,TStates,Tt,Tdt,names}
     t::Tt
     dt::Tdt
     TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
-        {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{<:LayerState}},Tt,Tdt,names,iip} =
+        {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{LayerState}},Tt,Tdt,names,iip} =
             new{iip,TGrid,TS,Tt,Tdt,names}(grid, states, t, dt)
 end
 Base.getindex(state::TileState, sym::Symbol) = Base.getproperty(state, sym)
