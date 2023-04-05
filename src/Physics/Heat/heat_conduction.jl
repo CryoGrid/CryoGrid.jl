@@ -105,7 +105,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     # set inner boundary flux
     s1.jH[end] += Qᵢ
     # these should already be equal since jH[1] on s2 and jH[end] on s1 should point to the same array index;
-    # but we set them explicitly just to be safe.
+    # but it's nice to be explicit for clarity.
     s2.jH[1] = s1.jH[end]
     return nothing
 end

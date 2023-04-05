@@ -17,8 +17,9 @@ u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
 @info "Running model"
 # solve with adaptive strong stability preserving Runge-Kutta method and construct CryoGridOutput from solution
-out = @time solve(prob, Euler(), dt=600.0, saveat=3*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, SSPRK43(), saveat=3*3600.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [5,10,15,20,25,30,40,50,100,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+
