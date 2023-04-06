@@ -7,6 +7,7 @@ CryoGrid.variables(::Top, ::SurfaceEnergyBalance) = (
     Diagnostic(:Qg, Scalar, u"W/(m^2)"),      # ground heat flux [J/(s*m^2)]
     Diagnostic(:Lstar, Scalar, u"m"),         # Obukhov length [m]
     Diagnostic(:ustar, Scalar, u"m/s"),       # friction velocity [m/s]
+    Diagnostic(:T_ub, Scalar, u"°C"),         # air temperature
 )
 
 function CryoGrid.initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
@@ -18,6 +19,7 @@ function CryoGrid.initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
     state.Qg .= zero(state.Qg);
     state.Lstar .= -1e5*oneunit(eltype(state.Lstar));
     state.ustar .= 10.0*oneunit(eltype(state.ustar));
+    state.T_ub = seb.forcings.Tair(state.t)
 end
 
 CryoGrid.BoundaryCondition(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
@@ -37,6 +39,8 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance,
     @setscalar stop.Qe = seb_output.state.Qe
     @setscalar stop.Lstar = seb_output.state.Lstar
     @setscalar stop.ustar = seb_output.state.ustar
+    # TODO: in the future, consider near surface air convection?
+    @setscalar stop.T_ub = state.inputs.Tair
     return getscalar(stop.Qg)
 end
 function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, ::HeatBalance, ::Soil, stop, ssoil)
@@ -51,6 +55,8 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, :
     @setscalar stop.Qe = seb_output.state.Qe
     @setscalar stop.Lstar = seb_output.state.Lstar
     @setscalar stop.ustar = seb_output.state.ustar
+    # TODO: in the future, consider near surface air convection?
+    @setscalar stop.T_ub = state.inputs.Tair
     return getscalar(stop.Qg)
 end
 

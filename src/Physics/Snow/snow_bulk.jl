@@ -73,12 +73,7 @@ function CryoGrid.trigger!(
     return nothing
 end
 # heat upper boundary (for all bulk implementations)
-function CryoGrid.interact!(top::Top, bc::HeatBC, snow::BulkSnowpack, heat::HeatBalance, stop, ssnow)
-    CryoGrid.interact!(CryoGrid.BoundaryCondition(bc), top, bc, snow, heat, stop, ssnow)
-    return nothing
-end
 function CryoGrid.interact!(
-    ::CryoGrid.Dirichlet,
     top::Top,
     bc::HeatBC,
     snow::BulkSnowpack,
@@ -86,7 +81,7 @@ function CryoGrid.interact!(
     stop,
     ssnow
 )
-    @setscalar ssnow.T_ub = CryoGrid.boundaryvalue(bc, top, heat, snow, stop, ssnow)
+    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
     if getscalar(ssnow.dsn) < threshold(snow)
         @setscalar ssnow.T = getscalar(ssnow.T_ub)
     end
