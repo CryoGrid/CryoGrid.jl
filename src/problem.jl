@@ -174,46 +174,42 @@ end
 function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
     function _condition(out,u,t,integrator)
         tile = Tile(integrator)
-        for comp in tile.strat
-            let layer = comp.layer,
-                process = comp.process,
-                u = Strat.withaxes(u, tile),
+        for layer in tile.strat
+            let u = Strat.withaxes(u, tile),
                 du = Strat.withaxes(get_du(integrator), tile),
                 t = t,
                 state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-                criterion!(view(out, Numerics.bounds(state.grid)), ev, layer, process, state)
+                criterion!(view(out, Numerics.bounds(state.grid)), ev, layer.val, process, state)
             end
         end
     end
 end
 function _triggerfunc(::Val{layername}, ev::Event, trig::Union{Nothing,T}, i_layer::Int) where {layername,T<:ContinuousTrigger}
-    _invoke_trigger!(ev, ::Nothing, layer, process, state) = trigger!(ev, layer, process, state)
-    _invoke_trigger!(ev, trig::ContinuousTrigger, layer, process, state) = trigger!(ev, trig, layer, process, state)
+    _invoke_trigger!(ev, ::Nothing, layer, state) = trigger!(ev, layer, state)
+    _invoke_trigger!(ev, trig::ContinuousTrigger, layer, state) = trigger!(ev, trig, layer, state)
     function _trigger!(integrator)
         let tile=Tile(integrator),
-            comp = tile.strat[i_layer],
-            layer = comp.layer,
-            process = comp.process,
+            layer = tile.strat[i_layer],
             u = Strat.withaxes(integrator.u, tile),
             du = Strat.withaxes(get_du(integrator), tile),
             t = integrator.t,
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            _invoke_trigger!(ev, trig, layer, process, state)
+            _invoke_trigger!(ev, trig, layer.val, state)
         end
     end
 end
 function _gridtriggerfunc(::Val{layername}, ev::GridContinuousEvent, grid::Grid, ::Type{T}) where {layername,T<:ContinuousTrigger}
-    _invoke_trigger!(ev, ::Nothing, layer, process, state) = trigger!(ev, layer, process, state)
-    _invoke_trigger!(ev, trig::ContinuousTrigger, layer, process, state) = trigger!(ev, trig, layer, process, state)
+    _invoke_trigger!(ev, ::Nothing, layer, state) = trigger!(ev, layer, state)
+    _invoke_trigger!(ev, trig::ContinuousTrigger, layer, state) = trigger!(ev, trig, layer, state)
     function _trigger!(integrator, event_idx)
         tile = Tile(integrator)
-        for comp in tile.strat
+        for layer in tile.strat
             u = Strat.withaxes(integrator.u, tile)
             du = Strat.withaxes(get_du(integrator), tile)
             t = integrator.t
             state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt)
             if event_idx ∈ Numerics.bounds(state.grid)
-                _invoke_trigger!(ev, T(nothing), comp.layer, comp.process, state)
+                _invoke_trigger!(ev, T(nothing), layer.val, state)
                 break
             end
         end

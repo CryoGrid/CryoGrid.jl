@@ -39,6 +39,7 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:snowpack 
 integrator = init(prob, Euler(), dt=300.0, saveat=3*3600.0)
 # advance 24 hours
 @time step!(integrator, 24*3600.0)
+@run step!(integrator)
 
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 sol = @time solve(prob, Euler(), dt=300.0, saveat=3*3600.0, progress=true);

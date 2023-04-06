@@ -34,26 +34,18 @@ CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
 function CryoGrid.criterion(
     ::ContinuousEvent{:snow_min},
     snow::BulkSnowpack,
-    smb::SnowMassBalance,
     state,
 )
-    ρw = snow.prop.mass.ρw
-    # get current snow water equivalent (from forcing or state variable)
-    new_swe = getscalar(swe(snow, smb, state))
-    # get current snow density
-    new_ρsn = getscalar(snowdensity(snow, smb, state))
-    # compute actual snow depth/height
-    new_dsn = new_swe*ρw/new_ρsn
+    Δz = getscalar(state.Δz)
     # use threshold adjusted depth as residual;
     # i.e. the event will fire when snow depth crosses this threshold.
-    return new_dsn - threshold(snow)
+    return Δz - threshold(snow)
 end
 # triggers for minimum snow threshold event
 function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
     ::Decreasing,
     snow::BulkSnowpack,
-    ::Coupled2{<:SnowMassBalance,<:HeatBalance},
     state
 )
     # Case 1: Decreasing snow depth; set everything to zero to remove snowpack
@@ -62,18 +54,18 @@ function CryoGrid.trigger!(
     state.θwi .= 0.0
     state.swe .= 0.0
     state.dsn .= 0.0
+    state.Δz .= 0.0
     return nothing
 end
 function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
     ::Increasing,
     snow::BulkSnowpack,
-    procs::Coupled2{<:SnowMassBalance,<:HeatBalance},
     state
 )
     # Case 2: Increasing snow depth; initialize temperature and enthalpy state
     # using current upper boundary temperature.
-    _, heat = procs
+    heat = snow.heat
     θfracs = volumetricfractions(snow, state, 1)
     state.C .= C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
@@ -120,11 +112,9 @@ function CryoGrid.diagnosticstep!(
     ρsn = snow.prop.mass.ρsn_new
     ρw = snow.prop.mass.ρw
     Heat.resetfluxes!(snow, heat, state)
-    @setscalar state.θwi = θwi = ρsn / ρw
-    @setscalar state.ρsn = ρsn
-    dsn = getscalar(state.swe) / θwi
-    # only update snow depth if swe greater than threshold, otherwise, set to zero.
-    @setscalar state.dsn = IfElse.ifelse(getscalar(state.swe) >= threshold(snow)*θwi, dsn, zero(dsn))
+    state.θwi .= ρsn / ρw
+    state.ρsn .= ρsn
+    @setscalar state.dsn = getscalar(state.Δz)
     # evaluate freezing/thawing processes for snow layer
     Heat.freezethaw!(snow, heat, state)
     # compute thermal conductivity
@@ -155,13 +145,12 @@ function CryoGrid.prognosticstep!(
     if getscalar(state.dsn) < threshold(snow)
         # set energy flux to zero if there is no snow
         @. state.∂H∂t = zero(eltype(state.H))
-    end
-    if getscalar(state.swe) > 0.0 && getscalar(state.T_ub) > 0.0
+    else
         ddf = ablation(smb).factor # [m/K/s]
         T_ub = getscalar(state.T_ub) # upper boundary temperature
         Tref = 0.0*unit(T_ub) # just in case T_ub has units
         # calculate the melt rate per second via the degree day model
-        dmelt = max(ddf*(T_ub-Tref), zero(eltype(state.∂swe∂t))) # [m/s]
+        dmelt = max(ddf*max(T_ub-Tref, zero(T_ub)), zero(eltype(state.∂swe∂t))) # [m/s]
         @. state.∂swe∂t += -dmelt
         # set upper heat flux to zero if dmelt > 0;
         # this is due to the energy being (theoretically) "consumed" to melt the snow
@@ -248,10 +237,10 @@ function CryoGrid.diagnosticstep!(
         @setscalar state.swe = 0.0
         @setscalar state.ρsn = 0.0
         @setscalar state.dsn = 0.0
-        @setscalar state.θwi = 0.0
-        @setscalar state.θw = 0.0
-        @setscalar state.C = ch_a
-        @setscalar state.kc = kh_a
+        state.θwi .= 0.0
+        state.θw .= 0.0
+        state.C .= ch_a
+        state.kc .= kh_a
     end
 end
 # prognosticstep! for free water, enthalpy based HeatBalance on snow layer
