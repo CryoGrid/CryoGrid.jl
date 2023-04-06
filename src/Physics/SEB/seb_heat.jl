@@ -19,7 +19,7 @@ function CryoGrid.initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
     state.Qg .= zero(state.Qg);
     state.Lstar .= -1e5*oneunit(eltype(state.Lstar));
     state.ustar .= 10.0*oneunit(eltype(state.ustar));
-    state.T_ub = seb.forcings.Tair(state.t)
+    state.T_ub .= seb.forcings.Tair(state.t)
 end
 
 CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
