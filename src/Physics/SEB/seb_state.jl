@@ -13,8 +13,8 @@ Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ}
     wind::TW
     z::TZ
 end
-function SEBInputs(seb::SurfaceEnergyBalance, stop, ssoil)
-    Ts = ssoil.T[1] # soil temperature at surface
+function SEBInputs(seb::SurfaceEnergyBalance, stop, ssub)
+    Ts = ssub.T[1] # soil temperature at surface
     Tair = seb.forcings.Tair(stop.t)
     Lin = seb.forcings.Lin(stop.t)
     Sin = seb.forcings.Sin(stop.t)
@@ -37,12 +37,12 @@ Base.@kwdef struct SEBState{TQ,TL,TU,TIn}
     ustar::TU
     inputs::TIn
 end
-function SEBState(seb::SurfaceEnergyBalance, stop, ssoil)
+function SEBState(seb::SurfaceEnergyBalance, stop, ssub)
     Qh = getscalar(stop.Qh)
     Qe = getscalar(stop.Qe)
     Lstar = getscalar(stop.Lstar)
     ustar = getscalar(stop.ustar)
-    inputs = SEBInputs(seb, stop, ssoil)
+    inputs = SEBInputs(seb, stop, ssub)
     return SEBState(; Qh, Qe, Lstar, ustar, inputs)
 end
 
