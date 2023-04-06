@@ -73,7 +73,7 @@ function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatBal
     jH_top = boundaryflux(bc, top, heat, sub, stop, ssub)
     k = ssub.k[1]
     ssub.DT_bp[1] += jH_top / Δk
-    ssub.DT_ap[1] += _ap(CryoGrid.BoundaryCondition(bc), k, Δk)
+    ssub.DT_ap[1] += _ap(CryoGrid.BCKind(bc), k, Δk)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, heat::HeatBalanceImplicit, bot::Bottom, bc::HeatBC, ssub, sbot)
@@ -81,7 +81,7 @@ function CryoGrid.interact!(sub::SubSurface, heat::HeatBalanceImplicit, bot::Bot
     jH_bot = boundaryflux(bc, bot, heat, sub, sbot, ssub)
     k = ssub.k[1]
     ssub.DT_bp[end] += jH_bot / Δk
-    ssub.DT_ap[end] += _ap(CryoGrid.BoundaryCondition(bc), k, Δk)
+    ssub.DT_ap[end] += _ap(CryoGrid.BCKind(bc), k, Δk)
     return nothing
 end
 function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSurface, ::HeatBalanceImplicit, s1, s2)

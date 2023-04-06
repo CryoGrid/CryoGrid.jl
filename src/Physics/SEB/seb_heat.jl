@@ -22,7 +22,7 @@ function CryoGrid.initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
     state.T_ub = seb.forcings.Tair(state.t)
 end
 
-CryoGrid.BoundaryCondition(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
+CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
 
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
