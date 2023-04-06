@@ -119,7 +119,10 @@ function CryoGrid.diagnosticstep!(
     Heat.freezethaw!(snow, heat, state)
     # compute thermal conductivity
     Heat.thermalconductivity!(snow, heat, state)
-    @. state.k = state.kc
+    if length(state.kc) > 0
+        k = state.kc[1]
+        state.k .= k
+    end
     return nothing
 end
 # snowfall upper boundary
