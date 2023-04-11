@@ -1,4 +1,3 @@
-default_sfccsolver(::Coupled(WaterBalance,HeatBalance)) = SFCCPreSolver(Solvers.SFCCPreSolverCacheND())
 # Initialization
 function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps

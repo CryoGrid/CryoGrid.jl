@@ -50,8 +50,6 @@ function partial_heatcapacity(soil::Soil{<:HomogeneousMixture}, heat::HeatBalanc
     end
 end
 
-default_sfccsolver(::HeatBalance) = SFCCPreSolver(Solvers.SFCCPreSolverCache1D())
-
 """
     sfcckwargs(f::SFCC, soil::Soil, heat::HeatBalance, state, i)
 
