@@ -343,7 +343,7 @@ end
 Integrated stability function for heat/water transport
     Businger 1971
 """
-function Ψ_HW(seb::SurfaceEnergyBalance{T,Businger},ζ₁::Float64, ζ₂::Float64) where T
+function Ψ_HW(seb::SurfaceEnergyBalance{T,Businger}, ζ₁::Float64, ζ₂::Float64) where T
     let γₕ = seb.para.γₕ,
         βₕ = seb.para.βₕ;
         if ζ₁ <= 0 # neutral and unstable conditions (according to Businger, 1971)
@@ -358,7 +358,7 @@ end
 Integrated stability function for momentum transport
     Busigner 1971
 """
-function Ψ_M(seb::SurfaceEnergyBalance{T,Businger},ζ₁::Float64, ζ₂::Float64) where T
+function Ψ_M(seb::SurfaceEnergyBalance{T,Businger}, ζ₁::Float64, ζ₂::Float64) where T
     let γₘ = seb.para.γₘ,
         βₘ = seb.para.βₘ;
         if ζ₁ <= 0 # neutral and unstable conditions (according to Businger, 1971)

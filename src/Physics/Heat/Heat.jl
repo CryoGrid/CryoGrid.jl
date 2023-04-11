@@ -11,6 +11,7 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds
 using FreezeCurves
+using FreezeCurves.Solvers
 
 export FreeWater, FreezeCurve
 

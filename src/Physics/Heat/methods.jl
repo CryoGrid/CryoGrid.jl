@@ -55,3 +55,25 @@ latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the cons
 Convenience constructor for `Numerics.Profile` which automatically converts temperature quantities.
 """
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
+
+"""
+    thermalconductivity(op::HeatOperator)
+
+Retreives the thermal conductivity function for this heat operator.
+"""
+thermalconductivity(op::HeatOperator) = op.cond
+
+"""
+    heatcapacity(op::HeatOperator)
+
+Retreives the volumetric heat capacity function for this heat operator.
+"""
+heatcapacity(op::HeatOperator) = op.hc
+
+"""
+    fcsolver(op::HeatOperator)
+
+Retreives the nonlinear solver for the enthalpy/temperature constitutive relation, if defined.
+"""
+fcsolver(::HeatOperator) = nothing
+fcsolver(op::Enthalpy) = op.fcsolver

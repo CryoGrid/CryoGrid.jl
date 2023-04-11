@@ -18,16 +18,15 @@ Base.@kwdef struct SoilProperties{Thp,Twp}
 end
 
 """
-    HomogeneousSoil{Tpara<:SoilParameterization,Tprop,Tsp,TP} <: SubSurface{TP}
+    HomogeneousSoil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsp,Tprop} <: Soil{Tpara,Theat,Twater}
 
 Generic, homogeneous Soil layer, i.e. material is assumed to be uniformly mixed.
 """
-Base.@kwdef struct HomogeneousSoil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsp,Tprop,Tsolver} <: Soil{Tpara,Theat,Twater}
+Base.@kwdef struct HomogeneousSoil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsp,Tprop} <: Soil{Tpara,Theat,Twater}
     para::Tpara = HomogeneousMixture() # soil parameterization
     prop::Tprop = SoilProperties() # soil properties
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = nothing # water balance
-    solver::Tsolver = SFCCPreSolver() # SFCC solver, if relevant
     sp::Tsp = nothing # user-defined specialization
 end
 
@@ -77,13 +76,6 @@ implementation calls `soil.prop`. Note that this behavior can be overridden
 as needed.
 """
 soilproperties(soil::Soil) = soil.prop
-
-"""
-    sfccsolver(::Soil)
-
-Retrieve the SFCC solver for the given `Soil` layer, if defined.
-"""
-sfccsolver(soil::Soil) = soil.solver
 
 # Constructors
 
