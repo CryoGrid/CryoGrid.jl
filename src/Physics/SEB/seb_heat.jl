@@ -56,7 +56,7 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, :
     @setscalar stop.Lstar = seb_output.state.Lstar
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
-    @setscalar stop.T_ub = state.inputs.Tair
+    @setscalar stop.T_ub = initialstate.inputs.Tair
     return getscalar(stop.Qg)
 end
 
