@@ -1,48 +1,81 @@
 """
     HeatOperator{progvar}
 
-Base type for different numerical formulations of heat conduction.
+Base type for different numerical formulations of heat transfer.
 """
 abstract type HeatOperator{progvar} end
 """
-Type alias for `HeatOperator{:H}`, i.e. enthalpy-based heat conduction operators.
+Type alias for `HeatOperator{:H}`, i.e. enthalpy-based heat transfer operators.
 """
 const Enthalpy = HeatOperator{:H}
 """
-Type alias for `HeatOperator{:T}`, i.e. temperature-based heat conduction operators.
+Type alias for `HeatOperator{:T}`, i.e. temperature-based heat transfer operators.
 """
 const Temperature = HeatOperator{:T}
 
-thermalconductivity(op::HeatOperator) = op.cond
-heatcapacity(op::HeatOperator) = op.hc
+# default step limiters
+default_dtlim(::Temperature) = CryoGrid.CFL(maxdelta=CryoGrid.MaxDelta(Inf))
+default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(1u"MJ")
+default_dtlim(::HeatOperator) = nothing
+
+# default freezecurve solvers
+default_fcsolver(::FreeWater) = nothing
+default_fcsolver(::SFCC) = SFCCPreSolver()
 
 # Heat Balance type
 """
     HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
 
 Represents subsurface heat transfer processes. The formulation of heat transfer is governed by
-the `HeatOperator`, `op` and 
+the `HeatOperator`, `op`. 
 """
-struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
-    op::THeatOp
-    prop::Tprop
-    freezecurve::Tfc
-    dtlim::Tdt  # timestep limiter
+Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
+    freezecurve::Tfc = FreeWater()
+    op::THeatOp = InverseEnthalpy(default_fcsolver(freezecurve))
+    prop::Tprop = HeatBalanceProperties()
+    dtlim::Tdt = default_dtlim(op)  # timestep limiter
+    function HeatBalance(freezecurve, op, prop, dtlim)
+        # check that heat configuration is valid
+        _validate_heat_config(freezecurve, op)
+        return new{typeof(freezecurve), typeof(op), typeof(dtlim), typeof(prop)}(freezecurve, op, prop, dtlim)
+    end
 end
+# convenience constructors for HeatBalance
+HeatBalance(var::Symbol; kwargs...) = HeatBalance(Val{var}(); kwargs...)
+HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater, fcsolver=default_fcsolver(freezecurve), kwargs...) = HeatBalance(; op=InverseEnthalpy(fcsolver), freezecurve, kwargs...)
+HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=ForwardTemperature(), freezecurve, kwargs...)
+HeatBalance(op::HeatOperator; kwargs...) = HeatBalance(; op, kwargs...)
+# validation of HeatBalance freezecurve/operator configuration
+_validate_heat_config(::FreezeCurve, ::HeatOperator) = nothing # do nothing when valid
+_validate_heat_config(::FreeWater, ::Temperature) = error("Invalid heat balance configuration; temperature formulations of the heat operator are not compatible with the free water freeze curve.")
 # Heat operators
 """
-    Diffusion{progvar,Tcond,Thc} <: HeatOperator
+    ForwardTemperature{Tcond,Thc} <: HeatOperator{:T}
 
-Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with prognostic
-`progvar`, typically either temperature `:T` or enthalpy (internal energy) `:H`.
+Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with
+temperature `T` as the prognostic variable. The time derivative is scaled by the reciprocal of
+the apparent heat capacity `dH/dT` to account for latent heat effects due to phase change.
 """
-struct Diffusion{progvar,Tcond,Thc} <: HeatOperator{progvar}
+struct ForwardTemperature{Tcond,Thc} <: HeatOperator{:T}
     cond::Tcond
     hc::Thc
-    Diffusion(progvar::Symbol, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{progvar,typeof(cond),typeof(hc)}(cond, hc)
+    ForwardTemperature(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
 end
-# define constructor to allow for automatic reconstruction
-ConstructionBase.constructorof(::Type{<:Diffusion{progvar}}) where {progvar} = (cond,hc) -> Diffusion(progvar, cond, hc)
+"""
+    InverseEnthalpy{Tsolver,Tcond,Thc} <: HeatOperator{:H}
+
+Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with
+enthalpy `H` as the prognostic variable and a nonlinear solver for resolving the inverse
+enthalpy -> temperature mapping when applicable. This formulation should generally be preferred
+over `ForwardTemperature` since it is energy-conserving and embeds the latent heat storage directly
+in the prognostic state.
+"""
+struct InverseEnthalpy{Tsolver,Tcond,Thc} <: HeatOperator{:H}
+    fcsolver::Tsolver
+    cond::Tcond
+    hc::Thc
+    InverseEnthalpy(fcsolver=nothing, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
+end
 """
     EnthalpyImplicit <: HeatOperator{:H}
 
@@ -51,10 +84,11 @@ heat operator formulation does not compute a divergence `∂H∂t` but only comp
 coefficients for use by an appropriate solver. See the `Solvers.LiteImplicit` module for the appropriate
 solver algorithms.
 """
-struct EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
+struct EnthalpyImplicit{Tsolver,Tcond,Thc} <: HeatOperator{:H}
+    fcsolver::Tsolver
     cond::Tcond
     hc::Thc
-    EnthalpyImplicit(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
+    InverseEnthalpy(fcsolver, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
 end
 
 """
@@ -90,15 +124,3 @@ function CryoGrid.parameterize(props::ThermalProperties)
     @set! props.ch_a = CryoGrid.parameterize(props.ch_a)
     return props
 end
-
-# default step limiters
-default_dtlim(::Temperature) = CryoGrid.CFL(maxdelta=CryoGrid.MaxDelta(Inf))
-default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(1u"MJ")
-default_dtlim(::HeatOperator) = nothing
-
-# convenience constructors for specifying prognostic variable as symbol
-HeatBalance(var::Symbol=:H; kwargs...) = HeatBalance(Val{var}(); kwargs...)
-HeatBalance(::Val{:H}; kwargs...) = HeatBalance(Diffusion(:H); kwargs...)
-HeatBalance(::Val{:T}; kwargs...) = HeatBalance(Diffusion(:T); kwargs...)
-HeatBalance(op; freezecurve=FreeWater(), prop=HeatBalanceProperties(), dtlim=default_dtlim(op)) = HeatBalance(op, prop, deepcopy(freezecurve), dtlim)
-HeatBalance(op::Temperature; freezecurve, prop=HeatBalanceProperties(), dtlim=default_dtlim(op)) = HeatBalance(op, prop, deepcopy(freezecurve), dtlim)

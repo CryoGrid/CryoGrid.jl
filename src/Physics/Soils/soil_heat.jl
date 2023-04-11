@@ -69,7 +69,7 @@ Initial condition for heat conduction (all state configurations) on soil layer w
 function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
     L = heat.prop.L
     fc = heat.freezecurve
-    solver = sfccsolver(soil)
+    solver = Heat.fcsolver(soil)
     hc = partial_heatcapacity(soil, heat)
     @unpack ch_w, ch_i = thermalproperties(soil)
     sat = saturation(soil, state)
@@ -128,7 +128,7 @@ end
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
     sfcc = heat.freezecurve
-    solver = sfccsolver(soil)
+    solver = Heat.fcsolver(soil)
     hc = partial_heatcapacity(soil, heat)
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
@@ -154,7 +154,7 @@ end
 
 function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state, i)
     sfcc = heat.freezecurve
-    solver = sfccsolver(soil)
+    solver = Heat.fcsolver(soil)
     hc = partial_heatcapacity(soil, heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
