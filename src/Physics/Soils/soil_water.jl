@@ -14,7 +14,7 @@ Hydrology.default_dtlim(::RichardsEq{Pressure}) = CryoGrid.MaxDelta(0.01u"m")
 Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.01)
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 # water content for soils without water balance
-Hydrology.watercontent(soil::Soil{<:HomogeneousMixture}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.watercontent(soil::Soil{<:CharacteristicFractions}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
 """
     impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi)
 

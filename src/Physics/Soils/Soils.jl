@@ -33,7 +33,7 @@ export Soil, HomogeneousSoil, SoilParameterization, SoilProfile, SoilProperties
 export soilproperties, porosity, mineral, organic
 include("soil.jl")
 
-export HomogeneousMixture, MineralSediment, soilcomponent
+export CharacteristicFractions, MineralSediment, soilcomponent
 include("soil_para.jl")
 
 export RichardsEq

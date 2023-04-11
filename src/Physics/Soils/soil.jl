@@ -23,7 +23,7 @@ end
 Generic, homogeneous Soil layer, i.e. material is assumed to be uniformly mixed.
 """
 Base.@kwdef struct HomogeneousSoil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsp,Tprop} <: Soil{Tpara,Theat,Twater}
-    para::Tpara = HomogeneousMixture() # soil parameterization
+    para::Tpara = CharacteristicFractions() # soil parameterization
     prop::Tprop = SoilProperties() # soil properties
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = nothing # water balance

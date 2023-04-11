@@ -35,11 +35,11 @@ heatop = Heat.InverseEnthalpy(SFCCPreSolver())
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => :topsoil1 => Soil(HomogeneousMixture(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    0.1u"m" => :topsoil2 => Soil(HomogeneousMixture(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    0.4u"m" => :sediment1 => Soil(HomogeneousMixture(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    3.0u"m" => :sediment2 => Soil(HomogeneousMixture(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    10.0u"m" => :sediment3 => Soil(HomogeneousMixture(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
+    0.0u"m" => :topsoil1 => Soil(CharacteristicFractions(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
+    0.1u"m" => :topsoil2 => Soil(CharacteristicFractions(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
+    0.4u"m" => :sediment1 => Soil(CharacteristicFractions(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
+    3.0u"m" => :sediment2 => Soil(CharacteristicFractions(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
+    10.0u"m" => :sediment3 => Soil(CharacteristicFractions(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm

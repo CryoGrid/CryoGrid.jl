@@ -40,7 +40,7 @@ end
     end
 end
 
-function partial_heatcapacity(soil::Soil{<:HomogeneousMixture}, heat::HeatBalance)
+function partial_heatcapacity(soil::Soil{<:CharacteristicFractions}, heat::HeatBalance)
     function heatcap(θw, θwi, θsat)
         θi = θwi - θw
         θa = θsat - θwi
