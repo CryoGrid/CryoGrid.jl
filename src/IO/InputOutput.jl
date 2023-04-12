@@ -21,8 +21,6 @@ using Unitful
 
 import DimensionalData
 
-export ForcingJSON, ParamJSON, ParamYAML
-
 const INPUT_DIR = "input/"
 const DEFAULT_FORCINGS_DIR = joinpath(INPUT_DIR, "forcings")
 const DEFAULT_PARA_DIR = joinpath(INPUT_DIR, "para")
@@ -57,8 +55,10 @@ end
 include("ioutils.jl")
 export CryoGridParams
 include("params/params.jl")
+export ParamsJSON, ParamsYAML
 include("params/params_loaders.jl")
-export Forcings, Forcing, ConstantForcing, InterpolatedForcing
+export Forcings, Forcing, ForcingJSON, ForcingNCD, ConstantForcing, InterpolatedForcing
+export TemperatureForcing, WindForcing, HumidityForcing, EnergyFluxForcing, PressureForcing, VelocityForcing # aliases
 include("forcings/forcings.jl")
 export loadforcings
 include("forcings/forcings_loaders.jl")

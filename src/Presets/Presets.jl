@@ -37,7 +37,7 @@ Forcings = (
 )
 Parameters = (
     # Faroux et al. doi:10.1109/IGARSS.2007.4422971
-    EcoCLimMap_ULC_126_72 = Resource("EcoCLimMap_ULC_126_72", ParamJSON{1}, "https://nextcloud.awi.de/s/nWiJr5pBoqFtw7p/download")
+    EcoCLimMap_ULC_126_72 = Resource("EcoCLimMap_ULC_126_72", ParamsJSON{1}(), "https://nextcloud.awi.de/s/nWiJr5pBoqFtw7p/download")
 )
 
 const SamoylovDefault = (

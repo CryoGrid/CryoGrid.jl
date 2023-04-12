@@ -10,6 +10,13 @@ Flatten.flattenable(::Type{<:Forcing}, ::Type) = false
 @inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
 
+# Aliases for forcing types
+const TemperatureForcing = Forcing{u"°C",T} where {T}
+const VelocityForcing = Forcing{u"m/s",T} where {T}
+const HumidityForcing = Forcing{u"kg/kg",T} where {T}
+const PressureForcing = Forcing{upreferred(u"Pa"),T} where {T}
+const EnergyFluxForcing = Forcing{upreferred(u"W/m^2"),T} where {T}
+
 struct ConstantForcing{unit,T} <: Forcing{unit,T}
       value::T
       name::Symbol
