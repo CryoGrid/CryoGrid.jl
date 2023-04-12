@@ -4,17 +4,10 @@ using FreezeCurves.Solvers
 using Dates
 using Plots
 
-forcings = loadforcings(
-    CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
-    :Tair => u"°C",
-    :rainfall => u"mm",
-);
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-pr = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.rainfall./3u"hr"), forcings.timestamps, :rainfall)
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 # define time span for simulation
 tspan = (DateTime(2011,1,1),DateTime(2012,1,1))
-T0 = values(tair[tspan[1]])[1]
+T0 = values(forcings.Tair(tspan[1]))[1]
 tempprofile = TemperatureProfile(
     0.0u"m" => T0,
     1.0u"m" => -8.0u"°C",
@@ -34,7 +27,7 @@ waterflow = RichardsEq(swrc=swrc)
 heatop = Heat.InverseEnthalpy(SFCCPreSolver())
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0u"m" => Top(upperbc),
+    -2.0u"m" => Top(TemperatureGradient(forcings.Tair), Rainfall(forcings.rainfall)),
     0.0u"m" => :topsoil1 => Soil(HomogeneousMixture(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
     0.1u"m" => :topsoil2 => Soil(HomogeneousMixture(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
     0.4u"m" => :sediment1 => Soil(HomogeneousMixture(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),

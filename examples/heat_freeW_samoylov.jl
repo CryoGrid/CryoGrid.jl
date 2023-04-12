@@ -1,9 +1,7 @@
 using CryoGrid
 using Plots
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
@@ -11,7 +9,7 @@ grid = CryoGrid.Presets.DefaultGrid_5cm
 initT = initializer(:T, tempprofile)
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
-    TemperatureGradient(tair),
+    TemperatureGradient(forcings.Tair),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
     initT;

@@ -30,10 +30,11 @@ struct InterpolatedForcing{unit,T,TI<:Interpolations.AbstractInterpolation{T}} <
 end
 function InterpolatedForcing(timestamps::AbstractArray{DateTime,1}, values::A, name::Symbol; interpolation_mode=Linear()) where {T,A<:AbstractArray{T,1}}
       ts = convert_t.(timestamps)
-      interp = interpolate((ts,), ustrip.(values), Gridded(interpolation_mode))
-      return InterpolatedForcing(unit(eltype(values)), interp, name)
+      values_converted = Utils.normalize_units.(values)
+      interp = interpolate((ts,), ustrip.(values_converted), Gridded(interpolation_mode))
+      return InterpolatedForcing(unit(eltype(values_converted)), interp, name)
 end
-ConstructionBase.constructorof(::Type{<:InterpolatedForcing{unit}}) where {unit} = (name, interp) -> InterpolatedForcing(unit, interp, name)
+ConstructionBase.constructorof(::Type{<:InterpolatedForcing{unit}}) where {unit} = (interp, name) -> InterpolatedForcing(unit, interp, name)
 Base.getindex(f::InterpolatedForcing, i::Integer) = f.interpolant.coefs[i]
 Base.getindex(f::InterpolatedForcing, t) = f(t)
 Base.length(f::InterpolatedForcing) = length(f.interpolant)

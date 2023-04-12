@@ -1,15 +1,13 @@
 using CryoGrid
 using Plots
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 # "simple" heat conduction model w/ 5 cm grid spacing
 grid = CryoGrid.Presets.DefaultGrid_5cm
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 sfcc = PainterKarra(swrc=VanGenuchten(α=0.1, n=2.0))
-tile = CryoGrid.Presets.SoilHeatTile(:H, TemperatureGradient(tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT; grid=grid, freezecurve=sfcc)
+tile = CryoGrid.Presets.SoilHeatTile(:H, TemperatureGradient(forcings.Tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT; grid=grid, freezecurve=sfcc)
 # define time span
 tspan = (DateTime(2010,11,30),DateTime(2011,11,30))
 u0, du0 = initialcondition!(tile, tspan)
