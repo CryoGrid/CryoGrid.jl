@@ -57,10 +57,10 @@ struct HøgstrømSHEBA <: StabilityFunctions end
 
 Utils.@properties SEBParams(
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables or parameters
-    α = 0.2,             # surface albedo [-]
-    ϵ = 0.97,            # surface emissivity [-]
-    z₀ = 1e-3u"m",       # surface roughness length [m]
-    rₛ = 50.0u"s/m",     # surface resistance against evapotranspiration and sublimation [s/m]
+    α = 0.2,             # initial surface albedo [-]
+    ϵ = 0.97,            # initial surface emissivity [-]
+    z₀ = 1e-3u"m",       # initial surface roughness length [m]
+    rₛ = 50.0u"s/m",     # initial surface resistance against evapotranspiration and sublimation [s/m]
 
     # "natural" constant
     σ = 5.6704e-8u"J/(s*m^2*K^4)",   # Stefan-Boltzmann constant

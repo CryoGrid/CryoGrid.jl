@@ -68,6 +68,11 @@ end
 CryoGrid.parameterize(flow::BucketScheme) = BucketScheme(
     fieldcap = CryoGrid.parameterize(flow.fieldcap, domain=0..1, desc="Minimum saturation level, a.k.a 'field capacity'."),
 )
+# default dt limiters
 default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)
-WaterBalance(flow::WaterFlow = BucketScheme(), et=nothing; prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
+# default ET scheme
+default_ET(::BucketScheme) = DampedET()
+default_ET(::WaterFlow) = nothing
+
+WaterBalance(flow::WaterFlow = BucketScheme(), et=default_ET(flow); prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)

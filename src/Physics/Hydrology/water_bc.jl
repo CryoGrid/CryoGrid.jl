@@ -16,7 +16,7 @@ struct Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
     rain::Train
 end
 CryoGrid.BCKind(::Type{<:Rainfall}) = Neumann()
-function CryoGrid.boundaryvalue(bc::Rainfall, ::Top, ::WaterBalance, ::SubSurface, stop, ssub)
+function CryoGrid.boundaryvalue(bc::Rainfall, ::Top, ::WaterBalance, sub::SubSurface, stop, ssub)
     rainfall_rate = bc.rain(stop.t)
     # take the minimum of the current rainfall rate and the hydraulic conductivity at the top of the upper grid cell;
     # note that this assumes rainfall to be in m/s
@@ -45,7 +45,7 @@ end
     end
 end
 function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
-    ssub.jw[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop,ssub)
+    ssub.jw[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop, ssub)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)

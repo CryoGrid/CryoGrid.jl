@@ -25,7 +25,7 @@ export thermalconductivity, thermalconductivity!
 include("thermcond.jl")
 
 export heatcapacity, heatcapacity!
-include("heatcap.jl")
+include("heatcapacity.jl")
 
 export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, NFactor
 include("heat_bc.jl")
