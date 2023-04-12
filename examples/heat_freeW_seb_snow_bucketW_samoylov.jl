@@ -41,7 +41,7 @@ subsurface_layers = map(enumerate(soilprofile)) do (i, soil_i)
 end
 # build stratigraphy
 strat = @Stratigraphy(
-    -z*u"m" => Top(seb, Rainfall(rainfall), Snowfall(snowfall)),
+    -z*u"m" => Top(seb, Rainfall(forcings.rainfall), Snowfall(forcings.snowfall)),
     0.0u"m" => :snowpack => Snowpack(heat=HeatBalance()),
     subsurface_layers...,
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
