@@ -1,12 +1,12 @@
 using CryoGrid
-using TimeSeries, Dates
+using Dates
 using Test, BenchmarkTools
 
-@testset "TimeSeriesForcing" begin
+@testset "InterpolatedForcing" begin
     ts = DateTime(2020,1,1):Day(1):DateTime(2020,3,1)
     ys = randn(length(ts))
-    forcing = CryoGrid.TimeSeriesForcing(ys, ts, :test)
-    @test all(timestamp(forcing.tarray) .== ts)
+    forcing = CryoGrid.InterpolatedForcing(ts, ys, :test)
+    @test all(forcing.interpolant.knots[1] .≈ convert_t.(ts))
     @test forcing(Dates.datetime2epochms(ts[1])/1000.0) ≈ ys[1]
     @test forcing(Dates.datetime2epochms(ts[end])/1000.0) ≈ ys[end]
     @test_throws BoundsError forcing(-1.0)
