@@ -49,7 +49,7 @@ tile = Tile(strat, grid, initT);
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem; note that we disable CryoGrid's timestep limiter since we use an adaptive integrator
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:top => (:Qh,:Qe,:Qg,)), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:C,:∂H∂T,:top => (:Qh,:Qe,:Qg,)), step_limiter=nothing, saveat=3*3600.0)
 # solve with 3rd order Strong Stability Preserving Runge-Kutta
 sol = @time solve(prob, SSPRK43(), saveat=3*3600.0, progress=true)
 out = CryoGridOutput(sol)
