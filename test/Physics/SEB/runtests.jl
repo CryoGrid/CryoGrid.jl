@@ -8,12 +8,12 @@ using Test
 include("../../testutils.jl")
 
 @testset "Surface Energy Balance" begin
-    const_Tair = ConstantForcing(0.0u"°C")
-    const_pr = ConstantForcing(uconvert(u"Pa", 1.0u"atm"))
-    const_qh = ConstantForcing(0.001u"kg/kg")
-    const_wind = ConstantForcing(1.0u"m/s")
-    const_Lin = ConstantForcing(300.0u"W/m^2")
-    const_Sin = ConstantForcing(200.0u"W/m^2")
+    const_Tair = ConstantForcing(0.0u"°C", :Tair)
+    const_pr = ConstantForcing(uconvert(u"Pa", 1.0u"atm"), :pr)
+    const_qh = ConstantForcing(0.001u"kg/kg", :qh)
+    const_wind = ConstantForcing(1.0u"m/s", :wind)
+    const_Lin = ConstantForcing(300.0u"W/m^2", :Lin)
+    const_Sin = ConstantForcing(200.0u"W/m^2", :Sin)
     z = 2.0u"m"
     @testset "Iterative" begin
         seb = SurfaceEnergyBalance(
