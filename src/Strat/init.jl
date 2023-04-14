@@ -1,5 +1,5 @@
 abstract type VarInitializer{varname} end
-Numerics.varname(::VarInitializer{varname}) where {varname} = varname
+CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname
 ConstructionBase.constructorof(::Type{T}) where {varname,T<:VarInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
 # default behavior is to not automatically parameterize initializers
 CryoGrid.parameterize(init::VarInitializer) = init

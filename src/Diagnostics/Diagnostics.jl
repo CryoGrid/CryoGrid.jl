@@ -1,5 +1,6 @@
 module Diagnostics
 
+using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Strat
 using CryoGrid.Utils

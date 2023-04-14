@@ -39,6 +39,10 @@ export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
 include("types.jl")
+export Prognostic, Algebraic, Diagnostic, Var
+export VarDim, OnGrid, Shape, Scalar, GridOffset, Edges, Cells
+export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
+include("variables.jl")
 export BCKind, hasfixedvolume
 include("traits.jl")
 export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep

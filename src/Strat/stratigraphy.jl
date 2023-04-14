@@ -236,7 +236,7 @@ function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))
     prog_alg = prog_vars ∪ alg_vars
     diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
     # check for conflicting definitions of differential vars
-    diff_varnames = map(v -> varname(Delta(v)), prog_alg)
+    diff_varnames = map(v -> varname(DVar(v)), prog_alg)
     @assert all((isempty(filter(v -> varname(v) == d, all_vars)) for d in diff_varnames)) "Variable names $(Tuple(diff_varnames)) are reserved for differentials."
     # prognostic takes precedence, so we remove duplicated variables from the diagnostic variable set
     diag_vars = filter(v -> v ∉ diag_prog, diag_vars)
