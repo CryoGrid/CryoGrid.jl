@@ -17,7 +17,6 @@ using UnPack
 using StaticArrays
 using StructTypes
 
-import Base.==
 import ConstructionBase
 import ForwardDiff
 import ModelParameters
