@@ -82,8 +82,10 @@ function CryoGrid.interact!(
     ssnow
 )
     @setscalar ssnow.T_ub = getscalar(stop.T_ub)
-    # boundary flux
-    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    if CryoGrid.isactive(snow, ssnow)
+        # boundary flux
+        ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    end
     return nothing
 end
 
@@ -111,9 +113,8 @@ function CryoGrid.diagnosticstep!(
     Heat.freezethaw!(snow, heat, state)
     # compute thermal conductivity
     Heat.thermalconductivity!(snow, heat, state)
-    if length(state.kc) > 0
-        k = state.kc[1]
-        state.k .= k
+    if CryoGrid.isactive(snow, state)
+        state.k .= state.kc[1]
     end
     return nothing
 end
