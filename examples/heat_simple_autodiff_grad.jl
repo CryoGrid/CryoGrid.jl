@@ -3,8 +3,6 @@ using Plots
 using Statistics
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
@@ -13,7 +11,7 @@ initT = initializer(:T, tempprofile)
 # construct soil Tile with heat conduction and parameterized n-factors
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
-    TemperatureGradient(tair, NFactor(nf=Param(0.5), nt=Param(0.9))),
+    TemperatureGradient(forcings.Tair, NFactor(nf=Param(0.5), nt=Param(0.9))),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
     initT;

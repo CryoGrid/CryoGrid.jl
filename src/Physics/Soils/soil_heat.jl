@@ -108,13 +108,12 @@ For heat conduction with temperature, we can simply evaluate the freeze curve to
 """
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
     sfcc = heat.freezecurve
-    f = sfcc.f
     L = heat.prop.L
     @unpack ch_w, ch_i = Heat.thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = state.T[i]
-        f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
-        θw, ∂θw∂T = ∇(T -> f(T; f_argsᵢ...), T)
+        f_argsᵢ = sfcckwargs(sfcc, soil, heat, state, i)
+        θw, ∂θw∂T = ∇(T -> sfcc(T; f_argsᵢ...), T)
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
         state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)

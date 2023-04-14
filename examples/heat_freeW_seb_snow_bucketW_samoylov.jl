@@ -26,30 +26,13 @@ soilprofile = SoilProfile(
 );
 # mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
-forcings = loadforcings(
-    CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
-    :Tair => u"°C",
-    :pressure => u"Pa",
-    :wind => u"m/s",
-    :Lin => u"W/m^2",
-    :Sin => u"W/m^2",
-    :snowfall => u"mm/d",
-    :rainfall => u"mm/d",
-);
-Tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-pr   = TimeSeriesForcing(forcings.data.pressure, forcings.timestamps, :pr);
-q    = TimeSeriesForcing(forcings.data.q, forcings.timestamps, :q);
-wind = TimeSeriesForcing(forcings.data.wind, forcings.timestamps, :wind);
-Lin  = TimeSeriesForcing(forcings.data.Lin, forcings.timestamps, :Lin);
-Sin  = TimeSeriesForcing(forcings.data.Sin, forcings.timestamps, :Sin);
-snowfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.snowfall).*1.0, forcings.timestamps, :sf)
-rainfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.rainfall).*1.0, forcings.timestamps, :rf)
-z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # initialize saturation to match soil profile
 initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
-seb = SurfaceEnergyBalance(Tair, pr, q, wind, Lin, Sin, z)
+z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
+seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
 subsurface_layers = map(enumerate(soilprofile)) do (i, soil_i)
     name = Symbol(:soil, i)
     heat = HeatBalance(:H, freezecurve=PainterKarra())
@@ -58,7 +41,7 @@ subsurface_layers = map(enumerate(soilprofile)) do (i, soil_i)
 end
 # build stratigraphy
 strat = @Stratigraphy(
-    -z*u"m" => Top(seb, Rainfall(rainfall), Snowfall(snowfall)),
+    -z*u"m" => Top(seb, Rainfall(forcings.rainfall), Snowfall(forcings.snowfall)),
     0.0u"m" => :snowpack => Snowpack(heat=HeatBalance()),
     subsurface_layers...,
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),

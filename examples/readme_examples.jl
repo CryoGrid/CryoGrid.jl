@@ -4,15 +4,13 @@ using Plots
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# use air temperature as upper boundary forcing
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # get preset soil and initial temperature profile for Samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # choose grid with 5cm spacing
 grid = CryoGrid.Presets.DefaultGrid_5cm
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-tile = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT, grid=grid)
+tile = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(forcings.Tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT, grid=grid)
 # define time span (1 year)
 tspan = (DateTime(2010,11,30),DateTime(2011,11,30))
 u0, du0 = initialcondition!(tile, tspan)
@@ -27,7 +25,7 @@ plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temper
 # savefig("res/Ts_H_tair_freeW_2010-2011.png")
 
 sfcc = SFCC(DallAmico(swrc=VanGenuchten(α=0.02, n=1.8))) # silt/clay-like freeze curve
-tile2 = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT, grid=grid, freezecurve=sfcc)
+tile2 = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(forcings.Tair), GeothermalHeatFlux(0.053u"W/m^2"), soilprofile, initT, grid=grid, freezecurve=sfcc)
 u0, du0 = initialcondition!(tile2, tspan)
 # CryoGrid front-end for ODEProblem
 prob2 = CryoGridProblem(tile2, u0, tspan, savevars=(:T,))

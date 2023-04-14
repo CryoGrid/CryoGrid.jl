@@ -2,21 +2,14 @@ using CryoGrid
 using Dates
 using Plots
 
-forcings = loadforcings(
-    CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
-    :Tair => u"°C",
-    :rainfall => u"mm",
-);
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-pr = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.rainfall./3u"hr"), forcings.timestamps, :rainfall)
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 grid = CryoGrid.Presets.DefaultGrid_5cm
 _, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0u"m" => Top(TemperatureGradient(tair), Rainfall(pr)),
+    -2.0u"m" => Top(TemperatureGradient(forcings.Tair), Rainfall(forcings.rainfall)),
     0.0u"m" => :topsoil1 => Soil(HomogeneousMixture(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     0.1u"m" => :topsoil2 => Soil(HomogeneousMixture(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     0.4u"m" => :sediment1 => Soil(HomogeneousMixture(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(), water=WaterBalance(BucketScheme())),

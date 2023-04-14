@@ -96,12 +96,12 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
         new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
     # User facing constructor
     function SurfaceEnergyBalance(
-        Tair::Forcing{u"°C"}, # air temperature
-        pr::Forcing{u"Pa"}, # air pressure
-        qh::Forcing{u"kg/kg"}, # humidity
-        wind::Forcing{u"m/s"}, # non-directional wind speed
-        Lin::Forcing{u"W/m^2"}, # long-wave incoming radiation
-        Sin::Forcing{u"W/m^2"}, # short-wave incoming radiation
+        Tair::TemperatureForcing, # air temperature
+        pr::PressureForcing, # air pressure
+        qh::HumidityForcing, # specific humidity
+        wind::VelocityForcing, # non-directional wind speed
+        Lin::EnergyFluxForcing, # long-wave incoming radiation
+        Sin::EnergyFluxForcing, # short-wave incoming radiation
         z; # height [m] of air temperature and wind forcing
         para::SEBParams = SEBParams(),
         solscheme::SolutionScheme = Numerical(),
