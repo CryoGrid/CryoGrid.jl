@@ -21,7 +21,7 @@ Helper function that computes the Jacobian of the given `tile` at `u` with param
 """
 function computejac(tile::Tile, u, p, t)
     J = Numerics.ForwardDiff.jacobian(u) do u
-        du = similar(u)
+        du = zero(u)
         Strat.step!(tile, du, u, p, t)
         return du
     end

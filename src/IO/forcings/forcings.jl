@@ -20,7 +20,7 @@ const EnergyFluxForcing = Forcing{upreferred(u"W/m^2"),T} where {T}
 struct ConstantForcing{unit,T} <: Forcing{unit,T}
       value::T
       name::Symbol
-      ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(qty)}(ustrip(qty), name)
+      ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(ustrip(qty))}(ustrip(qty), name)
       ConstantForcing(qty::Number, name::Symbol) = new{Unitful.NoUnits,typeof(qty)}(qty, name)
 end
 (f::ConstantForcing)(::Number) = f.value
