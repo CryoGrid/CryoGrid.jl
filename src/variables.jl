@@ -77,8 +77,9 @@ ConstructionBase.constructorof(::Type{Diagnostic{name,S,T,units,domain}}) where 
 ConstructionBase.constructorof(::Type{Algebraic{name,S,T,units,domain}}) where {name,S,T,units,domain} = s -> Algebraic(name, s, units, T; domain)
 ConstructionBase.constructorof(::Type{DVar{dname,name,S,T,units,domain}}) where {dname,name,S,T,units,domain} = s -> DVar(dname, name, s, units, T; domain)
 
+import Base.:(==)
 # Base overrides
-Base.:(==)(var1::Var{N1,S1,T1,u1,d1}, var2::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2) && vardims(var1) == vardims(var2) && vardesc(var1) == vardesc(var2)
+==(var1::Var{N1,S1,T1,u1,d1}, var2::Var{N2,S2,T2,u2,d2}) where {N1,N2,S1,S2,T1,T2,u1,u2,d1,d2} = (N1 == N2) && (S1 == S2) && (T1 == T2) && (u1 == u2) && (d1 == d2) && vardims(var1) == vardims(var2) && vardesc(var1) == vardesc(var2)
 Base.show(io::IO, ::MIME"text/plain", var::TVar) where {name,S,T,TVar<:Var{name,S,T}} = show("$(typeof(var).name.wrapper){:$name}(shape=$S, type=$(T), desc=$(var.desc))")
 # other methods
 varname(::Var{name}) where {name} = name
