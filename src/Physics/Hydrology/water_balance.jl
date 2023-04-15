@@ -41,8 +41,8 @@ function balancefluxes!(::SubSurface, water::WaterBalance, state)
     end
     state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])
 end
-watercontent(sub::SubSurface, state) = watercontent(sub, processes(sub), state)
 watercontent(::SubSurface, ::Process, state) = state.θwi
+watercontent(sub::SubSurface, state) = watercontent(sub, processes(sub), state)
 watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
 @inline function watercontent!(sub::SubSurface, water::WaterBalance, state)
     @inbounds for i in eachindex(state.sat)

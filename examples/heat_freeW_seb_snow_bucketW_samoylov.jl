@@ -33,7 +33,7 @@ initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
 z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
-subsurface_layers = map(enumerate(soilprofile)) do (i, soil_i)
+soil_layers = map(enumerate(soilprofile)) do (i, soil_i)
     name = Symbol(:soil, i)
     heat = HeatBalance(:H, freezecurve=PainterKarra())
     water = WaterBalance(BucketScheme(), DampedET())
@@ -43,7 +43,7 @@ end
 strat = @Stratigraphy(
     -z*u"m" => Top(seb, Rainfall(forcings.rainfall), Snowfall(forcings.snowfall)),
     0.0u"m" => :snowpack => Snowpack(heat=HeatBalance()),
-    subsurface_layers...,
+    soil_layers...,
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 # create Tile
@@ -53,16 +53,23 @@ tile = Tile(strat, modelgrid, initT, initsat);
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
 # generate initial condition and set up CryoGridProblem
 u0, du0 = initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:top => (:Qh,:Qe,:Qg,),:snowpack => (:dsn,)), step_limiter=nothing, saveat=3*3600.0)
+prob = CryoGridProblem(
+    tile,
+    u0,
+    tspan,
+    savevars=(:T,:jH,:top => (:Qh,:Qe,:Qg,),:snowpack => (:dsn,)),
+    saveat=3*3600.0
+)
 # initialize integrator
-integrator = init(prob, Euler(), dt=120.0, progress=true)
-# take one 24 hour step to check that everything is working
+integrator = init(prob, Euler(), dt=60.0, progress=true)
+# step forwards 24 hours to check that everything is working
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))
 # iterate over remaining timespan
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
+    @assert isfinite(getstate(:top, integrator).Qg[1])
     # print once per day to track progress
-    @show convert_t(t)
+    @show Date(convert_t(t))
 end
 # build output from solution
 out = CryoGridOutput(integrator.sol)

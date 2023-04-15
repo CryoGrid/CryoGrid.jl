@@ -20,7 +20,7 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 # construct CryoGridProblem with tile, initial condition, and timespan;
 # we disable the default timestep limiter since we will use an adaptive solver.
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jH), step_limiter=nothing)
 @info "Running model"
 # solve with Crank-Nicolson (trapezoid method) and construct CryoGridOutput from solution
 out = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true) |> CryoGridOutput;
