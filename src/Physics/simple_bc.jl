@@ -35,7 +35,7 @@ struct PeriodicBC{P,S,T1,T2,T3,T4} <: BoundaryProcess{P}
         new{P,S,T1,T2,T3,T4}(period, amplitude, phaseshift, level)
 end
 ConstructionBase.constructorof(::Type{<:PeriodicBC{P,S}}) where {P,S} = (args...) -> PeriodicBC(P, S, args...)
-CryoGrid.boundaryvalue(bc::PeriodicBC,l1,p2,l2,s1,s2) = bc.amplitude*sin(π*(1/bc.period)*s1.t + bc.phaseshift) + bc.level
+CryoGrid.boundaryvalue(bc::PeriodicBC,l1,p2,l2,s1,s2) = bc.amplitude*sin(2π*(1/bc.period)*s1.t + bc.phaseshift) + bc.level
 CryoGrid.BCKind(::Type{<:PeriodicBC{P,S}}) where {P,S} = S()
 
 # convenience constructors
