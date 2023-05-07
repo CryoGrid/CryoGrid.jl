@@ -28,7 +28,7 @@ Base.@kwdef struct ForcingFormatNCD{TFormat} <: ForcingFormat
 end
 filesuffix(::ForcingFormatNCD) = "nc"
 
-function forcingformat(::Val{:nc}, filepath::String)
+function detectformat(::Val{:nc}, filepath::String)
     NCD.Dataset(filepath) do ds
         source = ds.attrib["source"]
         if !isnothing(source) && contains(source, "TopoPyScale")

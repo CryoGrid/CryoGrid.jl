@@ -76,11 +76,11 @@ Base.merge(fs::Forcings...) = Forcings(merge(map(f -> getfield(f, :data), fs)...
 
 forcingunits(::ForcingFormat) = Dict()
 
-forcingformat(::Val{x}, filepath) where x = error("unrecognized forcing file suffix $x")
-function forcingformat(filepath::String)
+detectformat(::Val{x}, filepath) where x = error("unrecognized forcing file suffix $x")
+function detectformat(filepath::String)
     filename = basename(filepath)
     suffix = Symbol(lowercase(split(filename, ".")[end]))
-    return forcingformat(Val{suffix}(), filepath)
+    return detectformat(Val{suffix}(), filepath)
 end
 
 """
@@ -89,10 +89,10 @@ end
     loadforcings([format::ForcingFormat], filename::String; outdir=DEFAULT_FORCINGS_DIR)::Forcings
 
 Loads forcing data from the given file according to the format specified by `format`. By default, the forcing format
-is automatically detected via `forcingformat`. Returns a `Forcings` struct containing all forcing data
+is automatically detected via `detectformat`. Returns a `Forcings` struct containing all forcing data
 and metadata 
 """
-loadforcings(filename::String) = loadforcings(forcingformat(filename), filename)
+loadforcings(filename::String) = loadforcings(detectformat(filename), filename)
 loadforcings(resource::Resource; outdir=DEFAULT_FORCINGS_DIR) = loadforcings(resource.format, fetch(resource, outdir))
 loadforcings(f::ForcingFormat, filename::String) = error("loadforcings not implemented for $f")
 

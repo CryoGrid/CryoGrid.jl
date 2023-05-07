@@ -5,7 +5,7 @@ struct ForcingFormatJSON{Version} <: ForcingFormat end
 
 filesuffix(::ForcingFormatJSON) = "json"
 
-forcingformat(::Val{:json}, filepath::String) = ForcingFormatJSON{1}()
+detectformat(::Val{:json}, filepath::String) = ForcingFormatJSON{1}()
 
 forcingunits(::ForcingFormatJSON) = Dict(
     :Tair => u"°C",
