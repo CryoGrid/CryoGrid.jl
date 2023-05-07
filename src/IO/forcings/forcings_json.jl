@@ -1,21 +1,13 @@
 """
-Represents an externally specified format for forcing inputs. IO functions should dispatch on
-specific types `T<:ForcingDataFormat` that they implement.
-"""
-abstract type ForcingDataFormat end
-"""
 JSON forcing input format (from CryoGridLite) with specified version indicator.
 """
-struct ForcingJSON{Version} <: ForcingDataFormat end
-"""
-NetCDF forcing input format.
-"""
-struct ForcingNCD{Version} <: ForcingDataFormat end
+struct ForcingFormatJSON{Version} <: ForcingFormat end
 
-filesuffix(::ForcingJSON) = "json"
+filesuffix(::ForcingFormatJSON) = "json"
 
-forcingunits(::ForcingDataFormat) = Dict()
-forcingunits(::ForcingJSON) = Dict(
+forcingformat(::Val{:json}, filepath::String) = ForcingFormatJSON{1}()
+
+forcingunits(::ForcingFormatJSON) = Dict(
     :Tair => u"°C",
     :pressure => u"Pa",
     :wind => u"m/s",
@@ -26,30 +18,7 @@ forcingunits(::ForcingJSON) = Dict(
     :Ptot => u"mm",
 )
 
-function autodetect_forcing_format(filepath::String)
-    filename = basename(filepath)
-    if endswith(filename, ".json") || endswith(filename, ".JSON")
-        return ForcingJSON{1}()
-    else
-        error("unsupported forcing file format: $filename")
-    end
-end
-
-_normalize_numeric(x::Number) = convert(Float64, x)
-_normalize_numeric(::Union{Missing,Nothing}) = missing
-
-"""
-    loadforcings(filename::String)::Forcings
-    loadforcings(resource::Resource; outdir=DEFAULT_FORCINGS_DIR)::Forcings
-    loadforcings([format::ForcingDataFormat], filename::String; outdir=DEFAULT_FORCINGS_DIR)::Forcings
-
-Loads forcing data from the given file according to the format specified by `format`. By default, the forcing format
-is automatically detected via `autodetect_forcing_format`. Returns a `Forcings` struct containing all forcing data
-and metadata 
-"""
-loadforcings(filename::String) = loadforcings(autodetect_forcing_format(filename), filename)
-loadforcings(resource::Resource; outdir=DEFAULT_FORCINGS_DIR) = loadforcings(resource.format, fetch(resource, outdir))
-function loadforcings(format::ForcingJSON{1}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
+function loadforcings(format::ForcingFormatJSON{1}, filename::String)
     dict = open(filename, "r") do file; JSON3.read(file) end
     # convert JSON3 dict for data field to Julia dict
     data = Dict(dict[:data]...)
@@ -72,7 +41,7 @@ function loadforcings(format::ForcingJSON{1}, filename::String, units::Pair{Symb
     end
     return Forcings((; forcings...))
 end
-function loadforcings(format::ForcingJSON{2}, filename::String, units::Pair{Symbol,<:Unitful.Units}...)
+function loadforcings(format::ForcingFormatJSON{2}, filename::String)
     dict = open(filename, "r") do file; JSON3.read(file) end
     # convert JSON3 dict for data field to Julia dict
     data = Dict(dict[:data]...)

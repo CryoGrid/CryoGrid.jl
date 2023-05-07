@@ -10,6 +10,12 @@ Flatten.flattenable(::Type{<:Forcing}, ::Type) = false
 @inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
 
+"""
+Represents an externally specified format for forcing inputs. IO functions should dispatch on
+specific types `T<:ForcingFormat` that they implement.
+"""
+abstract type ForcingFormat end
+
 # Aliases for forcing types
 const TemperatureForcing = Forcing{u"°C",T} where {T}
 const VelocityForcing = Forcing{u"m/s",T} where {T}
@@ -67,3 +73,31 @@ CryoGrid.parameterize(f::Forcings; ignored...) = f
 Base.propertynames(::Forcings{names}) where {names} = (:metadata, names...)
 Base.getproperty(fs::Forcings{names}, sym::Symbol) where {names} = sym ∈ names ? getproperty(getfield(fs, :data), sym) : getfield(fs, sym)
 Base.merge(fs::Forcings...) = Forcings(merge(map(f -> getfield(f, :data), fs)...), merge(map(f -> getfield(f, :metadata), fs)...))
+
+forcingunits(::ForcingFormat) = Dict()
+
+forcingformat(::Val{x}, filepath) where x = error("unrecognized forcing file suffix $x")
+function forcingformat(filepath::String)
+    filename = basename(filepath)
+    suffix = Symbol(lowercase(split(filename, ".")[end]))
+    return forcingformat(Val{suffix}(), filepath)
+end
+
+"""
+    loadforcings(filename::String)::Forcings
+    loadforcings(resource::Resource; outdir=DEFAULT_FORCINGS_DIR)::Forcings
+    loadforcings([format::ForcingFormat], filename::String; outdir=DEFAULT_FORCINGS_DIR)::Forcings
+
+Loads forcing data from the given file according to the format specified by `format`. By default, the forcing format
+is automatically detected via `forcingformat`. Returns a `Forcings` struct containing all forcing data
+and metadata 
+"""
+loadforcings(filename::String) = loadforcings(forcingformat(filename), filename)
+loadforcings(resource::Resource; outdir=DEFAULT_FORCINGS_DIR) = loadforcings(resource.format, fetch(resource, outdir))
+loadforcings(f::ForcingFormat, filename::String) = error("loadforcings not implemented for $f")
+
+_normalize_numeric(x::Number) = convert(Float64, x)
+_normalize_numeric(::Union{Missing,Nothing}) = missing
+
+include("forcings_json.jl")
+include("forcings_ncd.jl")
