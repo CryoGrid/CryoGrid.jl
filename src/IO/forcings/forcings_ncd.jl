@@ -30,8 +30,8 @@ filesuffix(::ForcingFormatNCD) = "nc"
 
 function detectformat(::Val{:nc}, filepath::String)
     NCD.Dataset(filepath) do ds
-        source = ds.attrib["source"]
-        if !isnothing(source) && contains(source, "TopoPyScale")
+        source = get(ds.attrib, "source", "")
+        if contains(source, "TopoPyScale")
             ForcingFormatNCD(NCDTopoPyScale())
         else
             ForcingFormatNCD()
