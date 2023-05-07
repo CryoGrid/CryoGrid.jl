@@ -61,8 +61,8 @@ function loadforcings(::ForcingFormatNCD{NCDTopoPyScale}, filepath::String)
         forcings = map(forcing_varnames) do name
             var = ds[name]
             units = if haskey(var.attrib, "units")
-                # parse units from string, replacing certain patterns where necessary for compatibility
-                uparse(replace(var.attrib["units"], "day" => "d", "m2" => "m^2", "C" => "°C"))
+                # parse units from string, assumes that all unit strings match Unitful.jl conventions;
+                uparse(var.attrib["units"])
             else
                 NoUnits
             end
