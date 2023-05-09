@@ -102,13 +102,19 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     tile = Tile(prob.f)
     grid = tile.grid
     u0 = copy(prob.u0)
-    nsteps = Int(ceil((prob.tspan[2] - prob.tspan[1]) / dt)) + 1
+    t0 = prob.tspan[1]
+    nsteps = Int(ceil((prob.tspan[2] - t0) / dt)) + 1
     # initialize storage
     u_storage = [u0]
     t_storage = [prob.tspan[1]]
+    # evaluate tile at initial condition
+    tile = Strat.resolve(Tile(prob.f), u0, prob.p, t0)
+    CryoGrid.Strat.step!(tile, zero(u0), u0, prob.p, t0, dt)
     # reset SavedValues on tile.hist
-    stateproto = prob.savefunc(tile, u0, similar(u0))
-    savevals = SavedValues(Float64, typeof(stateproto))
+    initialsave = prob.savefunc(tile, u0, similar(u0))
+    savevals = SavedValues(Float64, typeof(initialsave))
+    push!(savevals.saveval, initialsave)
+    push!(savevals.t, t0)
     tile.hist.vals = savevals
     sol = CGLiteSolution(prob, u_storage, t_storage, alg, :Default)
     cache = LiteImplicitEulerCache(
@@ -125,7 +131,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
         similar(u0, eltype(u0), length(prob.u0.H)),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    return CGLiteIntegrator(alg, cache, sol, u0, p, prob.tspan[1], convert(eltype(prob.tspan), dt), 1, 1)
+    return CGLiteIntegrator(alg, cache, sol, u0, p, t0, convert(eltype(prob.tspan), dt), 1, 1)
 end
 
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)

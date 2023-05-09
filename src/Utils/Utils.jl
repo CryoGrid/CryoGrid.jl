@@ -89,6 +89,7 @@ _genexpr(f::Symbol, iters, j) = :($f($(map(i -> :(iters[$i][$j]), 1:length(iters
 normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)
 normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
 normalize_units(x::Number) = x
+normalize_units(::Missing) = missing
 # Add method dispatch for normalize_temperature in FreezeCurves.jl
 normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 

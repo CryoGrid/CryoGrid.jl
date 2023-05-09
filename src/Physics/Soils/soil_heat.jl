@@ -64,15 +64,17 @@ sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
-function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TOp}
     L = heat.prop.L
     fc = heat.freezecurve
-    solver = Heat.fcsolver(heat)
     hc = partial_heatcapacity(soil, heat)
     @unpack ch_w, ch_i = thermalproperties(soil)
     sat = saturation(soil, state)
     θsat = porosity(soil, state)
-    FreezeCurves.Solvers.initialize!(solver, fc, hc; sat, θsat)
+    if TOp <: Enthalpy
+        solver = Heat.fcsolver(heat)
+        FreezeCurves.Solvers.initialize!(solver, fc, hc; sat, θsat)
+    end
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         T = state.T[i]

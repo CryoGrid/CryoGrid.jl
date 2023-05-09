@@ -7,6 +7,7 @@ include("Numerics/runtests.jl")
 include("IO/runtests.jl")
 include("Physics/runtests.jl")
 include("Strat/runtests.jl")
+include("Solvers/runtests.jl")
 include("Diagnostics/runtests.jl")
 
 # @testset "Examples" begin

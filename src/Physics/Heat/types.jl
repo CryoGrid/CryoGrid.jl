@@ -15,7 +15,7 @@ const Temperature = HeatOperator{:T}
 
 # default step limiters
 default_dtlim(::Temperature) = CryoGrid.CFL(maxdelta=CryoGrid.MaxDelta(Inf))
-default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(1u"MJ")
+default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(50u"kJ")
 default_dtlim(::HeatOperator) = nothing
 
 # default freezecurve solvers
@@ -89,7 +89,7 @@ struct EnthalpyImplicit{Tsolver,Tcond,Thc} <: HeatOperator{:H}
     fcsolver::Tsolver
     cond::Tcond
     hc::Thc
-    InverseEnthalpy(fcsolver, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
+    EnthalpyImplicit(fcsolver=nothing, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
 end
 
 """
