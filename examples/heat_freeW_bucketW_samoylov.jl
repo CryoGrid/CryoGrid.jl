@@ -2,14 +2,7 @@ using CryoGrid
 using Dates
 using Plots
 
-forcings = loadforcings(
-    CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044,
-    :Tair => u"°C",
-    :rainfall => u"mm",
-);
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-pr = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.rainfall./3u"hr"), forcings.timestamps, :rainfall)
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 grid = CryoGrid.Presets.DefaultGrid_5cm
 _, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)

@@ -2,9 +2,7 @@ using CryoGrid
 using CryoGrid.LiteImplicit
 using Plots
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term, :Tair => u"°C", :Ptot => u"mm");
-# use air temperature as upper boundary forcing 
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 tempprofile_linear = TemperatureProfile(
     0.0u"m" => -30.0u"°C",
     10.0u"m" => -10.0u"°C", 
@@ -12,7 +10,7 @@ tempprofile_linear = TemperatureProfile(
 )
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
-upperbc = TemperatureGradient(tair, NFactor())
+upperbc = TemperatureGradient(forcings.Tair, NFactor())
 initT = initializer(:T, tempprofile_linear)
 @info "Building stratigraphy"
 heatop = Heat.EnthalpyImplicit()

@@ -57,10 +57,10 @@ struct HøgstrømSHEBA <: StabilityFunctions end
 
 Utils.@properties SEBParams(
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables or parameters
-    α = 0.2,             # surface albedo [-]
-    ϵ = 0.97,            # surface emissivity [-]
-    z₀ = 1e-3u"m",       # surface roughness length [m]
-    rₛ = 50.0u"s/m",     # surface resistance against evapotranspiration and sublimation [s/m]
+    α = 0.2,             # initial surface albedo [-]
+    ϵ = 0.97,            # initial surface emissivity [-]
+    z₀ = 1e-3u"m",       # initial surface roughness length [m]
+    rₛ = 50.0u"s/m",     # initial surface resistance against evapotranspiration and sublimation [s/m]
 
     # "natural" constant
     σ = 5.6704e-8u"J/(s*m^2*K^4)",   # Stefan-Boltzmann constant
@@ -96,12 +96,12 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
         new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
     # User facing constructor
     function SurfaceEnergyBalance(
-        Tair::Forcing{u"°C"}, # air temperature
-        pr::Forcing{u"Pa"}, # air pressure
-        qh::Forcing{u"kg/kg"}, # humidity
-        wind::Forcing{u"m/s"}, # non-directional wind speed
-        Lin::Forcing{u"W/m^2"}, # long-wave incoming radiation
-        Sin::Forcing{u"W/m^2"}, # short-wave incoming radiation
+        Tair::TemperatureForcing, # air temperature
+        pr::PressureForcing, # air pressure
+        qh::HumidityForcing, # specific humidity
+        wind::VelocityForcing, # non-directional wind speed
+        Lin::EnergyFluxForcing, # long-wave incoming radiation
+        Sin::EnergyFluxForcing, # short-wave incoming radiation
         z; # height [m] of air temperature and wind forcing
         para::SEBParams = SEBParams(),
         solscheme::SolutionScheme = Numerical(),

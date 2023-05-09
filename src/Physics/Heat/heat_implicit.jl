@@ -45,13 +45,27 @@ function CryoGrid.diagnosticstep!(
     k = state.k
     dx = Δ(cells(state.grid))
     dxp = Δ(state.grid)
-    k_inner = @view k[2:end-1]
-    dxpn = @view dxp[1:end-1]
-    dxps = @view dxp[2:end]
-    @. an[2:end] = k_inner / dx / dxpn
-    @. as[1:end-1] = k_inner / dx / dxps
-    @. ap[1:end-1] += as[1:end-1]
-    @. ap[2:end] += an[2:end]
+    # loop over grid cells
+    @inbounds for i in eachindex(dxp)
+        if i == 1
+            as[1] = k[2] / dx[1] / dxp[1]
+        elseif i == length(dxp)
+            an[end] = k[end-1] / dx[end] / dxp[end]
+        else
+            an[i] = k[i] / dx[i-1] / dxp[i]
+            as[i] = k[i+1] / dx[i] / dxp[i]
+        end
+    end
+    @. ap = an + as
+    # k_inner = @view k[2:end-1]
+    # dxn = @view dx[1:end-1]
+    # dxs = @view dx[2:end]
+    # dxpn = @view dxp[1:end-1]
+    # dxps = @view dxp[2:end]
+    # @. an[2:end] = k_inner / dxn / dxpn
+    # @. as[1:end-1] = k_inner / dxs / dxps
+    # @. ap[1:end-1] += as[1:end-1]
+    # @. ap[2:end] += an[2:end]
     return nothing
 end
 function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalanceImplicit, sub::SubSurface, stop, ssub)

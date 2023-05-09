@@ -3,7 +3,7 @@ const GridValues{A} = NamedTuple{(:edges,:cells),NTuple{2,A}} where {A<:Abstract
 """
     struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
 
-Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridSpec`,
+Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridOffset`,
 either `Edges` or `Cells` (always edges upon initial construction). The grid representation can be
 converted (allocation free) between grid edges and cells via the `cells` and `edges` methods. `G`
 represents the geometry/volume on which the vertical 1D discretization is applied. `A` is the underlying
@@ -14,7 +14,7 @@ struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
     values::GridValues{A}
     deltas::GridValues{A}
     bounds::UnitRange{Int}
-    Grid(::Type{S}, values::GridValues{A}, deltas::GridValues{A}, geom::G, bounds::UnitRange{Int}=1:length(values)) where {S<:GridSpec,Q,A<:AbstractVector{Q},G<:Geometry} = new{S,G,Q,A}(geom,values,deltas,bounds)
+    Grid(::Type{S}, values::GridValues{A}, deltas::GridValues{A}, geom::G, bounds::UnitRange{Int}=1:length(values)) where {S<:GridOffset,Q,A<:AbstractVector{Q},G<:Geometry} = new{S,G,Q,A}(geom,values,deltas,bounds)
     function Grid(vals::AbstractVector{Q}, geometry::G=UnitRectangle()) where {G<:Geometry,Q<:Number}
         @assert issorted(vals) "grid values should be in ascending order"
         nedges = length(vals)

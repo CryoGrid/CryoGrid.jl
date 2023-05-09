@@ -14,6 +14,22 @@ CryoGrid.prognosticstep!(top::Top, ps::CoupledProcesses, state) = _invoke_sequen
 CryoGrid.prognosticstep!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, bot, ps, state)
 CryoGrid.prognosticstep!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, sub, ps, state)
 """
+    interact!(l1::Union{Top,Bottom}, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
+
+Default implementation of `interact!` for coupled process (CoupledProcesses) types on boundary layers. Iterates over each
+boundary process and calls `interact!` for this process and the subsurface layer.
+"""
+@generated function interact!(l1::Union{Top,Bottom}, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
+    p1types = Tuple(P1.parameters)
+    expr = Expr(:block)
+    for i in eachindex(p1types)
+        quote
+            interact!(l1,ps1[$i],l2,ps2,s1,s2)
+        end |> Base.Fix1(push!, expr.args)
+    end
+    return expr
+end
+"""
     interact!(l1::Layer, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 
 Default implementation of `interact!` for coupled process (CoupledProcesses) types. Generates a specialized implementation that calls

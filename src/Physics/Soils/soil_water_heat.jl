@@ -14,7 +14,7 @@ function CryoGrid.initialcondition!(
     CryoGrid.diagnosticstep!(soil, water, state)
     # initialize heat
     fc = heat.freezecurve
-    solver = Heat.fcsolver(soil)
+    solver = Heat.fcsolver(heat)
     L = heat.prop.L
     hc = partial_heatcapacity(soil, heat)
     θsat = porosity(soil, state)

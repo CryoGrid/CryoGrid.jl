@@ -56,7 +56,7 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, :
     @setscalar stop.Lstar = seb_output.state.Lstar
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
-    @setscalar stop.T_ub = state.inputs.Tair
+    @setscalar stop.T_ub = initialstate.inputs.Tair
     return getscalar(stop.Qg)
 end
 
@@ -236,20 +236,20 @@ Sensible heat flux, defined as positive if it is a flux towards the surface
 function Q_H(seb::SurfaceEnergyBalance, state::SEBState)
     let κ = seb.para.κ,
         Rₐ = seb.para.Rₐ,
-        Tₕ = state.inputs.Tair,                                                # air temperature
-        T₀ = state.inputs.Ts,                                                              # surface temperature
-        cₚ = seb.para.cₐ / seb.para.ρₐ,                                     # specific heat capacity of air at constant pressure
-        z = state.inputs.z,                                                            # height at which forcing data are provided
+        Tₕ = state.inputs.Tair, # air temperature
+        T₀ = state.inputs.Ts, # surface temperature
+        cₚ = seb.para.cₐ / seb.para.ρₐ, # specific heat capacity of air at constant pressure
+        z = state.inputs.z, # height at which forcing data are provided
         Lstar = state.Lstar,
         ustar = state.ustar,
         pr = state.inputs.pr,
         z₀ = seb.para.z₀,
         ρₐ = density_air(seb, Tₕ, pr); # density of air at surface air temperature and surface pressure [kg/m^3]
 
-        rₐᴴ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(seb, z / Lstar, z₀ / Lstar))            # Eq. (6) in Westermann et al. (2016)
+        rₐᴴ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(seb, z / Lstar, z₀ / Lstar)) # Eq. (6) in Westermann et al. (2016)
 
-        # calculate Q_H
-        -ρₐ * cₚ * (Tₕ - T₀) / rₐᴴ                                                    # Eq. (4) in Westermann et al. (2016)
+        # calculate Q_H; Eq. (4) in Westermann et al. (2016)
+        -ρₐ * cₚ * (Tₕ - T₀) / rₐᴴ
     end
 end
 
@@ -262,28 +262,32 @@ function Q_E(seb::SurfaceEnergyBalance, state::SEBState)
     let κ = seb.para.κ,
         γ = seb.para.γ,
         Rₐ = seb.para.Rₐ,
-        Tₕ = state.inputs.Tair,                           # air temperature at height z over surface
-        T₀ = state.inputs.Ts,                             # surface temperature
-        p = state.inputs.pr,                              # atmospheric pressure at surface
-        qₕ = state.inputs.qh,                             # specific humidity at height h over surface
-        z = state.inputs.z,                               # height at which forcing data are provided
-        rₛ = seb.para.rₛ,                           # surface resistance against evapotranspiration / sublimation [1/m]
+        Tₕ = state.inputs.Tair, # air temperature at height z over surface
+        T₀ = state.inputs.Ts, # surface temperature
+        p = state.inputs.pr, # atmospheric pressure at surface
+        qₕ = state.inputs.qh, # specific humidity at height h over surface
+        z = state.inputs.z, # height at which forcing data are provided
+        rₛ = seb.para.rₛ, # surface resistance against evapotranspiration / sublimation [1/m]
         Lstar = state.Lstar,
         ustar = state.ustar,
         Llg = L_lg(state.inputs.Ts),
         Lsg = L_sg(state.inputs.Ts),
-        z₀ = seb.para.z₀,                           # aerodynamic roughness length [m]
-        ρₐ = density_air(seb, Tₕ, state.inputs.pr);       # density of air at surface air temperature and surface pressure [kg/m^3]
+        z₀ = seb.para.z₀, # aerodynamic roughness length [m]
+        ρₐ = density_air(seb, Tₕ, state.inputs.pr); # density of air at surface air temperature and surface pressure [kg/m^3]
 
-        q₀ = γ * estar(T₀) / p                                                        # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
-        rₐᵂ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(seb, z / Lstar, z₀ / Lstar))       # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
-        L = (T₀ <= 0.0) ? Lsg : Llg                                                   # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
+        q₀ = γ * estar(T₀) / p # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)
+        rₐᵂ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(seb, z / Lstar, z₀ / Lstar)) # aerodynamic resistance Eq. (6) in Westermann et al. (2016)
+        L = (T₀ <= 0.0) ? Lsg : Llg # latent heat of sublimation/resublimation or evaporation/condensation [J/kg]
 
         # calculate Q_E
-        res = (qₕ > q₀) ? -ρₐ * L * (qₕ - q₀) / (rₐᵂ)  :                              # Eq. (5) in Westermann et al. (2016) # condensation / deposition (no aerodynamics resistance)
-                        -ρₐ * L * (qₕ - q₀) / (rₐᵂ + rₛ) ;                            # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
-
-        res = (T₀ <= 0.0) ? zero(res) : res ;                                                 # for now: set sublimation and deposition to zero.
+        res = if qₕ > q₀
+            -ρₐ * L * (qₕ - q₀) / (rₐᵂ) # Eq. (5) in Westermann et al. (2016) # condensation / deposition (no aerodynamics resistance)
+        else
+            -ρₐ * L * (qₕ - q₀) / (rₐᵂ + rₛ); # evaporation / sublimation (account for surface resistance against evapotranspiration/sublimation)
+        end
+        
+        # for now: set sublimation and deposition to zero.
+        res = (T₀ <= 0.0) ? zero(res) : res;
     end
 end
 

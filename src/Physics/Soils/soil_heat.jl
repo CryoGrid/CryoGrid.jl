@@ -64,15 +64,17 @@ sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
-function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
+function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TOp}
     L = heat.prop.L
     fc = heat.freezecurve
-    solver = Heat.fcsolver(soil)
     hc = partial_heatcapacity(soil, heat)
     @unpack ch_w, ch_i = thermalproperties(soil)
     sat = saturation(soil, state)
     θsat = porosity(soil, state)
-    FreezeCurves.Solvers.initialize!(solver, fc, hc; sat, θsat)
+    if TOp <: Enthalpy
+        solver = Heat.fcsolver(heat)
+        FreezeCurves.Solvers.initialize!(solver, fc, hc; sat, θsat)
+    end
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         T = state.T[i]
@@ -108,13 +110,12 @@ For heat conduction with temperature, we can simply evaluate the freeze curve to
 """
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
     sfcc = heat.freezecurve
-    f = sfcc.f
     L = heat.prop.L
     @unpack ch_w, ch_i = Heat.thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = state.T[i]
-        f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
-        θw, ∂θw∂T = ∇(T -> f(T; f_argsᵢ...), T)
+        f_argsᵢ = sfcckwargs(sfcc, soil, heat, state, i)
+        θw, ∂θw∂T = ∇(T -> sfcc(T; f_argsᵢ...), T)
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
         state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
@@ -126,7 +127,7 @@ end
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
     sfcc = heat.freezecurve
-    solver = Heat.fcsolver(soil)
+    solver = Heat.fcsolver(heat)
     hc = partial_heatcapacity(soil, heat)
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
@@ -152,7 +153,7 @@ end
 
 function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state, i)
     sfcc = heat.freezecurve
-    solver = Heat.fcsolver(soil)
+    solver = Heat.fcsolver(heat)
     hc = partial_heatcapacity(soil, heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water

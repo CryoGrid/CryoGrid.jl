@@ -14,15 +14,13 @@ using DimensionalData
 using Downloads
 using Flatten
 using Interpolations
-using JSON3
 using ModelParameters
 using Tables
-using TimeSeries
 using Unitful
 
-import DimensionalData
-
-export ForcingJSON, ParamJSON, ParamYAML
+# File I/O libraries
+import JSON3
+import NCDatasets as NCD
 
 const INPUT_DIR = "input/"
 const DEFAULT_FORCINGS_DIR = joinpath(INPUT_DIR, "forcings")
@@ -55,48 +53,17 @@ function fetch(resource::Resource, dir::String)
     end
 end
 
-"""
-Represents an externally specified format for forcing inputs. IO functions should dispatch on
-specific types `T<:ForcingInputFormat` that they implement.
-"""
-abstract type ForcingInputFormat end
-"""
-JSON forcing input format (from CryoGridLite). Version parameter allows for forward/backward-compatibility with future format changes.
-"""
-struct ForcingJSON{Version} <: ForcingInputFormat end
-
-abstract type ParameterInputFormat end
-"""
-JSON parameter input format (from CryoGridLite).
-"""
-struct ParamJSON{Version} <: ParameterInputFormat end
-"""
-YAML parameter input format matching that of the CryoGrid community model.
-"""
-struct ParamYAML{Version} <: ParameterInputFormat end
-
-filesuffix(::Type{<:ForcingJSON}) = "json"
-filesuffix(::Type{<:ParamJSON}) = "json"
-filesuffix(::Type{<:ParamYAML}) = "yml"
-
-function _autodetect_forcing_format(filepath::String)
-    filename = basename(filepath)
-    if endswith(filename, ".json") || endswith(filename, ".JSON")
-        return ForcingJSON{1}
-    else
-        error("unsupported forcing file format: $filename")
-    end
-end
-
 include("ioutils.jl")
 export CryoGridParams
-include("params.jl")
-export Forcing, ConstantForcing, TimeSeriesForcing
-include("forcings.jl")
+include("params/params.jl")
+export ParamsJSON, ParamsYAML
+include("params/params_loaders.jl")
+export Forcings, Forcing, ConstantForcing, InterpolatedForcing
+export TemperatureForcing, WindForcing, HumidityForcing, EnergyFluxForcing, PressureForcing, VelocityForcing # aliases
+export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD
+export loadforcings
+include("forcings/forcings.jl")
 export CryoGridOutput
 include("output.jl")
-export loadforcings
-include("forcings_loaders.jl")
-include("params_loaders.jl")
 
 end

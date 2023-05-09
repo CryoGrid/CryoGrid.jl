@@ -252,7 +252,7 @@ end
         end
     else
         quote
-            zs = computeboundaries(tile, u)
+            zs = update_layer_boundaries(tile, u)
             return reverse(zs)
         end
     end
@@ -270,7 +270,7 @@ function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
         return z1
     end
 end
-function computeboundaries(tile::Tile, u)
+function update_layer_boundaries(tile::Tile, u)
     # calculate grid boundaries starting from the bottom moving up to the surface
     zbot = tile.state.grid[end]
     return accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer

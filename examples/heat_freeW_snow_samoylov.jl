@@ -2,10 +2,7 @@ using CryoGrid
 using Interpolations: Constant
 using Plots
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C", :snowfall => u"mm/d");
-# use air temperature as upper boundary forcing;
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-snowfall = TimeSeriesForcing(uconvert.(u"m/s", forcings.data.snowfall.*1.0), forcings.timestamps, :snowfall, interpolation_mode=Constant())
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 # use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 # "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
@@ -20,7 +17,7 @@ snowmass = SnowMassBalance(
     )
 )
 strat = @Stratigraphy(
-    z_top => Top(TemperatureGradient(tair), Snowfall(snowfall)),
+    z_top => Top(TemperatureGradient(forcings.Tair), Snowfall(forcings.snowfall)),
     z_sub[1] => :snowpack => Snowpack(para=Snow.Bulk(thresh=2.0u"cm"), mass=snowmass, heat=HeatBalance()),
     z_sub[1] => :topsoil1 => Soil(soilprofile[1].value, heat=HeatBalance()),
     z_sub[2] => :topsoil2 => Soil(soilprofile[2].value, heat=HeatBalance()),

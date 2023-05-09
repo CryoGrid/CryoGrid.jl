@@ -15,6 +15,7 @@ Utils.@properties StefanParameters(
     k_s = DefaultThermalProperties.kh_i,
     ρ = DefaultHeatProperties.ρw,
     Lf = DefaultHeatProperties.Lsl,
+    θwi = 1.0,
     T_m = 0.0u"°C",
     T_s = 0.0u"°C",
     T_l = 1.0u"°C",
@@ -46,22 +47,22 @@ stefan_temperature_solid(T_s, T_m, λ, α_s, α_l, x0, t0, x, t) = T_s + (T_m - 
 
 Calculates the Stefan number for heat capacity `c`, desnity `ρ`, specific latent heat of fusion `Lf`, and temperature delta `ΔT`.
 """
-stefan_number(c, ρ, Lf, ΔT) = c*ΔT/(Lf*ρ)
+stefan_number(c, ρ, Lf, θwi, ΔT) = c*ΔT/(θwi*Lf*ρ)
 """
     stefan_residual(λ, T_m, T_l, T_s, k_l, c_l, k_s, c_s, ρ, Lf)
 
 Evaluates the residual function for the transcendental equation in the two-phase Stefan problem.
 """
-function stefan_residual(λ, T_m, T_l, T_s, k_l, c_l, k_s, c_s, ρ, Lf)
+function stefan_residual(λ, T_m, T_l, T_s, k_l, c_l, k_s, c_s, ρ, θwi, Lf)
     let α_l = k_l / c_l,
         α_s = k_s / c_s,
-        St_l = stefan_number(c_l, ρ, Lf, T_l - T_m),
-        St_s = stefan_number(c_s, ρ, Lf, T_m - T_s); # zero for one-phase problem
+        St_l = stefan_number(c_l, ρ, Lf, θwi, T_l - T_m),
+        St_s = stefan_number(c_s, ρ, Lf, θwi, T_m - T_s); # zero for one-phase problem
         # Eq. 13 in Hu et al. 1996
         St_l / (exp(λ^2)*erf(λ)) - St_s*sqrt(α_s) / (sqrt(α_l)*exp(α_l*λ^2/α_s)*erfc(λ*sqrt(α_l/α_s))) - λ*sqrt(π)
     end
 end
-stefan_one_phase_residual(λ, T_m, T_l, k_l, c_l, ρ, Lf) = stefan_residual(λ, T_m, T_l, T_m, k_l, c_l, k_l, c_l, ρ, Lf)
+stefan_one_phase_residual(λ, T_m, T_l, k_l, c_l, ρ, θwi, Lf) = stefan_residual(λ, T_m, T_l, T_m, k_l, c_l, k_l, c_l, ρ, θwi, Lf)
 
 """
     StefanProblem{Tp<:StefanParameters,Tx,Tt}
@@ -104,8 +105,8 @@ function (sol::StefanSolution)(x, t)
 end
 function SciMLBase.solve(prob::StefanProblem, alg=NonlinearSolve.NewtonRaphson(); p=prob.p, x0=prob.x0, t0=prob.t0)
     prob = StefanProblem(ComponentVector(p), x0, t0)
-    f(u,p) = stefan_residual(u, p.T_m, p.T_l, p.T_s, p.k_l, p.c_l, p.k_s, p.c_s, p.ρ, p.Lf)
-    nlprob = NonlinearSolve.NonlinearProblem(f, ustrip(1/p.Lf), p)
+    f(u,p) = stefan_residual(u, p.T_m, p.T_l, p.T_s, p.k_l, p.c_l, p.k_s, p.c_s, p.ρ, p.θwi, p.Lf)
+    nlprob = NonlinearSolve.NonlinearProblem(f, ustrip(1/(p.Lf*p.θwi)), p)
     nlsol = SciMLBase.solve(nlprob, alg)
     λ = nlsol.u
     return StefanSolution(prob, nlsol, λ)

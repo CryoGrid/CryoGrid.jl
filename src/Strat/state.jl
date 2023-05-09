@@ -1,4 +1,4 @@
-using CryoGrid.Numerics: Delta
+using CryoGrid: DVar
 
 """
     LayerState{iip,TGrid,TStates,Tt,Tdt,Tz,varnames}
@@ -85,8 +85,8 @@ end
 @inline _makestate(::Val, ::Algebraic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
 @inline _makestate(::Val, ::Algebraic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = error("prognostic variables on grid edges not supported")
 @inline _makestate(::Val{layername}, ::Algebraic{name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {name,layername} = view(view(u, Val{layername}()), Val{name}())
-@inline _makestate(::Val, ::Delta{dname,name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val{layername}, ::Delta{dname,name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {dname,name,layername} = view(view(du, Val{layername}()), Val{name}())
+@inline _makestate(::Val, ::DVar{dname,name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline _makestate(::Val{layername}, ::DVar{dname,name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {dname,name,layername} = view(view(du, Val{layername}()), Val{name}())
 @inline _makestate(::Val, var::Diagnostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(retrieve(sv.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1+var.dim.offset)
 @inline _makestate(::Val, var::Diagnostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = view(retrieve(sv.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)+var.dim.offset)
 @inline _makestate(::Val{layername}, ::Diagnostic{name}, sv::StateVars, z_inds, u, du, t) where {name,layername} = retrieve(sv.diag[layername][name], u, t)

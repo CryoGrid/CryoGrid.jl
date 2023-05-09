@@ -1,5 +1,6 @@
 module Numerics
 
+using CryoGrid
 using CryoGrid.Utils
 
 using Base: @inbounds, @propagate_inbounds
@@ -16,7 +17,6 @@ using UnPack
 using StaticArrays
 using StructTypes
 
-import Base.==
 import ConstructionBase
 import ForwardDiff
 import ModelParameters
@@ -27,8 +27,7 @@ function turbo(value::Bool)
     global USE_TURBO = value
 end
 
-export Var, GridSpec, Edges, Cells, UnitRectangle
-export DiscretizationStrategy, PresetGrid, AutoGrid, makegrid
+export UnitRectangle, DiscretizationStrategy, PresetGrid, AutoGrid, makegrid
 include("types.jl")
 
 export Profile, ProfileKnot
@@ -39,10 +38,6 @@ include("math.jl")
 
 export Grid, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
-
-export Prognostic, Algebraic, Diagnostic, VarDim, OnGrid, Shape, Scalar
-export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
-include("variables.jl")
 
 export DiffCache, retrieve
 include("diffcache.jl")

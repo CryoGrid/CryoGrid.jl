@@ -37,8 +37,7 @@ struct CoupledProcesses{TProcs} <: Process
         return new{typeof(processes)}(processes)
     end
 end
-# type union aliases for process subtype w/ coupled processes of that same subtype
-const SubSurfaceProcesses = Union{SubSurfaceProcess,CoupledProcesses{<:Tuple{Vararg{SubSurfaceProcess}}}}
+# type alias for one or more BoundaryProcess(es)
 const BoundaryProcesses = Union{BoundaryProcess,CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}}
 """
     Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}

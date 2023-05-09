@@ -12,15 +12,14 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     # _explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
     _implicit_step!(integrator, tile, du, u, p, t)
-    i = integrator.step + 1
+    integrator.t = t
+    integrator.step += 1
     # invoke auxiliary state saving function in CryoGridProblem
     push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
     push!(tile.hist.vals.t, integrator.t)
     # save state in solution
     push!(integrator.sol.t, integrator.t)
     push!(integrator.sol.u, integrator.u)
-    integrator.step = i
-    integrator.t = t
     return nothing
 end
 function _explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)

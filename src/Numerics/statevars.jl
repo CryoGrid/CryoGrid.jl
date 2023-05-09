@@ -23,7 +23,7 @@ function StateVars(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.A
     progvars = map(group -> filter(isprognostic, group), vars)
     algvars = map(group -> filter(isalgebraic, group), vars)
     # create variables for time delta variables (divergence/residual)
-    dpvars = map(group -> map(Delta, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
+    dpvars = map(group -> map(CryoGrid.DVar, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
     gridprogvars = Tuple(unique(filter(isongrid, tuplejoin(_flatten(progvars), _flatten(algvars)))))
     freeprogvars = map(group -> filter(!isongrid, group), progvars)
     vartypes = map(vartype, tuplejoin(gridprogvars, _flatten(freeprogvars)))
@@ -41,7 +41,7 @@ function StateVars(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.A
 end
 @generated function getvar(::Val{name}, vs::StateVars{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}
     pax = ComponentArrays.indexmap(first(ComponentArrays.getaxes(u))) # get prognostic variable index map (name -> indices)
-    dnames = map(n -> deltaname(n), keys(pax)) # get names of delta/derivative variables
+    dnames = map(n -> CryoGrid.dname(n), keys(pax)) # get names of delta/derivative variables
     # case 1) variable is diagnostic and lives on the grid
     if name ∈ griddvars
         quote
@@ -73,7 +73,7 @@ function getvars(vs::StateVars{layers,gridvars,TU}, u::ComponentVector, du::Comp
     # map over non-prognostic variables, selecting variables from cache
     vars = map(filter(!isprognostic, vals)) do val # map over given variable names, ignoring prognostic variables
         # in case val is a differential var (will be nothing otherwise)
-        dvar_ind = findfirst(n -> val == deltaname(n), keys(pax))
+        dvar_ind = findfirst(n -> val == CryoGrid.dname(n), keys(pax))
         if !isnothing(dvar_ind)
             val => du[keys(pax)[dvar_ind]]    
         elseif val ∈ gridvars
