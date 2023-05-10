@@ -11,7 +11,7 @@ Returns the maximum volumetric water content (saturation point) for grid cell `i
 """
 function maxwater end
 """
-    minwater(::SubSurface, water::WaterBalance)
+    minwater(::SubSurface, water::WaterBalance, state, i)
 
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """

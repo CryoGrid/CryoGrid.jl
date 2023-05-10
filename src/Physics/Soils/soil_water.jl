@@ -95,7 +95,8 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]
     ψ₂ = state2.ψ[1]
-    θfc = Hydrology.minwater(sub1, water1) # take field capacity from upper layer where water would drain from
+    # take field capacity from upper layer where water would drain from
+    θfc = Hydrology.minwater(sub1, water1, state1, lastindex(state1.ψ))
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     δ₁ = CryoGrid.thickness(sub1, state1, last)

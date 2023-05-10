@@ -17,6 +17,7 @@ Returns the minimum volumetric water content (typically field capacity for simpl
 """
 minwater(::SubSurface, water::WaterBalance) = 0.0
 minwater(::SubSurface, water::WaterBalance{<:BucketScheme}) = water.flow.fieldcap
+minwater(sub::SubSurface, water::WaterBalance, state, i) = minwater(sub, water, state, i)
 function balancefluxes!(::SubSurface, water::WaterBalance, state)
     N = length(state.kw)
     state.jw[1] = min(max(state.jw[1], -state.θw[1]), state.θsat[1] - state.θwi[1])
@@ -76,7 +77,7 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
     # loop over grid
     @inbounds for i in 2:N-1 # note that the index is over grid edges
         let θwᵢ₋₁ = state.θw[i-1], # cell above edge i
-            θfc = minwater(sub, water),
+            θfc = minwater(sub, water, state, i),
             kw = state.kw[i];
             # compute fluxes over inner grid cell faces
             state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
@@ -142,7 +143,8 @@ function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance, state)
 end
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)
     θw₁ = state1.θw[end]
-    θfc = minwater(sub1, water1) # take field capacity from upper layer where water would drain from
+    # take minimum water content from upper layer where water would drain from
+    θfc = minwater(sub1, water1, state1, lastindex(state1.θw))
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     δ₁ = CryoGrid.thickness(sub1, state1, last)
