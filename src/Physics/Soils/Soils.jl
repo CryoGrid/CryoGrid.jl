@@ -29,12 +29,20 @@ const Temperature = Heat.Temperature
 const Enthalpy = Heat.Enthalpy
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, HomogeneousSoil, SoilParameterization, SoilProfile, SoilProperties
-export soilproperties, porosity, mineral, organic
-include("soil.jl")
+export Soil, SoilParameterization, HomogeneousSoil
+include("soil_types.jl")
 
-export CharacteristicFractions, MineralSediment, soilcomponent
-include("soil_para.jl")
+export SoilProfile, porosity, mineral, organic
+include("soil_methods.jl")
+
+export SoilTexture
+include("soil_texture.jl")
+
+export MineralOrganic, soilcomponent
+include("para/mineral_organic.jl")
+
+export SURFEX
+include("para/surfex.jl")
 
 export RichardsEq
 include("soil_water.jl")

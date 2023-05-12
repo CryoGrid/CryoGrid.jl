@@ -1,23 +1,3 @@
-# Soil thermal properties
-const DefaultThermalProperties = Heat.ThermalProperties()
-SoilThermalProperties(
-    kh_w = DefaultThermalProperties.kh_w,
-    kh_i = DefaultThermalProperties.kh_i,
-    kh_a = DefaultThermalProperties.kh_a,
-    kh_o=0.25u"W/m/K", # organic [Hillel (1982)]
-    kh_m=3.8u"W/m/K", # mineral [Hillel (1982)]
-    ch_w = DefaultThermalProperties.ch_w,
-    ch_i = DefaultThermalProperties.ch_i,
-    ch_a = DefaultThermalProperties.ch_a,
-    ch_o=2.5e6u"J/K/m^3", # heat capacity organic
-    ch_m=2.0e6u"J/K/m^3", # heat capacity mineral
-) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o)
-
-"""
-Gets the `ThermalProperties` for the given soil layer.
-"""
-Heat.thermalproperties(soil::Soil) = soilproperties(soil).heat
-
 @inline function Heat.thermalconductivities(soil::Soil)
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
     return kh_w, kh_i, kh_a, kh_m, kh_o
@@ -40,7 +20,7 @@ end
     end
 end
 
-function partial_heatcapacity(soil::Soil{<:CharacteristicFractions}, heat::HeatBalance)
+function partial_heatcapacity(soil::Soil{<:MineralOrganic}, heat::HeatBalance)
     function heatcap(θw, θwi, θsat)
         θi = θwi - θw
         θa = θsat - θwi
@@ -64,14 +44,14 @@ sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
-function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TOp}
+function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC,TOperator}, state) where {TOperator}
     L = heat.prop.L
     fc = heat.freezecurve
     hc = partial_heatcapacity(soil, heat)
     @unpack ch_w, ch_i = thermalproperties(soil)
     sat = saturation(soil, state)
     θsat = porosity(soil, state)
-    if TOp <: Enthalpy
+    if TOperator <: Enthalpy
         solver = Heat.fcsolver(heat)
         FreezeCurves.Solvers.initialize!(solver, fc, hc; sat, θsat)
     end

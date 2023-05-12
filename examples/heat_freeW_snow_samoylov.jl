@@ -19,11 +19,11 @@ snowmass = SnowMassBalance(
 strat = @Stratigraphy(
     z_top => Top(TemperatureGradient(forcings.Tair), Snowfall(forcings.snowfall)),
     z_sub[1] => :snowpack => Snowpack(para=Snow.Bulk(thresh=2.0u"cm"), mass=snowmass, heat=HeatBalance()),
-    z_sub[1] => :topsoil1 => Soil(soilprofile[1].value, heat=HeatBalance()),
-    z_sub[2] => :topsoil2 => Soil(soilprofile[2].value, heat=HeatBalance()),
-    z_sub[3] => :sediment1 => Soil(soilprofile[3].value, heat=HeatBalance()),
-    z_sub[4] => :sediment2 => Soil(soilprofile[4].value, heat=HeatBalance()),
-    z_sub[5] => :sediment3 => Soil(soilprofile[5].value, heat=HeatBalance()),
+    z_sub[1] => :topsoil1 => HomogeneousSoil(soilprofile[1].value, heat=HeatBalance()),
+    z_sub[2] => :topsoil2 => HomogeneousSoil(soilprofile[2].value, heat=HeatBalance()),
+    z_sub[3] => :sediment1 => HomogeneousSoil(soilprofile[3].value, heat=HeatBalance()),
+    z_sub[4] => :sediment2 => HomogeneousSoil(soilprofile[4].value, heat=HeatBalance()),
+    z_sub[5] => :sediment3 => HomogeneousSoil(soilprofile[5].value, heat=HeatBalance()),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 tile = Tile(strat, modelgrid, initT)

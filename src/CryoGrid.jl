@@ -59,9 +59,9 @@ export DiscretizationStrategy, AutoGrid, PresetGrid, Grid, cells, edges, subgrid
 export initializer, getvar
 include("IO/InputOutput.jl")
 @reexport using .InputOutput
-include("Physics/Physics.jl")
 include("Strat/Strat.jl")
 @reexport using .Strat
+include("Physics/Physics.jl")
 parameters = Strat.parameters
 include("Diagnostics/Diagnostics.jl")
 @reexport using .Diagnostics

@@ -10,18 +10,24 @@ Base.@kwdef struct RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRC,Tsp,TΩ} 
     Ω::TΩ = 1e-3 # smoothness for ice impedence factor
     sp::Tsp = nothing
 end
+
 Hydrology.default_dtlim(::RichardsEq{Pressure}) = CryoGrid.MaxDelta(0.01u"m")
 Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.01)
+
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
+
 # water content for soils without water balance
-Hydrology.watercontent(soil::Soil{<:CharacteristicFractions}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.watercontent(soil::Soil{<:MineralOrganic}, ::HeatBalance, state=nothing) = soilcomponent(Val{:θwi}(), soil.para)
+
 """
     impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi)
 
 Impedence factor which represents the blockage of water-filled pores by ice (see Hansson et al. 2004 and Westermann et al. 2022).
 """
 impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi) = 10^(-water.flow.Ω*(1 - θw/θwi))
+
 swrc(water::WaterBalance{<:RichardsEq}) = water.flow.swrc
+
 @inline function Hydrology.watercontent!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Pressure}}, state)
     let swrc = swrc(water);
         @inbounds for i in 1:length(state.ψ₀)
@@ -47,6 +53,7 @@ end
         end
     end
 end
+
 @inline function Hydrology.hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
     kw_sat = Hydrology.kwsat(sub, water)
     vg = Soils.swrc(water)
@@ -66,6 +73,7 @@ end
     state.kw[end] = state.kwc[end]
     Numerics.harmonicmean!(@view(state.kw[2:end-1]), state.kwc, Δkw)
 end
+
 function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Saturation}}, state)
     @inbounds @. state.∂sat∂t = state.∂θwi∂t / state.θsat
     return nothing
@@ -74,11 +82,13 @@ function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure
     @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.∂θw∂ψ
     return nothing
 end
+
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     # compute diffusive fluxes from pressure, if enabled
     Numerics.flux!(state.jw, state.ψ, Δ(cells(state.grid)), state.kw)
     return nothing
 end
+
 # CryoGrid methods
 CryoGrid.variables(::RichardsEq{Pressure}) = (
     Prognostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
@@ -86,11 +96,13 @@ CryoGrid.variables(::RichardsEq{Pressure}) = (
     Diagnostic(:sat, OnGrid(Cells), domain=0..1), # saturation (diagnostic)
     Diagnostic(:∂θw∂ψ, OnGrid(Cells), domain=0..Inf), # derivative of SWRC w.r.t matric potential
 )
+
 CryoGrid.variables(::RichardsEq{Saturation}) = (
     Prognostic(:sat, OnGrid(Cells), domain=0..1), # saturation
     Diagnostic(:ψ₀, OnGrid(Cells), domain=-Inf..0), # soil matric potential of water + ice
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
 )
+
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]
@@ -114,6 +126,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     state1.jw[end] = state2.jw[1] = jw*r₁*(jw < zero(jw)) + jw*r₂*(jw >= zero(jw))
     return nothing
 end
+
 function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)

@@ -23,7 +23,7 @@ but this can be changed via the `freezecurve` parameter. For example, to use the
 function SoilHeatTile(heatvar, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         grid[1] => Top(upperbc),
-        Tuple(knot.depth => Symbol(:soil,i) => Soil(knot.value, heat=HeatBalance(heatvar, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
+        Tuple(knot.depth => Symbol(:soil,i) => HomogeneousSoil(knot.value, heat=HeatBalance(heatvar, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, PresetGrid(grid), init, chunk_size=chunk_size)
@@ -42,11 +42,11 @@ Parameters = (
 
 const SamoylovDefault = (
     soilprofile = SoilProfile(
-        0.0u"m" => CharacteristicFractions(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-        0.1u"m" => CharacteristicFractions(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-        0.4u"m" => CharacteristicFractions(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-        3.0u"m" => CharacteristicFractions(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-        10.0u"m" => CharacteristicFractions(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+        0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+        0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+        0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+        3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+        10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
     ),
     tempprofile = TemperatureProfile(
         0.0u"m" => -1.0u"°C",

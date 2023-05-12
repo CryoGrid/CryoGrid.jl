@@ -7,7 +7,7 @@ kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
 """
     maxwater(::SubSurface, ::WaterBalance, state, i)
 
-Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
+Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to one.
 """
 maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
 """

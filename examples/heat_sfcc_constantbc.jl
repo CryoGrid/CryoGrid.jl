@@ -7,7 +7,7 @@ tempprofile = TemperatureProfile(
     100.0u"m" => 1.0u"°C",
 )
 soilprofile = SoilProfile(
-    0.0u"m" => CharacteristicFractions()
+    0.0u"m" => MineralOrganic()
 )
 initT = initializer(:T, tempprofile)
 sfcc = DallAmico(swrc=VanGenuchten(α=0.05, n=1.8))
