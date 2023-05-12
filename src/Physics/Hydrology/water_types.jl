@@ -62,12 +62,7 @@ struct NoFlow <: WaterFlow end
 
 "Bucket" water scheme for downward advective flow due to gravity.
 """
-Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow
-    fieldcap::Tfc = 0.2
-end
-CryoGrid.parameterize(flow::BucketScheme) = BucketScheme(
-    fieldcap = CryoGrid.parameterize(flow.fieldcap, domain=0..1, desc="Minimum saturation level, a.k.a 'field capacity'."),
-)
+Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow end
 # default dt limiters
 default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)

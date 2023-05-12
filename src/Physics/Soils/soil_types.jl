@@ -23,3 +23,5 @@ Base.@kwdef struct HomogeneousSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Op
     water::Twater = nothing # water balance
     sp::Tsp = nothing # user-defined specialization
 end
+# Convenience constructor
+HomogeneousSoil(para::SoilParameterization; kwargs...) = HomogeneousSoil(; para, kwargs...)

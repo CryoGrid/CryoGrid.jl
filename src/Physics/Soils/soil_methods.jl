@@ -34,7 +34,7 @@ organic(::Soil) = error("not implemented for $(typeof(soil))")
 Retrieves the porosity for the given layer at grid cell `i`, if provided.
 """
 porosity(soil::Soil, state, i) = Utils.getscalar(porosity(soil, state), i)
-porosity(soil::Soil, state) = porosity(soil, state)
+porosity(soil::Soil, state) = porosity(soil)
 porosity(::Soil) = error("not implemented for $(typeof(soil))")
 
 """
@@ -45,7 +45,7 @@ porosity(::Soil) = error("not implemented for $(typeof(soil))")
 Retrieves the saturation level for the given layer at grid cell `i`, if provided.
 """
 saturation(soil::Soil, state, i) = Utils.getscalar(saturation(soil, state), i)
-saturation(soil::Soil, state) = saturation(soil, state)
+saturation(soil::Soil, state) = saturation(soil)
 # For soil layers with water balance, use saturation state variable
 saturation(::Soil{<:Any,<:Any,<:WaterBalance}, state) = state.sat
 saturation(::Soil) = error("not implemented for $(typeof(soil))")

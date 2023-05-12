@@ -10,10 +10,10 @@ using CryoGrid.Utils
 export WaterBalanceProperties, HydraulicProperties
 
 export WaterBalance, BucketScheme, NoFlow, Evapotranspiration
-include("types.jl")
+include("water_types.jl")
 
 export SaturationProfile,  hydraulicproperties, hydraulicconductivity!
-include("methods.jl")
+include("water_methods.jl")
 
 include("water_balance.jl")
 

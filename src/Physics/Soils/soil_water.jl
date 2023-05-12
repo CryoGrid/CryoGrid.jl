@@ -28,10 +28,10 @@ impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi) = 10^(-water.flow.
 
 swrc(water::WaterBalance{<:RichardsEq}) = water.flow.swrc
 
-@inline function Hydrology.watercontent!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Pressure}}, state)
+@inline function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}, state)
     let swrc = swrc(water);
         @inbounds for i in 1:length(state.ψ₀)
-            state.θsat[i] = Hydrology.maxwater(sub, water, state, i)
+            state.θsat[i] = Hydrology.maxwater(soil, water, state, i)
             state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
             state.θwi[i], state.dθwidψ[i] = ∇(ψ -> swrc(ψ; θsat=state.θsat[i]), state.ψ[i])
             state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
@@ -39,12 +39,12 @@ swrc(water::WaterBalance{<:RichardsEq}) = water.flow.swrc
         end
     end
 end
-@inline function Hydrology.watercontent!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Saturation}}, state)
+@inline function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}, state)
     let f = swrc(water),
         f⁻¹ = inv(f),
         θres = f.vol.θres;
         @inbounds for i in 1:length(state.ψ₀)
-            state.θsat[i] = θsat = Hydrology.maxwater(sub, water, state, i)
+            state.θsat[i] = θsat = Hydrology.maxwater(soil, water, state, i)
             state.θwi[i] = θwi = state.sat[i]*θsat
             # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi, but this is necessary
             # for solving schemes that might attempt to use illegal state values
@@ -54,12 +54,12 @@ end
     end
 end
 
-@inline function Hydrology.hydraulicconductivity!(sub::SubSurface, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
-    kw_sat = Hydrology.kwsat(sub, water)
+@inline function Hydrology.hydraulicconductivity!(soil::Soil, water::WaterBalance{<:RichardsEq{Tform,<:VanGenuchten}}, state) where {Tform}
+    kw_sat = Hydrology.kwsat(soil, water)
     vg = Soils.swrc(water)
     Δkw = Δ(state.grid)
     @inbounds for i in eachindex(state.kwc)
-        let θsat = Hydrology.maxwater(sub, water, state, i),
+        let θsat = Hydrology.maxwater(soil, water, state, i),
             θw = state.θw[i],
             θwi = state.θwi[i],
             I_ice = Soils.impedencefactor(water, θw, θwi),
@@ -103,18 +103,18 @@ CryoGrid.variables(::RichardsEq{Saturation}) = (
     Diagnostic(:ψ, OnGrid(Cells), domain=-Inf..0), # soil matric potential of unfrozen water
 )
 
-function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}, sub2::SubSurface, water2::WaterBalance{<:RichardsEq}, state1, state2)
+function CryoGrid.interact!(soil1::Soil, water1::WaterBalance{<:RichardsEq}, soil2::Soil, water2::WaterBalance{<:RichardsEq}, state1, state2)
     θw₁ = state1.θw[end]
     ψ₁ = state1.ψ[end]
     ψ₂ = state2.ψ[1]
     # take field capacity from upper layer where water would drain from
-    θfc = Hydrology.minwater(sub1, water1, state1, lastindex(state1.ψ))
+    θfc = Hydrology.minwater(soil1, water1, state1, lastindex(state1.ψ))
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
-    δ₁ = CryoGrid.thickness(sub1, state1, last)
-    δ₂ = CryoGrid.thickness(sub2, state2, first)
-    z₁ = CryoGrid.midpoint(sub1, state1, last)
-    z₂ = CryoGrid.midpoint(sub2, state2, first)
+    δ₁ = CryoGrid.thickness(soil1, state1, last)
+    δ₂ = CryoGrid.thickness(soil2, state2, first)
+    z₁ = CryoGrid.midpoint(soil1, state1, last)
+    z₂ = CryoGrid.midpoint(soil2, state2, first)
     kw = state1.kw[end] = state2.kw[1] = Numerics.harmonicmean(kwc₁, kwc₂, δ₁, δ₂)
     # flux over boundary = advective flux + diffusive pressure flux
     jw = Hydrology.advectiveflux(θw₁, θfc, kw) - kw*(ψ₂ - ψ₁)/(z₂ - z₁)
@@ -127,7 +127,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:RichardsEq}
     return nothing
 end
 
-function CryoGrid.timestep(::SubSurface, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
+function CryoGrid.timestep(::Soil, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
         dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
