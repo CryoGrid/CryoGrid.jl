@@ -22,10 +22,9 @@ minwater(::SubSurface, water::WaterBalance{<:BucketScheme}) = 0.1
 minwater(sub::SubSurface, water::WaterBalance, state) = minwater(sub, water)
 minwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(minwater(sub, water, state), i)
 
-function balancefluxes!(::SubSurface, water::WaterBalance, state)
+function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
     N = length(state.kw)
-    dt = state.dt
-    state.jw[1] = min(max(state.jw[1]*dt, -state.θw[1]), state.θsat[1] - state.θwi[1])
+    state.jw[1] = min(max(state.jw[1], -state.θw[1]), state.θsat[1] - state.θwi[1])
     @inbounds for i in 2:N-1
         let θw_up = state.θw[i-1],
             θw_lo = state.θw[i],
@@ -33,19 +32,21 @@ function balancefluxes!(::SubSurface, water::WaterBalance, state)
             θwi_lo = state.θwi[i],
             θsat_up = state.θsat[i-1],
             θsat_lo = state.θsat[i],
-            jw = state.jw[i]*dt;
+            Δz_up = CryoGrid.thickness(sub, state, i-1),
+            Δz_lo = CryoGrid.thickness(sub, state, i),
+            jw = state.jw[i];
             # limit flux based on
             # i) available water in cell above and
             # ii) free pore space in cell below
-            max_flux_up = max(jw, θwi_up - θsat_up, -θw_lo) # upward flux is negative
-            min_flux_down = min(jw, θsat_lo - θwi_lo, θw_up) # downward flux is positive
+            max_flux_up = max(jw / Δz_up, θwi_up - θsat_up, -θw_lo) # upward flux is negative
+            min_flux_down = min(jw / Δz_lo, θsat_lo - θwi_lo, θw_up) # downward flux is positive
             # reduction factors
             r₁ = reductionfactor(water, state.sat[i-1])
             r₂ = reductionfactor(water, state.sat[i])
-            state.jw[i] = r₁*max_flux_up*(jw < zero(jw)) + r₂*min_flux_down*(jw >= zero(jw))
+            state.jw[i] = r₁*max_flux_up*(jw < zero(jw))*Δz_up + r₂*min_flux_down*(jw >= zero(jw))*Δz_lo
         end
     end
-    state.jw[end] = min(max(state.jw[end]*dt, state.θwi[end] - state.θsat[end]), state.θw[end])
+    state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])
 end
 
 watercontent(sub::SubSurface, state) = state.θwi

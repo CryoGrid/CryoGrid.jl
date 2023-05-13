@@ -9,7 +9,7 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     t = t₀ + dt
     tile = Strat.resolve(Tile(integrator.sol.prob.f), u, p, t)
     # explicit update, if necessary
-    # _explicit_step!(integrator, tile, du, u, p, t)
+    _explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
     _implicit_step!(integrator, tile, du, u, p, t)
     integrator.t = t
@@ -23,15 +23,9 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     return nothing
 end
 function _explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
-    dt = 1.0
-    t_next = integrator.t
-    while t_next < t
-        CryoGrid.Strat.step!(tile, du, u, p, t, dt)
-        dt = min(t - t_next, CryoGrid.timestep(tile, du, u, p, t_next))
-        # Explicit (forward) Euler update for `u` with time derivative `du`
-        @. u = u + dt*du
-        t_next += dt
-    end
+    dt = integrator.dt
+    CryoGrid.Strat.step!(tile, du, u, p, t, dt)
+    @. u += du*dt
     return u
 end
 function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)

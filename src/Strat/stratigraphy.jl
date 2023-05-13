@@ -136,7 +136,7 @@ end
 
 function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy)
     strat_grid = nothing
-    for (bounds, named_layer) in zip(boundarypairs(strat), layers(strat))
+    for (bounds, named_layer) in zip(boundarypairs(strat)[2:end-1], layers(strat)[2:end-1])
         if bounds[2] - bounds[1] <= zero(bounds[1])
             continue
         end
