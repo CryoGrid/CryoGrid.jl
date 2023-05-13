@@ -15,7 +15,7 @@ const Temperature = HeatOperator{:T}
 
 # default step limiters
 default_dtlim(::Temperature) = CryoGrid.CFL(maxdelta=CryoGrid.MaxDelta(Inf))
-default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(50u"kJ")
+default_dtlim(::Enthalpy) = CryoGrid.MaxDelta(100u"kJ")
 default_dtlim(::HeatOperator) = nothing
 
 # default freezecurve solvers

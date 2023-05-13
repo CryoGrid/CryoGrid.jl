@@ -87,7 +87,7 @@ function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     end
     if iter_count > integrator.alg.maxiters && ϵ_max > integrator.alg.tolerance
         integrator.alg.verbose && @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
-        integrator.sol.retcode = :MaxIters
+        integrator.sol.retcode = ReturnCode.MaxIters
     end
     return dH
 end

@@ -15,15 +15,15 @@ export SoilHeatTile, SamoylovDefault
 include("presetgrids.jl")
 
 """
-    SoilHeatTile([heatvar=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
+    SoilHeatTile([heatop=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater()) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
-function SoilHeatTile(heatvar, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
+function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::Strat.VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), chunk_size=nothing) where {F<:FreezeCurve}
     strat = Stratigraphy(
         grid[1] => Top(upperbc),
-        Tuple(knot.depth => Symbol(:soil,i) => HomogeneousSoil(knot.value, heat=HeatBalance(heatvar, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
+        Tuple(knot.depth => Symbol(:soil,i) => HomogeneousSoil(knot.value, heat=HeatBalance(heatop, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, PresetGrid(grid), init, chunk_size=chunk_size)

@@ -40,7 +40,7 @@ mutable struct CGLiteSolution{TT,Tu<:AbstractVector{TT},Tt,Talg,Tprob} <: SciMLB
     u::Vector{Tu}
     t::Vector{Tt}
     alg::Talg
-    retcode::Symbol
+    retcode::ReturnCode.T
 end
 Base.getproperty(sol::CGLiteSolution, name::Symbol) = name == :H ? getfield(sol, :u) : getfield(sol, name)
 Base.propertynames(sol::CGLiteSolution) = (fieldnames(typeof(sol))..., :H)
@@ -116,7 +116,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     push!(savevals.saveval, initialsave)
     push!(savevals.t, t0)
     tile.hist.vals = savevals
-    sol = CGLiteSolution(prob, u_storage, t_storage, alg, :Default)
+    sol = CGLiteSolution(prob, u_storage, t_storage, alg, ReturnCode.Default)
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
         similar(prob.u0),
@@ -137,8 +137,8 @@ end
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::LiteImplicitEuler, args...; dt=24*3600.0, kwargs...)
     integrator = DiffEqBase.__init(prob, alg, args...; dt=dt, kwargs...)
     for i in integrator end
-    if integrator.sol.retcode == :Default
-        integrator.sol.retcode = :Success
+    if integrator.sol.retcode == ReturnCode.Default
+        integrator.sol.retcode = ReturnCode.Success
     end
     return integrator.sol
 end

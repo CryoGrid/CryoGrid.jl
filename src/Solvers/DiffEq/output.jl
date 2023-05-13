@@ -12,12 +12,14 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
     save_interval = ClosedInterval(tspan...)
     tile = Tile(sol.prob.f) # Tile
     ts = tile.hist.vals.t # use save callback time points
+    # check if last value is duplicated
+    ts = ts[end] == ts[end-1] ? ts[1:end-1] : ts
     t_mask = map(∈(save_interval), ts) # indices within t interval
     u_all = sol.(ts[t_mask])
     u_mat = reduce(hcat, u_all) # build prognostic state from continuous solution
     pax = ComponentArrays.indexmap(getaxes(tile.state.uproto)[1])
     # get saved diagnostic states and timestamps only in given interval
-    savedstates = tile.hist.vals.saveval[t_mask]
+    savedstates = tile.hist.vals.saveval[1:length(ts)][t_mask]
     ts_datetime = Dates.epochms2datetime.(round.(ts[t_mask]*1000.0))
     allvars = variables(tile)
     progvars = tuplejoin(filter(isprognostic, allvars), filter(isalgebraic, allvars))
