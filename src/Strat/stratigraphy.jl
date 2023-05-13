@@ -190,29 +190,27 @@ end
     return minimum(max_dts)
 end
 
-CryoGrid.hasfixedvolume(::Type{TStrat}) where {TStrat<:Stratigraphy} = return all(map(CryoGrid.hasfixedvolume, layertypes(TStrat)))
-
 # collecting/grouping components
 CryoGrid.events(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
+
+CryoGrid.variables(::Union{FixedVolume,DiagnosticVolume}) = (
+    Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
+    # technically the domain for z should be double bounded by the surrounding layers...
+    # unfortunately there is no way to represent that here, so we just have to ignore it
+    Diagnostic(:z, Scalar, u"m"),
+)
+CryoGrid.variables(::PrognosticVolume) = (
+    Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:z, Scalar, u"m"),
+)
 function CryoGrid.variables(strat::Stratigraphy)
     strat_nt = NamedTuple(strat)
     layervars = map(CryoGrid.variables, strat_nt)
     return map(layervars, strat_nt) do vars, named_layer
-        if CryoGrid.hasfixedvolume(typeof(named_layer.val))
-            (
-                vars...,
-                Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
-                # technically the domain for z should be double bounded by the surrounding layers...
-                # unfortunately there is no way to represent that here, so we just have to ignore it
-                Diagnostic(:z, Scalar, u"m"),
-            )
-        else
-            (
-                vars...,
-                Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
-                Diagnostic(:z, Scalar, u"m"),
-            )
-        end
+        (
+            vars...,
+            CryoGrid.variables(CryoGrid.Volume(named_layer.val))...,
+        )
     end
 end
 function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))

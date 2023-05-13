@@ -112,6 +112,7 @@ function Tile(
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
+
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
@@ -152,6 +153,7 @@ function step!(
     end
     return nothing
 end
+
 """
     timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
 
@@ -166,6 +168,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip},
     state = TileState(tile.state, zs, u, du, t, 1.0, Val{true}())
     CryoGrid.timestep(strat::Stratigraphy, state)
 end
+
 """
     initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
     initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing)
@@ -191,6 +194,7 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     CryoGrid.initialcondition!(strat, state, tile.inits)
     return u, du    
 end
+
 """
     domain(tile::Tile)
 
@@ -230,22 +234,16 @@ function domain(tile::Tile)
         return false
     end
 end
-# dynamic layer boundaries
-@generated function _layerthick(tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer}
-    if CryoGrid.hasfixedvolume(TLayer)
-        # Case 1: Layer has static volume, retrieve from diagnostic cache
-        quote
-            retrieve(getproperty(tile.state.diag, name).Δz, u)
-        end
-    else
-        # Case 2: Layer has dynamic volume, retrieve from prognostic state
-        quote
-            getproperty(u, name).Δz
-        end
-    end
+
+# layer thickness
+_layerthick(::PrognosticVolume, tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer} = getproperty(u, name).Δz
+_layerthick(::Union{FixedVolume,DiagnosticVolume}, tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer} = retrieve(getproperty(tile.state.diag, name).Δz, u)
+function _layerthick(tile::Tile, layer::Named{name,TLayer}, u) where {name,TLayer<:Layer}
+    return _layerthick(CryoGrid.Volume(TLayer), tile, layer, u)
 end
+
 @generated function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
-    if CryoGrid.hasfixedvolume(TStrat)
+    if all(map(typ -> isa(Volume(typ), FixedVolume), layertypes(TStrat)))
         # Micro-optimization: if all layers in the stratigraphy have static volume, skip all of the fancy stuff
         quote
             boundaries(tile.strat)
@@ -257,6 +255,7 @@ end
         end
     end
 end
+
 function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
     zbot = tile.state.grid[end]
     bounds = boundarypairs(tile.strat, zbot)
@@ -270,6 +269,7 @@ function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
         return z1
     end
 end
+
 function update_layer_boundaries(tile::Tile, u)
     # calculate grid boundaries starting from the bottom moving up to the surface
     zbot = tile.state.grid[end]
@@ -284,6 +284,7 @@ function update_layer_boundaries(tile::Tile, u)
         return round(Numerics.ForwardDiff.value(z), digits=12)
     end
 end
+
 """
     getvar(name::Symbol, tile::Tile, u; interp=true)
     getvar(::Val{name}, tile::Tile, u; interp=true)
@@ -303,6 +304,7 @@ function Numerics.getvar(::Val{name}, tile::Tile, u; interp=true) where name
         return x
     end
 end
+
 """
     getstate(layername::Symbol, tile::Tile, u, du, t)
     getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernames},iip}, _u, _du, t)
@@ -324,6 +326,7 @@ function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernam
     z = boundarypairs(map(ustrip, stripparams(boundaries(tile.strat))), ustrip(tile.grid[end]))[i]
     return LayerState(tile.state, z, u, du, t, dt, Val{layername}(), Val{iip}())
 end
+
 """
     parameterize(tile::Tile)
 
@@ -346,18 +349,21 @@ function CryoGrid.parameterize(tile::Tile)
     new_strat = Stratigraphy(boundaries(tile.strat), Tuple(new_layers))
     return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.hist)
 end
+
 """
     variables(tile::Tile)
 
 Returns a tuple of all variables defined in the tile.
 """
 CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
+
 """
     parameters(tile::Tile; kwargs...)
 
 Extracts all parameters from `tile`.
 """
 parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
+
 """
     withaxes(u::AbstractArray, ::Tile)
 
@@ -366,11 +372,13 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
+
 function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt, Val{iip}())
 end
+
 """
     resolve(tile::Tile, u, p, t)
 

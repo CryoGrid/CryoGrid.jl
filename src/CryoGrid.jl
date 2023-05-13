@@ -43,7 +43,7 @@ export Prognostic, Algebraic, Diagnostic, Var
 export VarDim, OnGrid, Shape, Scalar, GridOffset, Edges, Cells
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
-export BCKind, hasfixedvolume
+export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
 export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!

@@ -191,6 +191,7 @@ function CryoGrid.trigger!(
     state
 )
     state.H .= 0.0
+    return nothing
 end
 function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
@@ -204,6 +205,7 @@ function CryoGrid.trigger!(
     C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
     state.H .= state.T.*C
+    return nothing
 end
 function CryoGrid.diagnosticstep!(
     snow::BulkSnowpack,
@@ -216,6 +218,7 @@ function CryoGrid.diagnosticstep!(
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
+    @setscalar state.Δz = new_dsn
     @unpack ch_a, kh_a = thermalproperties(snow)
     if new_dsn > threshold(snow)
         # if new snow depth is above threshold, set state variables
@@ -238,6 +241,7 @@ function CryoGrid.diagnosticstep!(
         state.C .= ch_a
         state.kc .= kh_a
     end
+    return nothing
 end
 # prognosticstep! for free water, enthalpy based HeatBalance on snow layer
 function CryoGrid.prognosticstep!(
@@ -255,6 +259,7 @@ function CryoGrid.prognosticstep!(
         # otherwise call prognosticstep! for heat
         prognosticstep!(snow, heat, state)
     end
+    return nothing
 end
 # Timestep control
 CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
