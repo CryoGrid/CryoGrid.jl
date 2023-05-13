@@ -23,7 +23,7 @@ soilcomponent(::Val{:θo}, ϕ, θ, ω) = (1-ϕ)*ω
 
 # Soil methods
 saturation(soil::Soil{<:MineralOrganic}) = soil.para.sat
-porosity(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θp}(), soil.para)
+porosity(soil::Soil{<:MineralOrganic}) = soil.para.por
 mineral(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θm}(), soil.para)
 organic(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θo}(), soil.para)
 
@@ -60,3 +60,7 @@ Heat.thermalproperties(soil::Soil{<:MineralOrganic}) = soil.para.heat
 Gets the `HydraulicProperties` for the given soil layer.
 """
 Hydrology.hydraulicproperties(soil::Soil{<:MineralOrganic}) = soil.para.water
+
+# water content for soils without water balance
+Hydrology.watercontent(soil::Soil{<:MineralOrganic}, state) = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.watercontent(soil::Soil{<:MineralOrganic,<:Any,<:WaterBalance}, state) = state.θwi

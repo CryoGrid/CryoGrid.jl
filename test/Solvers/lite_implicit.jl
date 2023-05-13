@@ -11,7 +11,7 @@ end
 
 @testset "CryoGridLite" begin
     # Linear heat conduction
-    @testset begin "Linear heat with periodic boundary"
+    @testset "Linear heat with periodic boundary" begin
         P = 365*24*3600.0 # 1 year
         A = 1.0 # 1°C amplitude
         T₀ = 1.0 # average temperature of -1.0°C
@@ -19,13 +19,13 @@ end
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
         # heatop = Heat.InverseEnthalpy()
-        soil = Soil(MineralOrganic(por=0.0, org=0.0), heat=HeatBalance(heatop))
+        soil = HomogeneousSoil(MineralOrganic(por=0.0, org=0.0), heat=HeatBalance(heatop))
         strat = @Stratigraphy(
             z_top => Top(PeriodicBC(HeatBalance, CryoGrid.Dirichlet, P, 1.0, 0.0, T₀)),
             z_top => :soil => soil,
             z_bot => Bottom(ConstantFlux(HeatBalance, 0.0))
         );
-        α = upreferred(strat.soil.prop.heat.kh_m) / upreferred(strat.soil.prop.heat.ch_m)
+        α = upreferred(strat.soil.para.heat.kh_m) / upreferred(strat.soil.para.heat.ch_m)
         T_analytic = Heat.heat_conduction_linear_periodic_ub(T₀, A, P, ustrip(α))
         initT = initializer(:T, (layer, proc, state) -> state.T .= T_analytic.(cells(state.grid), 0.0))
         modelgrid = CryoGrid.Presets.DefaultGrid_2cm
@@ -47,7 +47,7 @@ end
     end
 
     # Stefan
-    @testset begin "Two-phase Stefan solution"
+    @testset "Two-phase Stefan solution" begin
         z_top = 0.0u"m"
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
@@ -70,8 +70,10 @@ end
         out = CryoGridOutput(sol)
 
         kh_w, kh_i, kh_a, kh_m, kh_o = Heat.thermalconductivities(strat.soil)
-        θ_s = (θw=0.0, θi=porosity(strat.soil), θa=0.0, θm=mineral(strat.soil), θo=organic(strat.soil))
-        θ_l = (θw=porosity(strat.soil), θi=0.0, θa=0.0, θm=mineral(strat.soil), θo=organic(strat.soil))
+        θm = mineral(strat.soil)
+        θo = organic(strat.soil)
+        θ_s = (θw=0.0, θi=porosity(strat.soil), θa=0.0, θm=θm, θo=θo)
+        θ_l = (θw=porosity(strat.soil), θi=0.0, θa=0.0, θm=θm, θo=θo)
         k_s = Heat.thermalconductivity(strat.soil, strat.soil.heat, θ_s...)
         k_l = Heat.thermalconductivity(strat.soil, strat.soil.heat, θ_l...)
         c_s = Heat.heatcapacity(strat.soil, strat.soil.heat, θ_s...)

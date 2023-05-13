@@ -18,7 +18,6 @@ Returns the minimum volumetric water content (typically field capacity for simpl
 function minwater end
 """
     watercontent(::SubSurface, state)
-    watercontent(::SubSurface, ::Process, state)
     watercontent(::SubSurface, state, i)
 
 Returns the total water content `θwi` from the given subsurface layer and/or current state.

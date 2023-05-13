@@ -9,7 +9,7 @@
     mineral(soil::Soil, state)
     mineral(soil::Soil)
 
-Retrieves the mineral content for the given layer at grid cell `i`, if provided.
+Retrieves the volumetric mineral content for the given layer at grid cell `i`, if provided.
 """
 mineral(soil::Soil, state, i) = Utils.getscalar(mineral(soil, state), i)
 mineral(soil::Soil, state) = mineral(soil)
@@ -20,10 +20,10 @@ mineral(soil::Soil) = error("not implemented for $(typeof(soil))")
     organic(soil::Soil, state)
     organic(soil::Soil)
 
-Retrieves the organic content for the given layer at grid cell `i`, if provided.
+Retrieves the volumetric organic content for the given layer at grid cell `i`, if provided.
 """
 organic(soil::Soil, state, i) = Utils.getscalar(organic(soil, state), i)
-organic(soil::Soil, state) = mineral(soil)
+organic(soil::Soil, state) = organic(soil)
 organic(::Soil) = error("not implemented for $(typeof(soil))")
 
 """

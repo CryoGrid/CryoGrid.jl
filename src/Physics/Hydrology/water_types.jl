@@ -58,11 +58,11 @@ Represents a zero flow scheme
 """
 struct NoFlow <: WaterFlow end
 """
-    BucketScheme{Tfc} <: WaterFlow
+    BucketScheme <: WaterFlow
 
 "Bucket" water scheme for downward advective flow due to gravity.
 """
-Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow end
+Base.@kwdef struct BucketScheme <: WaterFlow end
 # default dt limiters
 default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.1)
 default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)

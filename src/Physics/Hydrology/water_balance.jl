@@ -18,6 +18,7 @@ maxwater(::SubSurface, ::WaterBalance, state, i) = one(eltype(state.sat))
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
 minwater(::SubSurface, water::WaterBalance) = 0.0
+minwater(::SubSurface, water::WaterBalance{<:BucketScheme}) = 0.1
 minwater(sub::SubSurface, water::WaterBalance, state) = minwater(sub, water)
 minwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(minwater(sub, water, state), i)
 
@@ -47,8 +48,7 @@ function balancefluxes!(::SubSurface, water::WaterBalance, state)
     state.jw[end] = min(max(state.jw[end]*dt, state.θwi[end] - state.θsat[end]), state.θw[end])
 end
 
-watercontent(::SubSurface, ::Process, state) = state.θwi
-watercontent(sub::SubSurface, state) = watercontent(sub, processes(sub), state)
+watercontent(sub::SubSurface, state) = state.θwi
 watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
 
 @inline function watercontent!(sub::SubSurface, water::WaterBalance, state)
