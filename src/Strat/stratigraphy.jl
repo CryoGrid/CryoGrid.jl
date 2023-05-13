@@ -60,8 +60,8 @@ macro Stratigraphy(args...)
 end
 layers(strat::Stratigraphy) = getfield(strat, :layers)
 boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
-boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), z_bottom)
-boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
+boundarypairs(strat::Stratigraphy) = boundarypairs(boundaries(strat))
+boundarypairs(bounds::NTuple) = tuple(map(tuple, bounds[1:end-1], bounds[2:end])..., (bounds[end], bounds[end]))
 layernames(strat::Stratigraphy) = map(layername, layers(strat))
 layertypes(::Type{<:Stratigraphy{N,TLayers}}) where {N,TLayers} = map(layertype, TLayers.parameters)
 Base.keys(strat::Stratigraphy) = layernames(strat)
@@ -132,6 +132,26 @@ state object for the i'th layer in the stratigraphy.
     end
     push!(expr.args, :(return nothing))
     return expr
+end
+
+function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy)
+    strat_grid = nothing
+    for (bounds, named_layer) in zip(boundarypairs(strat), layers(strat))
+        if bounds[2] - bounds[1] <= zero(bounds[1])
+            continue
+        end
+        layer = named_layer.val
+        layer_grid = Numerics.makegrid(layer, strategy, bounds)
+        if !isnothing(strat_grid)
+            # check that grid edges line up at layer boundary
+            @assert strat_grid[end] == layer_grid[1] "Upper boundary of layer $(nameof(named_layer)) does not match the previous layer."
+            # concatenate grids, omitting first value of layer_grid to avoid duplicating the shared edge
+            strat_grid = Grid(vcat(strat_grid, layer_grid[2:end]))
+        else
+            strat_grid = layer_grid
+        end
+    end
+    return strat_grid
 end
 
 @inline function CryoGrid.initialcondition!(strat::Stratigraphy, state::TileState, inits)

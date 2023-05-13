@@ -91,7 +91,7 @@ function Tile(
     iip::Bool=true,
     chunk_size=nothing,
 ) where {A<:AbstractArray}
-    grid = Numerics.makegrid(discretization_strategy, collect(boundaries(strat)))
+    grid = Numerics.makegrid(strat, discretization_strategy)
     strat = stripunits(strat)
     events = CryoGrid.events(strat)
     vars = CryoGrid.variables(strat)
@@ -112,6 +112,7 @@ function Tile(
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
+Tile(strat::Stratigraphy, inits...; discretization_strategy=AutoGrid(), kwargs...) = Tile(strat, discretization_strategy, inits...; kwargs...)
 
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
@@ -257,8 +258,7 @@ end
 end
 
 function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
-    zbot = tile.state.grid[end]
-    bounds = boundarypairs(tile.strat, zbot)
+    bounds = boundarypairs(tile.strat)
     map(bounds, layers(tile.strat)) do (z1, z2), named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
@@ -323,7 +323,7 @@ function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernam
             break
         end
     end
-    z = boundarypairs(map(ustrip, stripparams(boundaries(tile.strat))), ustrip(tile.grid[end]))[i]
+    z = boundarypairs(map(ustrip, stripparams(boundaries(tile.strat))))[i]
     return LayerState(tile.state, z, u, du, t, dt, Val{layername}(), Val{iip}())
 end
 

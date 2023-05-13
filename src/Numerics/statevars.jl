@@ -31,10 +31,10 @@ function StateVars(@nospecialize(vars::GroupedVars), @nospecialize(D::Numerics.A
     uproto = prognosticstate(A{first(vartypes)}, D, freeprogvars, gridprogvars)
     # build non-gridded (i.e. "free") diagnostic state vectors
     freediagvars = map(group -> filter(!isongrid, group), diagvars)
-    freediagstate = map(group -> (;map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunk_size), group)...), freediagvars)
+    freediagstate = map(group -> (;map(v -> varname(v) => DiffCache(varname(v), instantiate(v, D, A), chunk_size), group)...), freediagvars)
     # build gridded diagnostic state vectors
     griddiagvars = Tuple(unique(filter(isongrid, _flatten(diagvars))))
-    griddiagstate = map(v -> varname(v) => DiffCache(varname(v), discretize(A, D, v), chunk_size), griddiagvars)
+    griddiagstate = map(v -> varname(v) => DiffCache(varname(v), instantiate(v, D, A), chunk_size), griddiagvars)
     # join prognostic variables with delta and flux variables, then build nested named tuples in each group with varnames as keys
     allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
     return StateVars(uproto, D, allvars, (;freediagstate...), (;griddiagstate...))

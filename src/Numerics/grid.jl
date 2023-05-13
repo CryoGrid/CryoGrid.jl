@@ -1,4 +1,9 @@
+abstract type Geometry end
+struct UnitRectangle <: Geometry end
+
 const GridValues{A} = NamedTuple{(:edges,:cells),NTuple{2,A}} where {A<:AbstractVector}
+
+abstract type AbstractDiscretization{Q,N} <: DenseArray{Q,N} end
 
 """
     struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
@@ -100,45 +105,6 @@ end
 # unit rectangle defaults
 @inline volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
 @inline area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
-
-# grid discretizations
-"""
-    discretize([::Type{A}], ::T,  ::Var) where {T,N,D<:AbstractDiscretization{T,N},A<:AbstractArray{T,N}}
-
-Produces a discretization of the given variable based on `T` and array type `A`.
-"""
-discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Array{vartype(var),N}, d, var)
-discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, length(edges(grid)))))
-
-makegrid(strategy::PresetGrid, ::AbstractVector{<:DistQuantity}) = strategy.grid
-function makegrid(strategy::AutoGrid, depths::AbstractVector{T}) where {T<:DistQuantity}
-    @unpack z0, min_thick, max_cells_per_layer = strategy
-    @assert length(depths) >= 3 "AutoGrid requires depth profile of length >= 3"
-    # index counter starting from first depth >= z_min
-    dz = min_thick
-    grid = T[] # initialize empty vector of type T
-    for (z1, z2) in zip(depths[1:end-2], depths[2:end-1])
-        n = Int(ceil((z2 - z1) / dz))
-        # if the estimated number of cells is greater than the maximum,
-        # recalculate the step size using the maximum
-        if n > max_cells_per_layer
-            dz = (z2 - z1) / max_cells_per_layer
-            n = max_cells_per_layer
-        end
-        # skip depths above z0
-        z1 = max(z1, z0)
-        if z2 > z1
-            # add grid edges from z1 to z2 - dz to avoid duplication
-            append!(grid, LinRange(z1, z2 - dz, n))
-            # double current step size
-            dz = dz*2
-        end
-    end
-    # use exponential spacing for last layer
-    n_remaining = min(max_cells_per_layer, Int(ceil((depths[end] - grid[end])/dz)))
-    append!(grid, exp2.(LinRange(log2(ustrip(grid[end] + dz)), log2(ustrip(depths[end])), n_remaining)).*unit(T))
-    return Grid(round.(T, grid, digits=8))
-end
 
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}
