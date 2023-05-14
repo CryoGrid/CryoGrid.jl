@@ -45,7 +45,7 @@ export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic
 include("variables.jl")
 export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
-export variables, basevariables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
+export variables, processes, initialcondition!, diagnosticstep!, prognosticstep!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
 

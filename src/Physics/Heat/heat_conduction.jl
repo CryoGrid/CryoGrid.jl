@@ -10,7 +10,7 @@ Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Enthalpy}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
-    CryoGrid.basevariables(heat)...,
+    heatvariables(heat)...,
 )
 """
 Variable definitions for heat conduction (temperature).
@@ -19,12 +19,12 @@ CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Temperature}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
-    CryoGrid.basevariables(heat)...,
+    heatvariables(heat)...,
 )
 """
 Common variable definitions for all heat implementations.
 """
-CryoGrid.basevariables(::HeatBalance) = (
+heatvariables(::HeatBalance) = (
     Diagnostic(:jH, OnGrid(Edges), u"W/m^2"),    
     Diagnostic(:∂H∂T, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
     Diagnostic(:∂θw∂T, OnGrid(Cells), domain=0..Inf),

@@ -25,6 +25,7 @@ of other processes.
 """
 struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
+    CoupledProcesses() = new{Tuple{}}(tuple())
     CoupledProcesses(processes::SubSurfaceProcess...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
     CoupledProcesses(processes::BoundaryProcess...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
     function CoupledProcesses(processes::Tuple{Vararg{Process}}; ignore_order=false)
@@ -37,8 +38,6 @@ struct CoupledProcesses{TProcs} <: Process
         return new{typeof(processes)}(processes)
     end
 end
-# type alias for one or more BoundaryProcess(es)
-const BoundaryProcesses = Union{BoundaryProcess,CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}}
 """
     Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 
@@ -48,6 +47,8 @@ Type alias for coupled processes, i.e. `CoupledProcesses{Tuple{P1,P2}}`.
 const Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 const Coupled3{P1,P2,P3} = CoupledProcesses{Tuple{T1,T2,T3}} where {T1,T2,T3}
 const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,T3,T4}
+
+Coupled() = CoupledProcesses()
 """
     Coupled(ps::Process...)
 
@@ -101,26 +102,28 @@ Abstract base type for layers in the stratigraphy, e.g. soil, snow, pond, etc.
 """
 abstract type SubSurface <: Layer end
 """
-    Top{TProc<:BoundaryProcesses} <: Layer
+    Top{TProc} <: Layer
 
 Generic "top" layer that marks the upper boundary of the subsurface grid.
 """
-struct Top{TProc<:BoundaryProcesses} <: Layer
+struct Top{TProc} <: Layer
     proc::TProc
-    Top(proc::BoundaryProcesses) = new{typeof(proc)}(proc)
+    Top(proc::CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}) = new{typeof(proc)}(proc)
+    Top(proc::BoundaryProcess) = new{typeof(proc)}(proc)
     # convenience constructor that automatically couples the processes
-    Top(proc1::BoundaryProcess, proc2::BoundaryProcess, procs::BoundaryProcess...) = Top(Coupled(proc1, proc2, procs...))
+    Top(procs::BoundaryProcess...) = Top(Coupled(procs...))
 end
 """
-    Bottom{TProc<:BoundaryProcesses} <: Layer
+    Bottom{TProc} <: Layer
 
 Generic "bottom" layer that marks the lower boundary of the subsurface grid.
 """
-struct Bottom{TProc<:BoundaryProcesses} <: Layer
+struct Bottom{TProc} <: Layer
     proc::TProc
-    Bottom(proc::BoundaryProcesses) = new{typeof(proc)}(proc)
+    Bottom(proc::CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}) = new{typeof(proc)}(proc)
+    Bottom(proc::BoundaryProcess) = new{typeof(proc)}(proc)
     # convenience constructor that automatically couples the processes
-    Bottom(proc1::BoundaryProcess, proc2::BoundaryProcess, procs::BoundaryProcess...) = Top(Coupled(proc1, proc2, procs...))
+    Bottom(procs::BoundaryProcess...) = Bottom(Coupled(procs...))
 end
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)

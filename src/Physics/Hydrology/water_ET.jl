@@ -85,11 +85,11 @@ function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:Water
     state.jw[1] += state.jwET[1]
 end
 # CryoGrid methods
-CryoGrid.basevariables(::Evapotranspiration) = (
+ETvariables(::Evapotranspiration) = (
     Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by an interaction
 )
 CryoGrid.variables(et::DampedET) = (
-    CryoGrid.basevariables(et)...,
+    ETvariables(et)...,
     Diagnostic(:f_et, OnGrid(Cells), u"m", domain=0..1, desc="Evapotranspiration reduction factor."),
     Diagnostic(:w_ev, OnGrid(Cells), u"m", desc="Damped grid cell weight for evaporation."),
     Diagnostic(:w_tr, OnGrid(Cells), u"m", desc="Damped grid cell weight for transpiration"),

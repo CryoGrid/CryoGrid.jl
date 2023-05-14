@@ -98,6 +98,7 @@ normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 
 Concatenates one or more tuples together; should generally be type stable.
 """
+@inline tuplejoin() = tuple()
 @inline tuplejoin(x) = x
 @inline tuplejoin(x, y) = (x..., y...)
 @inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)

@@ -19,19 +19,6 @@ variables(::Layer, process::Process) = variables(process)
 variables(l::Layer) = variables(l, processes(l))
 variables(::Any) = ()
 """
-    basevariables(layer::Layer, process::Process)
-    basevariables(::Layer)
-    basevariables(::Any)
-
-Defines "base" or common variables for a given `Layer`, `Process`, or arbitrary user-defined type. This should be used to define
-mandatory or shared variables that should *not* be overridden by subtypes. As such, `basevariables` should generally only be defined
-once per type hierarchy (aside from the default definitions) and only on abstract or union types.
-Implementations should return a `Tuple` of `Var`s.
-"""
-basevariables(::Layer, process::Process) = basevariables(process)
-basevariables(l::Layer) = basevariables(l, processes(l))
-basevariables(::Any) = ()
-"""
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)
     initialcondition!(::Layer, ::Process, state, initializer)

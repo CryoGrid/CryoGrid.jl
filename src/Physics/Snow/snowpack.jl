@@ -82,6 +82,11 @@ Get the snow density scheme from the given `SnowMassBalance` parameterization.
 """
 density(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.density
 
+snowvariables(::Snowpack) = (
+    Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:T_ub, Scalar, u"°C"),
+)
+
 # thermal properties of snowpack
 Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
 
@@ -98,11 +103,6 @@ CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > thr
 
 CryoGrid.Volume(::Type{<:PrescribedSnowpack}) = DiagnosticVolume()
 CryoGrid.Volume(::Type{<:DynamicSnowpack}) = PrognosticVolume()
-
-CryoGrid.basevariables(::Snowpack, ::SnowMassBalance) = (
-    Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
-    Diagnostic(:T_ub, Scalar, u"°C"),
-)
 
 # for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
 CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing
