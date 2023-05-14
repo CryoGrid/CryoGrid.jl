@@ -18,7 +18,7 @@ end
         z_top = 0.0u"m"
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
-        # heatop = Heat.InverseEnthalpy()
+        # heatop = Heat.EnthalpyForm()
         soil = HomogeneousSoil(MineralOrganic(por=0.0, org=0.0), heat=HeatBalance(heatop))
         strat = @Stratigraphy(
             z_top => Top(PeriodicBC(HeatBalance, CryoGrid.Dirichlet, P, 1.0, 0.0, T₀)),
@@ -51,7 +51,7 @@ end
         z_top = 0.0u"m"
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
-        # heatop = Heat.InverseEnthalpy(SFCCPreSolver())
+        # heatop = Heat.EnthalpyForm(SFCCPreSolver())
         soil = HomogeneousSoil(MineralOrganic(por=0.3, sat=1.0, org=0.0), heat=HeatBalance(heatop))
         strat = @Stratigraphy(
             z_top => Top(ConstantTemperature(1.0u"°C")),

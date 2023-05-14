@@ -31,7 +31,7 @@ the `HeatOperator`, `op`.
 """
 Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
     freezecurve::Tfc = FreeWater()
-    op::THeatOp = InverseEnthalpy(default_fcsolver(freezecurve))
+    op::THeatOp = EnthalpyForm(default_fcsolver(freezecurve))
     prop::Tprop = HeatBalanceProperties()
     dtlim::Tdt = default_dtlim(op)  # timestep limiter
     function HeatBalance(freezecurve, op, prop, dtlim)
@@ -43,39 +43,39 @@ Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop}
 end
 # convenience constructors for HeatBalance
 HeatBalance(var::Symbol; kwargs...) = HeatBalance(Val{var}(); kwargs...)
-HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater, fcsolver=default_fcsolver(freezecurve), kwargs...) = HeatBalance(; op=InverseEnthalpy(fcsolver), freezecurve, kwargs...)
-HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=ForwardTemperature(), freezecurve, kwargs...)
+HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater, fcsolver=default_fcsolver(freezecurve), kwargs...) = HeatBalance(; op=EnthalpyForm(fcsolver), freezecurve, kwargs...)
+HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=TemperatureForm(), freezecurve, kwargs...)
 HeatBalance(op::HeatOperator; kwargs...) = HeatBalance(; op, kwargs...)
 # validation of HeatBalance freezecurve/operator configuration
 _validate_heat_config(::FreezeCurve, ::HeatOperator) = nothing # do nothing when valid
 _validate_heat_config(::FreeWater, ::Temperature) = error("Invalid heat balance configuration; temperature formulations of the heat operator are not compatible with the free water freeze curve.")
 # Heat operators
 """
-    ForwardTemperature{Tcond,Thc} <: HeatOperator{:T}
+    TemperatureForm{Tcond,Thc} <: HeatOperator{:T}
 
 Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with
 temperature `T` as the prognostic variable. The time derivative is scaled by the reciprocal of
 the apparent heat capacity `dH/dT` to account for latent heat effects due to phase change.
 """
-struct ForwardTemperature{Tcond,Thc} <: HeatOperator{:T}
+struct TemperatureForm{Tcond,Thc} <: HeatOperator{:T}
     cond::Tcond
     hc::Thc
-    ForwardTemperature(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
+    TemperatureForm(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
 end
 """
-    InverseEnthalpy{Tsolver,Tcond,Thc} <: HeatOperator{:H}
+    EnthalpyForm{Tsolver,Tcond,Thc} <: HeatOperator{:H}
 
 Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with
 enthalpy `H` as the prognostic variable and a nonlinear solver for resolving the inverse
 enthalpy -> temperature mapping when applicable. This formulation should generally be preferred
-over `ForwardTemperature` since it is energy-conserving and embeds the latent heat storage directly
+over `TemperatureForm` since it is energy-conserving and embeds the latent heat storage directly
 in the prognostic state.
 """
-struct InverseEnthalpy{Tsolver,Tcond,Thc} <: HeatOperator{:H}
+struct EnthalpyForm{Tsolver,Tcond,Thc} <: HeatOperator{:H}
     fcsolver::Tsolver
     cond::Tcond
     hc::Thc
-    InverseEnthalpy(fcsolver=nothing, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
+    EnthalpyForm(fcsolver=nothing, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
 end
 """
     EnthalpyImplicit <: HeatOperator{:H}

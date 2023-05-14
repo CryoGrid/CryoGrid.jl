@@ -24,7 +24,7 @@ sfcc = PainterKarra(ω=0.2, swrc=swrc)
 # waterflow = BucketScheme()
 waterflow = RichardsEq(swrc=swrc)
 # Enthalpy-based heat diffusion with "pre solver"
-heatop = Heat.InverseEnthalpy(SFCCPreSolver())
+heatop = Heat.EnthalpyForm(SFCCPreSolver())
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
