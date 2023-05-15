@@ -26,6 +26,13 @@ function partial_heatcapacity(snow::Snowpack, heat::HeatBalance)
     end
 end
 
+CryoGrid.makegrid(::BulkSnowpack, strategy, bounds) = Grid([bounds[1], bounds[2]])
+
+# Initialization
+function CryoGrid.initialcondition!(::BulkSnowpack, ::SnowMassBalance, state)
+    @. state.Δz = state.dsn = zero(eltype(state.dsn))
+end
+
 # Events
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),

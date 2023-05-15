@@ -45,7 +45,7 @@ function makegrid(strategy::AutoGrid{LinearSpacing}, bounds::NTuple{2,T}) where 
     gridvals = LinRange(z1, z2, n)
     return Grid(round.(T, gridvals, digits=12))
 end
-makegrid(::Layer, strategy::DiscretizationStrategy, bounds::NTuple{2,<:DistQuantity}) = makegrid(strategy, bounds)
+makegrid(::Layer, strategy, bounds) = makegrid(strategy, bounds)
 
 # state variable instantiation
 """

@@ -1,11 +1,9 @@
 module Heat
 
-import CryoGrid
-import CryoGrid.Hydrology
-
 import ConstructionBase
 
 using CryoGrid
+using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
@@ -32,8 +30,6 @@ include("heat_bc.jl")
 
 export heatconduction!
 include("heat_conduction.jl")
-
-include("heat_water.jl")
 
 export HeatBalanceImplicit
 include("heat_implicit.jl")

@@ -38,12 +38,12 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
             # limit flux based on
             # i) available water in cell above and
             # ii) free pore space in cell below
-            max_flux_up = max(jw / Δz_up, θwi_up - θsat_up, -θw_lo) # upward flux is negative
-            min_flux_down = min(jw / Δz_lo, θsat_lo - θwi_lo, θw_up) # downward flux is positive
+            max_flux_up = max(jw, θwi_up - θsat_up, -θw_lo) # upward flux is negative
+            min_flux_down = min(jw, θsat_lo - θwi_lo, θw_up) # downward flux is positive
             # reduction factors
             r₁ = reductionfactor(water, state.sat[i-1])
             r₂ = reductionfactor(water, state.sat[i])
-            state.jw[i] = r₁*max_flux_up*(jw < zero(jw))*Δz_up + r₂*min_flux_down*(jw >= zero(jw))*Δz_lo
+            state.jw[i] = r₁*max_flux_up*(jw < zero(jw)) + r₂*min_flux_down*(jw >= zero(jw))
         end
     end
     state.jw[end] = min(max(state.jw[end], state.θwi[end] - state.θsat[end]), state.θw[end])

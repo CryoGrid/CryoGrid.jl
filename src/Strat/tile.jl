@@ -144,14 +144,11 @@ function step!(
     # zs = boundaries(strat)
     state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
     CryoGrid.diagnosticstep!(strat, state)
+    checkstate!(tile, state, u, du, :diagnosticstep!)
     CryoGrid.interact!(strat, state)
+    checkstate!(tile, state, u, du, :interact!)
     CryoGrid.prognosticstep!(strat, state)
-    if CryoGrid.CRYOGRID_DEBUG
-        @inbounds for i in eachindex(u)
-            @assert isfinite(u[i]) "Found NaN/Inf value in current state vector at index $i"
-            @assert isfinite(du[i]) "Found NaN/Inf value in computed time derivatives at index $i"
-        end
-    end
+    checkstate!(tile, state, u, du, :prognosticstep!)
     return nothing
 end
 
@@ -404,6 +401,22 @@ function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,
     return reconstructed_tile
 end
 resolve(tile::Tile, u, p::Nothing, t) = tile
+
+function checkstate!(tile::Tile, state::TileState, u, du, label::Symbol)
+    if CryoGrid.CRYOGRID_DEBUG
+        @inbounds for i in eachindex(u)
+            if !isfinite(u[i])
+                debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in current state vector at index $i"))
+            end
+            if !isfinite(du[i])
+                debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in computed time derivatives at index $i"))
+            end
+        end
+    end
+    return nothing
+end
+
+debughook!(tile, state, err) = throw(err)
 
 # ==== Internal methods for initializing types and state variables ====
 """

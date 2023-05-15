@@ -101,8 +101,8 @@ CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + ge
 
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
-CryoGrid.Volume(::Type{<:PrescribedSnowpack}) = DiagnosticVolume()
-CryoGrid.Volume(::Type{<:DynamicSnowpack}) = PrognosticVolume()
+CryoGrid.Volume(::Type{<:PrescribedSnowpack}) = CryoGrid.DiagnosticVolume()
+CryoGrid.Volume(::Type{<:DynamicSnowpack}) = CryoGrid.PrognosticVolume()
 
 # for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
 CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing

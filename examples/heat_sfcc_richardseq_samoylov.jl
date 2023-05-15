@@ -9,7 +9,7 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 tspan = (DateTime(2011,1,1),DateTime(2012,1,1))
 T0 = values(forcings.Tair(tspan[1]))[1]
 tempprofile = TemperatureProfile(
-    0.0u"m" => T0,
+    0.0u"m" => T0*u"°C",
     1.0u"m" => -8.0u"°C",
     20.0u"m" => -10u"°C",
     1000.0u"m" => 1.0u"°C"
@@ -19,7 +19,7 @@ initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
 # soil water retention curve and freeze curve
 swrc = VanGenuchten(α=0.1, n=1.8)
-sfcc = PainterKarra(ω=0.2, swrc=swrc)
+sfcc = PainterKarra(ω=0.0, swrc=swrc)
 # water flow: bucket scheme vs richard's eq
 # waterflow = BucketScheme()
 waterflow = RichardsEq(swrc=swrc)
@@ -27,24 +27,27 @@ waterflow = RichardsEq(swrc=swrc)
 heatop = Heat.EnthalpyForm(SFCCPreSolver())
 # @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0u"m" => Top(upperbc),
-    0.0u"m" => :topsoil1 => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    0.1u"m" => :topsoil2 => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.8,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    0.4u"m" => :sediment1 => HomogeneousSoil(MineralOrganic(por=0.55,sat=0.9,org=0.25), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    3.0u"m" => :sediment2 => HomogeneousSoil(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
-    10.0u"m" => :sediment3 => HomogeneousSoil(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(op=heatop), water=WaterBalance(BucketScheme())),
+    -2.0u"m" => Top(TemperatureGradient(forcings.Tair), Rainfall(forcings.rainfall)),
+    0.0u"m" => :topsoil1 => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.5,org=0.75), heat=HeatBalance(op=heatop, freezecurve=sfcc), water=WaterBalance(waterflow)),
+    0.1u"m" => :topsoil2 => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.25), heat=HeatBalance(op=heatop, freezecurve=sfcc), water=WaterBalance(waterflow)),
+    0.4u"m" => :sediment1 => HomogeneousSoil(MineralOrganic(por=0.55,sat=0.8,org=0.25), heat=HeatBalance(op=heatop, freezecurve=sfcc), water=WaterBalance(waterflow)),
+    3.0u"m" => :sediment2 => HomogeneousSoil(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(op=heatop, freezecurve=sfcc), water=WaterBalance(waterflow)),
+    10.0u"m" => :sediment3 => HomogeneousSoil(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(op=heatop, freezecurve=sfcc), water=WaterBalance(waterflow)),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-grid = CryoGrid.Presets.DefaultGrid_5cm
+grid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, grid, initT, initsat);
 u0, du0 = initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi))
+prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw))
 # note that this is currently quite slow since the Euler integrator takes very small time steps during the thawed season;
 # expect it to take about 10-15 minutes per year on a typical workstation/laptop; minor speed-ups might be possible by tweaking the dt limiters
 integrator = init(prob, Euler(), dt=60.0, saveat=3*3600.0)
+step!(integrator, 24*3600); integrator.u.H[1]
 @time while integrator.t < prob.tspan[end]
-    # run the integrator forward in 10-day increments
-    step!(integrator, 10*24*3600.0)
+    @assert all(isfinite.(integrator.u))
+    @assert all(0 .<= integrator.u.sat .<= 1)
+    # run the integrator forward in daily increments
+    step!(integrator, 24*3600.0)
     t = convert_t(integrator.t)
     @info "t=$t, current dt=$(integrator.dt*u"s")"
 end

@@ -39,7 +39,7 @@ Diagonstic step for heat conduction (all state configurations) on any subsurface
 function CryoGrid.diagnosticstep!(sub::SubSurface, heat::HeatBalance, state)
     resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
-    freezethaw!(sub, heat, state)
+    freezethaw!(sub, state)
     # Update thermal conductivity
     thermalconductivity!(sub, heat, state)
     return nothing
@@ -198,3 +198,4 @@ total water content (θwi), and liquid water content (θw).
     end
     return nothing
 end
+freezethaw!(sub, state) = freezethaw!(sub, processes(sub), state)

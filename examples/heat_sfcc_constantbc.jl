@@ -23,7 +23,6 @@ tile = CryoGrid.Presets.SoilHeatTile(
 # define time span
 tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
 u0, du0 = initialcondition!(tile, tspan)
-@btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:H,:jH,:∂H∂t,:θw), step_limiter=nothing, saveat=900.0)
 @info "Running model"
@@ -35,4 +34,5 @@ plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temper
 # plot(out.θw[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
 Htot = Diagnostics.integrate(out.H, grid)
 plot(uconvert.(u"MJ", Htot .- Htot[1]), title="Energy balance error")
-@show Htot[end] - Htot[1]
+# compute final energy balance error
+mass_balance_error = Htot[end] - Htot[1]

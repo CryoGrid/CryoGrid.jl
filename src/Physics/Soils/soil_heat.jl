@@ -137,10 +137,12 @@ function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     hc = partial_heatcapacity(soil, heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
+        props = thermalproperties(soil),
+        ch_w = props.ch_w,
         θwi = Hydrology.watercontent(soil, state, i),
         por = porosity(soil, state, i),
         sat = θwi / por,
-        T₀ = i > 1 ? state.T[i-1] : (H - L*θwi) / hc(θwi),
+        T₀ = i > 1 ? state.T[i-1] : H/ch_w, # initial guess for T
         f = sfcc,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
         obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, sat);

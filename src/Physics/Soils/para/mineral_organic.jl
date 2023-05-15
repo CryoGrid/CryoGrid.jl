@@ -62,5 +62,5 @@ Gets the `HydraulicProperties` for the given soil layer.
 Hydrology.hydraulicproperties(soil::Soil{<:MineralOrganic}) = soil.para.water
 
 # water content for soils without water balance
-Hydrology.watercontent(soil::Soil{<:MineralOrganic}, state) = soilcomponent(Val{:θwi}(), soil.para)
-Hydrology.watercontent(soil::Soil{<:MineralOrganic,<:Any,<:WaterBalance}, state) = state.θwi
+Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}, state) where {THeat} = state.θwi
