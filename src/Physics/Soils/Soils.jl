@@ -7,22 +7,21 @@ using CryoGrid.Utils
 using IfElse
 using IntervalSets
 using ForwardDiff
-using FreezeCurves
-using FreezeCurves.Solvers
 using ModelParameters
+using Reexport: @reexport
 using Setfield
 using StaticArrays
 using Unitful
 using UnPack
 
+# Re-export FreezeCurves package
+@reexport using FreezeCurves
+@reexport using FreezeCurves.Solvers
+
 import CryoGrid
 import CryoGrid.InputOutput
 import CryoGrid.Heat
 import CryoGrid.Hydrology
-
-# from FreezeCurves.jl
-export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie
-export VanGenuchten, BrooksCorey
 
 # aliases for heat formulations in Heat module
 const Temperature = Heat.Temperature

@@ -19,6 +19,7 @@ function CryoGrid.initialcondition!(
     # initialize heat
     fc = heat.freezecurve
     solver = Heat.fcsolver(heat)
+    @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
     L = heat.prop.L
     hc = partial_heatcapacity(soil, heat)
     θsat = porosity(soil, state)
@@ -55,17 +56,19 @@ function CryoGrid.prognosticstep!(sub::SubSurface, ps::Coupled(WaterBalance, Hea
     L = heat.prop.L
     @unpack ch_w, ch_i = thermalproperties(sub)
     # heat flux due to change in water content
-    # @. state.∂H∂t += state.∂θwi∂t*(state.T*(ch_w - ch_i) + L)
+    @. state.∂H∂t += state.∂θwi∂t*(state.T*(ch_w - ch_i) + L)
     CryoGrid.prognosticstep!(sub, heat, state)
 end
 
 # Freeze/thaw dynamics
 Heat.freezethaw!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state) = Heat.freezethaw!(soil, ps[2], state)
+# special implementation of freezethaw! for the pressure-head  based form;
+# this is necessary because of the need to compute ∂θw∂ψ
 function Heat.freezethaw!(
     soil::Soil,
-    ps::Coupled2{<:WaterBalance{<:RichardsEq{TREqForm}},<:HeatBalance{<:SFCC,THeatForm}},
+    ps::Coupled2{<:WaterBalance{<:RichardsEq{Pressure}},<:HeatBalance{<:SFCC,THeatForm}},
     state
-) where {TREqForm,THeatForm<:Heat.HeatOperator}
+) where {THeatForm<:Heat.HeatOperator}
     water, heat = ps
     sfcc = heat.freezecurve
     swrc = FreezeCurves.swrc(sfcc)
@@ -89,9 +92,7 @@ function Heat.freezethaw!(
         # compute dependent quantities
         state.C[i] = C
         state.∂H∂T[i] = ∂H∂T
-        if TREqForm == Pressure
-            state.∂θw∂ψ[i] = ∂θw∂ψ
-        end
+        state.∂θw∂ψ[i] = ∂θw∂ψ
         if THeatForm == Temperature
             state.H[i] = Heat.enthalpy(T, C, L, θw)
         end

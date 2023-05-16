@@ -1,56 +1,85 @@
 """
+    hydraulicproperties(::SubSurface)
+
+Retrieves the hydraulic properties from the given subsurface layer. Default implementation
+simply returns the default configuration of `HydraulicProperties`.
+"""
+hydraulicproperties(::SubSurface) = HydraulicProperties()
+
+"""
     kwsat(::SubSurface, ::WaterBalance)
 
 Hydraulic conductivity at saturation.
 """
-function kwsat end
+kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
+
 """
+    maxwater(sub::SubSurface, ::WaterBalance) 
+    maxwater(sub::SubSurface, water::WaterBalance, state)
     maxwater(::SubSurface, ::WaterBalance, state, i)
 
-Returns the maximum volumetric water content (saturation point) for grid cell `i`. Defaults to `1`.
+Returns the maximum volumetric water content (saturation point) for grid cell `i`.
 """
-function maxwater end
+maxwater(sub::SubSurface, ::WaterBalance) = error("maxwater not implemented for subsurface layer $sub")
+maxwater(sub::SubSurface, water::WaterBalance, state) = maxwater(sub, water)
+maxwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(maxwater(sub, water, state), i)
+
 """
+    minwater(::SubSurface, water::WaterBalance)
     minwater(::SubSurface, water::WaterBalance, state, i)
 
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
-function minwater end
+minwater(::SubSurface, water::WaterBalance) = 0.0
+minwater(sub::SubSurface, water::WaterBalance, state) = minwater(sub, water)
+minwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(minwater(sub, water, state), i)
+
 """
     watercontent(::SubSurface, state)
     watercontent(::SubSurface, state, i)
 
 Returns the total water content `θwi` from the given subsurface layer and/or current state.
 """
-function watercontent end
+watercontent(sub::SubSurface, state) = state.θwi
+watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
+
 """
     watercontent!(::SubSurface, ::WaterBalance, state)
 
 Computes the volumetric water content from current saturation or pressure state.
 """
-function watercontent! end
+@inline function watercontent!(sub::SubSurface, water::WaterBalance, state)
+    @inbounds for i in eachindex(state.sat)
+        state.θsat[i] = maxwater(sub, water, state, i)
+        state.θwi[i] = state.sat[i]*state.θsat[i]
+    end
+end
+
+"""
+    hydraulicconductivity(sub::SubSurface, water::WaterBalance, θw, θwi, θsat)
+
+Computes the hydraulic conductivity for the given layer and water balance configuration, current unfrozen
+water content `θw`, total water/ice content `θwi`, and saturated (maximum) water content `θsat`.
+"""
+hydraulicconductivity(sub::SubSurface, water::WaterBalance, θw, θwi, θsat) = kwsat(sub, water)*θw / θsat
+
 """
     hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
 
 Computes hydraulic conductivities for the given subsurface layer and water balance scheme.
 """
-function hydraulicconductivity! end
-"""
-    wateradvection!(sub::SubSurface, water::WaterBalance, state)
-
-Computes the advective component of water fluxes due to gravity and stores the result in `state.jw`.
-"""
-function wateradvection! end
-"""
-    waterdiffusion!(::SubSurface, ::WaterBalance, state)
-
-Computes diffusive fluxes for water balance, if defined.
-"""
-function waterdiffusion! end
-"""
-    waterprognostic!(::SubSurface, ::WaterBalance, state)
-
-Computes the prognostic time derivative for the water balance, usually based on `∂θwi∂t`.
-Implementation depends on which water flow scheme is being used.
-"""
-function waterprognostic! end
+@inline function hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
+    Δkw = Δ(state.grid)
+    @inbounds for i in eachindex(state.kwc)
+        let θsat = Hydrology.maxwater(sub, water, state, i),
+            θw = state.θw[i],
+            θwi = state.θwi[i];
+            state.kwc[i] = hydraulicconductivity(sub, water, θw, θwi, θsat)
+            if i > 1
+                state.kw[i] = Numerics.harmonicmean(state.kwc[i-1], state.kwc[i], Δkw[i-1], Δkw[i])
+            end
+        end
+    end
+    state.kw[1] = state.kwc[1]
+    state.kw[end] = state.kwc[end]
+end
