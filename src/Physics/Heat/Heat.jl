@@ -14,10 +14,10 @@ using FreezeCurves.Solvers
 export FreeWater, FreezeCurve
 
 export HeatBalance, ThermalProperties
-include("types.jl")
+include("heat_types.jl")
 
 export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
-include("methods.jl")
+include("heat_methods.jl")
 
 export thermalconductivity, thermalconductivity!
 include("thermcond.jl")
