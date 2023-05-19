@@ -105,7 +105,7 @@ CryoGrid.Volume(::Type{<:PrescribedSnowpack}) = CryoGrid.DiagnosticVolume()
 CryoGrid.Volume(::Type{<:DynamicSnowpack}) = CryoGrid.PrognosticVolume()
 
 # for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
-CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing
+CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing
 
 # volumetric fractions for snowpack
 @inline function CryoGrid.volumetricfractions(::Snowpack, state, i)

@@ -1,7 +1,7 @@
 module Sources
 
 import CryoGrid: SubSurfaceProcess, SubSurface
-import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
+import CryoGrid: updatestate!, initialcondition!, interact!, computefluxes!, variables
 
 using ..Heat
 using CryoGrid.Numerics
@@ -52,7 +52,7 @@ ConstructionBase.constructorof(::Type{<:Source{P}}) where {P} = (term, sp) -> So
 
 (p::Periodic)(t) = p.amp*sin(2π*p.freq*t - p.shift) + p.level
 # HeatBalance sources
-prognosticstep!(::SubSurface, s::Source{<:HeatBalance,<:Constant}, state) = @inbounds @. state.∂H∂t += s.term.S₀
-prognosticstep!(::SubSurface, src::Source{<:HeatBalance,<:Periodic}, state) = @inbounds @. state.∂H∂t += src.term(state.t)
+computefluxes!(::SubSurface, s::Source{<:HeatBalance,<:Constant}, state) = @inbounds @. state.∂H∂t += s.term.S₀
+computefluxes!(::SubSurface, src::Source{<:HeatBalance,<:Periodic}, state) = @inbounds @. state.∂H∂t += src.term(state.t)
 
 end

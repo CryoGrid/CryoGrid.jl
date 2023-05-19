@@ -86,7 +86,7 @@ end
 		zerobc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
-			diagnosticstep!(Top(zerobc), tgrad, state)
+			updatestate!(Top(zerobc), tgrad, state)
 			return boundaryvalue(tgrad,Top(zerobc),heat,sub,state,state)
 		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
@@ -116,7 +116,7 @@ end
 		state = (T=T,∂H∂t=∂H∂t,jH=jH,k=k,grid=x,grids=(T=xc,k=x),t=t)
 		interact!(Top(bc), bc, sub, heat, state, state)
 		interact!(sub, heat, Bottom(bc), bc, state, state)
-		prognosticstep!(sub, heat, state)
+		computefluxes!(sub, heat, state)
 		# strip units from ∂H∂t before returning it to the solver;
 		# note that we do not need to divide by diffusivity since we assume it to be unity
 		return ustrip.(∂H∂t)

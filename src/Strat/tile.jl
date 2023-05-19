@@ -122,9 +122,9 @@ on the fly via the @generated macro to ensure type stability. The generated code
 in sequence, i.e for each layer 1 <= i <= N:
 
 ```julia
-diagnosticstep!(layer[i], ...)
+updatestate!(layer[i], ...)
 interact!(layer[i], ..., layer[i+1], ...)
-prognosticstep!(layer[i], ...)
+computefluxes!(layer[i], ...)
 ```
 """
 function step!(
@@ -143,12 +143,12 @@ function step!(
     zs = map(getscalar, boundaries!(tile, u))
     # zs = boundaries(strat)
     state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
-    CryoGrid.diagnosticstep!(strat, state)
-    checkstate!(tile, state, u, du, :diagnosticstep!)
+    CryoGrid.updatestate!(strat, state)
+    checkstate!(tile, state, u, du, :updatestate!)
     CryoGrid.interact!(strat, state)
     checkstate!(tile, state, u, du, :interact!)
-    CryoGrid.prognosticstep!(strat, state)
-    checkstate!(tile, state, u, du, :prognosticstep!)
+    CryoGrid.computefluxes!(strat, state)
+    checkstate!(tile, state, u, du, :computefluxes!)
     return nothing
 end
 

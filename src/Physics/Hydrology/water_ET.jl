@@ -24,7 +24,7 @@ CryoGrid.parameterize(et::DampedET) = DampedET(
     evapotranspiration!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `diagnosticstep!`.
+This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `updatestate!`.
 """
 function evapotranspiration!(::SubSurface, ::WaterBalance, state) end
 function evapotranspiration!(
@@ -60,7 +60,7 @@ end
     evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `prognosticstep!`.
+This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `computefluxes!`.
 """
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
 function evapotranspirative_fluxes!(

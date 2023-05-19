@@ -183,9 +183,9 @@ end
     end
 end
 
-@inline function CryoGrid.diagnosticstep!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.updatestate!(strat::Stratigraphy, state::TileState)
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
+        CryoGrid.updatestate!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
@@ -197,9 +197,9 @@ end
     end
 end
 
-@inline function CryoGrid.prognosticstep!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.computefluxes!(strat::Stratigraphy, state::TileState)
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.prognosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
+        CryoGrid.computefluxes!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 

@@ -23,8 +23,8 @@ variables(::Any) = ()
     initialcondition!(::Layer, ::Process, state)
     initialcondition!(::Layer, ::Process, state, initializer)
 
-Defines the initial condition for a given Process and/or Layer. `initialcondition!` should write initial values into all relevant
-state variables in `state`.
+Defines the initial condition for a given `Layer` and possibly an `initializer`.
+`initialcondition!` should compute initial values into all relevant state variables in `state`.
 """
 initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(layer), state)
 initialcondition!(layer::Layer, state, initializer) = initialcondition!(layer, processes(layer), state, initializer)
@@ -43,23 +43,23 @@ initialcondition!(layer1::Layer, layer2::Layer, state1, state2, initializer) = i
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2, initializer) = nothing
 """
-    diagnosticstep!(l::Layer, state)
-    diagnosticstep!(l::Layer, p::Process, state)
+    updatestate!(l::Layer, state)
+    updatestate!(l::Layer, p::Process, state)
 
-Defines the diagnostic update for a Process on a given Layer.
+Updates all diagnostic/non-flux state variables for the given `Layer` based on the current prognostic state.
 """
-diagnosticstep!(layer::Layer, state) = diagnosticstep!(layer, processes(layer), state)
-diagnosticstep!(::Layer, ::Process, state) = nothing
+updatestate!(layer::Layer, state) = updatestate!(layer, processes(layer), state)
+updatestate!(::Layer, ::Process, state) = nothing
 """
-    prognosticstep!(l::Layer, p::Process, state)
+    computefluxes!(l::Layer, p::Process, state)
 
-Defines the prognostic update for a Process on a given layer. Note that an instance of `prognosticstep!` must be provided
+Calculates all internal fluxes for a given layer. Note that an instance of `computefluxes!` must be provided
 for all non-boundary (subsurface) processes/layers.
 """
-prognosticstep!(layer::Layer, state) = prognosticstep!(layer, processes(layer), state)
-prognosticstep!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
-prognosticstep!(::Top, ::Process, state) = nothing
-prognosticstep!(::Bottom, ::Process, state) = nothing
+computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
+computefluxes!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
+computefluxes!(::Top, ::Process, state) = nothing
+computefluxes!(::Bottom, ::Process, state) = nothing
 """
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
@@ -73,7 +73,7 @@ interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
     isactive(::Layer, state)
 
 Returns a boolean whether or not this layer is currently active in the stratigraphy and should interact with other layers.
-Note that `diagnosticstep!` and `prognosticstep!` are always invoked regardless of the current state of `isactive`.
+Note that `updatestate!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
 The default implementation of `isactive` always returns `true`.
 """
 isactive(::Layer, state) = true

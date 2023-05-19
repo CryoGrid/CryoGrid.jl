@@ -153,17 +153,17 @@ CryoGrid.variables(::BucketScheme) = (
 )
 
 function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance, state)
-    CryoGrid.diagnosticstep!(sub, water, state)
+    CryoGrid.updatestate!(sub, water, state)
 end
 
-function CryoGrid.diagnosticstep!(sub::SubSurface, water::WaterBalance, state)
+function CryoGrid.updatestate!(sub::SubSurface, water::WaterBalance, state)
     resetfluxes!(sub, water, state)
     watercontent!(sub, water, state)
     hydraulicconductivity!(sub, water, state)
     evapotranspiration!(sub, water, state)
 end
 
-function CryoGrid.prognosticstep!(sub::SubSurface, water::WaterBalance, state)
+function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
     evapotranspirative_fluxes!(sub, water, state)
     wateradvection!(sub, water, state)
     balancefluxes!(sub, water, state)
@@ -223,8 +223,8 @@ function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}
     end
 end
 
-CryoGrid.prognosticstep!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+CryoGrid.computefluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
-CryoGrid.diagnosticstep!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+CryoGrid.updatestate!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.timestep(::SubSurface, ::WaterBalance{NoFlow}, state) = Inf
