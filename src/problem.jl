@@ -242,7 +242,8 @@ Custom implementation of `StepsizeLimiterAffect` function for `CryoGrid.timestep
 """
 function (p::DiffEqCallbacks.StepsizeLimiterAffect{typeof(CryoGrid.timestep)})(integrator)
     dtFE = p.safety_factor*p.dtFE(Strat.Tile(integrator.sol.prob.f), get_du(integrator), integrator.u, integrator.p, integrator.t)
-    dtmax = min(integrator.opts.dtmax, dtFE)
+    # unpack from ForwardDiff dual number in case autodiff is being used
+    dtmax = Numerics.ForwardDiff.value(min(integrator.opts.dtmax, dtFE))
     # This part is copied from the implementation in DiffEqCallbacks
     if !integrator.opts.adaptive
         if dtmax < integrator.dtcache

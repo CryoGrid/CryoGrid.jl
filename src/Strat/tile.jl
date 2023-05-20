@@ -429,7 +429,8 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
-    chunk_size = isnothing(chunk_size) ? length(para) : chunk_size
+    default_chunk_size = length(para) > 0 ? length(para) : 12
+    chunk_size = isnothing(chunk_size) ? default_chunk_size : chunk_size
     states = StateVars(vars, Grid(ustrip.(grid), grid.geometry), chunk_size, arrayproto)
     return states
 end
