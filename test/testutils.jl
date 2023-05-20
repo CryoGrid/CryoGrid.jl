@@ -21,7 +21,7 @@ function build_test_state(grid::Grid, layer::Layer, name::Symbol=:layer; t=0.0, 
 	vargrid(::OnGrid{Edges}, grid::Grid) = edges(grid)
 	maybeunits(var::Var) = with_units ? varunits(var) : Unitful.NoUnits
 	named_layer = Named(name, layer)
-	vars = Strat.variables(named_layer)
+	vars = CryoGrid.variables(named_layer)
 	return (
 		t = t,
 		grid = grid,

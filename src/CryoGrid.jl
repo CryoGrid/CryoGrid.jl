@@ -39,30 +39,38 @@ export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
 include("types.jl")
-export Prognostic, Algebraic, Diagnostic, Var
+
+export Prognostic, Algebraic, Diagnostic, Var, VarInitializer
 export VarDim, OnGrid, Shape, Scalar, GridOffset, Edges, Cells
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
+
 export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
+
 export variables, processes, initialcondition!, updatestate!, computefluxes!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
 
 # Submodules
+
+export convert_t, convert_tspan, pstrip, @pstrip, @sym_str
 include("Utils/Utils.jl")
 using .Utils
-export convert_t, convert_tspan, pstrip, @pstrip, @sym_str
+
+export DiscretizationStrategy, AutoGrid, PresetGrid, Grid, cells, edges, subgridinds, Δ, volume, area, getvar
 include("Numerics/Numerics.jl")
 using .Numerics
-export DiscretizationStrategy, AutoGrid, PresetGrid, Grid, cells, edges, subgridinds, Δ, volume, area
-export initializer, getvar
+
 include("IO/InputOutput.jl")
 @reexport using .InputOutput
-include("Strat/Strat.jl")
-@reexport using .Strat
+
+include("Tiles/Tiles.jl")
+@reexport using .Tiles
+parameters = Tiles.parameters
+
 include("Physics/Physics.jl")
-parameters = Strat.parameters
+
 include("Diagnostics/Diagnostics.jl")
 @reexport using .Diagnostics
 

@@ -7,7 +7,7 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     p = integrator.p
     dt = integrator.dt
     t = t₀ + dt
-    tile = Strat.resolve(Tile(integrator.sol.prob.f), u, p, t)
+    tile = Tiles.resolve(Tile(integrator.sol.prob.f), u, p, t)
     # explicit update, if necessary
     _explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
@@ -24,7 +24,7 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
 end
 function _explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     dt = integrator.dt
-    CryoGrid.Strat.step!(tile, du, u, p, t, dt)
+    CryoGrid.Tiles.step!(tile, du, u, p, t, dt)
     @. u += du*dt
     return u
 end
@@ -46,7 +46,7 @@ function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     ϵ_max = Inf
     while (ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters) || iter_count < integrator.alg.miniters
         # invoke Tile step function
-        CryoGrid.Strat.step!(tile, du, u, p, t, dt)
+        CryoGrid.Tiles.step!(tile, du, u, p, t, dt)
         dHdT = getvar(Val{:∂H∂T}(), tile, u; interp=false)
         Hinv = getvar(Val{:T}(), tile, u; interp=false)
         an = @view getvar(Val{:DT_an}(), tile, u; interp=false)[2:end]

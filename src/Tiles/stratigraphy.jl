@@ -154,7 +154,7 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
     return strat_grid
 end
 
-@inline function CryoGrid.initialcondition!(strat::Stratigraphy, state::TileState, inits)
+@inline function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
     for i in 1:length(strat)-1
@@ -183,13 +183,13 @@ end
     end
 end
 
-@inline function CryoGrid.updatestate!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.updatestate!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
         CryoGrid.updatestate!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
-@inline function CryoGrid.interact!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.interact!(strat::Stratigraphy, state)
     # interact! requires special implementation via `stratiterate`
     # this allows for layer states to determine which adjacent layers can and cannot interact
     stratiterate(strat, state) do layer1, layer2, state1, state2
@@ -197,13 +197,13 @@ end
     end
 end
 
-@inline function CryoGrid.computefluxes!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.computefluxes!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
         CryoGrid.computefluxes!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
-@inline function CryoGrid.timestep(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.timestep(strat::Stratigraphy, state)
     max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
     end

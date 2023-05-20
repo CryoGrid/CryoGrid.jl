@@ -21,12 +21,12 @@ tile = CryoGrid.Presets.SoilHeatTile(
     freezecurve=sfcc
 )
 # define time span
-tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
+tspan = (DateTime(2010,1,1),DateTime(2010,1,2))
 u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:H,:jH,:∂H∂t,:θw), step_limiter=nothing, saveat=900.0)
+prob = CryoGridProblem(tile, u0, tspan, saveat=900.0, savevars=(:T,))
 @info "Running model"
-out = @time solve(prob, ImplicitEuler(), abstol=1e-8, reltol=1e-10, saveat=900.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, SSPRK43(), reltol=1e-8, saveat=900.0, progress=true) |> CryoGridOutput;
 # Plot it!
 zs = [5,10,15,20,25,30,40,50,100]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
@@ -36,3 +36,26 @@ Htot = Diagnostics.integrate(out.H, grid)
 plot(uconvert.(u"MJ", Htot .- Htot[1]), title="Energy balance error")
 # compute final energy balance error
 mass_balance_error = Htot[end] - Htot[1]
+
+using FiniteDiff
+using ForwardDiff
+
+function F(tspan)
+    function f(u)
+        _prob = CryoGridProblem(tile, u, tspan)
+        sol = solve(_prob, Heun())
+        return sol.u[end]
+    end
+end
+
+J1 = ForwardDiff.jacobian(F(tspan), u0)
+H1 = F(tspan)(u0)
+J2 = ForwardDiff.jacobian(F((tspan[end],tspan[end]+Day(1))), H1)
+H2 = F(tspan)(H1)
+J3 = ForwardDiff.jacobian(F((tspan[end]+Day(1),tspan[end]+Day(2))), H2)
+
+maximum(abs.(J3.-J2))
+
+spy(J3.-J2)
+
+solve(prob, Heun()).u[end].H .- u0.H

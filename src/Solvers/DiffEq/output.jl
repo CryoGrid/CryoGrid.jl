@@ -41,7 +41,7 @@ function InputOutput.CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,In
         end
     end
     # handle per-layer variables
-    for layer in Strat.layernames(tile.strat)
+    for layer in layernames(tile.strat)
         # if layer name appears in saved states or prognostic state axes, then add these variables to the output.
         if haskey(savedstates[1], layer) || haskey(pax, layer)
             # map over all savedstates and create named tuples for each time step

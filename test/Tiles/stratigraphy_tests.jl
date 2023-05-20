@@ -1,5 +1,4 @@
 using CryoGrid
-using CryoGrid.Strat
 using Test
 
 include("../types.jl")
