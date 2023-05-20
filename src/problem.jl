@@ -145,14 +145,14 @@ function _makecallbacks(tile::Tile)
     callbacks = []
     for (i,named_layer) in enumerate(tile.strat)
         events = CryoGrid.events(named_layer.val)
-        layername = CryoGrid.layername(named_layer)
+        layer_name = CryoGrid.layername(named_layer)
         for ev in events
             # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
             # GridContinuousEvents are defined on the whole grid/domain and so do not need to be duplicated
             # across layers.
             name = eventname(ev)
             if !isgridevent(ev) || name ∉ map(first, callbacks)
-                cb = _diffeqcallback(ev, tile, Val{layername}(), i)
+                cb = _diffeqcallback(ev, tile, Val{layer_name}(), i)
                 push!(callbacks, eventname(ev) => cb)
             end
         end
