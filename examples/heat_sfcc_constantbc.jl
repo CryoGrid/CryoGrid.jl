@@ -36,26 +36,3 @@ Htot = Diagnostics.integrate(out.H, grid)
 plot(uconvert.(u"MJ", Htot .- Htot[1]), title="Energy balance error")
 # compute final energy balance error
 mass_balance_error = Htot[end] - Htot[1]
-
-using FiniteDiff
-using ForwardDiff
-
-function F(tspan)
-    function f(u)
-        _prob = CryoGridProblem(tile, u, tspan)
-        sol = solve(_prob, Heun())
-        return sol.u[end]
-    end
-end
-
-J1 = ForwardDiff.jacobian(F(tspan), u0)
-H1 = F(tspan)(u0)
-J2 = ForwardDiff.jacobian(F((tspan[end],tspan[end]+Day(1))), H1)
-H2 = F(tspan)(H1)
-J3 = ForwardDiff.jacobian(F((tspan[end]+Day(1),tspan[end]+Day(2))), H2)
-
-maximum(abs.(J3.-J2))
-
-spy(J3.-J2)
-
-solve(prob, Heun()).u[end].H .- u0.H
