@@ -21,6 +21,7 @@ using LinearAlgebra
 using LinearSolve
 using Reexport
 using Unitful
+using UnPack
 
 using DiffEqBase
 using SciMLBase
@@ -31,6 +32,9 @@ using DiffEqCallbacks
 
 export TDMASolver
 include("linsolve.jl")
+
+export NLCGLite
+include("nlsolve/nlsolve.jl")
 
 include("output.jl")
 
