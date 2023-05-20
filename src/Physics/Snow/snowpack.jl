@@ -25,6 +25,10 @@ Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalan
     sp::Tsp = nothing
 end
 
+# type aliases for convenience
+const PrescribedSnowpack{T} = Snowpack{T,<:SnowMassBalance{<:PrescribedSnow}} where {T}
+const DynamicSnowpack{T} = Snowpack{T,<:SnowMassBalance{<:DynamicSnow}} where {T}
+
 # Snow methods
 """
     threshold(::Snowpack)
@@ -78,21 +82,31 @@ Get the snow density scheme from the given `SnowMassBalance` parameterization.
 """
 density(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.density
 
-# Default implementations of CryoGrid methods for Snowpack
-CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,Nothing}) = Coupled(snow.mass, snow.heat)
-CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,<:WaterBalance}) = Coupled(snow.mass, snow.water, snow.heat)
-CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
-CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + getscalar(state.Δz)) / 2
-CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
-CryoGrid.hasfixedvolume(::Type{<:Snowpack}) = false
-CryoGrid.basevariables(::Snowpack, ::SnowMassBalance) = (
+snowvariables(::Snowpack) = (
     Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
     Diagnostic(:T_ub, Scalar, u"°C"),
 )
-# for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
-CryoGrid.prognosticstep!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing
-# thermal properties snowpack
+
+# thermal properties of snowpack
 Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
+
+# Default implementations of CryoGrid methods for Snowpack
+CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,Nothing}) = Coupled(snow.mass, snow.heat)
+
+CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,<:WaterBalance}) = Coupled(snow.mass, snow.water, snow.heat)
+
+CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
+
+CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + getscalar(state.Δz)) / 2
+
+CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
+
+CryoGrid.Volume(::Type{<:PrescribedSnowpack}) = CryoGrid.DiagnosticVolume()
+CryoGrid.Volume(::Type{<:DynamicSnowpack}) = CryoGrid.PrognosticVolume()
+
+# for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
+CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing
+
 # volumetric fractions for snowpack
 @inline function CryoGrid.volumetricfractions(::Snowpack, state, i)
     @inbounds let θwi = state.θwi[i],

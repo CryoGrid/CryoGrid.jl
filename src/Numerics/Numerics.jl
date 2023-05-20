@@ -27,17 +27,17 @@ function turbo(value::Bool)
     global USE_TURBO = value
 end
 
-export UnitRectangle, DiscretizationStrategy, PresetGrid, AutoGrid, makegrid
-include("types.jl")
-
 export Profile, ProfileKnot
 include("profile.jl")
 
 export ∇, flux!, divergence!, nonlineardiffusion!, harmonicmean!, harmonicmean
 include("math.jl")
 
-export Grid, cells, edges, subgridinds, Δ, volume, area, updategrid!
+export Grid, UnitRectangle, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
+
+export DiscretizationStrategy, PresetGrid, AutoGrid, makegrid, discretize
+include("discretization.jl")
 
 export DiffCache, retrieve
 include("diffcache.jl")

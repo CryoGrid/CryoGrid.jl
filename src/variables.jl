@@ -99,3 +99,12 @@ isalgebraic(::T) where {T<:Var} = T <: Algebraic
 isflux(::T) where {T<:Var} = T <: DVar
 isdiagnostic(::T) where {T<:Var} = T <: Diagnostic
 isongrid(::Var{name,S}) where {name,S} = S <: OnGrid
+
+"""
+    VarInitializer{varname}
+
+Base type for state variable initializers.
+"""
+abstract type VarInitializer{varname} end
+ConstructionBase.constructorof(::Type{T}) where {varname,T<:VarInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
+CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname

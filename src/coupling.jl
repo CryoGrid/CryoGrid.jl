@@ -7,12 +7,12 @@ function _invoke_sequential(f!::F, l::Layer, ps::CoupledProcesses, args...) wher
         f!(l, proc, args...)
     end
 end
-CryoGrid.diagnosticstep!(top::Top, ps::CoupledProcesses, state) = _invoke_sequential(diagnosticstep!, top, ps, state)
-CryoGrid.diagnosticstep!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(diagnosticstep!, bot, ps, state)
-CryoGrid.diagnosticstep!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(diagnosticstep!, sub, ps, state)
-CryoGrid.prognosticstep!(top::Top, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, top, ps, state)
-CryoGrid.prognosticstep!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, bot, ps, state)
-CryoGrid.prognosticstep!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(prognosticstep!, sub, ps, state)
+CryoGrid.updatestate!(top::Top, ps::CoupledProcesses, state) = _invoke_sequential(updatestate!, top, ps, state)
+CryoGrid.updatestate!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(updatestate!, bot, ps, state)
+CryoGrid.updatestate!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(updatestate!, sub, ps, state)
+CryoGrid.computefluxes!(top::Top, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, top, ps, state)
+CryoGrid.computefluxes!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, bot, ps, state)
+CryoGrid.computefluxes!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, sub, ps, state)
 """
     interact!(l1::Union{Top,Bottom}, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
 

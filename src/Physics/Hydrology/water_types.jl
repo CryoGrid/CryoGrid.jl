@@ -18,7 +18,6 @@ Default material hydraulic properties.
 Utils.@properties HydraulicProperties(
     kw_sat = 1e-5u"m/s",
 )
-hydraulicproperties(::SubSurface) = HydraulicProperties()
 function CryoGrid.parameterize(prop::HydraulicProperties)
     return HydraulicProperties(
         map(values(prop)) do val
@@ -58,18 +57,13 @@ Represents a zero flow scheme
 """
 struct NoFlow <: WaterFlow end
 """
-    BucketScheme{Tfc} <: WaterFlow
+    BucketScheme <: WaterFlow
 
 "Bucket" water scheme for downward advective flow due to gravity.
 """
-Base.@kwdef struct BucketScheme{Tfc} <: WaterFlow
-    fieldcap::Tfc = 0.2
-end
-CryoGrid.parameterize(flow::BucketScheme) = BucketScheme(
-    fieldcap = CryoGrid.parameterize(flow.fieldcap, domain=0..1, desc="Minimum saturation level, a.k.a 'field capacity'."),
-)
+Base.@kwdef struct BucketScheme <: WaterFlow end
 # default dt limiters
-default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.1)
+default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.01)
 default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)
 # default ET scheme
 default_ET(::BucketScheme) = DampedET()

@@ -1,4 +1,4 @@
-module Strat
+module Tiles
 
 import CryoGrid
 import CryoGrid.InputOutput
@@ -35,7 +35,7 @@ export layernames, layertypes, layers, boundaries, layername, stratiterate
 export top, bottom, subsurface
 include("stratigraphy.jl")
 
-export ConstantInitializer, InterpInitializer, initializer, init!
+export initializer
 include("init.jl")
 
 export Tile, withaxes, getstate

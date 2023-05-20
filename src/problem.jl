@@ -34,7 +34,7 @@ end
         safety_factor=1,
         max_step=true,
         callback=nothing,
-        isoutofdomain=Strat.domain(tile),
+        isoutofdomain=Tiles.domain(tile),
         specialization=SciMLBase.AutoSpecialize,
         function_kwargs=(),
         prob_kwargs...
@@ -57,7 +57,7 @@ function CryoGridProblem(
     safety_factor=1,
     max_step=true,
     callback=nothing,
-    isoutofdomain=Strat.domain(tile),
+    isoutofdomain=Tiles.domain(tile),
     specialization=SciMLBase.AutoSpecialize,
     function_kwargs=(),
     prob_kwargs...
@@ -66,8 +66,8 @@ function CryoGridProblem(
     # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
     expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
     expandtstep(tstep::AbstractVector) = tstep
-    getsavestate(tile::Tile, u, du) = deepcopy(Strat.getvars(tile.state, Strat.withaxes(u, tile), Strat.withaxes(du, tile), savevars...))
-    savefunc(u, t, integrator) = getsavestate(Tile(integrator), Strat.withaxes(u, Tile(integrator)), get_du(integrator))
+    getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
+    savefunc(u, t, integrator) = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
     tile, p = if isnothing(p) && isempty(ModelParameters.params(tile))
         tile, nothing
     else
@@ -145,7 +145,7 @@ function _makecallbacks(tile::Tile)
     callbacks = []
     for (i,named_layer) in enumerate(tile.strat)
         events = CryoGrid.events(named_layer.val)
-        layername = Strat.layername(named_layer)
+        layername = CryoGrid.layername(named_layer)
         for ev in events
             # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
             # GridContinuousEvents are defined on the whole grid/domain and so do not need to be duplicated
@@ -163,10 +163,10 @@ function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layerna
     function _condition(u,t,integrator)
         let tile = Tile(integrator),
             layer = tile.strat[i_layer],
-            u = Strat.withaxes(u, tile),
-            du = Strat.withaxes(get_du(integrator), tile),
+            u = Tiles.withaxes(u, tile),
+            du = Tiles.withaxes(get_du(integrator), tile),
             t = t,
-            state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
             return criterion(ev, layer.val, state)
         end
     end
@@ -175,10 +175,10 @@ function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
     function _condition(out,u,t,integrator)
         tile = Tile(integrator)
         for layer in tile.strat
-            let u = Strat.withaxes(u, tile),
-                du = Strat.withaxes(get_du(integrator), tile),
+            let u = Tiles.withaxes(u, tile),
+                du = Tiles.withaxes(get_du(integrator), tile),
                 t = t,
-                state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+                state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
                 criterion!(view(out, Numerics.bounds(state.grid)), ev, layer.val, process, state)
             end
         end
@@ -190,10 +190,10 @@ function _triggerfunc(::Val{layername}, ev::Event, trig::Union{Nothing,T}, i_lay
     function _trigger!(integrator)
         let tile=Tile(integrator),
             layer = tile.strat[i_layer],
-            u = Strat.withaxes(integrator.u, tile),
-            du = Strat.withaxes(get_du(integrator), tile),
+            u = Tiles.withaxes(integrator.u, tile),
+            du = Tiles.withaxes(get_du(integrator), tile),
             t = integrator.t,
-            state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
             _invoke_trigger!(ev, trig, layer.val, state)
         end
     end
@@ -204,10 +204,10 @@ function _gridtriggerfunc(::Val{layername}, ev::GridContinuousEvent, grid::Grid,
     function _trigger!(integrator, event_idx)
         tile = Tile(integrator)
         for layer in tile.strat
-            u = Strat.withaxes(integrator.u, tile)
-            du = Strat.withaxes(get_du(integrator), tile)
+            u = Tiles.withaxes(integrator.u, tile)
+            du = Tiles.withaxes(get_du(integrator), tile)
             t = integrator.t
-            state = Strat.getstate(Val{layername}(), tile, u, du, t, integrator.dt)
+            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt)
             if event_idx ∈ Numerics.bounds(state.grid)
                 _invoke_trigger!(ev, T(nothing), layer.val, state)
                 break
@@ -241,8 +241,9 @@ Custom implementation of `StepsizeLimiterAffect` function for `CryoGrid.timestep
 `timestep` function with `tile,du,u,p,t` as arguments.
 """
 function (p::DiffEqCallbacks.StepsizeLimiterAffect{typeof(CryoGrid.timestep)})(integrator)
-    dtFE = p.safety_factor*p.dtFE(Strat.Tile(integrator.sol.prob.f), get_du(integrator), integrator.u, integrator.p, integrator.t)
-    dtmax = min(integrator.opts.dtmax, dtFE)
+    dtFE = p.safety_factor*p.dtFE(Tile(integrator.sol.prob.f), get_du(integrator), integrator.u, integrator.p, integrator.t)
+    # unpack from ForwardDiff dual number in case autodiff is being used
+    dtmax = Numerics.ForwardDiff.value(min(integrator.opts.dtmax, dtFE))
     # This part is copied from the implementation in DiffEqCallbacks
     if !integrator.opts.adaptive
         if dtmax < integrator.dtcache

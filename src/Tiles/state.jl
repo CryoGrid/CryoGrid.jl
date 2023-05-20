@@ -68,7 +68,7 @@ Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:st
         for i in 1:length(names)
     )
     quote
-        bounds = boundarypairs(map(ustrip, zs), sv.grid[end])
+        bounds = boundarypairs(map(ustrip, zs))
         return TileState(
             sv.grid,
             NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),

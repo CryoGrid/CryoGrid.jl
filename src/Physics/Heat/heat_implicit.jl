@@ -28,7 +28,7 @@ CryoGrid.variables(::HeatBalanceImplicit) = (
     Diagnostic(:DT_ap, OnGrid(Cells)),
     Diagnostic(:DT_bp, OnGrid(Cells)),
 )
-function CryoGrid.diagnosticstep!(
+function CryoGrid.updatestate!(
     sub::SubSurface,
     heat::HeatBalanceImplicit,
     state
@@ -115,4 +115,4 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSu
     return nothing
 end
 # do nothing in prognostic step
-CryoGrid.prognosticstep!(::SubSurface, ::HeatBalanceImplicit, state) = nothing
+CryoGrid.computefluxes!(::SubSurface, ::HeatBalanceImplicit, state) = nothing

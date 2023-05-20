@@ -1,8 +1,6 @@
-abstract type VarInitializer{varname} end
-CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname
-ConstructionBase.constructorof(::Type{T}) where {varname,T<:VarInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
 # default behavior is to not automatically parameterize initializers
 CryoGrid.parameterize(init::VarInitializer) = init
+
 """
     FunctionInitializer{varname,F} <: VarInitializer{varname}
 
@@ -14,6 +12,7 @@ struct FunctionInitializer{varname,F} <: VarInitializer{varname}
 end
 CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::FunctionInitializer) = init.f(layer, process, state)
 Base.getindex(init::FunctionInitializer, itrv::Interval) = init
+
 """
     InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
 
@@ -27,6 +26,7 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     extrap::E
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
+
 function CryoGrid.initialcondition!(layer::Layer, process::Process, state, init::InterpInitializer{var}) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(map(knot -> ustrip(knot.depth), profile.knots))
@@ -52,8 +52,10 @@ function CryoGrid.initialcondition!(layer::Layer, process::Process, state, init:
         return u
     end
 end
+
 # automatic partitioning of profile based on interval
 Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpInitializer(var, init.profile[itrv], init.interp, init.extrap)
+
 """
     initializer(varname::Symbol, x::Number) => FunctionInitializer w/ constant
     initializer(varname::Symbol, f::Function) => FunctionInitializer

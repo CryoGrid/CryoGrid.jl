@@ -6,7 +6,7 @@ include("Utils/runtests.jl")
 include("Numerics/runtests.jl")
 include("IO/runtests.jl")
 include("Physics/runtests.jl")
-include("Strat/runtests.jl")
+include("Tiles/runtests.jl")
 include("Solvers/runtests.jl")
 include("Diagnostics/runtests.jl")
 

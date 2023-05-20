@@ -24,7 +24,7 @@ CryoGrid.parameterize(et::DampedET) = DampedET(
     evapotranspiration!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `diagnosticstep!`.
+This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `updatestate!`.
 """
 function evapotranspiration!(::SubSurface, ::WaterBalance, state) end
 function evapotranspiration!(
@@ -39,7 +39,7 @@ function evapotranspiration!(
         state.w_ev[i] = Δz[i]*exp(-z[i] / et.d_ev)
         state.w_tr[i] = Δz[i]*exp(-z[i] / et.d_tr)
         let θwi = state.θwi[i],
-            θfc = minwater(sub, water);
+            θfc = minwater(sub, water, state, i);
             state.αᶿ[i] = ifelse(θwi < θfc, 0.25(1-cos(π*θwi/θfc))^2, one(θwi))
         end
     end
@@ -60,7 +60,7 @@ end
     evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `prognosticstep!`.
+This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `computefluxes!`.
 """
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
 function evapotranspirative_fluxes!(
@@ -85,11 +85,11 @@ function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:Water
     state.jw[1] += state.jwET[1]
 end
 # CryoGrid methods
-CryoGrid.basevariables(::Evapotranspiration) = (
+ETvariables(::Evapotranspiration) = (
     Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by an interaction
 )
 CryoGrid.variables(et::DampedET) = (
-    CryoGrid.basevariables(et)...,
+    ETvariables(et)...,
     Diagnostic(:f_et, OnGrid(Cells), u"m", domain=0..1, desc="Evapotranspiration reduction factor."),
     Diagnostic(:w_ev, OnGrid(Cells), u"m", desc="Damped grid cell weight for evaporation."),
     Diagnostic(:w_tr, OnGrid(Cells), u"m", desc="Damped grid cell weight for transpiration"),

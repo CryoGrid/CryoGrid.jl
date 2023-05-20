@@ -60,8 +60,8 @@ macro Stratigraphy(args...)
 end
 layers(strat::Stratigraphy) = getfield(strat, :layers)
 boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
-boundarypairs(strat::Stratigraphy, z_bottom) = boundarypairs(boundaries(strat), z_bottom)
-boundarypairs(bounds::NTuple, z_bottom) = tuplejoin(map(tuple, bounds[1:end-1], bounds[2:end]), ((bounds[end], z_bottom),))
+boundarypairs(strat::Stratigraphy) = boundarypairs(boundaries(strat))
+boundarypairs(bounds::NTuple) = tuple(map(tuple, bounds[1:end-1], bounds[2:end])..., (bounds[end], bounds[end]))
 layernames(strat::Stratigraphy) = map(layername, layers(strat))
 layertypes(::Type{<:Stratigraphy{N,TLayers}}) where {N,TLayers} = map(layertype, TLayers.parameters)
 Base.keys(strat::Stratigraphy) = layernames(strat)
@@ -134,7 +134,27 @@ state object for the i'th layer in the stratigraphy.
     return expr
 end
 
-@inline function CryoGrid.initialcondition!(strat::Stratigraphy, state::TileState, inits)
+function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy)
+    strat_grid = nothing
+    for (bounds, named_layer) in zip(boundarypairs(strat)[2:end-1], layers(strat)[2:end-1])
+        if bounds[2] - bounds[1] <= zero(bounds[1])
+            continue
+        end
+        layer = named_layer.val
+        layer_grid = Numerics.makegrid(layer, strategy, bounds)
+        if !isnothing(strat_grid)
+            # check that grid edges line up at layer boundary
+            @assert strat_grid[end] == layer_grid[1] "Upper boundary of layer $(nameof(named_layer)) does not match the previous layer."
+            # concatenate grids, omitting first value of layer_grid to avoid duplicating the shared edge
+            strat_grid = Grid(vcat(strat_grid, layer_grid[2:end]))
+        else
+            strat_grid = layer_grid
+        end
+    end
+    return strat_grid
+end
+
+@inline function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
     for i in 1:length(strat)-1
@@ -163,13 +183,13 @@ end
     end
 end
 
-@inline function CryoGrid.diagnosticstep!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.updatestate!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
+        CryoGrid.updatestate!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
-@inline function CryoGrid.interact!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.interact!(strat::Stratigraphy, state)
     # interact! requires special implementation via `stratiterate`
     # this allows for layer states to determine which adjacent layers can and cannot interact
     stratiterate(strat, state) do layer1, layer2, state1, state2
@@ -177,42 +197,40 @@ end
     end
 end
 
-@inline function CryoGrid.prognosticstep!(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.computefluxes!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.prognosticstep!(named_layer.val, getproperty(state, layername(named_layer)))
+        CryoGrid.computefluxes!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
-@inline function CryoGrid.timestep(strat::Stratigraphy, state::TileState)
+@inline function CryoGrid.timestep(strat::Stratigraphy, state)
     max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
     end
     return minimum(max_dts)
 end
 
-CryoGrid.hasfixedvolume(::Type{TStrat}) where {TStrat<:Stratigraphy} = return all(map(CryoGrid.hasfixedvolume, layertypes(TStrat)))
-
 # collecting/grouping components
 CryoGrid.events(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
+
+CryoGrid.variables(::Union{FixedVolume,DiagnosticVolume}) = (
+    Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
+    # technically the domain for z should be double bounded by the surrounding layers...
+    # unfortunately there is no way to represent that here, so we just have to ignore it
+    Diagnostic(:z, Scalar, u"m"),
+)
+CryoGrid.variables(::PrognosticVolume) = (
+    Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:z, Scalar, u"m"),
+)
 function CryoGrid.variables(strat::Stratigraphy)
     strat_nt = NamedTuple(strat)
     layervars = map(CryoGrid.variables, strat_nt)
     return map(layervars, strat_nt) do vars, named_layer
-        if CryoGrid.hasfixedvolume(typeof(named_layer.val))
-            (
-                vars...,
-                Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
-                # technically the domain for z should be double bounded by the surrounding layers...
-                # unfortunately there is no way to represent that here, so we just have to ignore it
-                Diagnostic(:z, Scalar, u"m"),
-            )
-        else
-            (
-                vars...,
-                Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
-                Diagnostic(:z, Scalar, u"m"),
-            )
-        end
+        (
+            vars...,
+            CryoGrid.variables(CryoGrid.Volume(named_layer.val))...,
+        )
     end
 end
 function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))

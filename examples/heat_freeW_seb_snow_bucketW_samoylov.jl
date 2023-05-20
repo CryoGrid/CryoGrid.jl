@@ -18,11 +18,11 @@ const gridvals = vcat([
 modelgrid = Grid(gridvals);
 # soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
-    0.0u"m" => HomogeneousMixture(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-    0.1u"m" => HomogeneousMixture(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-    0.4u"m" => HomogeneousMixture(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-    3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-    10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+    0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+    0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
 );
 # mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
@@ -37,7 +37,7 @@ soil_layers = map(enumerate(soilprofile)) do (i, soil_i)
     name = Symbol(:soil, i)
     heat = HeatBalance(:H, freezecurve=PainterKarra())
     water = WaterBalance(BucketScheme(), DampedET())
-    soil_i.depth => name => Soil(soil_i.value; heat, water)
+    soil_i.depth => name => HomogeneousSoil(soil_i.value; heat, water)
 end
 # build stratigraphy
 strat = @Stratigraphy(

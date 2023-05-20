@@ -26,6 +26,13 @@ function partial_heatcapacity(snow::Snowpack, heat::HeatBalance)
     end
 end
 
+CryoGrid.makegrid(::BulkSnowpack, strategy, bounds) = Grid([bounds[1], bounds[2]])
+
+# Initialization
+function CryoGrid.initialcondition!(::BulkSnowpack, ::SnowMassBalance, state)
+    @. state.Δz = state.dsn = zero(eltype(state.dsn))
+end
+
 # Events
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:SnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),
@@ -95,9 +102,9 @@ CryoGrid.variables(snow::BulkSnowpack, smb::DynamicSnowMassBalance) = (
     Prognostic(:swe, Scalar, u"m", domain=0..Inf),
     Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), 
-    CryoGrid.basevariables(snow, smb)...,
+    snowvariables(snow)...,
 )
-function CryoGrid.diagnosticstep!(
+function CryoGrid.updatestate!(
     snow::BulkSnowpack,
     procs::Coupled(DynamicSnowMassBalance{TAcc,TAbl,TDen}, HeatBalance{FreeWater,<:Enthalpy}),
     state
@@ -133,7 +140,7 @@ function CryoGrid.interact!(
     snowfall_rate = boundaryvalue(bc, top, smb, snow, stop, ssnow)
     @. ssnow.∂swe∂t += rate_scale*snowfall_rate
 end
-function CryoGrid.prognosticstep!(
+function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
     smb::DynamicSnowMassBalance{TAcc,TAbl},
     state
@@ -166,7 +173,7 @@ CryoGrid.variables(snow::BulkSnowpack, smb::PrescribedSnowMassBalance) = (
     Diagnostic(:swe, Scalar, u"m", domain=0..Inf),
     Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
     Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1),
-    CryoGrid.basevariables(snow, smb)...,
+    snowvariables(snow)...,
 )
 CryoGrid.events(::BulkSnowpack, ::Coupled2{<:PrescribedSnowMassBalance,<:HeatBalance}) = (
     ContinuousEvent(:snow_min),
@@ -191,6 +198,7 @@ function CryoGrid.trigger!(
     state
 )
     state.H .= 0.0
+    return nothing
 end
 function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
@@ -204,8 +212,9 @@ function CryoGrid.trigger!(
     C = Heat.heatcapacity(snow, heat, θfracs...)
     state.T .= state.T_ub
     state.H .= state.T.*C
+    return nothing
 end
-function CryoGrid.diagnosticstep!(
+function CryoGrid.updatestate!(
     snow::BulkSnowpack,
     procs::Coupled2{<:PrescribedSnowMassBalance,<:HeatBalance{FreeWater,<:Enthalpy}},
     state
@@ -216,6 +225,7 @@ function CryoGrid.diagnosticstep!(
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
+    @setscalar state.Δz = new_dsn
     @unpack ch_a, kh_a = thermalproperties(snow)
     if new_dsn > threshold(snow)
         # if new snow depth is above threshold, set state variables
@@ -238,23 +248,25 @@ function CryoGrid.diagnosticstep!(
         state.C .= ch_a
         state.kc .= kh_a
     end
+    return nothing
 end
-# prognosticstep! for free water, enthalpy based HeatBalance on snow layer
-function CryoGrid.prognosticstep!(
+# computefluxes! for free water, enthalpy based HeatBalance on snow layer
+function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
     ps::Coupled(SnowMassBalance,HeatBalance{FreeWater,<:Enthalpy}),
     state
 )
     smb, heat = ps
-    prognosticstep!(snow, smb, state)
+    computefluxes!(snow, smb, state)
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set divergence to zero if there is no snow
         @. state.∂H∂t = zero(eltype(state.H))
     else
-        # otherwise call prognosticstep! for heat
-        prognosticstep!(snow, heat, state)
+        # otherwise call computefluxes! for heat
+        computefluxes!(snow, heat, state)
     end
+    return nothing
 end
 # Timestep control
 CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")

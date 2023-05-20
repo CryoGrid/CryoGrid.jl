@@ -1,11 +1,9 @@
 module Heat
 
-import CryoGrid
-import CryoGrid.Hydrology
-
 import ConstructionBase
 
 using CryoGrid
+using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
@@ -16,10 +14,10 @@ using FreezeCurves.Solvers
 export FreeWater, FreezeCurve
 
 export HeatBalance, ThermalProperties
-include("types.jl")
+include("heat_types.jl")
 
 export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
-include("methods.jl")
+include("heat_methods.jl")
 
 export thermalconductivity, thermalconductivity!
 include("thermcond.jl")
@@ -32,8 +30,6 @@ include("heat_bc.jl")
 
 export heatconduction!
 include("heat_conduction.jl")
-
-include("heat_water.jl")
 
 export HeatBalanceImplicit
 include("heat_implicit.jl")

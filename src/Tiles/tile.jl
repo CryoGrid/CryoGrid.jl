@@ -91,7 +91,7 @@ function Tile(
     iip::Bool=true,
     chunk_size=nothing,
 ) where {A<:AbstractArray}
-    grid = Numerics.makegrid(discretization_strategy, collect(boundaries(strat)))
+    grid = Numerics.makegrid(strat, discretization_strategy)
     strat = stripunits(strat)
     events = CryoGrid.events(strat)
     vars = CryoGrid.variables(strat)
@@ -112,6 +112,8 @@ function Tile(
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
+Tile(strat::Stratigraphy, inits...; discretization_strategy=AutoGrid(), kwargs...) = Tile(strat, discretization_strategy, inits...; kwargs...)
+
 """
     step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
@@ -120,9 +122,9 @@ on the fly via the @generated macro to ensure type stability. The generated code
 in sequence, i.e for each layer 1 <= i <= N:
 
 ```julia
-diagnosticstep!(layer[i], ...)
+updatestate!(layer[i], ...)
 interact!(layer[i], ..., layer[i+1], ...)
-prognosticstep!(layer[i], ...)
+computefluxes!(layer[i], ...)
 ```
 """
 function step!(
@@ -141,17 +143,15 @@ function step!(
     zs = map(getscalar, boundaries!(tile, u))
     # zs = boundaries(strat)
     state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
-    CryoGrid.diagnosticstep!(strat, state)
+    CryoGrid.updatestate!(strat, state)
+    checkstate!(tile, state, u, du, :updatestate!)
     CryoGrid.interact!(strat, state)
-    CryoGrid.prognosticstep!(strat, state)
-    if CryoGrid.CRYOGRID_DEBUG
-        @inbounds for i in eachindex(u)
-            @assert isfinite(u[i]) "Found NaN/Inf value in current state vector at index $i"
-            @assert isfinite(du[i]) "Found NaN/Inf value in computed time derivatives at index $i"
-        end
-    end
+    checkstate!(tile, state, u, du, :interact!)
+    CryoGrid.computefluxes!(strat, state)
+    checkstate!(tile, state, u, du, :computefluxes!)
     return nothing
 end
+
 """
     timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
 
@@ -166,6 +166,7 @@ function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip},
     state = TileState(tile.state, zs, u, du, t, 1.0, Val{true}())
     CryoGrid.timestep(strat::Stratigraphy, state)
 end
+
 """
     initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
     initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing)
@@ -191,6 +192,7 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     CryoGrid.initialcondition!(strat, state, tile.inits)
     return u, du    
 end
+
 """
     domain(tile::Tile)
 
@@ -230,22 +232,16 @@ function domain(tile::Tile)
         return false
     end
 end
-# dynamic layer boundaries
-@generated function _layerthick(tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer}
-    if CryoGrid.hasfixedvolume(TLayer)
-        # Case 1: Layer has static volume, retrieve from diagnostic cache
-        quote
-            retrieve(getproperty(tile.state.diag, name).Δz, u)
-        end
-    else
-        # Case 2: Layer has dynamic volume, retrieve from prognostic state
-        quote
-            getproperty(u, name).Δz
-        end
-    end
+
+# layer thickness
+_layerthick(::PrognosticVolume, tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer} = getproperty(u, name).Δz
+_layerthick(::Union{FixedVolume,DiagnosticVolume}, tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer} = retrieve(getproperty(tile.state.diag, name).Δz, u)
+function _layerthick(tile::Tile, layer::Named{name,TLayer}, u) where {name,TLayer<:Layer}
+    return _layerthick(CryoGrid.Volume(TLayer), tile, layer, u)
 end
+
 @generated function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
-    if CryoGrid.hasfixedvolume(TStrat)
+    if all(map(typ -> isa(Volume(typ), FixedVolume), layertypes(TStrat)))
         # Micro-optimization: if all layers in the stratigraphy have static volume, skip all of the fancy stuff
         quote
             boundaries(tile.strat)
@@ -257,9 +253,9 @@ end
         end
     end
 end
+
 function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
-    zbot = tile.state.grid[end]
-    bounds = boundarypairs(tile.strat, zbot)
+    bounds = boundarypairs(tile.strat)
     map(bounds, layers(tile.strat)) do (z1, z2), named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
@@ -270,6 +266,7 @@ function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
         return z1
     end
 end
+
 function update_layer_boundaries(tile::Tile, u)
     # calculate grid boundaries starting from the bottom moving up to the surface
     zbot = tile.state.grid[end]
@@ -284,6 +281,7 @@ function update_layer_boundaries(tile::Tile, u)
         return round(Numerics.ForwardDiff.value(z), digits=12)
     end
 end
+
 """
     getvar(name::Symbol, tile::Tile, u; interp=true)
     getvar(::Val{name}, tile::Tile, u; interp=true)
@@ -303,6 +301,7 @@ function Numerics.getvar(::Val{name}, tile::Tile, u; interp=true) where name
         return x
     end
 end
+
 """
     getstate(layername::Symbol, tile::Tile, u, du, t)
     getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernames},iip}, _u, _du, t)
@@ -321,9 +320,10 @@ function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernam
             break
         end
     end
-    z = boundarypairs(map(ustrip, stripparams(boundaries(tile.strat))), ustrip(tile.grid[end]))[i]
+    z = boundarypairs(map(ustrip, stripparams(boundaries(tile.strat))))[i]
     return LayerState(tile.state, z, u, du, t, dt, Val{layername}(), Val{iip}())
 end
+
 """
     parameterize(tile::Tile)
 
@@ -346,18 +346,21 @@ function CryoGrid.parameterize(tile::Tile)
     new_strat = Stratigraphy(boundaries(tile.strat), Tuple(new_layers))
     return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.hist)
 end
+
 """
     variables(tile::Tile)
 
 Returns a tuple of all variables defined in the tile.
 """
 CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
+
 """
     parameters(tile::Tile; kwargs...)
 
 Extracts all parameters from `tile`.
 """
 parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
+
 """
     withaxes(u::AbstractArray, ::Tile)
 
@@ -366,11 +369,13 @@ as `setup.uproto`.
 """
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
+
 function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt, Val{iip}())
 end
+
 """
     resolve(tile::Tile, u, p, t)
 
@@ -397,6 +402,22 @@ function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,
 end
 resolve(tile::Tile, u, p::Nothing, t) = tile
 
+function checkstate!(tile::Tile, state::TileState, u, du, label::Symbol)
+    if CryoGrid.CRYOGRID_DEBUG
+        @inbounds for i in eachindex(u)
+            if !isfinite(u[i])
+                debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in current state vector at index $i"))
+            end
+            if !isfinite(du[i])
+                debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in computed time derivatives at index $i"))
+            end
+        end
+    end
+    return nothing
+end
+
+debughook!(tile, state, err) = throw(err)
+
 # ==== Internal methods for initializing types and state variables ====
 """
 Initialize `StateVars` which holds the caches for all defined state variables.
@@ -408,7 +429,8 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
     @assert npvars > 0 "At least one prognostic variable must be specified."
     para = params(strat)
-    chunk_size = isnothing(chunk_size) ? length(para) : chunk_size
+    default_chunk_size = length(para) > 0 ? length(para) : 12
+    chunk_size = isnothing(chunk_size) ? default_chunk_size : chunk_size
     states = StateVars(vars, Grid(ustrip.(grid), grid.geometry), chunk_size, arrayproto)
     return states
 end
