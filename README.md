@@ -96,3 +96,13 @@ Note that `SoilHeatTile` uses energy as the state variable by default. To use te
 # While this will work with any freeze curve, here we use Westermann (2011) as an example.
 model = CryoGrid.Presets.SoilHeatTile(:T, TemperatureGradient(forcings.Tair), soilprofile, freezecurve=SFCC(Westermann()))
 ```
+
+### Development
+
+If you would like to work directly with the CryoGrid.jl codebase, there are two options:
+
+1) Install the package in development mode with `develop` in the Julia package manager.
+
+2) Clone the git repository to your preferred working directory and open the project from there.
+
+Generally option 1 is recommended, particuiarly if you are using `CryoGrid` in a downstream Julia project, since this will allow you to dynamically work on both `CryoGrid` and your project simultaneously. Option 2 may be more suitable when you wish to focus solely on CryoGrid.jl development and avoid modifying your existing projects or base Julia environment.
