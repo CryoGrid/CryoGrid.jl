@@ -27,3 +27,24 @@ function computejac(tile::Tile, u, p, t)
     end
     return J
 end
+
+"""
+    build_dummy_state(grid::Grid, layer::Layer; t=0.0, with_units=true)
+
+Collects variables defined on `layer` and initializes a dummy `state` named tuple
+with all state variables initialized from the given `grid`. This is intended to be
+used for unit tests and debugging in order to avoid the full-fledged construction
+of a `Tile`/`Stratigraphy` and associated state types.
+"""
+function build_dummy_state(grid::Grid, layer::Layer; t=0.0, with_units=true)
+	vargrid(::OnGrid{Cells}, grid::Grid) = cells(grid)
+	vargrid(::OnGrid{Edges}, grid::Grid) = edges(grid)
+	maybeunits(var::Var) = with_units ? varunits(var) : Unitful.NoUnits
+	vars = CryoGrid.variables(layer)
+	return (
+		t = t,
+		grid = grid,
+		grids = (; map(v -> varname(v) => vargrid(vardims(v), grid), filter(isongrid, vars))...),
+		map(v -> varname(v) => zeros(dimlength(vardims(v), length(grid)))*maybeunits(v), vars)...
+	)
+end
