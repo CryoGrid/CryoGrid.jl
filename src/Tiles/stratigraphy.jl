@@ -154,7 +154,7 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
     return strat_grid
 end
 
-CryoGrid.initializers(strat::Stratigraphy) = tuplejoin(map(initializers, layers(strat))...)
+CryoGrid.initializers(strat::Stratigraphy) = tuplejoin(map(initializers, map(l -> l.val, layers(strat)))...)
 
 function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
