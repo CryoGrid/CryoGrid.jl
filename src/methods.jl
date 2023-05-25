@@ -8,6 +8,7 @@ they should be combined together with `Coupled(procs...)`.
 processes(l::Layer) = error("not implemented for layer of type $(typeof(l)); maybe you forgot to add a method CryoGrid.processes(::$(nameof(typeof(l)))) = ...?")
 processes(top::Top) = top.proc
 processes(bot::Bottom) = bot.proc
+
 """
     variables(layer::Layer, process::Process)
     variables(::Layer)
@@ -18,6 +19,7 @@ Defines variables for a given `Layer`, `Process`, or arbitrary user-defined type
 variables(::Layer, process::Process) = variables(process)
 variables(l::Layer) = variables(l, processes(l))
 variables(::Any) = ()
+
 """
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)
@@ -30,6 +32,7 @@ initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(laye
 initialcondition!(layer::Layer, state, initializer) = initialcondition!(layer, processes(layer), state, initializer)
 initialcondition!(::Layer, ::Process, state) = nothing
 initialcondition!(::Layer, ::Process, state, initializer) = nothing
+
 """
     initialcondition!(layer1::Layer, layer2::Layer, state1, state2)
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
@@ -42,6 +45,7 @@ initialcondition!(layer1::Layer, layer2::Layer, state1, state2) = initialconditi
 initialcondition!(layer1::Layer, layer2::Layer, state1, state2, initializer) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2, initializer)
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2, initializer) = nothing
+
 """
     updatestate!(l::Layer, state)
     updatestate!(l::Layer, p::Process, state)
@@ -50,6 +54,7 @@ Updates all diagnostic/non-flux state variables for the given `Layer` based on t
 """
 updatestate!(layer::Layer, state) = updatestate!(layer, processes(layer), state)
 updatestate!(::Layer, ::Process, state) = nothing
+
 """
     computefluxes!(l::Layer, p::Process, state)
 
@@ -60,6 +65,7 @@ computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), st
 computefluxes!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
 computefluxes!(::Top, ::Process, state) = nothing
 computefluxes!(::Bottom, ::Process, state) = nothing
+
 """
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
@@ -69,6 +75,7 @@ and separate dispatches must be provided for interactions in reverse order.
 """
 interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+
 """
     isactive(::Layer, state)
 
@@ -77,6 +84,7 @@ Note that `updatestate!` and `computefluxes!` are always invoked regardless of t
 The default implementation of `isactive` always returns `true`.
 """
 isactive(::Layer, state) = true
+
 """
     timestep(::Layer, ::Process, state)
 
@@ -86,6 +94,7 @@ actual chosen timestep will depend on the integrator being used and other user c
 """
 timestep(layer::Layer, state) = timestep(layer, processes(layer), state)
 timestep(::Layer, ::Process, state) = Inf
+
 """
     parameterize(x::T) where {T}
     parameterize(x::Unitful.AbstractQuantity; props...)
@@ -111,6 +120,16 @@ function parameterize(x::T; props...) where {T}
     ctor = ConstructionBase.constructorof(T)
     return ctor(new_fields...)
 end
+
+"""
+    initializers(::Layer)
+    initializers(::Layer, ::Process)
+
+Optional method that can be used to provide default initializers for state variables that will be run before user provided ones.
+"""
+initializers(layer::Layer) = initializers(layer, processes(layer))
+initializers(::Layer, ::Process) = ()
+
 # Auxiliary functions for generalized boundary implementations;
 """
     boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub)
@@ -122,6 +141,7 @@ of certain boundary conditions (e.g. a simple Dirichlet boundary could be applie
 """
 boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BCKind(bc), bc, b, p, sub, sbc, ssub)
 boundaryflux(s::BCKind, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
+
 """
     boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
 
@@ -139,6 +159,7 @@ Defines "events" for a given Process on the given Layer. Implementations should 
 """
 events(layer::Layer) = events(layer, processes(layer))
 events(::Layer, ::Process) = ()
+
 """
     criterion(::Event, ::Layer, ::Process, state)
 
@@ -148,6 +169,7 @@ this should be a real-valued function where the event is fired at the zeros/root
 criterion(ev::Union{DiscreteEvent,ContinuousEvent}, layer::Layer, state) = criterion(ev, layer, processes(layer), state)
 criterion(::DiscreteEvent, ::Layer, ::Process, state) = false
 criterion(::ContinuousEvent, ::Layer, ::Process, state) = Inf
+
 """
     criterion!(out::AbstractArray, ev::GridContinuousEvent, ::Layer, ::Process, state)
 
@@ -156,6 +178,7 @@ be stored in `out`.
 """
 criterion!(out::AbstractArray, ev::GridContinuousEvent, layer::Layer, state) = criterion!(out, ev, layer, processes(layer), state)
 criterion!(out::AbstractArray, ::GridContinuousEvent, ::Layer, ::Process, state) = out .= Inf
+
 """
     trigger!(::Event, ::Layer, ::Process, state)
     trigger!(ev::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state)
@@ -167,6 +190,7 @@ trigger!(ev::Event, layer::Layer, state) = trigger!(ev, layer, processes(layer),
 trigger!(::Event, ::Layer, ::Process, state) = nothing
 trigger!(::ContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
 trigger!(::GridContinuousEvent, ::ContinuousTrigger, ::Layer, ::Process, state) = nothing
+
 # Discretization
 """
     midpoint(::Layer, state)
@@ -181,6 +205,7 @@ midpoint(::Layer, state, i) = cells(state.grid)[i]
 midpoint(l::Layer, state, ::typeof(first)) = midpoint(l, state, 1)
 midpoint(l::Layer, state, ::typeof(last)) = midpoint(l, state, lastindex(state.grid)-1)
 midpoint(::Union{Top,Bottom}, state) = Inf
+
 """
     thickness(::Layer, state)
     thickness(::Layer, state, i)

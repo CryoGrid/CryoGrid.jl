@@ -69,4 +69,4 @@ default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)
 default_ET(::BucketScheme) = DampedET()
 default_ET(::WaterFlow) = nothing
 
-WaterBalance(flow::WaterFlow = BucketScheme(), et=default_ET(flow); prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
+WaterBalance(flow::WaterFlow = NoFlow(), et=default_ET(flow); prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)

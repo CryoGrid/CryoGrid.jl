@@ -48,7 +48,7 @@ include("variables.jl")
 export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
 
-export variables, processes, initialcondition!, updatestate!, computefluxes!, interact!, timestep
+export variables, processes, initializers, initialcondition!, updatestate!, computefluxes!, interact!, timestep
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
 
@@ -61,6 +61,9 @@ using .Utils
 export DiscretizationStrategy, AutoGrid, PresetGrid, Grid, cells, edges, subgridinds, Δ, volume, area, getvar
 include("Numerics/Numerics.jl")
 using .Numerics
+
+export initializer
+include("initializers.jl")
 
 include("IO/InputOutput.jl")
 @reexport using .InputOutput

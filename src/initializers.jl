@@ -1,3 +1,13 @@
+"""
+    VarInitializer{varname}
+
+Base type for state variable initializers.
+"""
+abstract type VarInitializer{varname} end
+ConstructionBase.constructorof(::Type{T}) where {varname,T<:VarInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
+CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname
+
+
 # default behavior is to not automatically parameterize initializers
 CryoGrid.parameterize(init::VarInitializer) = init
 

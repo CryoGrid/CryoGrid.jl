@@ -38,6 +38,8 @@ include("Snow/Snow.jl")
 @reexport using .Snow
 include("Soils/Soils.jl")
 @reexport using .Soils
+include("Salt/Salt.jl")
+@reexport using .Salt
 include("SEB/SEB.jl")
 @reexport using .SEB
 include("Sources/Sources.jl")

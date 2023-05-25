@@ -1,7 +1,7 @@
-# Solvers
+# Salt
 
 ```@autodocs
-Modules = [CryoGrid.Solvers]
+Modules = [CryoGrid.Salt]
 Private = false
 Order = [:type, :function, :macro]
 ```
