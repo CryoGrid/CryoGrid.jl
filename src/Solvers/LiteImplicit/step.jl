@@ -9,9 +9,9 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     t = t₀ + dt
     tile = Tiles.resolve(Tile(integrator.sol.prob.f), u, p, t)
     # explicit update, if necessary
-    _explicit_step!(integrator, tile, du, u, p, t)
+    explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
-    _implicit_step!(integrator, tile, du, u, p, t)
+    implicit_step!(integrator, tile, du, u, p, t)
     integrator.t = t
     integrator.step += 1
     # invoke auxiliary state saving function in CryoGridProblem
@@ -22,31 +22,31 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     push!(integrator.sol.u, integrator.u)
     return nothing
 end
-function _explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
+
+function explicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     dt = integrator.dt
-    CryoGrid.Tiles.step!(tile, du, u, p, t, dt)
+    tile(du, u, p, t, dt)
     @. u += du*dt
     return u
 end
-function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
+
+function implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
     # initialize local variables
     cache = integrator.cache
-    uprev = cache.uprev
-    H₀ = uprev.H
-    dH = du.H
-    H = u.H
-    T_new = cache.T_new
-    T_new .= zero(eltype(H))
     ϵ = cache.resid
-    Sp = cache.Sp
-    Sc = cache.Sc
+    H₀ = cache.uprev.H
+    T_new = cache.T_new
+    T_new .= zero(eltype(u))
+    H = u.H
+    dH = du.H
     dt = integrator.dt
     # iterative scheme for enthalpy update
     iter_count = 1
     ϵ_max = Inf
     while (ϵ_max > integrator.alg.tolerance && iter_count <= integrator.alg.maxiters) || iter_count < integrator.alg.miniters
-        # invoke Tile step function
-        CryoGrid.Tiles.step!(tile, du, u, p, t, dt)
+        # compute tile state
+        tile(du, u, p, t, dt)
+        # extract relevant state variables
         dHdT = getvar(Val{:∂H∂T}(), tile, u; interp=false)
         Hinv = getvar(Val{:T}(), tile, u; interp=false)
         an = @view getvar(Val{:DT_an}(), tile, u; interp=false)[2:end]
@@ -54,20 +54,15 @@ function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
         ap = getvar(Val{:DT_ap}(), tile, u; interp=false)
         bp = getvar(Val{:DT_bp}(), tile, u; interp=false)
 
-        @. Sp = -dHdT / dt;
-        @. Sc = (H₀ - H) / dt - Sp*Hinv;
+        # solve linear system
+        cglite_linsolve!(cache, H, Hinv, dHdT, an, as, ap, bp, dt)
 
-        # lienar solve --------------------------------------------------
-        @. cache.A = -an;
-        @. cache.B = (ap - Sp);
-        @. cache.C = -as;
-        @. cache.D = cache.Sc + bp;
-        Numerics.tdma_solve!(T_new, cache.A, cache.B, cache.C, cache.D);
-        #---------------------------------------------------------------
-        #update current state of H
-        @. ϵ = T_new - Hinv
-        @. H += dHdT*ϵ
-        @. dH = (H - H₀) / dt
+        # update current state of H and dH
+        @inbounds for i in eachindex(H)
+            ϵ[i] = T_new[i] - Hinv[i]
+            H[i] += dHdT[i]*ϵ[i]
+            dH[i] = (H[i] - H₀[i]) / dt
+        end
 
         # convergence check
         ϵ_max = -Inf
@@ -83,5 +78,25 @@ function _implicit_step!(integrator::CGLiteIntegrator, tile::Tile, du, u, p, t)
         integrator.alg.verbose && @warn "iteration did not converge (t = $(convert_t(t)), ϵ_max = $(maximum(abs.(ϵ))) @ $(argmax(abs.(ϵ))))"
         integrator.sol.retcode = ReturnCode.MaxIters
     end
-    return dH
+    return nothing
+end
+
+function cglite_linsolve!(cache::LiteImplicitEulerCache, H, Hinv, dHdT, an, as, ap, bp, dt)
+    # initialize variables
+    H₀ = cache.uprev.H
+    T_new = cache.T_new
+
+    # compute diagonal factor and source terms
+    Sp = @. cache.Sp = -dHdT / dt;
+    Sc = @. cache.Sc = (H₀ - H) / dt - Sp*Hinv;
+
+    # lienar solve --------------------------------------------------
+    @. cache.A = -an;
+    @. cache.B = (ap - Sp);
+    @. cache.C = -as;
+    @. cache.D = Sc + bp;
+    Numerics.tdma_solve!(T_new, cache.A, cache.B, cache.C, cache.D);
+    #---------------------------------------------------------------
+
+    return nothing
 end

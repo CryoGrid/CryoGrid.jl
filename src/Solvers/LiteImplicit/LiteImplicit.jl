@@ -24,7 +24,6 @@ DiffEqBase.check_prob_alg_pairing(prob, alg::LiteImplicitEuler) = throw(DiffEqBa
 struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
     uprev::Tu
     du::Tu
-    H::TA
     T_new::TA
     resid::TA
     Sc::TA
@@ -109,7 +108,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     t_storage = [prob.tspan[1]]
     # evaluate tile at initial condition
     tile = Tiles.resolve(Tile(prob.f), u0, prob.p, t0)
-    CryoGrid.Tiles.step!(tile, zero(u0), u0, prob.p, t0, dt)
+    tile(zero(u0), u0, prob.p, t0, dt)
     # reset SavedValues on tile.hist
     initialsave = prob.savefunc(tile, u0, similar(u0))
     savevals = SavedValues(Float64, typeof(initialsave))
@@ -120,7 +119,6 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
         similar(prob.u0),
-        similar(u0, eltype(u0), length(prob.u0.H)),
         similar(u0, eltype(u0), length(prob.u0.H)),
         similar(u0, eltype(u0), length(prob.u0.H)),
         similar(u0, eltype(u0), length(prob.u0.H)),

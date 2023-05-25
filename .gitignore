@@ -30,7 +30,7 @@ Manifest.toml
 input/
 output/
 
-# User test scripts
+# Untracked user test scripts
 user/
 
 # Jupyter notebook

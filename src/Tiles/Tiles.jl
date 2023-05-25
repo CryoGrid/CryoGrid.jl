@@ -25,7 +25,6 @@ using Setfield
 import ConstructionBase
 import Flatten
 import Interpolations
-import ModelParameters: update
 
 export TileState, LayerState
 include("state.jl")

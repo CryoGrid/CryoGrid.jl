@@ -12,26 +12,26 @@ if false, out-of-place (copying arrays).
 """
 abstract type AbstractTile{iip} end
 """
-    (tile::AbstractTile{true})(du,u,p,t)
-    (tile::AbstractTile{false})(u,p,t)
+    (tile::AbstractTile{true})(du,u,p,t,dt=1.0)
+    (tile::AbstractTile{false})(u,p,t,dt=1.0)
 
-Invokes the corresponding `step` function to compute the time derivative du/dt.
+Invokes the corresponding `evaluate!` function to compute the time derivative du/dt.
 """
-(tile::AbstractTile{true})(du,u,p,t) = step!(tile,du,u,p,t)
-(tile::AbstractTile{false})(u,p,t) = step(tile,u,p,t)
+(tile::AbstractTile{true})(du, u, p, t, dt=1.0) = evaluate!(tile,du,u,p,t,dt)
+(tile::AbstractTile{false})(u, p, t, dt=1.0) = evaluate(tile,u,p,t,dt)
 
 """
-    step!(::T,du,u,p,t) where {T<:AbstractTile}
+    evaluate!(::T,du,u,p,t) where {T<:AbstractTile}
 
-In-place step function for tile `T`. Computes du/dt and stores the result in `du`.
+In-place update function for tile `T`. Computes du/dt and stores the result in `du`.
 """
-step!(::T,du,u,p,t) where {T<:AbstractTile} = error("no implementation of in-place step! for $T")
+evaluate!(::T, du, u, p, t, dt=1.0) where {T<:AbstractTile} = error("no implementation of in-place evaluate! for $T")
 """
-    step(::T,u,p,t) where {T<:AbstractTile}
+    evaluate(::T,u,p,t) where {T<:AbstractTile}
 
-Out-of-place step function for tile `T`. Computes and returns du/dt as vector with same size as `u`.
+Out-of-place update function for tile `T`. Computes and returns du/dt as vector with same size as `u`.
 """
-step(::T,u,p,t) where {T<:AbstractTile} = error("no implementation of out-of-place step for $T")
+evaluate(::T, u, p, t, dt=1.0) where {T<:AbstractTile} = error("no implementation of out-of-place evaluate for $T")
 
 """
     Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
@@ -115,7 +115,7 @@ Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, 
 Tile(strat::Stratigraphy, inits...; discretization_strategy=AutoGrid(), kwargs...) = Tile(strat, discretization_strategy, inits...; kwargs...)
 
 """
-    step!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
+    evaluate!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
 Time derivative step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
@@ -127,7 +127,7 @@ interact!(layer[i], ..., layer[i+1], ...)
 computefluxes!(layer[i], ...)
 ```
 """
-function step!(
+function evaluate!(
     _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
     _du,
     _u,
