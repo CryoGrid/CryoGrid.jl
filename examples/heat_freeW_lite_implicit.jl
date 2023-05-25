@@ -36,4 +36,4 @@ out = CryoGridOutput(sol)
 # Plot the results
 zs = [5,10,15,20,25,30,40,50,100,500,1000,5000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.T[Z(Near(zs))] |> ustrip, color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)
+plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)

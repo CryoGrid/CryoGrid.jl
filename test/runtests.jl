@@ -26,6 +26,7 @@ include("Diagnostics/runtests.jl")
         "readme_examples.jl",
     ]
     for file in test_example_scripts
+        @info "Running example script: $file"
         @testset "$file" begin
             @test try
                 include(joinpath(examples_dir, file))
