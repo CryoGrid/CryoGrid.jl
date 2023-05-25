@@ -5,9 +5,8 @@ end
 
 CryoGrid.BCKind(::Type{<:SaltGradient}) = CryoGrid.Dirichlet()
 
-function CryoGrid.interact!(top::Top, bc::SaltGradient, soil::Soil, salt::SaltMassBalance, stop, ssoil)
-    #upper boundary
-    δ = CryoGrid.thickness(soil, ssoil, 1)
+function CryoGrid.interact!(::Top, bc::SaltGradient, soil::Soil, ::SaltMassBalance, stop, ssoil)
+    # upper boundary
     surfaceState = bc.surfaceState(stop.t)
     benthicSalt = bc.benthicSalt(stop.t)
     flux = if (surfaceState == 0) # if is inundated
@@ -15,6 +14,6 @@ function CryoGrid.interact!(top::Top, bc::SaltGradient, soil::Soil, salt::SaltMa
     else # under glacier or subaerial
         0.0
     end
-    ssoil.∂c∂t[1] = flux / δ
+    ssoil.jc[1] = flux
     #lower boundary should get own function, but is zero anyhow so gets this by default
 end

@@ -41,10 +41,12 @@ function build_dummy_state(grid::Grid, layer::Layer; t=0.0, with_units=true)
 	vargrid(::OnGrid{Edges}, grid::Grid) = edges(grid)
 	maybeunits(var::Var) = with_units ? varunits(var) : Unitful.NoUnits
 	vars = CryoGrid.variables(layer)
+    # create delta vars
+    dvars = map(CryoGrid.DVar, filter(isprognostic, vars))
+    all_vars = tuple(vars..., dvars...)
 	return (
 		t = t,
-		grid = grid,
-		grids = (; map(v -> varname(v) => vargrid(vardims(v), grid), filter(isongrid, vars))...),
-		map(v -> varname(v) => zeros(dimlength(vardims(v), length(grid)))*maybeunits(v), vars)...
+		grid = with_units ? grid : Grid(ustrip.(grid)),
+		map(v -> varname(v) => zeros(dimlength(vardims(v), length(grid)))*maybeunits(v), all_vars)...
 	)
 end

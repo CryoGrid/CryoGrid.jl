@@ -1,5 +1,7 @@
-using Base: NamedTuple
 using CryoGrid
+using CryoGrid.Numerics
+using CryoGrid.Utils
+
 using Test
 
 include("Utils/runtests.jl")
