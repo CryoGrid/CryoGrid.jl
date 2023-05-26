@@ -6,6 +6,7 @@ import Flatten
 using CryoGrid
 using CryoGrid.Heat
 using CryoGrid.Hydrology
+using CryoGrid.Snow
 using CryoGrid.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
@@ -55,12 +56,20 @@ SHEBA, Uttal et al., 2002, Grachev et al. 2007 (stable conditions)
 """
 struct HøgstrømSHEBA <: StabilityFunctions end
 
-Utils.@properties SEBParams(
+Utils.@properties SurfaceProperties(
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables or parameters
     α = 0.2,             # initial surface albedo [-]
     ϵ = 0.97,            # initial surface emissivity [-]
     z₀ = 1e-3u"m",       # initial surface roughness length [m]
     rₛ = 50.0u"s/m",     # initial surface resistance against evapotranspiration and sublimation [s/m]
+)
+
+Utils.@properties SEBParams(
+    # surface propertiess; includes soil and snow by default;
+    # this can be easily extended by the user to include other layers by adding more
+    # fields to `SEBParams` and then implementing `surfaceproperties` for those layers.
+    soil = SurfaceProperties(),
+    snow = SurfaceProperties(α=0.8, ϵ=0.99, z₀=5e-4),
 
     # "natural" constant
     σ = 5.6704e-8u"J/(s*m^2*K^4)",   # Stefan-Boltzmann constant
@@ -111,6 +120,15 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
         SurfaceEnergyBalance(forcings, para, solscheme, stabfun)
     end
 end
+
+"""
+    surfaceproperties(::SurfaceEnergyBalance, ::SubSurface)
+
+Retrieves the `SurfaceProperties` for the given `SubSurface` layer.
+"""
+surfaceproperties(seb::SurfaceEnergyBalance, sub::SubSurface) = error("surfaceproperties not implemented for layer of type $(typeof(sub))")
+surfaceproperties(seb::SurfaceEnergyBalance, ::Soil) = seb.para.soil
+surfaceproperties(seb::SurfaceEnergyBalance, ::Snowpack) = seb.para.snow
 
 include("seb_state.jl")
 include("seb_solve.jl")
