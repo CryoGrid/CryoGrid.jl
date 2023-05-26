@@ -12,17 +12,17 @@ Base type for snowpack paramterization schemes.
 abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 """
-    Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
+    Snowpack{Tpara<:SnowpackParameterization,Tprop,Taux} <: CryoGrid.SubSurface
 
 Generic representation of a ground surface snow pack.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tprop,Tsp} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tprop,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
     heat::Theat = HeatBalance()
     water::Twater = nothing
     prop::Tprop = SnowpackProperties()
-    sp::Tsp = nothing
+    aux::Taux = nothing
 end
 
 # type aliases for convenience

@@ -22,15 +22,15 @@ Pressure head based form of Richards equation:
 struct Pressure <: RREqForm end
 
 """
-    RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRC,Tsp,TΩ} <: Hydrology.WaterFlow
+    RichardsEq{Tform<:RichardsEqFormulation,Tswrc<:SWRC,Taux,TΩ} <: Hydrology.WaterFlow
 
 The Richardson-Richards equation describes the flow of water in porous media under unsaturated condition.
 """
-Base.@kwdef struct RichardsEq{Tform<:RREqForm,Tswrc<:SWRC,Tsp,TΩ} <: Hydrology.WaterFlow
+Base.@kwdef struct RichardsEq{Tform<:RREqForm,Tswrc<:SWRC,Taux,TΩ} <: Hydrology.WaterFlow
     form::Tform = Saturation()
     swrc::Tswrc = VanGenuchten()
     Ω::TΩ = 7 # scaling for ice impedence
-    sp::Tsp = nothing
+    aux::Taux = nothing
 end
 
 swrc(water::WaterBalance{<:RichardsEq}) = water.flow.swrc

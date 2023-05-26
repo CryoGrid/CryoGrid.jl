@@ -39,16 +39,16 @@ Base type for parameterizations of evapotranspiration (ET).
 """
 abstract type Evapotranspiration end
 """
-    WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp} <: CryoGrid.SubSurfaceProcess
+    WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Taux,TProp} <: CryoGrid.SubSurfaceProcess
 
 Represents subsurface water transport processes.
 """
-struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Tsp,TProp<:WaterBalanceProperties} <: CryoGrid.SubSurfaceProcess
+struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Taux,TProp<:WaterBalanceProperties} <: CryoGrid.SubSurfaceProcess
     flow::TFlow # vertical flow scheme
     et::TET # evapotranspiration scheme
     prop::TProp # hydraulic parameters/constants
     dtlim::Tdt # dtlim
-    sp::Tsp # user-defined specialization
+    aux::Taux # user-defined specialization
 end
 """
     NoFlow <: WaterFlow
@@ -69,4 +69,4 @@ default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)
 default_ET(::BucketScheme) = DampedET()
 default_ET(::WaterFlow) = nothing
 
-WaterBalance(flow::WaterFlow = NoFlow(), et=default_ET(flow); prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), sp = nothing) = WaterBalance(flow, et, prop, dtlim, sp)
+WaterBalance(flow::WaterFlow = NoFlow(), et=default_ET(flow); prop = WaterBalanceProperties(), dtlim = default_dtlim(flow), aux = nothing) = WaterBalance(flow, et, prop, dtlim, aux)
