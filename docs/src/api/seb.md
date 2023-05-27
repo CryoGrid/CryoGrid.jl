@@ -1,7 +1,7 @@
 # Surface Energy Balance
 
 ```@autodocs
-Modules = [CryoGrid.SEB]
+Modules = [CryoGrid.Surface]
 Private = false
 Order = [:type, :function, :macro]
 ```

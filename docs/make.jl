@@ -14,7 +14,7 @@ const modules = [
        CryoGrid.Soils,
        CryoGrid.Solvers,
        CryoGrid.Snow,
-       CryoGrid.SEB,
+       CryoGrid.Surface,
        CryoGrid.Presets,
        CryoGrid.Diagnostics,
 ]

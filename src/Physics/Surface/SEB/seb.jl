@@ -1,23 +1,3 @@
-module SEB
-
-import CryoGrid
-import Flatten
-
-using CryoGrid
-using CryoGrid.Heat
-using CryoGrid.Hydrology
-using CryoGrid.Snow
-using CryoGrid.Soils
-using CryoGrid.Numerics
-using CryoGrid.Utils
-
-using NonlinearSolve
-using Setfield
-using StaticArrays: @SVector
-using Unitful
-
-export SurfaceEnergyBalance, SEBParams
-
 abstract type SolutionScheme end
 """
     Analytical
@@ -134,5 +114,3 @@ include("seb_state.jl")
 include("seb_solve.jl")
 include("seb_heat.jl")
 include("seb_water.jl")
-
-end

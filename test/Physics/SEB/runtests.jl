@@ -1,5 +1,5 @@
 using CryoGrid
-using CryoGrid.SEB
+using CryoGrid.Surface
 using CryoGrid.Utils
 
 using NonlinearSolve
@@ -25,7 +25,7 @@ include("../../types.jl")
             const_Lin,
             const_Sin,
             z,
-            solscheme = SEB.Iterative(),
+            solscheme = Surface.Iterative(),
         )
         # TODO: would be good to have SEB work correctly with units to verify correctness;
         # however, at the moment it seems there are some constants that are used without units
@@ -37,7 +37,7 @@ include("../../types.jl")
         stop = Diagnostics.build_dummy_state(grid, toplayer, with_units=false)
         CryoGrid.initialcondition!(toplayer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = SEB.SEBState(seb, sublayer, stop, ssoil)
+        sebstate = Surface.SEBState(seb, sublayer, stop, ssoil)
         seb_output = seb(sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
@@ -51,7 +51,7 @@ include("../../types.jl")
             const_Lin,
             const_Sin,
             z,
-            solscheme = SEB.Analytical(),
+            solscheme = Surface.Analytical(),
         )
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
@@ -60,7 +60,7 @@ include("../../types.jl")
         stop = Diagnostics.build_dummy_state(grid, toplayer, with_units=false)
         CryoGrid.initialcondition!(toplayer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = SEB.SEBState(seb, sublayer, stop, ssoil)
+        sebstate = Surface.SEBState(seb, sublayer, stop, ssoil)
         seb_output = seb(sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
@@ -74,7 +74,7 @@ include("../../types.jl")
         const_Lin,
         const_Sin,
         z,
-        solscheme=SEB.Numerical()
+        solscheme=Surface.Numerical()
     )
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
@@ -82,7 +82,7 @@ include("../../types.jl")
         stop = Diagnostics.build_dummy_state(grid, layer, with_units=false)
         CryoGrid.initialcondition!(layer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = SEB.SEBState(seb, stop, ssoil)
+        sebstate = Surface.SEBState(seb, stop, ssoil)
         seb_output = solve(seb, sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
