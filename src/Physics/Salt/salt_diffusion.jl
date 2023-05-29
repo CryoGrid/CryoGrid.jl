@@ -5,7 +5,11 @@ end
 
 # Heat methods
 
-function Heat.freezethaw!(sediment::MarineSediment, ps::Coupled2{<:SaltMassBalance,THeat}, state) where {THeat<:HeatBalance{<:DallAmicoSalt,<:Temperature}}
+function Heat.freezethaw!(
+    sediment::MarineSediment,
+    ps::CoupledHeatSalt{THeat},
+    state
+) where {THeat<:HeatBalance{<:DallAmicoSalt,<:Temperature}}
     ∇(f, x) = ∇(typeof(x), f, x)
     function ∇(::Type{T}, f, x) where {T}
         dθw = Numerics.ForwardDiff.gradient(f,x)
@@ -39,8 +43,7 @@ end
 
 # CryoGrid methods
 
-CryoGrid.variables(sediment::MarineSediment, ps::Coupled2{<:SaltMassBalance, <:HeatBalance}) = (
-    variables(sediment, ps[2])...,  # all the variables from heat
+CryoGrid.variables(::SaltMassBalance) = (
     Prognostic(:c, OnGrid(Cells), u"mol/m^3"),
     Diagnostic(:jc, OnGrid(Edges), u"mol/m^3/s"),
     Diagnostic(:Tmelt, OnGrid(Cells), u"°C"),
@@ -49,14 +52,20 @@ CryoGrid.variables(sediment::MarineSediment, ps::Coupled2{<:SaltMassBalance, <:H
     Diagnostic(:dc_F, OnGrid(Cells)),
 )
 
-CryoGrid.initialcondition!(sediment::MarineSediment, ps::Coupled2{<:SaltMassBalance, THeat}, state) where {THeat<:HeatBalance{<:SFCC,<:Temperature}} = CryoGrid.diagnosticstep!(sediment, ps, state)
+function CryoGrid.initialcondition!(sediment::MarineSediment, ps::CoupledHeatSalt, state)
+    CryoGrid.updatestate!(sediment, ps, state)
+end
 
-function CryoGrid.updatestate!(sediment::MarineSediment, ps::Coupled2{<:SaltMassBalance, THeat}, state) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
+function CryoGrid.updatestate!(
+    sediment::MarineSediment,
+    ps::CoupledHeatSalt{THeat},
+    state
+) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
     salt, heat = ps
     Heat.resetfluxes!(sediment, heat, state)
     resetfluxes!(sediment, salt, state)
     # Evaluate freeze/thaw processes
-    freezethaw!(sediment, ps, state)
+    freezethaw!(sediment, Coupled(salt, heat), state)
     # Update thermal conductivity
     thermalconductivity!(sediment, heat, state)
     # thermal conductivity at boundaries
@@ -71,6 +80,17 @@ function CryoGrid.updatestate!(sediment::MarineSediment, ps::Coupled2{<:SaltMass
     return nothing # ensure no allocation
 end
 
+# interaction for two MarineSediment layers
+function CryoGrid.interact!(sediment1::MarineSediment, sediment2::MarineSediment, state1, state2)
+    # water interaction
+    interact!(sediment1, sediment1.water, sediment2, sediment2.water, state1, state2)
+    # heat interaction
+    interact!(sediment1, sediment1.heat, sediment2, sediment2.heat, state1, state2)
+    # salt interaction
+    interact!(sediment1, sediment1.salt, sediment2, sediment2.salt, state1, state2)
+end
+
+# interaction for salt mass balance
 function CryoGrid.interact!(sediment1::MarineSediment, ::SaltMassBalance, sediment2::MarineSediment, ::SaltMassBalance, state1, state2)
     z₁ = CryoGrid.midpoint(sediment1, state1, last)
     z₂ = CryoGrid.midpoint(sediment2, state2, first)
@@ -92,7 +112,11 @@ function CryoGrid.timestep(::MarineSediment, salt::SaltMassBalance{T,<:CryoGrid.
     return dtmax
 end
 
-function CryoGrid.computefluxes!(::MarineSediment, ps::Coupled2{<:SaltMassBalance,THeat}, state) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
+function CryoGrid.computefluxes!(
+    ::MarineSediment,
+    ps::CoupledHeatSalt{THeat},
+    state
+) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
     salt, heat = ps
 
     #read current state

@@ -29,8 +29,7 @@ of other processes.
 struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
     CoupledProcesses() = new{Tuple{}}(tuple())
-    CoupledProcesses(processes::SubSurfaceProcess...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
-    CoupledProcesses(processes::BoundaryProcess...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
+    CoupledProcesses(processes::Process...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
     function CoupledProcesses(processes::Tuple{Vararg{Process}}; ignore_order=false)
         # check coupling order
         if !issorted(processes) && !ignore_order
@@ -41,6 +40,7 @@ struct CoupledProcesses{TProcs} <: Process
         return new{typeof(processes)}(processes)
     end
 end
+
 """
     Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 

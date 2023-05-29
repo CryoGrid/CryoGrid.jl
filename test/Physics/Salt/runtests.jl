@@ -20,8 +20,8 @@ include("../../testutils.jl")
         @test :jc ∈ map(varname, diagnostic_vars)
         # check processes
         procs = CryoGrid.processes(sediment)
-        @test isa(procs[1], SaltMassBalance)
-        @test isa(procs[2], HeatBalance)
+        @test isa(procs[1], WaterBalance)
+        @test isa(procs[2], Salt.CoupledHeatSalt)
     end
     @testset "updatestate!" begin
         sediment = pstrip(MarineSediment())
@@ -80,7 +80,3 @@ include("../../testutils.jl")
         @test all(.!iszero.(state.∂T∂t))
     end
 end
-
-sediment = pstrip(MarineSediment())
-state = Diagnostics.build_dummy_state(testgrid, sediment, with_units=false)
-
