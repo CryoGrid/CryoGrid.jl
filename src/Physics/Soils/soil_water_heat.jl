@@ -1,13 +1,4 @@
 # Initialization
-# Water/heat coupling
-function CryoGrid.initialcondition!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
-    CryoGrid.updatestate!(sub, ps, state)
-end
-function CryoGrid.initialcondition!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state)
-    water, heat = ps
-    CryoGrid.initialcondition!(soil, water, state)
-    CryoGrid.initialcondition!(soil, heat, state)
-end
 function CryoGrid.initialcondition!(
     soil::Soil,
     ps::Coupled(WaterBalance{<:RichardsEq}, HeatBalance{<:SFCC}),
