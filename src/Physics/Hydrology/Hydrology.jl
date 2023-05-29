@@ -9,7 +9,7 @@ using CryoGrid.Utils
 
 export WaterBalanceProperties, HydraulicProperties
 
-export WaterBalance, BucketScheme, NoFlow, Evapotranspiration
+export WaterBalance, WaterFlow, BucketScheme, NoFlow, Evapotranspiration
 include("water_types.jl")
 
 export SaturationProfile,  hydraulicproperties, hydraulicconductivity!
@@ -20,7 +20,7 @@ include("water_balance.jl")
 export DampedET, EvapOnly
 include("water_ET.jl")
 
-export ConstantInfiltration, Rainfall, WaterBC
+export ConstantInfiltration, ImpermeableBoundary, WaterBC
 include("water_bc.jl")
 
 end

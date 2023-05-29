@@ -125,21 +125,6 @@ function CryoGrid.updatestate!(
     end
     return nothing
 end
-# snowfall upper boundary
-function CryoGrid.interact!(
-    top::Top,
-    bc::Snowfall,
-    snow::BulkSnowpack,
-    smb::DynamicSnowMassBalance{<:LinearAccumulation},
-    stop,
-    ssnow
-)
-    # upper boundary condition for snow mass balance;
-    # apply snowfall to swe
-    rate_scale = accumulation(smb).rate_scale
-    snowfall_rate = boundaryvalue(bc, top, smb, snow, stop, ssnow)
-    @. ssnow.∂swe∂t += rate_scale*snowfall_rate
-end
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
     smb::DynamicSnowMassBalance{TAcc,TAbl},

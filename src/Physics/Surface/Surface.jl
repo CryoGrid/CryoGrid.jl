@@ -1,8 +1,5 @@
 module Surface
 
-import CryoGrid
-import Flatten
-
 using CryoGrid
 using CryoGrid.Heat
 using CryoGrid.Hydrology
@@ -16,8 +13,13 @@ using Setfield
 using StaticArrays: @SVector
 using Unitful
 
+import Flatten
+
 # Surface energy balance
 export SurfaceEnergyBalance, SEBParams
 include("SEB/seb.jl")
+
+export SurfaceWaterBalance
+include("SWB/swb.jl")
 
 end

@@ -8,25 +8,6 @@ ConstantInfiltration(value::Quantity) = ConstantBC(WaterBalance, Neumann, uconve
 ConstantInfiltration(value) = ConstantBC(WaterBalance, Neumann, value)
 ImpermeableBoundary() = ConstantBC(WaterBalance, Neumann, 0.0u"m/s")
 
-"""
-    Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
-
-Basic rainfall boundary condition for `WaterBalance` which simply invokes the given precipitation
-forcing at the current time `t`.
-"""
-struct Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
-    rain::Train
-end
-
-CryoGrid.BCKind(::Type{<:Rainfall}) = Neumann()
-
-function CryoGrid.boundaryvalue(bc::Rainfall, ::Top, ::WaterBalance, sub::SubSurface, stop, ssub)
-    rainfall_rate = bc.rain(stop.t)
-    # take the minimum of the current rainfall rate and the hydraulic conductivity at the top of the upper grid cell;
-    # note that this assumes rainfall to be in m/s
-    return min(rainfall_rate, ssub.kw[1])
-end
-
 @inline CryoGrid.boundaryflux(::Neumann, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,water,sub,stop,ssub)
 @inline CryoGrid.boundaryflux(::Neumann, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,water,sub,sbot,ssub)
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
