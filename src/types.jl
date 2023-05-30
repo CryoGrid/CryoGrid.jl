@@ -28,17 +28,7 @@ of other processes.
 """
 struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
-    CoupledProcesses() = new{Tuple{}}(tuple())
-    CoupledProcesses(processes::Process...; ignore_order=false) = CoupledProcesses(processes; ignore_order)
-    function CoupledProcesses(processes::Tuple{Vararg{Process}}; ignore_order=false)
-        # check coupling order
-        if !issorted(processes) && !ignore_order
-            processes = CoupledProcesses(sort(processes))
-            @warn "The ordering of the given coupled processes is inconsistent with the defined rules and has been automatically corrected: $(map(p -> typeof(p).name.wrapper, procs.processes)).
-            If this was on purpose, you can override the defined ordering and suppress this warning with `ignore_order=true` or define `isless` on your process types to explicitly declare the intended ordering."
-        end
-        return new{typeof(processes)}(processes)
-    end
+    CoupledProcesses(processes::Process...) = new{typeof(processes)}(processes)
 end
 
 """
@@ -85,14 +75,6 @@ Base.firstindex(cp::CoupledProcesses) = firstindex(cp.processes)
 Base.lastindex(cp::CoupledProcesses) = lastindex(cp.processes)
 @propagate_inbounds Base.getindex(cp::CoupledProcesses, i) = cp.processes[i]
 Base.Broadcast.broadcastable(p::Process) = Ref(p) # allow broadcasting of Process types
-"""
-    isless(::Type{P1}, ::Type{P2}) where {P1<:Process,P2<:Process}
-
-Defines an ordering between process types, which can be useful for automatically enforcing
-order constraints when coupling processes together.
-"""
-Base.isless(::Type{P1}, ::Type{P2}) where {P1<:Process,P2<:Process} = false
-Base.isless(p1::Process, p2::Process) = isless(typeof(p1), typeof(p2))
 
 # Layers
 """

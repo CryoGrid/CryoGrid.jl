@@ -20,7 +20,7 @@ Base.@kwdef struct MarineSediment{Tpara,Theat,Tsalt,Twater,Taux} <: Soil{Tpara,T
     water::Twater = WaterBalance(NoFlow())
     aux::Taux = nothing
 end
-MarineSediment(para::SoilParameterization; kwargs...) = MarineSediment(para; kwargs...)
+MarineSediment(para::SoilParameterization; kwargs...) = MarineSediment(;para, kwargs...)
 
 # type alias for coupled heat and salt diffusion
 const CoupledHeatSalt{THeat,TSalt} = Coupled2{TSalt,THeat} where {THeat<:HeatBalance, TSalt<:SaltMassBalance}
