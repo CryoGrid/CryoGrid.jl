@@ -36,7 +36,7 @@ include("math.jl")
 export Grid, UnitRectangle, cells, edges, subgridinds, Δ, volume, area, updategrid!
 include("grid.jl")
 
-export DiscretizationStrategy, PresetGrid, AutoGrid, makegrid, discretize
+export DiscretizationStrategy, PresetGrid, AutoGrid, LinearSpacing, makegrid, discretize
 include("discretization.jl")
 
 export DiffCache, retrieve

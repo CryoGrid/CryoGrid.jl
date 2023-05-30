@@ -27,7 +27,7 @@ end
         );
         α = upreferred(strat.soil.para.heat.kh_m) / upreferred(strat.soil.para.heat.ch_m)
         T_analytic = Heat.heat_conduction_linear_periodic_ub(T₀, A, P, ustrip(α))
-        initT = initializer(:T, (layer, proc, state) -> state.T .= T_analytic.(cells(state.grid), 0.0))
+        initT = initializer(:T, (layer, state) -> state.T .= T_analytic.(cells(state.grid), 0.0))
         modelgrid = CryoGrid.Presets.DefaultGrid_2cm
         # modelgrid = Grid(z_top:0.02u"m":z_bot)
         # modelgrid = Grid(vcat(0.0:0.02:1.0, 1.05:0.05:5.0, 5.1:0.1:10.0)*u"m")

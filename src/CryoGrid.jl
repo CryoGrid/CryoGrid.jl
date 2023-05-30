@@ -58,7 +58,7 @@ export convert_t, convert_tspan, pstrip, @pstrip, @sym_str
 include("Utils/Utils.jl")
 using .Utils
 
-export DiscretizationStrategy, AutoGrid, PresetGrid, Grid, cells, edges, subgridinds, Δ, volume, area, getvar
+export DiscretizationStrategy, AutoGrid, PresetGrid, LinearSpacing, Grid, cells, edges, subgridinds, Δ, volume, area, getvar
 include("Numerics/Numerics.jl")
 using .Numerics
 

@@ -8,6 +8,7 @@ using CryoGrid.Numerics
 using CryoGrid.Soils
 using CryoGrid.Utils
 
+using ForwardDiff
 using FreezeCurves
 using StaticArrays
 

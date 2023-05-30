@@ -1,6 +1,6 @@
-Base.@kwdef struct SedimentCompactionInitializer <: VarInitializer{:por}
-    porosityZero = 0.4
-    porosityMin = 0.03
+Base.@kwdef struct SedimentCompactionInitializer{TZ,TM} <: VarInitializer{:por}
+    porosityZero::TZ = 0.4
+    porosityMin::TM = 0.03
     # TODO: maybe consider moving some of the hardcoded constants below here?
 end
 
@@ -15,6 +15,6 @@ function compaction!(por::AbstractVector, init::SedimentCompactionInitializer, g
 end
 
 function CryoGrid.initialcondition!(::Soil, state, init::SedimentCompactionInitializer)
-    compaction!(state.por, init, grid)
+    compaction!(state.por, init, state.grid)
     return nothing
 end

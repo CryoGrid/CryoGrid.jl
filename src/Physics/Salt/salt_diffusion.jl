@@ -11,33 +11,27 @@ function Heat.freezethaw!(
     ps::CoupledHeatSalt{THeat},
     state
 ) where {THeat<:HeatBalance{<:DallAmicoSalt,<:Temperature}}
-    ∇(f, x) = ∇(typeof(x), f, x)
-    function ∇(::Type{T}, f, x) where {T}
-        dθw = Numerics.ForwardDiff.gradient(f,x)
-        return dθw
-    end
-
     salt, heat = ps
     sfcc = heat.freezecurve
     thermalprops = Heat.thermalproperties(sediment)
     @unpack ch_w, ch_i = thermalprops
     let L = heat.prop.L;
-        @inbounds @fastmath for i in 1:length(state.T)
+        @inbounds @fastmath for i in eachindex(state.T)
             θfracs = volumetricfractions(sediment, state, i)
             T = state.T[i]
             c = state.c[i]
             θsat = Soils.porosity(sediment, state, i)
             sat = Soils.saturation(sediment, state, i)
             x = @SVector[T, c]
-            θw = sfcc(x[1], sat; θsat=θsat, saltconc=x[2])
-            ∇θw = ∇(x -> sfcc(x[1], sat; θsat=θsat, saltconc=x[2]), x)
-            state.θw[i] = θw
-            state.∂θw∂T[i] = ∇θw[1]
-            state.∂θw∂c[i] = ∇θw[2]
+            x_dual = Numerics.dual(x, typeof(sfcc))
+            res_dual = sfcc(x_dual[1], sat, Val{:all}(); θsat=θsat, saltconc=x_dual[2])
+            state.θw[i] = θw = ForwardDiff.value(res_dual.θw)
+            state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(res_dual.θw)[1]
+            state.∂θw∂c[i] = ForwardDiff.partials(res_dual.θw)[2]
             state.C[i] = C = heatcapacity(sediment, heat, θfracs...)
-            state.∂H∂T[i] = Heat.dHdT(T, C, L, ∇θw[1], ch_w, ch_i)
+            state.∂H∂T[i] =  C + L*∂θw∂T
             state.H[i] = enthalpy(T, C, L, θw)
-            state.dₛ[i] = salt.prop.dₛ₀ * θw / salt.prop.τ
+            state.dₛ_mid[i] = salt.prop.dₛ₀ * θw / salt.prop.τ
         end
     end
     return nothing
@@ -49,9 +43,13 @@ CryoGrid.variables(::SaltMassBalance) = (
     Prognostic(:c, OnGrid(Cells), u"mol/m^3"),
     Diagnostic(:jc, OnGrid(Edges), u"mol/m^3/s"),
     Diagnostic(:Tmelt, OnGrid(Cells), u"°C"),
-    Diagnostic(:dₛ, OnGrid(Cells), u"m^2/s"),
+    Diagnostic(:dₛ, OnGrid(Edges), u"m^2/s"),
+    Diagnostic(:dₛ_mid, OnGrid(Cells), u"m^2/s"),
     Diagnostic(:∂θw∂c, OnGrid(Cells)),
     Diagnostic(:dc_F, OnGrid(Cells)),
+    Diagnostic(:ctmp_B, OnGrid(Cells)),
+    Diagnostic(:ctmp_E, OnGrid(Cells)),
+    Diagnostic(:ctmp_F, OnGrid(Cells)),
 )
 
 function CryoGrid.initialcondition!(sediment::MarineSediment, ps::CoupledHeatSalt, state)
@@ -63,11 +61,13 @@ function CryoGrid.updatestate!(
     ps::CoupledHeatSalt{THeat},
     state
 ) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
+    # Reset energy flux to zero; this is redundant when H is the prognostic variable
+    # but necessary when it is not.
     salt, heat = ps
     Heat.resetfluxes!(sediment, heat, state)
     resetfluxes!(sediment, salt, state)
     # Evaluate freeze/thaw processes
-    freezethaw!(sediment, Coupled(salt, heat), state)
+    freezethaw!(sediment, ps, state)
     # Update thermal conductivity
     thermalconductivity!(sediment, heat, state)
     # thermal conductivity at boundaries
@@ -78,6 +78,14 @@ function CryoGrid.updatestate!(
     @inbounds let k = (@view state.k[2:end-1]),
         Δk = Δ(state.grid);
         Numerics.harmonicmean!(k, state.kc, Δk)
+    end
+    # salt diffusivity at boundaries
+    state.dₛ[1] = state.dₛ_mid[1]
+    state.dₛ[end] = state.dₛ_mid[end]
+    # Harmonic mean of inner conductivities
+    @inbounds let dₛ = (@view state.dₛ[2:end-1]),
+        Δdₛ = Δ(state.grid);
+        Numerics.harmonicmean!(dₛ, state.dₛ_mid, Δdₛ)
     end
     return nothing # ensure no allocation
 end
@@ -94,23 +102,34 @@ end
 
 # interaction for salt mass balance
 function CryoGrid.interact!(sediment1::MarineSediment, ::SaltMassBalance, sediment2::MarineSediment, ::SaltMassBalance, state1, state2)
-    z₁ = CryoGrid.midpoint(sediment1, state1, last)
-    z₂ = CryoGrid.midpoint(sediment2, state2, first)
-    δ = z₂ - z₁
+    thick1 = CryoGrid.thickness(sediment1, state1, last)
+    thick2 = CryoGrid.thickness(sediment2, state2, first)
+    z1 = last(cells(state1.grid))
+    z2 = first(cells(state2.grid))
+    Δz = abs(z2 - z1)
+
+    # calculate dₛ on shared edge
+    state1.dₛ[end] = state2.dₛ[1] = Numerics.harmonicmean(state1.dₛ_mid[end], state2.dₛ_mid[1], thick1, thick2)
 
     # flux positive downward
-    flux = -state1.dₛ[end] * (state2.c[1] - state1.c[end]) / abs(δ)
-
+    flux = -state1.dₛ[end] * (state2.c[1] - state1.c[end]) / Δz
     state1.jc[end] = state2.jc[1] = flux
     return nothing
 end
 
 function CryoGrid.timestep(::MarineSediment, salt::SaltMassBalance{T,<:CryoGrid.CFL}, state) where {T}
+    dtlim = salt.dtlim
+    Δx = Δ(state.grid)
+    Δc_max = dtlim.maxdelta.Δmax
     dtmax = Inf
-    @inbounds for i in 1:length(state.sat)
-        dt = water.dtlim(state.∂c∂t[i], state.c[i], state.t)
-        dt = isfinite(dt) && dt > zero(dt) ? dt : Inf # make sure it's +Inf
-        dtmax = min(dtmax, dt)
+    @inbounds for i in eachindex(Δx)
+        dtmax = let v = 1 / state.dₛ[i],
+            Δx = Δx[i],
+            courant_number = dtlim.courant_number,
+            Δt = courant_number*v*Δx^2;
+            # minimum of CFL and maxium saltConc change per timestep
+            min(min(dtmax, Δt), Δc_max / abs(state.∂c∂t[i]))
+        end
     end
     return dtmax
 end
@@ -141,16 +160,16 @@ function CryoGrid.computefluxes!(
     Numerics.nonlineardiffusion!(state.dc_F, state.jc, c, midptThick, dₛ, layerThick)
 
     #Derivative of water content
-    dθwdT = state.∂θw∂T
+    ∂θw∂T = state.∂θw∂T
     ∂θw∂c = state.∂θw∂c
     θw = state.θw
-    
+
     #put everything together
     A = state.∂H∂T
-    B = L * ∂θw∂c
+    B = state.ctmp_B .= L * ∂θw∂c
     D = state.∂H∂t
-    E = (θw .+ c .* ∂θw∂c)
-    F = c .* dθwdT
+    E = state.ctmp_E .= (θw .+ c .* ∂θw∂c)
+    F = state.ctmp_F .= c .* ∂θw∂T
     G = state.dc_F
 
     @. state.∂T∂t = (-B * G + D * E) / (A * E - B * F)

@@ -43,8 +43,8 @@ include("../../testutils.jl")
     @testset "interact!" begin
         sediment1 = pstrip(MarineSediment())
         sediment2 = pstrip(MarineSediment())
-        state1 = Diagnostics.build_dummy_state(testgrid, sediment1, with_units=false)
-        state2 = Diagnostics.build_dummy_state(testgrid, sediment2, with_units=false)
+        state1 = Diagnostics.build_dummy_state(testgrid[0.0u"m"..10.0u"m"], sediment1, with_units=false)
+        state2 = Diagnostics.build_dummy_state(testgrid[10.0u"m"..1000.0u"m"], sediment2, with_units=false)
         # initialize variables
         state1.T .= -2.0
         state2.T .= -1.0

@@ -14,15 +14,17 @@ surfaceState(bc::SaltGradient{<:Forcing}, t) = bc.surfaceState(t)
 
 CryoGrid.BCKind(::Type{<:SaltGradient}) = CryoGrid.Dirichlet()
 
-function CryoGrid.interact!(::Top, bc::SaltGradient, soil::Soil, ::SaltMassBalance, stop, ssoil)
+function CryoGrid.interact!(::Top, bc::SaltGradient, sediment::MarineSediment, ::SaltMassBalance, stop, ssed)
     # upper boundary
-    surfaceState = surfaceState(bc, stop.t)
-    benthicSalt = benthicSalt(bc, stop.t)
-    flux = if (surfaceState == 0) # if is inundated
-        -ssoil.dₛ[1] * (ssoil.c[1] - benthicSalt) / abs(δ / 2)
+    surfaceState_t = surfaceState(bc, stop.t)
+    benthicSalt_t = benthicSalt(bc, stop.t)
+    # distance to boundary; 1/2 thickness of first grid cell
+    dz = CryoGrid.thickness(sediment, ssed, first) / 2
+    flux = if (surfaceState_t == 0) # if is inundated
+        -ssed.dₛ[1] * (ssed.c[1] - benthicSalt_t) / dz
     else # under glacier or subaerial
         0.0
     end
-    ssoil.jc[1] = flux
+    ssed.jc[1] = flux
     #lower boundary should get own function, but is zero anyhow so gets this by default
 end

@@ -20,7 +20,10 @@ struct FunctionInitializer{varname,F} <: VarInitializer{varname}
     FunctionInitializer(varname::Symbol, f::F) where {F} = new{varname,F}(f)
 end
 
-ConstructionBase.constructorof(::Type{T}) where {varname,T<:FunctionInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
+# do not deconstruct FunctionInitializer
+Flatten.flattenable(::Type{<:FunctionInitializer}, ::Type{Val{:f}}) = false
+
+ConstructionBase.constructorof(::Type{T}) where {varname,T<:FunctionInitializer{varname}} = f -> FunctionInitializer(varname, f)
 
 CryoGrid.initialcondition!(layer::Layer, state, init::FunctionInitializer) = init.f(layer, state)
 
@@ -40,7 +43,7 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
 
-ConstructionBase.constructorof(::Type{T}) where {varname,T<:InterpInitializer{varname}} = (args...) -> T.name.wrapper(varname, args...)
+ConstructionBase.constructorof(::Type{T}) where {varname,T<:InterpInitializer{varname}} = (profile, interp, extrap) -> InterpInitializer(varname, profile, interp, extrap)
 
 function CryoGrid.initialcondition!(::Layer, state, init::InterpInitializer{var}) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
@@ -80,7 +83,7 @@ Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpIn
 Convenience constructor for `VarInitializer` that selects the appropriate initializer type based on the arguments.
 """
 initializer(varname::Symbol, args...) = initializer(Val{varname}(), args...)
-initializer(::Val{varname}, x::Number) where {varname} = FunctionInitializer(varname, (layer,proc,state) -> getproperty(state, varname) .= x)
+initializer(::Val{varname}, x::Number) where {varname} = FunctionInitializer(varname, (layer,state) -> getproperty(state, varname) .= x)
 initializer(::Val{varname}, f::Function) where {varname} = FunctionInitializer(varname, f)
 initializer(::Val{varname}, profile::Profile, interp=Interpolations.Linear(), extrap=Interpolations.Flat()) where {varname} = InterpInitializer(varname, profile, interp, extrap)
 # if `initializer` is passed a matching initializer, just return it as-is.
