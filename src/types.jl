@@ -28,7 +28,8 @@ of other processes.
 """
 struct CoupledProcesses{TProcs} <: Process
     processes::TProcs
-    CoupledProcesses(processes::Process...) = new{typeof(processes)}(processes)
+    CoupledProcesses(processes::Process...) = CoupledProcesses(processes)
+    CoupledProcesses(processes::Tuple{Vararg{Process}}) = new{typeof(processes)}(processes)
 end
 
 """

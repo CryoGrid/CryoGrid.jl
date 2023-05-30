@@ -1,6 +1,7 @@
 function resetfluxes!(::MarineSediment, salt::SaltMassBalance, state)
     state.dc_F .= zero(eltype(state.∂c∂t))
     state.jc .= zero(eltype(state.∂c∂t))
+    return nothing
 end
 
 # Heat methods
@@ -39,6 +40,7 @@ function Heat.freezethaw!(
             state.dₛ[i] = salt.prop.dₛ₀ * θw / salt.prop.τ
         end
     end
+    return nothing
 end
 
 # CryoGrid methods
@@ -100,6 +102,7 @@ function CryoGrid.interact!(sediment1::MarineSediment, ::SaltMassBalance, sedime
     flux = -state1.dₛ[end] * (state2.c[1] - state1.c[end]) / abs(δ)
 
     state1.jc[end] = state2.jc[1] = flux
+    return nothing
 end
 
 function CryoGrid.timestep(::MarineSediment, salt::SaltMassBalance{T,<:CryoGrid.CFL}, state) where {T}
@@ -152,4 +155,5 @@ function CryoGrid.computefluxes!(
 
     @. state.∂T∂t = (-B * G + D * E) / (A * E - B * F)
     @. state.∂c∂t = (-F * D + A * G) / (A * E - B * F)
+    return nothing
 end

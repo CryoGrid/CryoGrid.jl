@@ -30,7 +30,7 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # initialize saturation to match soil profile
-initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
+initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
 soil_layers = map(enumerate(soilprofile)) do (i, soil_i)

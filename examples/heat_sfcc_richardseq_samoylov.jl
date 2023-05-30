@@ -14,7 +14,7 @@ tempprofile = TemperatureProfile(
 )
 initT = initializer(:T, tempprofile)
 # initialize saturation to match soil profile
-initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
+initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 # soil water retention curve and freeze curve
 swrc = VanGenuchten(α=0.1, n=1.8)
 sfcc = PainterKarra(ω=0.0, swrc=swrc)
