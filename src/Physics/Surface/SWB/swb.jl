@@ -18,7 +18,7 @@ rainfall(swb::SurfaceWaterBalance{<:Forcing}, t) = swb.rainfall(t)
 snowfall(swb::SurfaceWaterBalance, t) = 0.0
 snowfall(swb::SurfaceWaterBalance{TR,<:Forcing}, t) where {TR} = swb.snowfall(t)
 
-function infiltration!(::Top, swb::SurfaceWaterBalance, ::SubSurface, ::WaterBalance, stop, ssub)
+function infiltrate!(::Top, swb::SurfaceWaterBalance, ::SubSurface, ::WaterBalance, stop, ssub)
     @setscalar stop.jw_infil = min(stop.jw_rain[1], ssub.kw[1])
     ssub.jw[1] += getscalar(stop.jw_infil)
     return nothing
@@ -37,6 +37,17 @@ function accumulatesnow!(
     ssnow.∂swe∂t[1] += rate_scale*stop.jw_snow[1]
 end
 
+function runoff!(::Top, ::SurfaceWaterBalance, state)
+    jw_rain = getscalar(state.jw_rain)
+    jw_infil = getscalar(state.jw_infil)
+    @setscalar state.∂R∂t = (jw_rain - jw_infil)*area(state.grid)
+end
+
+function ETflux!(::Top, ::Coupled2{<:SurfaceEnergyBalance,<:SurfaceWaterBalance}, state)
+    jw_ET = getscalar(stop.jw_ET)
+    @setscalar stop.∂ET∂t = jw_ET*area(stop.grid)
+end
+
 CryoGrid.BCKind(::Type{<:SurfaceWaterBalance}) = CryoGrid.Neumann()
 
 CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
@@ -47,20 +58,19 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
     Diagnostic(:jw_ET, Scalar, u"m/s", domain=0..Inf),
 )
 
+CryoGrid.variables(top::Top, ps::Coupled2{<:SurfaceEnergyBalance,<:SurfaceWaterBalance}) = (
+    CryoGrid.variables(top, ps[1])...,
+    CryoGrid.variables(top, ps[2])...,
+    Prognostic(:ET, Scalar, u"m^3"),
+)
+
 function CryoGrid.updatestate!(::Top, swb::SurfaceWaterBalance, stop)
     @setscalar stop.jw_snow = snowfall(swb, stop.t)
     @setscalar stop.jw_rain = rainfall(swb, stop.t)
-    # take the minimum of the current rainfall rate and the hydraulic conductivity
-    # at the top of the upper grid cell; note that this assumes rainfall to be in m/s
-    @setscalar stop.jw_infil = min(stop.jw_rain[1], ssub.kw[1])
 end
 
-function CryoGrid.computefluxes!(::Top, swb::SurfaceWaterBalance, stop)
-    jw_rain = getscalar(stop.jw_rain)
-    jw_infil = getscalar(stop.jw_infil)
-    jw_ET = getscalar(stop.jw_ET)
-    @setscalar stop.∂R∂t = (jw_rain - jw_infil)*area(stop.grid)
-    @setscalar stop.∂ET∂t = jw_ET*area(stop.grid)
+function CryoGrid.computefluxes!(top::Top, swb::SurfaceWaterBalance, state)
+    runoff!(top, swb, state)
 end
 
 # interactions
@@ -78,8 +88,20 @@ function CryoGrid.interact!(
     # Case 2: with ET
     ground_ET(::WaterBalance{<:WaterFlow,<:Evapotranspiration}, ssub) = ssub.jw_ET[1]
     # flip the sign from the ground ET flux which is positive downward
-    @setscalar stop.jw_ET = -ground_ET(wawter, ssub)
-    infiltration!(top, swb, sub, water, stop, ssub)
+    @setscalar stop.jw_ET = -ground_ET(water, ssub)
+    infiltrate!(top, swb, sub, water, stop, ssub)
     accumulatesnow!(top, swb, sub, water, stop, ssub)
+    return nothing
+end
+
+function CryoGrid.interact!(
+    top::Top,
+    swb::SurfaceWaterBalance,
+    sub::SubSurface,
+    ps::CoupledProcesses,
+    stop,
+    ssub
+)
+    
     return nothing
 end

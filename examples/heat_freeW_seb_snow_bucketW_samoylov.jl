@@ -3,19 +3,7 @@ using Dates
 using Plots
 
 # Custom grid;
-# Similar to Presets.DefaultGrid_2cm but includes one large cell above the surface for snow.
-const gridvals = vcat([
-    -2.0,
-    0:0.02:2...,
-    2.05:0.05:4.0...,
-	4.1:0.1:10...,
-    10.2:0.2:20...,
-    21:1:30...,
-	35:5:50...,
-    60:10:100...,
-    200:100:1000...]...
-)u"m"
-modelgrid = Grid(gridvals);
+modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
 # soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
     0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
@@ -33,6 +21,7 @@ initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
+swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
 soil_layers = map(enumerate(soilprofile)) do (i, soil_i)
     name = Symbol(:soil, i)
     heat = HeatBalance(:H, freezecurve=PainterKarra())
@@ -41,7 +30,7 @@ soil_layers = map(enumerate(soilprofile)) do (i, soil_i)
 end
 # build stratigraphy
 strat = @Stratigraphy(
-    -z*u"m" => Top(seb, Rainfall(forcings.rainfall), Snowfall(forcings.snowfall)),
+    -z*u"m" => Top(seb, swb),
     0.0u"m" => :snowpack => Snowpack(heat=HeatBalance()),
     soil_layers...,
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),

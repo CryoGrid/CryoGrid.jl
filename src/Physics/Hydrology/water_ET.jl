@@ -73,16 +73,16 @@ function evapotranspirative_fluxes!(
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
     @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
-        state.jwET[i] += fᵢ * ETflux(sub, water, state)
+        state.jw_ET[i] += fᵢ * ETflux(sub, water, state)
         # add ET fluxes to total water flux
-        state.jw[i] += state.jwET[i]
+        state.jw[i] += state.jw_ET[i]
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
-    state.jwET[1] += ETflux(sub, water, state)
+    state.jw_ET[1] += ETflux(sub, water, state)
     # add ET fluxes to total water flux
-    state.jw[1] += state.jwET[1]
+    state.jw[1] += state.jw_ET[1]
 end
 # CryoGrid methods
 ETvariables(::Evapotranspiration) = (
@@ -98,7 +98,8 @@ CryoGrid.variables(et::DampedET) = (
 function CryoGrid.interact!(
     ::SubSurface,
     ::WaterBalance{<:BucketScheme,<:DampedET},
-    ::SubSurface, ::WaterBalance{<:BucketScheme,<:DampedET},
+    ::SubSurface,
+    ::WaterBalance{<:BucketScheme,<:DampedET},
     state1,
     state2
 )

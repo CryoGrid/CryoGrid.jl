@@ -19,30 +19,49 @@ CryoGrid.computefluxes!(top::Top, ps::CoupledProcesses, state) = _invoke_sequent
 CryoGrid.computefluxes!(bot::Bottom, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, bot, ps, state)
 CryoGrid.computefluxes!(sub::SubSurface, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, sub, ps, state)
 
-"""
-    interact!(l1::Top, ps1::CoupledProcesses{P1}, l2::Layer, ps2::CoupledProcesses{P2}, s1, s2) where {P1,P2}
+# """
+#     interact!(l1::Top, ps1::CoupledProcesses, l2::Layer, p2::Process, s1, s2)
 
-Default implementation of `interact!` for coupled process (CoupledProcesses) types on the `Top` layer. Iterates over each
-boundary process and calls `interact!` for this process and the subsurface layer.
-"""
-function interact!(l1::Top, ps1::CoupledProcesses, l2::Layer, p2::Process, s1, s2)
-    Utils.fastinvoke(ps1) do p_i
+# Default implementation of `interact!` for coupled process (CoupledProcesses) types on the `Top` layer. Iterates over each
+# boundary process and calls `interact!` for this process and the subsurface layer.
+# """
+# function interact!(l1::Top, ps1::CoupledProcesses, l2::Layer, p2::Process, s1, s2)
+#     Utils.fastiterate(ps1.processes) do p_i
+#         interact!(l1, p_i, l2, p2, s1, s2)
+#     end
+# end
+
+# """
+#     interact!(l1::Layer, p1::Process, l2::Bottom, ps2::CoupledProcesses, s1, s2)
+
+# Default implementation of `interact!` for coupled process (CoupledProcesses) types on the `Bottom` layer. Iterates over each
+# boundary process and calls `interact!` for this process and the subsurface layer.
+# """
+# function interact!(l1::Layer, p1::Process, l2::Bottom, ps2::CoupledProcesses, s1, s2)
+#     Utils.fastiterate(ps2.processes) do p_i
+#         interact!(l1, p1, l2, p_i, s1, s2)
+#     end
+# end
+
+function interact!(l1::Layer, ps1::CoupledProcesses, l2::Layer, p2::Process, s1, s2)
+    Utils.fastiterate(ps1.processes) do p_i
         interact!(l1, p_i, l2, p2, s1, s2)
     end
 end
 
-"""
-    interact!(l1::Layer, p1::Process, l2::Bottom, ps2::CoupledProcesses, s1, s2)
-
-Default implementation of `interact!` for coupled process (CoupledProcesses) types on the `Bottom` layer. Iterates over each
-boundary process and calls `interact!` for this process and the subsurface layer.
-"""
-@generated function interact!(l1::Layer, p1::Process, l2::Bottom, ps2::CoupledProcesses, s1, s2)
-    Utils.fastinvoke(ps2) do p_i
+function interact!(l1::Layer, p1::Process, l2::Layer, ps2::CoupledProcesses, s1, s2)
+    Utils.fastiterate(ps2.processes) do p_i
         interact!(l1, p1, l2, p_i, s1, s2)
     end
 end
 
+function interact!(l1::Layer, ps1::CoupledProcesses, l2::Layer, ps2::CoupledProcesses, s1, s2)
+    Utils.fastiterate(ps1.processes) do p_i
+        Utils.fastiterate(ps2.processes) do p_j
+            interact!(l1, p_i, l2, p_j, s1, s2)
+        end
+    end
+end
 
 """
     timestep(l::Layer, ps::CoupledProcesses{P}, state) where {P}
@@ -50,7 +69,7 @@ end
 Default implementation of `timestep` for coupled process types. Calls each process in sequence.
 """
 function timestep(l::Layer, ps::CoupledProcesses{P}, state) where {P}
-    dtmax = Utils.fastmap(ps) do p
+    dtmax = Utils.fastmap(ps.processes) do p
         timestep(l, p, state)
     end
     return minimum(dtmax)

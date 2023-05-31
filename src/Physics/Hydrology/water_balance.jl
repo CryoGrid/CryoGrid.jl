@@ -131,7 +131,7 @@ Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
 """
 @inline function resetfluxes!(::SubSurface, water::WaterBalance, state)
     state.jw .= zero(eltype(state.jw))
-    state.jwET .= zero(eltype(state.jwET))
+    state.jw_ET .= zero(eltype(state.jw_ET))
     state.∂θwi∂t .= zero(eltype(state.∂θwi∂t))
 end
 
@@ -140,7 +140,7 @@ CryoGrid.variables(water::WaterBalance) = (
     CryoGrid.variables(water.flow)...,
     CryoGrid.variables(water.et)...,
     Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
-    Diagnostic(:jwET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
+    Diagnostic(:jw_ET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
     Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
     Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
