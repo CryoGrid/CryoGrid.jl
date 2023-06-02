@@ -112,7 +112,7 @@ function CryoGrid.updatestate!(
     smb, heat = procs
     ρsn = snow.prop.mass.ρsn_new
     ρw = snow.prop.mass.ρw
-    Heat.resetfluxes!(snow, heat, state)
+    resetfluxes!(snow, heat, state)
     state.θwi .= ρsn / ρw
     state.ρsn .= ρsn
     @setscalar state.dsn = getscalar(state.Δz)
@@ -206,7 +206,7 @@ function CryoGrid.updatestate!(
 )
     smb, heat = procs
     ρw = snow.prop.mass.ρw
-    Heat.resetfluxes!(snow, heat, state)
+    resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn

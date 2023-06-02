@@ -21,7 +21,7 @@ tile = CryoGrid.Presets.SoilHeatTile(
     freezecurve=sfcc
 )
 # define time span
-tspan = (DateTime(2010,1,1),DateTime(2010,1,2))
+tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
 u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, saveat=900.0, savevars=(:T,))

@@ -56,6 +56,16 @@ updatestate!(layer::Layer, state) = updatestate!(layer, processes(layer), state)
 updatestate!(::Layer, ::Process, state) = nothing
 
 """
+    interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
+
+Defines a boundary interaction between two processes on adjacent layers. For any interaction, the order of the arguments
+follows decreasing depth, i.e. the first layer/process is always on top of the second layer/process. This ordering matters
+and separate dispatches must be provided for interactions in reverse order.
+"""
+interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
+interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+
+"""
     computefluxes!(l::Layer, p::Process, state)
 
 Calculates all internal fluxes for a given layer. Note that an instance of `computefluxes!` must be provided
@@ -67,14 +77,13 @@ computefluxes!(::Top, ::Process, state) = nothing
 computefluxes!(::Bottom, ::Process, state) = nothing
 
 """
-    interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
+    resetfluxes!(layer::Layer, state)
+    resetfluxes!(layer::Layer, ::Process, state)
 
-Defines a boundary interaction between two processes on adjacent layers. For any interaction, the order of the arguments
-follows decreasing depth, i.e. the first layer/process is always on top of the second layer/process. This ordering matters
-and separate dispatches must be provided for interactions in reverse order.
+Resets all flux variables for the given layer/process to zero.
 """
-interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
-interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+resetfluxes!(layer::Layer, state) = resetfluxes!(layer, processes(layer), state)
+resetfluxes!(layer::Layer, proc::Process, state) = nothing
 
 """
     isactive(::Layer, state)

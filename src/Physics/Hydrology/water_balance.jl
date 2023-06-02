@@ -129,7 +129,7 @@ reductionfactor(water::WaterBalance, x) = 1 - exp(-water.prop.r_β*(1-x)^2)
 
 Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
 """
-@inline function resetfluxes!(::SubSurface, water::WaterBalance, state)
+@inline function CryoGrid.resetfluxes!(::SubSurface, water::WaterBalance, state)
     state.jw .= zero(eltype(state.jw))
     state.jw_ET .= zero(eltype(state.jw_ET))
     state.∂θwi∂t .= zero(eltype(state.∂θwi∂t))
@@ -209,8 +209,6 @@ function CryoGrid.timestep(
 end
 
 # No flow case
-resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
-
 hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.variables(::NoFlow) = (
@@ -226,5 +224,7 @@ end
 CryoGrid.computefluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.updatestate!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+
+CryoGrid.resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.timestep(::SubSurface, ::WaterBalance{NoFlow}, state) = Inf

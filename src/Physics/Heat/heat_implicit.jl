@@ -3,16 +3,6 @@ Type alias for the implicit enthalpy formulation of HeatBalance.
 """
 const HeatBalanceImplicit{Tfc} = HeatBalance{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
 
-function Heat.resetfluxes!(sub::SubSurface, heat::HeatBalanceImplicit, state)
-    @inbounds for i in 1:length(state.H)
-        state.∂H∂T[i] = 0.0
-        state.∂θw∂T[i] = 0.0
-        state.DT_ap[i] = 0.0
-        state.DT_bp[i] = 0.0
-        state.DT_an[i] = 0.0
-        state.DT_as[i] = 0.0
-    end
-end
 CryoGrid.variables(::HeatBalanceImplicit) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
@@ -114,5 +104,16 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSu
     s2.DT_ap[1] += s2.DT_an[1] = k / Δz / Δk₂
     return nothing
 end
-# do nothing in prognostic step
+# do nothing in computefluxes!
 CryoGrid.computefluxes!(::SubSurface, ::HeatBalanceImplicit, state) = nothing
+
+function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalanceImplicit, state)
+    @inbounds for i in 1:length(state.H)
+        state.∂H∂T[i] = 0.0
+        state.∂θw∂T[i] = 0.0
+        state.DT_ap[i] = 0.0
+        state.DT_bp[i] = 0.0
+        state.DT_an[i] = 0.0
+        state.DT_as[i] = 0.0
+    end
+end
