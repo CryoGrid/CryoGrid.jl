@@ -17,7 +17,7 @@ include("salt_types.jl")
 
 include("salt_diffusion.jl")
 
-export SaltBC, SaltGradient, HeatSaltBoundary
+export SaltBC, SaltGradient, HeatSaltBC
 include("salt_bc.jl")
 
 export SedimentCompactionInitializer

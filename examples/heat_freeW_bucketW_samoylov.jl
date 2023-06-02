@@ -14,7 +14,7 @@ initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 # We will use a simple stratigraphy with 3 subsurface soil layers
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
-upperbc = SurfaceEnergyWaterFluxes(TemperatureGradient(forcings.Tair), SurfaceWaterBalance(rainfall=forcings.rainfall))
+upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair))
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
     0.0u"m" => :topsoil => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),

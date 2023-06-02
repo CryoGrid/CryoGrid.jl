@@ -13,9 +13,9 @@ Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBala
 end
 
 """
-Type alias for `SurfaceEnergyWaterFluxes{TSEB,TSWB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}`.
+Type alias for `WaterHeatBC{TSEB,TSWB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}`.
 """
-const SurfaceEnergyWaterBalance{TSEB,TSWB} = SurfaceEnergyWaterFluxes{TSEB,TSWB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}
+const SurfaceEnergyWaterBalance{TSEB,TSWB} = WaterHeatBC{TSWB,TSEB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}
 
 rainfall(swb::SurfaceWaterBalance, t) = 0.0
 rainfall(swb::SurfaceWaterBalance{<:Forcing}, t) = swb.rainfall(t)

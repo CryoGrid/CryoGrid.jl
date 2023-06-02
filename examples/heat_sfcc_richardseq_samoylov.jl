@@ -27,7 +27,7 @@ sfcc = PainterKarra(ω=0.0, swrc=swrc)
 waterflow = RichardsEq(swrc=swrc)
 # Enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
 heatop = Heat.EnthalpyForm(SFCCNewtonSolver())
-upperbc = SurfaceEnergyWaterFluxes(TemperatureGradient(forcings.Tair, NFactor()), SurfaceWaterBalance(rainfall=forcings.rainfall))
+upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair, NFactor()))
 # We will use a simple stratigraphy with 3 subsurface soil layers
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(

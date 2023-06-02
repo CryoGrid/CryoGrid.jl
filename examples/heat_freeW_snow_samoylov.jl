@@ -3,6 +3,7 @@ using CryoGrid.Heat
 using CryoGrid.Hydrology
 using CryoGrid.Snow
 using CryoGrid.Soils
+using CryoGrid.Surface
 
 using Plots
 
@@ -18,8 +19,9 @@ snowmass = SnowMassBalance(
         ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
     )
 )
+upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair))
 strat = @Stratigraphy(
-    z_top => Top(TemperatureGradient(forcings.Tair), Snowfall(forcings.snowfall)),
+    z_top => Top(upperbc),
     z_top => :snowpack => Snowpack(para=Snow.Bulk(thresh=2.0u"cm"), mass=snowmass, heat=HeatBalance()),
     z_sub[1] => :topsoil1 => HomogeneousSoil(soilprofile[1].value, heat=HeatBalance()),
     z_sub[2] => :topsoil2 => HomogeneousSoil(soilprofile[2].value, heat=HeatBalance()),

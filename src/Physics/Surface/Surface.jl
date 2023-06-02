@@ -15,7 +15,7 @@ using Unitful
 
 import Flatten
 
-export SurfaceEnergyWaterFluxes
+export WaterHeatBC
 include("surface_bc.jl")
 
 # Surface energy balance
