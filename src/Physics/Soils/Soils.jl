@@ -1,6 +1,8 @@
 module Soils
 
 using CryoGrid
+using CryoGrid.Heat
+using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
@@ -17,11 +19,6 @@ using UnPack
 # Re-export FreezeCurves package
 @reexport using FreezeCurves
 @reexport using FreezeCurves.Solvers
-
-import CryoGrid
-import CryoGrid.InputOutput
-import CryoGrid.Heat
-import CryoGrid.Hydrology
 
 # aliases for heat formulations in Heat module
 const Temperature = Heat.Temperature

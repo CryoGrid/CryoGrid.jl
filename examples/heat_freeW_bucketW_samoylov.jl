@@ -1,4 +1,9 @@
 using CryoGrid
+using CryoGrid.Heat
+using CryoGrid.Hydrology
+using CryoGrid.Soils
+using CryoGrid.Surface
+
 using Dates
 using Plots
 
@@ -9,8 +14,9 @@ initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 # We will use a simple stratigraphy with 3 subsurface soil layers
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
+upperbc = SurfaceEnergyWaterFluxes(TemperatureGradient(forcings.Tair), SurfaceWaterBalance(rainfall=forcings.rainfall))
 strat = @Stratigraphy(
-    -2.0u"m" => Top(TemperatureGradient(forcings.Tair), SurfaceWaterBalance(rainfall=forcings.rainfall)),
+    -2.0u"m" => Top(upperbc),
     0.0u"m" => :topsoil => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     0.2u"m" => :subsoil => HomogeneousSoil(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     2.0u"m" => :substrat => HomogeneousSoil(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),

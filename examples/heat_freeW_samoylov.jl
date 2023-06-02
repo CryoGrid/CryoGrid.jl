@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.Heat
 using Plots
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);

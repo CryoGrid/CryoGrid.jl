@@ -1,13 +1,9 @@
 using CryoGrid
+using CryoGrid.Heat
+using CryoGrid.Salt
 using Plots
 
-tempprofile = TemperatureProfile(
-    0.0u"m" => -1.0u"°C",
-    20.0u"m" => -5.0u"°C",
-    500.0u"m" => 0.0u"°C",
-    1000.0u"m" => 10.2u"°C",
-)
-initT = initializer(:T, tempprofile)
+initT = initializer(:T, -1.0)
 initsalt = initializer(:c, 800.0)
 initpor = SedimentCompactionInitializer(porosityZero=0.4)
 sfcc = DallAmicoSalt(swrc=VanGenuchten(α=4.06, n=2.03))
@@ -31,7 +27,7 @@ integrator = init(prob, Euler(), dt=60.0, saveat=3600.0, progress=true);
 @time for i in integrator end
 out = CryoGridOutput(integrator.sol)
 # Plot it!
-zs = [5,15,25,35,45,55,100,150,200]u"cm"
+zs = [5,15,25,35,45,55,65,75]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
 plot(out.c[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Salt concentration", leg=false, size=(800,500), dpi=150)

@@ -28,3 +28,24 @@ function CryoGrid.interact!(::Top, bc::SaltGradient, soil::SaltySoil, ::SaltMass
     ssed.jc[1] = flux
     #lower boundary should get own function, but is zero anyhow so gets this by default
 end
+
+Base.@kwdef struct HeatSaltBoundary{Theat,Tsalt} <: BoundaryProcess{Union{SaltMassBalance,HeatBalance}}
+    heat::Theat
+    salt::Tsalt
+end
+
+function CryoGrid.updatestate!(top::Top, bc::HeatSaltBoundary, state)
+    updatestate!(top, bc.salt, state)
+    updatestate!(top, bc.heat, state)
+end
+
+function CryoGrid.interact!(top::Top, bc::HeatSaltBoundary, sub::SubSurface, ps::Coupled(SaltMassBalance, HeatBalance), stop, ssub)
+    interact!(top, bc.salt, sub, ps[1], stop, ssub)
+    interact!(top, bc.heat, sub, ps[2], stop, ssub)
+end
+
+function CryoGrid.computefluxes!(top::Top, bc::HeatSaltBoundary, state)
+    computefluxes!(top, bc.salt, state)
+    computefluxes!(top, bc.heat, state)
+end
+

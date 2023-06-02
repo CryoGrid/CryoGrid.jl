@@ -27,8 +27,8 @@ CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
 """
 Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
 """
-function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance, ::SubSurface, stop, ssub)
-    state = SEBState(seb, stop, ssub)
+function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, ::SubSurface, ::HeatBalance, stop, ssub)
+    state = SEBState(seb, sub, stop, ssub)
     seb_output = seb(state)
     # copy outputs into state variables
     @setscalar stop.Sout = seb_output.Sout
@@ -41,10 +41,11 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance,
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = state.inputs.Tair
-    return getscalar(stop.Qg)
+    ssb.jH[1] += stop.Qg[1]
+    return nothing
 end
-function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, ::HeatBalance, ::SubSurface, stop, ssub)
-    initialstate = SEBState(seb, stop, ssub)
+function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance{<:Numerical}, sub::SubSurface, ::HeatBalance, stop, ssub)
+    initialstate = SEBState(seb, sub, stop, ssub)
     seb_output = solve(seb, initialstate)
     # copy outputs into state variables
     @setscalar stop.Sout = seb_output.Sout
@@ -57,7 +58,8 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, :
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = initialstate.inputs.Tair
-    return getscalar(stop.Qg)
+    ssb.jH[1] += stop.Qg[1]
+    return nothing
 end
 
 function (seb::SurfaceEnergyBalance)(state::SEBState)

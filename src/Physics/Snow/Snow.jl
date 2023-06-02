@@ -2,12 +2,11 @@ module Snow
 
 using CryoGrid
 using CryoGrid: ContinuousEvent, Increasing, Decreasing # for events/callbacks
+using CryoGrid.InputOutput
+using CryoGrid.Heat
+using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
-
-import CryoGrid
-import CryoGrid.InputOutput
-import CryoGrid.Heat
 
 using IfElse
 using ModelParameters

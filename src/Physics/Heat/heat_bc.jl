@@ -4,7 +4,6 @@ const Neumann = CryoGrid.Neumann
 const HeatBC = BoundaryProcess{T} where {HeatBalance<:T<:SubSurfaceProcess}
 ConstantTemperature(value::UFloat"K") = ConstantBC(HeatBalance, Dirichlet, uconvert(u"°C", value))
 ConstantTemperature(value) = ConstantBC(HeatBalance, Dirichlet, value)
-GeothermalHeatFlux(value=0.053u"W/m^2") = ConstantBC(HeatBalance, Neumann, value)
 
 """
     TemperatureGradient{E,F} <: BoundaryProcess{HeatBalance}
@@ -16,9 +15,10 @@ struct TemperatureGradient{E,F} <: BoundaryProcess{HeatBalance}
     effect::E # effect
     TemperatureGradient(T::F, effect::E=nothing) where {F<:Forcing{u"°C"},E} = new{E,F}(T, effect)
 end
+
 CryoGrid.BCKind(::Type{<:TemperatureGradient}) = Dirichlet()
 
-@inline CryoGrid.boundaryvalue(bc::TemperatureGradient, l1, ::HeatBalance, l2, s1, s2) = getscalar(s1.T_ub)
+CryoGrid.boundaryvalue(bc::TemperatureGradient, state) = getscalar(state.T_ub)
 
 CryoGrid.variables(::Top, bc::TemperatureGradient) = (
     Diagnostic(:T_ub, Scalar, u"K"),
@@ -63,6 +63,22 @@ struct GroundHeatFlux{TE,TQ} <: BoundaryProcess{HeatBalance}
     GroundHeatFlux(Qg::TQ, effect::TE=nothing) where {TQ<:Forcing{u"W/m^2"},TE} = new{TE,TQ}(Qg, effect)
 end
 
-CryoGrid.boundaryvalue(bc::GroundHeatFlux, ::Top, ::HeatBalance, ::SubSurface, stop, ssub) = bc.Qg(stop.t)
+CryoGrid.boundaryvalue(bc::GroundHeatFlux, state) = bc.Qg(state.t)
 
 CryoGrid.BCKind(::Type{<:GroundHeatFlux}) = CryoGrid.Neumann()
+
+"""
+    GeothermalHeatFlux{TQ} <: BoundaryProcess{HeatBalance}
+
+Represents a simple, forced Neumann heat flux boundary condition for `HeatBalance` processes.
+"""
+struct GeothermalHeatFlux{TQ} <: BoundaryProcess{HeatBalance}
+    Qgeo::TQ
+    GeothermalHeatFlux(Qgeo::TQ) where {TQ} = new{TQ}(Qgeo)
+end
+
+CryoGrid.boundaryvalue(bc::GeothermalHeatFlux, state) = -bc.Qgeo
+
+CryoGrid.boundaryvalue(bc::GeothermalHeatFlux{<:Forcing}, state) = -bc.Qgeo(state.t)
+
+CryoGrid.BCKind(::Type{<:GeothermalHeatFlux}) = CryoGrid.Neumann()

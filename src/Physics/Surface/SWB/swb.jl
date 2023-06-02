@@ -12,6 +12,11 @@ Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBala
     snowfall::TS = nothing
 end
 
+"""
+Type alias for `SurfaceEnergyWaterFluxes{TSEB,TSWB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}`.
+"""
+const SurfaceEnergyWaterBalance{TSEB,TSWB} = SurfaceEnergyWaterFluxes{TSEB,TSWB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}
+
 rainfall(swb::SurfaceWaterBalance, t) = 0.0
 rainfall(swb::SurfaceWaterBalance{<:Forcing}, t) = swb.rainfall(t)
 
@@ -24,7 +29,6 @@ function infiltrate!(::Top, swb::SurfaceWaterBalance, ::SubSurface, ::WaterBalan
     return nothing
 end
 
-accumulatesnow!(::Top, ::SurfaceWaterBalance, ::SubSurface, ::WaterBalance, stop, ssub) = nothing
 function accumulatesnow!(
     ::Top,
     swb::SurfaceWaterBalance,
@@ -58,9 +62,9 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
     Diagnostic(:jw_ET, Scalar, u"m/s", domain=0..Inf),
 )
 
-CryoGrid.variables(top::Top, ps::Coupled2{<:SurfaceEnergyBalance,<:SurfaceWaterBalance}) = (
-    CryoGrid.variables(top, ps[1])...,
-    CryoGrid.variables(top, ps[2])...,
+CryoGrid.variables(top::Top, bc::SurfaceEnergyWaterBalance) = (
+    CryoGrid.variables(top, bc.water)...,
+    CryoGrid.variables(top, bc.heat)...,
     Prognostic(:ET, Scalar, u"m^3"),
 )
 
@@ -90,7 +94,6 @@ function CryoGrid.interact!(
     # flip the sign from the ground ET flux which is positive downward
     @setscalar stop.jw_ET = -ground_ET(water, ssub)
     infiltrate!(top, swb, sub, water, stop, ssub)
-    accumulatesnow!(top, swb, sub, water, stop, ssub)
     return nothing
 end
 
@@ -98,10 +101,10 @@ function CryoGrid.interact!(
     top::Top,
     swb::SurfaceWaterBalance,
     sub::SubSurface,
-    ps::CoupledProcesses,
+    snowmass::SnowMassBalance,
     stop,
     ssub
 )
-    
+    accumulatesnow!(top, swb, sub, snowmass, stop, ssub)
     return nothing
 end

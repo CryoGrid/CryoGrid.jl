@@ -84,7 +84,7 @@ end
 # Boundary fluxes
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalance, sub::SubSurface, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
-    @inbounds let Tupper=boundaryvalue(bc,top,heat,sub,stop,ssub),
+    @inbounds let Tupper=boundaryvalue(bc, stop),
         Tsub=ssub.T[1],
         k=ssub.k[1],
         δ=Δk/2; # distance to boundary
@@ -93,7 +93,7 @@ end
 end
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatBalance, sub::SubSurface, sbot, ssub)
     Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
-    @inbounds let Tlower=boundaryvalue(bc,bot,heat,sub,sbot,ssub),
+    @inbounds let Tlower=boundaryvalue(bc, sbot),
         Tsub=ssub.T[end],
         k=ssub.k[end],
         δ=Δk/2; # distance to boundary

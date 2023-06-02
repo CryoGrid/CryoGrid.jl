@@ -1,4 +1,7 @@
 using CryoGrid
+using CryoGrid.Heat
+using CryoGrid.Soils
+
 using Plots
 
 grid = CryoGrid.Presets.DefaultGrid_2cm

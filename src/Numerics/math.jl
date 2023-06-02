@@ -38,13 +38,13 @@ end
 
 # Flux calculations
 
-@propagate_inbounds @inline _flux_kernel(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/Δx # note the sign convention!
+@propagate_inbounds @inline flux(x₁, x₂, Δx, k) = -k*(x₂ - x₁)/Δx # note the sign convention!
 
-@propagate_inbounds @inline function _flux!(j::AbstractVector, x₁::AbstractVector, x₂::AbstractVector, Δx::AbstractVector, k::AbstractVector, ::Val{use_turbo}) where {use_turbo}
-    @. j += _flux_kernel(x₁, x₂, Δx, k)
+@propagate_inbounds @inline function flux!(j::AbstractVector, x₁::AbstractVector, x₂::AbstractVector, Δx::AbstractVector, k::AbstractVector, ::Val{use_turbo}) where {use_turbo}
+    @. j += flux(x₁, x₂, Δx, k)
 end
-@propagate_inbounds @inline function _flux!(j::AbstractVector{Float64}, x₁::AbstractVector{Float64}, x₂::AbstractVector{Float64}, Δx::AbstractVector{Float64}, k::AbstractVector{Float64}, ::Val{true})
-    @turbo @. j += _flux_kernel(x₁, x₂, Δx, k)
+@propagate_inbounds @inline function flux!(j::AbstractVector{Float64}, x₁::AbstractVector{Float64}, x₂::AbstractVector{Float64}, Δx::AbstractVector{Float64}, k::AbstractVector{Float64}, ::Val{true})
+    @turbo @. j += flux(x₁, x₂, Δx, k)
 end
 
 """
@@ -59,19 +59,19 @@ function flux!(j::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::Abs
         x₂ = @view(x[2:end]),
         k = @view(k[2:end-1]),
         j = @view(j[2:end-1]);
-        _flux!(j, x₁, x₂, Δx, k, Val{USE_TURBO}())
+        flux!(j, x₁, x₂, Δx, k, Val{USE_TURBO}())
     end
 end
 
 # Divergence
 
-@propagate_inbounds @inline _div_kernel(j₁, j₂, Δj) = (j₁ - j₂) / Δj
+@propagate_inbounds @inline divergence(j₁, j₂, Δj) = (j₁ - j₂) / Δj
 
-@propagate_inbounds @inline function _div!(dx::AbstractVector, j₁::AbstractVector, j₂::AbstractVector, Δj::AbstractVector, ::Val{use_turbo}) where {use_turbo}
-    @. dx += _div_kernel(j₁, j₂, Δj)
+@propagate_inbounds @inline function divergence!(dx::AbstractVector, j₁::AbstractVector, j₂::AbstractVector, Δj::AbstractVector, ::Val{use_turbo}) where {use_turbo}
+    @. dx += divergence(j₁, j₂, Δj)
 end
-@propagate_inbounds @inline function _div!(dx::AbstractVector{Float64}, j₁::AbstractVector{Float64}, j₂::AbstractVector{Float64}, Δj::AbstractVector{Float64}, ::Val{true})
-    @turbo @. dx += _div_kernel(j₁, j₂, Δj)
+@propagate_inbounds @inline function divergence!(dx::AbstractVector{Float64}, j₁::AbstractVector{Float64}, j₂::AbstractVector{Float64}, Δj::AbstractVector{Float64}, ::Val{true})
+    @turbo @. dx += divergence(j₁, j₂, Δj)
 end
 
 """
@@ -82,25 +82,25 @@ Calculates the first-order divergence over a 1D flux vector field `j` and grid c
 function divergence!(dx::AbstractVector, j::AbstractVector, Δj::AbstractVector)
     @inbounds let j₁ = @view(j[1:end-1]),
         j₂ = @view(j[2:end]);
-        _div!(dx, j₁, j₂, Δj, Val{USE_TURBO}())
+        divergence!(dx, j₁, j₂, Δj, Val{USE_TURBO}())
     end
 end
 
 # non-linear diffusion
-@propagate_inbounds @inline function _nonlineardiffusion_kernel(x₁, x₂, Δx, j₁, k, Δj)
-    j₂ = _flux_kernel(x₁, x₂, Δx, k)
-    div = _div_kernel(j₁, j₂, Δj)
+@propagate_inbounds @inline function nonlineardiffusion(x₁, x₂, Δx, j₁, k, Δj)
+    j₂ = flux(x₁, x₂, Δx, k)
+    div = divergence(j₁, j₂, Δj)
     return j₂, div
 end
 
-@propagate_inbounds @inline function _nonlineardiffusion!(dx::AbstractVector, j::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector, Δk::AbstractVector, i::Integer)
+@propagate_inbounds @inline function nonlineardiffusion!(dx::AbstractVector, j::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector, Δk::AbstractVector, i::Integer)
     let x₁ = x[i-1],
         x₂ = x[i],
         j₁ = j[i-1],
         k = k[i],
         δx = Δx[i-1],
         δj = Δk[i-1];
-        j₂, divx₁ = _nonlineardiffusion_kernel(x₁, x₂, δx, j₁, k, δj)
+        j₂, divx₁ = nonlineardiffusion(x₁, x₂, δx, j₁, k, δj)
         j[i] += j₂
         dx[i-1] += divx₁
     end
@@ -115,10 +115,10 @@ in `j` and `dx`.
 """
 function nonlineardiffusion!(dx::AbstractVector, j::AbstractVector, x::AbstractVector, Δx::AbstractVector, k::AbstractVector, Δk::AbstractVector) 
     @inbounds for i in 2:length(j)-1
-        _nonlineardiffusion!(dx, j, x, Δx, k, Δk, i)
+        nonlineardiffusion!(dx, j, x, Δx, k, Δk, i)
     end
     # compute divergence for last grid cell
-    @inbounds dx[end] += _div_kernel(j[end-1], j[end], Δk[end])
+    @inbounds dx[end] += divergence(j[end-1], j[end], Δk[end])
     return nothing
 end
 

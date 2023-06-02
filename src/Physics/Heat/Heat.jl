@@ -8,8 +8,10 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds
-using FreezeCurves
-using FreezeCurves.Solvers
+using Reexport: @reexport
+
+@reexport using FreezeCurves
+@reexport using FreezeCurves.Solvers
 
 export FreeWater, FreezeCurve
 
@@ -25,7 +27,7 @@ include("thermcond.jl")
 export heatcapacity, heatcapacity!
 include("heatcapacity.jl")
 
-export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, NFactor
+export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, GroundHeatFlux, NFactor
 include("heat_bc.jl")
 
 export heatconduction!

@@ -24,6 +24,7 @@ using Setfield
 
 import ConstructionBase
 import Flatten
+import ForwardDiff
 import Interpolations
 
 export TileState, LayerState

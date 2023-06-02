@@ -87,7 +87,7 @@ end
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
 			updatestate!(Top(zerobc), tgrad, state)
-			return boundaryvalue(tgrad,Top(zerobc),heat,sub,state,state)
+			return boundaryvalue(tgrad, state)
 		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])

@@ -42,12 +42,10 @@ const Coupled2{P1,P2} = CoupledProcesses{Tuple{T1,T2}} where {T1,T2}
 const Coupled3{P1,P2,P3} = CoupledProcesses{Tuple{T1,T2,T3}} where {T1,T2,T3}
 const Coupled4{P1,P2,P3,P4} = CoupledProcesses{Tuple{T1,T2,T3,T4}} where {T1,T2,T3,T4}
 
-Coupled() = CoupledProcesses()
-
 """
-    Coupled(ps::Process...)
+    Coupled(ps::SubSurfaceProcess...)
 
-Constructs a composite/coupled process from one or more processes. Alias for `CoupledProcesses(ps...)`.
+Constructs a composite/coupled process from one or more subsurface processes. Alias for `CoupledProcesses(ps...)`.
 """
 Coupled(ps::Process...) = CoupledProcesses(ps...)
 
@@ -75,6 +73,7 @@ Base.length(cp::CoupledProcesses) = length(cp.processes)
 Base.firstindex(cp::CoupledProcesses) = firstindex(cp.processes)
 Base.lastindex(cp::CoupledProcesses) = lastindex(cp.processes)
 @propagate_inbounds Base.getindex(cp::CoupledProcesses, i) = cp.processes[i]
+
 Base.Broadcast.broadcastable(p::Process) = Ref(p) # allow broadcasting of Process types
 
 # Layers
@@ -99,10 +98,7 @@ Generic "top" layer that marks the upper boundary of the subsurface grid.
 """
 struct Top{TProc} <: Layer
     proc::TProc
-    Top(proc::CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}) = new{typeof(proc)}(proc)
     Top(proc::BoundaryProcess) = new{typeof(proc)}(proc)
-    # convenience constructor that automatically couples the processes
-    Top(procs::BoundaryProcess...) = Top(Coupled(procs...))
 end
 
 """
@@ -112,10 +108,7 @@ Generic "bottom" layer that marks the lower boundary of the subsurface grid.
 """
 struct Bottom{TProc} <: Layer
     proc::TProc
-    Bottom(proc::CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}) = new{typeof(proc)}(proc)
     Bottom(proc::BoundaryProcess) = new{typeof(proc)}(proc)
-    # convenience constructor that automatically couples the processes
-    Bottom(procs::BoundaryProcess...) = Bottom(Coupled(procs...))
 end
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)

@@ -149,16 +149,17 @@ Note that this method uses a different argument order convention than `interact!
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
 boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BCKind(bc), bc, b, p, sub, sbc, ssub)
+boundaryflux(::Neumann, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryvalue(bc, sbc)
 boundaryflux(s::BCKind, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
 
 """
-    boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
+    boundaryvalue(bc::BoundaryProcess, state)
 
 Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
 Note that this method uses a different argument order convention than `interact!`. This is intended to faciliate stratigraphy independent implementations
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
-boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
+boundaryvalue(bc::BoundaryProcess, state) = error("missing implementation of boundaryvalue for $(typeof(bc))")
 
 # Events
 """

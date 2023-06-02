@@ -59,13 +59,13 @@ function CryoGrid.updatestate!(
     return nothing
 end
 function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalanceImplicit, sub::SubSurface, stop, ssub)
-    T_ub = boundaryvalue(bc, top, heat, sub, stop, ssub)
+    T_ub = boundaryvalue(bc, stop)
     k = ssub.k[1]
     Δk = CryoGrid.thickness(sub, ssub, first)
     return 2*T_ub*k / Δk
 end
 function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatBalanceImplicit, sub::SubSurface, sbot, ssub)
-    T_lb = boundaryvalue(bc, bot, heat, sub, sbot, ssub)
+    T_lb = boundaryvalue(bc, sbot)
     k = ssub.k[end]
     Δk = CryoGrid.thickness(sub, ssub, last)
     return 2*T_lb*k / Δk

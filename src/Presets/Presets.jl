@@ -6,6 +6,12 @@ module Presets
 using CryoGrid
 using CryoGrid.InputOutput: Resource
 using CryoGrid.Numerics
+using CryoGrid.Utils
+
+# physics modules
+using CryoGrid.Heat
+using CryoGrid.Hydrology
+using CryoGrid.Soils
 
 using Statistics
 
@@ -42,11 +48,11 @@ Parameters = (
 
 const SamoylovDefault = (
     soilprofile = SoilProfile(
-        0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-        0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-        0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-        3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-        10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+        0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75),
+        0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25),
+        0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
+        3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
+        10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
     ),
     tempprofile = TemperatureProfile(
         0.0u"m" => -1.0u"°C",

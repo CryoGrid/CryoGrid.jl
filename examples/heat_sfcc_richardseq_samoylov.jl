@@ -1,4 +1,8 @@
 using CryoGrid
+using CryoGrid.Heat
+using CryoGrid.Hydrology
+using CryoGrid.Surface
+
 using Dates
 using Plots
 
@@ -23,10 +27,11 @@ sfcc = PainterKarra(ω=0.0, swrc=swrc)
 waterflow = RichardsEq(swrc=swrc)
 # Enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
 heatop = Heat.EnthalpyForm(SFCCNewtonSolver())
+upperbc = SurfaceEnergyWaterFluxes(TemperatureGradient(forcings.Tair, NFactor()), SurfaceWaterBalance(rainfall=forcings.rainfall))
 # We will use a simple stratigraphy with 3 subsurface soil layers
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0u"m" => Top(TemperatureGradient(forcings.Tair, NFactor()), SurfaceWaterBalance(rainfall=forcings.rainfall)),
+    -2.0u"m" => Top(upperbc),
     0.0u"m" => :topsoil => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
     0.2u"m" => :subsoil => HomogeneousSoil(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
     2.0u"m" => :substrat => HomogeneousSoil(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),

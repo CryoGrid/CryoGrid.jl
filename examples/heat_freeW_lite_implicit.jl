@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.Heat
 using CryoGrid.LiteImplicit
 using Plots
 

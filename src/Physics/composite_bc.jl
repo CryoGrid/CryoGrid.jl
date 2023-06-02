@@ -14,9 +14,7 @@ struct CompositeBoundaryProcess{B1,B2,P,F,S} <: BoundaryProcess{P}
         new{B1,B2,P,F,typeof(BCKind(bc1))}(op,bc1,bc2)
     end
 end
-@inline CryoGrid.boundaryvalue(cbc::CompositeBoundaryProcess{B1,B2},l1,p2,l2,s1,s2) where {B1<:BoundaryProcess,B2<:BoundaryProcess} = cbc.op(boundaryvalue(cbc.bc1,l1,p2,l2,s1,s2), boundaryvalue(cbc.bc2,l1,p2,l2,s1,s2))
-@inline CryoGrid.boundaryvalue(cbc::CompositeBoundaryProcess{B1,B2},l1,p2,l2,s1,s2) where {B1,B2<:BoundaryProcess} = cbc.op(cbc.bc1, boundaryvalue(cbc.bc2,l1,p2,l2,s1,s2))
-@inline CryoGrid.boundaryvalue(cbc::CompositeBoundaryProcess{B1,B2},l1,p2,l2,s1,s2) where {B1<:BoundaryProcess,B2} = cbc.op(boundaryvalue(cbc.bc1,l1,p2,l2,s1,s2), cbc.bc2)
+CryoGrid.boundaryvalue(cbc::CompositeBoundaryProcess{B1,B2}, state) where {B1<:BoundaryProcess,B2<:BoundaryProcess} = cbc.op(boundaryvalue(cbc.bc1, state), boundaryvalue(cbc.bc2, state))
 CryoGrid.variables(top::Top, cbc::CompositeBoundaryProcess) = tuplejoin(variables(top, cbc.bc1), variables(top, cbc.bc2))
 CryoGrid.BCKind(::Type{CompositeBoundaryProcess{B1,B2,P,F,S}}) where {F,P,B1,B2,S} = S()
 # Overload arithmetic operators on boundary processes.
