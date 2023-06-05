@@ -16,8 +16,8 @@ strat = @Stratigraphy(
     0.0u"m" => :sediment => SaltySoil(heat=HeatBalance(:T, freezecurve=sfcc), salt=SaltMassBalance()),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-discretization = AutoGrid(spacing=LinearSpacing(min_thick=10.0u"cm"))
-tile = Tile(strat, discretization, initT, initsalt, initpor)
+modelgrid = CryoGrid.Presets.DefaultGrid_10cm
+tile = Tile(strat, modelgrid, initT, initsalt, initpor)
 # define time span
 tspan = (DateTime(2000,1,1),DateTime(2000,12,31))
 u0, du0 = initialcondition!(tile, tspan)
