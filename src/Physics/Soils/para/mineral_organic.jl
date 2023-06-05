@@ -1,7 +1,7 @@
 """
     MineralOrganic{Tpor,Tsat,Torg} <: SoilParameterization
 
-Represents a simple, uniform organic/mineral soil mixutre in terms of its characteristic fractions:
+Represents a simple organic/mineral soil mixutre in terms of its characteristic fractions:
 i.e. natural porosity, saturation, and organic solid fraction. This is the standard CryoGrid representation
 of a discrete soil volume.
 """

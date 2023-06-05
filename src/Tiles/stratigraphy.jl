@@ -154,16 +154,19 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
     return strat_grid
 end
 
-@inline function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
+CryoGrid.initializers(strat::Stratigraphy) = tuplejoin(map(initializers, map(l -> l.val, layers(strat)))...)
+
+function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything naively
+    all_inits = tuple(initializers(strat)..., inits...)
     for i in 1:length(strat)-1
         layerᵢ = strat[i].val
         layerᵢ₊₁ = strat[i+1].val
         stateᵢ = getproperty(state, layername(strat[i]))
         stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
         # first invoke initialcondition! with initializers
-        for init in inits
+        for init in all_inits
             if i == 1 && haskey(stateᵢ.states, varname(init))
                 CryoGrid.initialcondition!(layerᵢ, stateᵢ, init)
             end

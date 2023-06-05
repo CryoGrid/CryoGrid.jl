@@ -16,7 +16,7 @@ struct LayerState{iip,TGrid,TStates,TBounds,Tt,Tdt,varnames}
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
 function Base.getproperty(state::LayerState, sym::Symbol)
-    return if sym ∈ (:grid, :grids, :states, :bounds, :t, :dt)
+    return if sym ∈ (:grid, :states, :bounds, :t, :dt)
         getfield(state, sym)
     else
         getproperty(getfield(state, :states), sym)

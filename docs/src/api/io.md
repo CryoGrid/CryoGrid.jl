@@ -1,7 +1,7 @@
-# Solvers
+# InputOutput
 
 ```@autodocs
-Modules = [CryoGrid.Solvers]
+Modules = [CryoGrid.InputOutput]
 Private = false
 Order = [:type, :function, :macro]
 ```

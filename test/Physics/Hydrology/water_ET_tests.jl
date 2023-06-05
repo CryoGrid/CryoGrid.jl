@@ -10,7 +10,7 @@ function evapotranspiration_tests()
     water = processes(layer)
     grid = Grid((0.0:0.05:1.0)u"m")
     Qe = 10.0u"W/m^2"
-    state = build_test_state(grid, layer)
+    state = Diagnostics.build_dummy_state(grid, layer)
     state.Qe .= Qe
     # test that results are valid when total water content is zero
     Hydrology.evapotranspiration!(layer, water, state)

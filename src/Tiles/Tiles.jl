@@ -34,9 +34,6 @@ export layernames, layertypes, layers, boundaries, layername, stratiterate
 export top, bottom, subsurface
 include("stratigraphy.jl")
 
-export initializer
-include("init.jl")
-
 export Tile, withaxes, getstate
 include("tile.jl")
 

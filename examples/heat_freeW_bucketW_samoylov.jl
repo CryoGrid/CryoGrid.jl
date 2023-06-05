@@ -6,7 +6,7 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 grid = CryoGrid.Presets.DefaultGrid_5cm
 _, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-initsat = initializer(:sat, (l,p,state) -> state.sat .= l.para.sat)
+initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 # We will use a simple stratigraphy with 3 subsurface soil layers
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
