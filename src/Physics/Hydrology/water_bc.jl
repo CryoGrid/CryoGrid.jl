@@ -14,7 +14,7 @@ ImpermeableBoundary() = ConstantBC(WaterBalance, Neumann, 0.0u"m/s")
         ψsub=ssub.ψ[1],
         k=ssub.kw[1],
         δ=Δk/2; # distance to boundary
-        -k*(ψsub-ψupper)/δ
+        Numerics.flux(ψupper, ψsub, δ, k)
     end
 end
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub)
@@ -23,9 +23,7 @@ end
         ψsub=ssub.ψ[end],
         k=ssub.kw[end],
         δ=Δk/2; # distance to boundary
-        # note again the inverted sign; positive here means *upward from* the bottom boundary
-        # TODO: maybe change this convention? it seems needlessly confusing and bug-prone.
-        k*(ψlower-ψsub)/δ
+        Numerics.flux(ψsub, ψlower, δ, k)
     end
 end
 

@@ -13,31 +13,13 @@ function _invoke_sequential(f!::F, l::Layer, ps::CoupledProcesses, args...) wher
     end
 end
 
+CryoGrid.initialcondition!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(initialcondition!, layer, ps, state)
+
 CryoGrid.updatestate!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(updatestate!, layer, ps, state)
 
 CryoGrid.computefluxes!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, layer, ps, state)
 
 CryoGrid.resetfluxes!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(resetfluxes!, layer, ps, state)
-
-function interact!(l1::Layer, ps1::CoupledProcesses, l2::Layer, p2::Process, s1, s2)
-    Utils.fastiterate(ps1.processes) do p_i
-        interact!(l1, p_i, l2, p2, s1, s2)
-    end
-end
-
-function interact!(l1::Layer, p1::Process, l2::Layer, ps2::CoupledProcesses, s1, s2)
-    Utils.fastiterate(ps2.processes) do p_i
-        interact!(l1, p1, l2, p_i, s1, s2)
-    end
-end
-
-function interact!(l1::Layer, ps1::CoupledProcesses, l2::Layer, ps2::CoupledProcesses, s1, s2)
-    Utils.fastiterate(ps1.processes) do p_i
-        Utils.fastiterate(ps2.processes) do p_j
-            interact!(l1, p_i, l2, p_j, s1, s2)
-        end
-    end
-end
 
 """
     timestep(l::Layer, ps::CoupledProcesses{P}, state) where {P}

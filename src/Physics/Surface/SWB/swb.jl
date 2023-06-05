@@ -37,7 +37,7 @@ function accumulatesnow!(
     stop,
     ssnow,
 )
-    rate_scale = snowmass.accumulation.rate_scale
+    rate_scale = snowmass.para.accumulation.rate_scale
     ssnow.∂swe∂t[1] += rate_scale*stop.jw_snow[1]
 end
 
@@ -47,7 +47,7 @@ function runoff!(::Top, ::SurfaceWaterBalance, state)
     @setscalar state.∂R∂t = (jw_rain - jw_infil)*area(state.grid)
 end
 
-function ETflux!(::Top, ::Coupled2{<:SurfaceEnergyBalance,<:SurfaceWaterBalance}, state)
+function ETflux!(::Top, ::SurfaceEnergyWaterBalance, state)
     jw_ET = getscalar(stop.jw_ET)
     @setscalar stop.∂ET∂t = jw_ET*area(stop.grid)
 end

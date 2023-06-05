@@ -19,7 +19,10 @@ snowmass = SnowMassBalance(
         ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
     )
 )
-upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair))
+upperbc = WaterHeatBC(
+    SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall),
+    TemperatureGradient(forcings.Tair)
+)
 strat = @Stratigraphy(
     z_top => Top(upperbc),
     z_top => :snowpack => Snowpack(para=Snow.Bulk(thresh=2.0u"cm"), mass=snowmass, heat=HeatBalance()),

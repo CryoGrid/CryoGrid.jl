@@ -36,6 +36,7 @@ include("heat_conduction.jl")
 export HeatBalanceImplicit
 include("heat_implicit.jl")
 
+export WaterHeatBC
 include("heat_water.jl")
 
 export StefanProblem, StefanParameters

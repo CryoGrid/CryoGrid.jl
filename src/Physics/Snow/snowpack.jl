@@ -92,7 +92,6 @@ Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
 
 # Default implementations of CryoGrid methods for Snowpack
 CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,Nothing}) = Coupled(snow.mass, snow.heat)
-
 CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,<:WaterBalance}) = Coupled(snow.mass, snow.water, snow.heat)
 
 CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
@@ -115,4 +114,19 @@ CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) 
         θi = θwi - θw;
         return (θw, θi, θa)
     end
+end
+
+# interact! for coupled water/heat
+
+function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, HeatBalance), stop, ssub)
+    snowmass, heat = ps
+    interact!(top, bc.water, snow, snowmass, stop, ssub)
+    interact!(top, bc.heat, snow, heat, stop, ssub)
+end
+
+function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance), stop, ssub)
+    snowmass, water, heat = ps
+    interact!(top, bc.water, snow, snowmass, stop, ssub)
+    interact!(top, bc.water, snow, water, stop, ssub)
+    interact!(top, bc.heat, snow, heat, stop, ssub)
 end

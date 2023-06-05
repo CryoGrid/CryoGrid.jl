@@ -3,7 +3,7 @@ function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
     k = Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
     # calculate heat flux between cells
     jH = @inbounds let δ = z₂ - z₁;
-        Numerics.flux(T₁, T₂, k, δ)
+        Numerics.flux(T₁, T₂, δ, k)
     end
     return (; jH, k)
 end
@@ -88,7 +88,7 @@ end
         Tsub=ssub.T[1],
         k=ssub.k[1],
         δ=Δk/2; # distance to boundary
-        Numerics.flux(Tupper, Tsub, k, δ)
+        Numerics.flux(Tupper, Tsub, δ, k)
     end
 end
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatBalance, sub::SubSurface, sbot, ssub)
@@ -97,7 +97,7 @@ end
         Tsub=ssub.T[end],
         k=ssub.k[end],
         δ=Δk/2; # distance to boundary
-        Numerics.flux(Tsub, Tlower, k, δ)
+        Numerics.flux(Tsub, Tlower, δ, k)
     end
 end
 

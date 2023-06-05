@@ -15,9 +15,6 @@ using Unitful
 
 import Flatten
 
-export WaterHeatBC
-include("surface_bc.jl")
-
 # Surface energy balance
 export SurfaceEnergyBalance, SEBParams
 include("SEB/seb.jl")
