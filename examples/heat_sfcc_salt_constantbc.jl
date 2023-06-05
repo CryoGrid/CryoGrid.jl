@@ -11,11 +11,9 @@ initT = initializer(:T, tempprofile)
 initsalt = initializer(:c, 800.0)
 initpor = SedimentCompactionInitializer(porosityZero=0.4)
 sfcc = DallAmicoSalt(swrc=VanGenuchten(α=4.06, n=2.03))
-sediment = MarineSediment(heat=HeatBalance(:T, freezecurve=sfcc), salt=SaltMassBalance())
 strat = @Stratigraphy(
     0.0u"m" => Top(ConstantTemperature(0.0), SaltGradient(benthicSalt=900.0, surfaceState=0)),
-    0.0u"m" => :sediment1 => sediment,
-    20.0u"m" => :sediment2 => sediment,
+    0.0u"m" => :sediment => SaltySoil(heat=HeatBalance(:T, freezecurve=sfcc), salt=SaltMassBalance()),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 discretization = AutoGrid(spacing=LinearSpacing(min_thick=10.0u"cm"))

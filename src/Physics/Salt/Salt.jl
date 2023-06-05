@@ -12,7 +12,7 @@ using ForwardDiff
 using FreezeCurves
 using StaticArrays
 
-export MarineSediment, SaltMassBalance, SaltProperties
+export SaltySoil, SaltMassBalance, SaltProperties
 include("salt_types.jl")
 
 include("salt_diffusion.jl")

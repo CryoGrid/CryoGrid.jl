@@ -9,8 +9,8 @@ include("../../testutils.jl")
 @testset "Salt" begin
     testgrid = CryoGrid.Presets.DefaultGrid_2cm
     @testset "variables" begin
-        sediment = MarineSediment()
-        vars = CryoGrid.variables(sediment)
+        soil = SaltySoil()
+        vars = CryoGrid.variables(soil)
         prognostic_vars = filter(CryoGrid.isprognostic, vars)
         diagnostic_vars = filter(CryoGrid.isdiagnostic, vars)
         # check that porosity is defined as a state variable
@@ -19,19 +19,19 @@ include("../../testutils.jl")
         @test :c ∈ map(varname, prognostic_vars)
         @test :jc ∈ map(varname, diagnostic_vars)
         # check processes
-        procs = CryoGrid.processes(sediment)
+        procs = CryoGrid.processes(soil)
         @test isa(procs[1], WaterBalance)
         @test isa(procs[2], Salt.CoupledHeatSalt)
     end
     @testset "updatestate!" begin
-        sediment = pstrip(MarineSediment())
-        state = Diagnostics.build_dummy_state(testgrid, sediment, with_units=false)
+        soil = pstrip(SaltySoil())
+        state = Diagnostics.build_dummy_state(testgrid, soil, with_units=false)
         # initialize variables
         state.T .= -2.0
         state.c .= 800.0
-        state.por .= porosity(sediment)
-        procs = CryoGrid.processes(sediment)
-        CryoGrid.updatestate!(sediment, procs, state)
+        state.por .= porosity(soil)
+        procs = CryoGrid.processes(soil)
+        CryoGrid.updatestate!(soil, procs, state)
         # check that 
         @test allfinite(state.k)
         @test allfinite(state.θw)
@@ -41,8 +41,8 @@ include("../../testutils.jl")
         @test all(state.θw .< state.por)
     end
     @testset "interact!" begin
-        sediment1 = pstrip(MarineSediment())
-        sediment2 = pstrip(MarineSediment())
+        sediment1 = pstrip(SaltySoil())
+        sediment2 = pstrip(SaltySoil())
         state1 = Diagnostics.build_dummy_state(testgrid[0.0u"m"..10.0u"m"], sediment1, with_units=false)
         state2 = Diagnostics.build_dummy_state(testgrid[10.0u"m"..1000.0u"m"], sediment2, with_units=false)
         # initialize variables
@@ -66,15 +66,15 @@ include("../../testutils.jl")
         @test state2.jc[1] == state1.jc[end]
     end
     @testset "computefluxes!" begin
-        sediment = pstrip(MarineSediment())
-        state = Diagnostics.build_dummy_state(testgrid, sediment, with_units=false)
+        soil = pstrip(SaltySoil())
+        state = Diagnostics.build_dummy_state(testgrid, soil, with_units=false)
         # initialize variables
         state.T .= LinRange(-2.0, -3.0, length(cells(testgrid)))
         state.c .= LinRange(900.0, 500.0, length(cells(testgrid)))
-        state.por .= porosity(sediment)
-        procs = CryoGrid.processes(sediment)
-        CryoGrid.updatestate!(sediment, procs, state)
-        CryoGrid.computefluxes!(sediment, procs, state)
+        state.por .= porosity(soil)
+        procs = CryoGrid.processes(soil)
+        CryoGrid.updatestate!(soil, procs, state)
+        CryoGrid.computefluxes!(soil, procs, state)
         # check that all divergences are nonzero for both temperature and salt
         @test all(.!iszero.(state.∂c∂t))
         @test all(.!iszero.(state.∂T∂t))
