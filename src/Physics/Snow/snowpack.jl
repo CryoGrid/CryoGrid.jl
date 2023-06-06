@@ -120,13 +120,13 @@ end
 
 function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, HeatBalance), stop, ssub)
     snowmass, heat = ps
-    interact!(top, bc.water, snow, snowmass, stop, ssub)
-    interact!(top, bc.heat, snow, heat, stop, ssub)
+    interactmaybe!(top, bc.water, snow, snowmass, stop, ssub)
+    interactmaybe!(top, bc.heat, snow, heat, stop, ssub)
 end
 
 function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance), stop, ssub)
     snowmass, water, heat = ps
-    interact!(top, bc.water, snow, snowmass, stop, ssub)
-    interact!(top, bc.water, snow, water, stop, ssub)
-    interact!(top, bc.heat, snow, heat, stop, ssub)
+    interactmaybe!(top, bc.water, snow, snowmass, stop, ssub)
+    interactmaybe!(top, bc.water, snow, water, stop, ssub)
+    interactmaybe!(top, bc.heat, snow, heat, stop, ssub)
 end

@@ -31,7 +31,7 @@ export TileState, LayerState
 include("state.jl")
 
 export Stratigraphy, @Stratigraphy, NamedLayer
-export layernames, layertypes, layers, boundaries, layername, stratiterate
+export layernames, layertypes, layers, boundaries, layername
 export top, bottom, subsurface
 include("stratigraphy.jl")
 

@@ -77,6 +77,31 @@ computefluxes!(::Top, ::Process, state) = nothing
 computefluxes!(::Bottom, ::Process, state) = nothing
 
 """
+    caninteract(layer1::Layer, layer2::Layer, state1, state2)
+    caninteract(l1::Layer, ::Process, l2::Layer, ::Process, state1, state2)
+
+Returns `true` if and only if the given layer/process types are able to interact based on the current state.
+Defaults to checking whether both layers are currently active. This behavior should be overridden by subtypes where necessary.
+"""
+caninteract(layer1::Layer, layer2::Layer, state1, state2) = caninteract(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
+caninteract(l1::Layer, ::Process, l2::Layer, ::Process, state1, state2) = isactive(l1, state1) && isactive(l2, state2)
+
+"""
+    interactmaybe!(layer1::Layer, layer2::Layer, state1, state2)
+    interactmaybe!(layer1::Layer, p1::Process, layer2::Layer, p2::Process, state1, state2)
+
+Conditionally invokes `interact!` if and only if `caninteract` is true.
+"""
+interactmaybe!(layer1::Layer, layer2::Layer, state1, state2) = interactmaybe!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
+function interactmaybe!(layer1::Layer, p1::Process, layer2::Layer, p2::Process, state1, state2)
+    if caninteract(layer1, p1, layer2, p2, state1, state2)
+        interact!(layer1, p1, layer2, p2, state1, state2)
+        return true
+    end
+    return false
+end
+
+"""
     resetfluxes!(layer::Layer, state)
     resetfluxes!(layer::Layer, ::Process, state)
 

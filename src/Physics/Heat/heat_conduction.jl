@@ -101,25 +101,16 @@ end
     end
 end
 
-"""
-Generic top interaction. Computes flux jH at top cell.
-"""
 function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatBalance, stop, ssub)
     # boundary flux
     ssub.jH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
     return nothing
 end
-"""
-Generic bottom interaction. Computes flux jH at bottom cell.
-"""
 function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc::HeatBC, ssub, sbot)
     # boundary flux; here we flip the sign since a positive flux is by convention downward
     ssub.jH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
     return nothing
 end
-"""
-Generic subsurface interaction. Computes flux jH at boundary between subsurface layers.
-"""
 function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, ::HeatBalance, s1, s2)
     Δk₁ = CryoGrid.thickness(sub1, s1, last)
     Δk₂ = CryoGrid.thickness(sub2, s2, first)
@@ -133,9 +124,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     return nothing
 end
 
-"""
-Flux calculation for heat conduction (enthalpy) on subsurface layer.
-"""
+
 function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
@@ -143,9 +132,6 @@ function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Ent
     Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
     return nothing
 end
-"""
-Flux calculation for heat conduction (temperature) on subsurface layer.
-"""
 function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:Temperature}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances

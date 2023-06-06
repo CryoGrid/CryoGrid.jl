@@ -89,10 +89,8 @@ function CryoGrid.interact!(
     ssnow
 )
     @setscalar ssnow.T_ub = getscalar(stop.T_ub)
-    if CryoGrid.isactive(snow, ssnow)
-        # boundary flux
-        ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
-    end
+    # boundary flux
+    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
     return nothing
 end
 

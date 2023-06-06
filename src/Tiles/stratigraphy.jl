@@ -88,62 +88,6 @@ function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)
     return Stratigraphy(boundaries(strat), layers_patched)
 end
 
-"""
-    stratiterate(f!::F, strat::Stratigraphy{N,TLayers}, state) where {F,N,TLayers}
-
-`stratiterate` invokes the user-supplied function `f!(layer1, layer2, state1, state2)` on each pair of layers
-in the stratigraphy which are adjacent and "active" based on the current `state`. `state` must have properties defined
-corresponding to the name of each layer such that `getproperty(state, layername(strat[i]))` would return the appropriate
-state object for the i'th layer in the stratigraphy.
-"""
-@generated function stratiterate(f!::F, strat::Stratigraphy{N,TLayers}, state) where {F,N,TLayers}
-    expr = Expr(:block)
-    # build expressions for checking whether each layer is active
-    is_active_exprs = map(i -> :(CryoGrid.isactive(strat[$i].val, getproperty(state, layername(strat[$i])))), tuple(1:N...))
-    # header code; get layer names and evaluate `isactive` for each layer
-    push!(
-        expr.args,
-        quote
-            names = layernames(strat)
-            is_active = tuple($(is_active_exprs...))
-        end
-    )
-    # We only invoke the function on pairs of layers for which the following are satisfied:
-    # 1) Both layers are currently "active" according to CryoGrid.isactive
-    # 2) Both layers are adjacent or all layers imbetween are currently inactive
-    # In order to make this type stable, we generate code for all combinations of layers i, j where j > i.
-    # This is effectively just a form of loop unrolling which greatly improves performance and avoids allocations.
-    for i in 1:N-1
-        for j in i+1:N
-            expr_ij =
-                if j == i + 1
-                    # always invoke for adjacent layers
-                    quote
-                        f!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
-                    end
-                else
-                    # for layers that are non-adjacent, we only invoke f! if all layers between them are currently inactive.
-                    inactive_imbetween_layers = map(i+1:j-1) do k
-                        quote
-                            !is_active[$k]
-                        end
-                    end
-                    quote
-                        # if layers i and j are both active, and all imbetween layers are inactive, invoke f!;
-                        # note the splat syntax here: $(inactive_imbetween_layers...) simply expands the tuple of
-                        # expressions 'inactive_imbetween_layers' as arguments to `tuple`.
-                        if is_active[$i] && is_active[$j] && all(tuple($(inactive_imbetween_layers...)))
-                            f!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
-                        end
-                    end
-                end
-            push!(expr.args, expr_ij)
-        end
-    end
-    push!(expr.args, :(return nothing))
-    return expr
-end
-
 function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy)
     strat_grid = nothing
     for (bounds, named_layer) in zip(boundarypairs(strat)[2:end-1], layers(strat)[2:end-1])
@@ -202,12 +146,62 @@ end
     end
 end
 
-@inline function CryoGrid.interact!(strat::Stratigraphy, state)
-    # interact! requires special implementation via `stratiterate`
-    # this allows for layer states to determine which adjacent layers can and cannot interact
-    stratiterate(strat, state) do layer1, layer2, state1, state2
-        CryoGrid.interact!(layer1, layer2, state1, state2)
+"""
+    interact!(strat::Stratigraphy, state)
+
+Special implementation of `interact!` that iterates over each pair of layers in the stratigraphy which are adjacent and
+"active" based on the current `state`. `state` must have properties defined corresponding to the name of each layer such
+that `getproperty(state, layername(strat[i]))` would return the appropriate state object for the i'th layer in the stratigraphy.
+"""
+@generated function CryoGrid.interact!(strat::Stratigraphy{N}, state) where {N}
+    expr = Expr(:block)
+    # build expressions for checking whether each layer is active
+    is_active_exprs = map(i -> :(CryoGrid.isactive(strat[$i].val, getproperty(state, layername(strat[$i])))), tuple(1:N...))
+    # header code; get layer names and evaluate `isactive` for each layer
+    push!(
+        expr.args,
+        quote
+            names = layernames(strat)
+            is_active = tuple($(is_active_exprs...))
+        end
+    )
+    # We only invoke the function on pairs of layers for which the following are satisfied:
+    # 1) Both layers are currently "active" according to CryoGrid.isactive
+    # 2) Both layers are adjacent or all layers imbetween are currently inactive
+    # In order to make this type stable, we generate code for all combinations of layers i, j where j > i.
+    # This is effectively just a form of loop unrolling which greatly improves performance and avoids allocations.
+    for i in 1:N-1
+        for j in i+1:N
+            expr_ij =
+                if j == i + 1
+                    # always try to invoke interact! for adjacent layers
+                    quote
+                        if caninteract(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                            interact!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                        end
+                    end
+                else
+                    # for layers that are non-adjacent, we only invoke interact! if all layers between them are currently inactive.
+                    inactive_imbetween_layers = map(i+1:j-1) do k
+                        quote
+                            !is_active[$k]
+                        end
+                    end
+                    quote
+                        # if layers i and j are both active, and all imbetween layers are inactive, invoke f!;
+                        # note the splat syntax here: $(inactive_imbetween_layers...) simply expands the tuple of
+                        # expressions 'inactive_imbetween_layers' as arguments to `tuple`.
+                        can_interact = caninteract(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                        if is_active[$i] && is_active[$j] && all(tuple($(inactive_imbetween_layers...))) && can_interact
+                            interact!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                        end
+                    end
+                end
+            push!(expr.args, expr_ij)
+        end
     end
+    push!(expr.args, :(return nothing))
+    return expr
 end
 
 @inline function CryoGrid.computefluxes!(strat::Stratigraphy, state)
