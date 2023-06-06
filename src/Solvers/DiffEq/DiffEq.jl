@@ -10,7 +10,6 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using ComponentArrays
-using DataStructures
 using Dates
 using DimensionalData
 using Flatten
@@ -35,8 +34,6 @@ include("linsolve.jl")
 
 export NLCGLite
 include("nlsolve/nlsolve.jl")
-
-include("output.jl")
 
 export CryoGridEnsembleSetup, CryoGridEnsembleProblem
 include("ensemble.jl")

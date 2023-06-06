@@ -252,7 +252,7 @@ function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))
     layer = named_layer.val
     declared_vars = variables(layer)
     nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
-    all_vars = vcat(declared_vars, nested_vars)
+    all_vars = vcat(collect(declared_vars), collect(nested_vars))
     # check for (permissible) duplicates between variables, excluding parameters
     groups = Utils.groupby(var -> varname(var), all_vars)
     for (id,vargroup) in filter(g -> length(g.second) > 1, groups)
