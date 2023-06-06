@@ -11,7 +11,6 @@ using Base: @propagate_inbounds
 using Reexport: @reexport
 
 @reexport using FreezeCurves
-@reexport using FreezeCurves.Solvers
 
 export FreeWater, FreezeCurve
 

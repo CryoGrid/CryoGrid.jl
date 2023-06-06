@@ -55,7 +55,7 @@ function CryoGrid.initialcondition!(
     hc = partial_heatcapacity(soil, heat)
     θsat = porosity(soil, state)
     @unpack ch_w, ch_i = thermalproperties(soil)
-    FreezeCurves.Solvers.initialize!(solver, fc, hc; θsat)
+    FreezeCurves.initialize!(solver, fc, hc; θsat)
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         T = state.T[i]

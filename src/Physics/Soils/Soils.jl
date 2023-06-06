@@ -18,7 +18,6 @@ using UnPack
 
 # Re-export FreezeCurves package
 @reexport using FreezeCurves
-@reexport using FreezeCurves.Solvers
 
 # aliases for heat formulations in Heat module
 const Temperature = Heat.Temperature

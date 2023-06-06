@@ -1,5 +1,3 @@
-abstract type CryoGridODEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
-
 """
     CGEuler <: SciMLBase.AbstractODEAlgorithm
 

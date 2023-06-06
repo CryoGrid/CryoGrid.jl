@@ -1,3 +1,5 @@
+abstract type CryoGridODEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
+
 mutable struct CryoGridSolution{TT,Tu<:AbstractVector{TT},Tt,Talg,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
     prob::Tprob
     u::Vector{Tu}

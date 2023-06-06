@@ -1,4 +1,4 @@
-Base.@kwdef struct LiteImplicitEuler <: CryoGridODEAlgorithm
+Base.@kwdef struct LiteImplicitEuler <: CryoGrid.CryoGridODEAlgorithm
     miniters::Int = 2
     maxiters::Int = 1000
     tolerance::Float64 = 1e-3
