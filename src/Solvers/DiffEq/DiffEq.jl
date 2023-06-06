@@ -23,11 +23,17 @@ using Unitful
 using UnPack
 
 using DiffEqBase
-using SciMLBase
-using DiffEqCallbacks
+using OrdinaryDiffEq
 
-@reexport using OrdinaryDiffEq
-@reexport using DiffEqBase: solve, init, ODEProblem
+# re-export DiffEqCallbacks
+@reexport using DiffEqCallbacks
+
+# re-export selected types from OrdinaryDiffEq;
+export OrdinaryDiffEq
+# explicit methods
+export Euler, Heun, DP5, Tsit5, ROCK2, ROCK4, SSPRK22, SSPRK33, SSPRK43
+# implicit methods
+export ImplicitEuler, ImplicitMidpoint, Trapezoid, SSPSDIRK2
 
 export TDMASolver
 include("linsolve.jl")

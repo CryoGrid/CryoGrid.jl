@@ -99,6 +99,7 @@ Generic "top" layer that marks the upper boundary of the subsurface grid.
 struct Top{TProc} <: Layer
     proc::TProc
     Top(proc::BoundaryProcess) = new{typeof(proc)}(proc)
+    Top(procs::CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}) = new{typeof(procs)}(procs)
 end
 
 """
@@ -109,6 +110,7 @@ Generic "bottom" layer that marks the lower boundary of the subsurface grid.
 struct Bottom{TProc} <: Layer
     proc::TProc
     Bottom(proc::BoundaryProcess) = new{typeof(proc)}(proc)
+    Bottom(procs::CoupledProcesses{<:Tuple{Vararg{BoundaryProcess}}}) = new{typeof(procs)}(procs)
 end
 # allow broadcasting of Layer types
 Base.Broadcast.broadcastable(l::Layer) = Ref(l)

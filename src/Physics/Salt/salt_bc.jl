@@ -1,5 +1,6 @@
-# type alias for salt boundary conditions
+# type aliases for salt boundary conditions
 const SaltBC = BoundaryProcess{T} where {SaltMassBalance<:T<:SubSurfaceProcess}
+const SaltHeatBC{TSalt,THeat} = Coupled2{THeat,TSalt} where {TSalt<:SaltBC,THeat<:HeatBC}
 
 Base.@kwdef struct SaltGradient{TbenthicSalt, TsurfaceState} <: BoundaryProcess{SaltMassBalance}
     benthicSalt::TbenthicSalt
@@ -28,24 +29,3 @@ function CryoGrid.interact!(::Top, bc::SaltGradient, soil::SaltySoil, ::SaltMass
     ssed.jc[1] = flux
     #lower boundary should get own function, but is zero anyhow so gets this by default
 end
-
-Base.@kwdef struct HeatSaltBC{Theat,Tsalt} <: BoundaryProcess{Union{SaltMassBalance,HeatBalance}}
-    heat::Theat
-    salt::Tsalt
-end
-
-function CryoGrid.updatestate!(top::Top, bc::HeatSaltBC, state)
-    updatestate!(top, bc.salt, state)
-    updatestate!(top, bc.heat, state)
-end
-
-function CryoGrid.interact!(top::Top, bc::HeatSaltBC, sub::SubSurface, ps::Coupled(SaltMassBalance, HeatBalance), stop, ssub)
-    interact!(top, bc.salt, sub, ps[1], stop, ssub)
-    interact!(top, bc.heat, sub, ps[2], stop, ssub)
-end
-
-function CryoGrid.computefluxes!(top::Top, bc::HeatSaltBC, state)
-    computefluxes!(top, bc.salt, state)
-    computefluxes!(top, bc.heat, state)
-end
-

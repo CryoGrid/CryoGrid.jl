@@ -1,13 +1,10 @@
 using CryoGrid
-using CryoGrid.Heat
-using CryoGrid.Salt
-using Plots
 
 initT = initializer(:T, -2.0)
 initsalt = initializer(:c, 0.0)
 initpor = SedimentCompactionInitializer(porosityZero=0.4)
 sfcc = DallAmicoSalt(swrc=VanGenuchten(α=4.06, n=2.03))
-upperbc = HeatSaltBC(ConstantTemperature(0.0), SaltGradient(benthicSalt=900.0, surfaceState=0))
+upperbc = SaltHeatBC(SaltGradient(benthicSalt=900.0, surfaceState=0), ConstantTemperature(0.0))
 strat = @Stratigraphy(
     0.0u"m" => Top(upperbc),
     0.0u"m" => :sediment => SaltySoil(heat=HeatBalance(:T, freezecurve=sfcc), salt=SaltMassBalance()),

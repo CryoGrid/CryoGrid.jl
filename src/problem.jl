@@ -1,6 +1,3 @@
-using DiffEqCallbacks, SciMLBase
-import DiffEqBase, DiffEqCallbacks
-
 """
     CryoGridProblem{iip,Tu,Tt,Tp,TT,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
 

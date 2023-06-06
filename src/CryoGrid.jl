@@ -22,12 +22,15 @@ import Flatten
 import Interpolations
 
 # Re-exported packages
-@reexport using Dates: Dates, Date, DateTime
+@reexport using Dates
+@reexport using DiffEqBase
+@reexport using DiffEqCallbacks
 @reexport using DimensionalData
 @reexport using IfElse
 @reexport using IntervalSets
 @reexport using ModelParameters
 @reexport using Setfield: @set, @set!
+@reexport using SciMLBase
 @reexport using Unitful
 @reexport using UnPack
 
@@ -73,6 +76,8 @@ include("Tiles/Tiles.jl")
 @reexport using .Tiles
 parameters = Tiles.parameters
 
+export ConstantBC, PeriodicBC, ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux
+export volumetricfractions
 include("Physics/Physics.jl")
 
 include("Diagnostics/Diagnostics.jl")

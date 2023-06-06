@@ -1,12 +1,4 @@
 using CryoGrid
-using CryoGrid.Heat
-using CryoGrid.Hydrology
-using CryoGrid.Snow
-using CryoGrid.Soils
-using CryoGrid.Surface
-
-using Dates
-using Plots
 
 # Custom grid;
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm;

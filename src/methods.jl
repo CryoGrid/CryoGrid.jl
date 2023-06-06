@@ -73,8 +73,8 @@ for all non-boundary (subsurface) processes/layers.
 """
 computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
 computefluxes!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
-computefluxes!(::Top, ::Process, state) = nothing
-computefluxes!(::Bottom, ::Process, state) = nothing
+computefluxes!(::Top, ::BoundaryProcess, state) = nothing
+computefluxes!(::Bottom, ::BoundaryProcess, state) = nothing
 
 """
     caninteract(layer1::Layer, layer2::Layer, state1, state2)
