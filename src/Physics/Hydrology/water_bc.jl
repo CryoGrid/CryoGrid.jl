@@ -8,6 +8,24 @@ ConstantInfiltration(value::Quantity) = ConstantBC(WaterBalance, Neumann, uconve
 ConstantInfiltration(value) = ConstantBC(WaterBalance, Neumann, value)
 ImpermeableBoundary() = ConstantBC(WaterBalance, Neumann, 0.0u"m/s")
 
+function balancefluxes!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
+    θw = ssub.θw[1]
+    θwi = ssub.θwi[1]
+    θsat = ssub.θsat[1]
+    sat = ssub.sat[1]
+    Δz = CryoGrid.thickness(sub, ssub, first)
+    ssub.jw[1] = limit_upper_flux(water, ssub.jw[1], θw, θwi, θsat, sat, Δz)
+end
+
+function balancefluxes!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
+    θw = ssub.θw[end]
+    θwi = ssub.θwi[end]
+    θsat = ssub.θsat[end]
+    sat = ssub.sat[end]
+    Δz = CryoGrid.thickness(sub, ssub, last)
+    ssub.jw[end] = limit_lower_flux(water, ssub.jw[end], θw, θwi, θsat, sat, Δz)
+end
+
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     @inbounds let ψupper=boundaryvalue(bc, stop),
@@ -28,25 +46,12 @@ end
 end
 
 function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
-    θw = ssub.θw[1]
-    θwi = ssub.θwi[1]
-    θsat = ssub.θsat[1]
-    sat = ssub.sat[1]
-    Δz = CryoGrid.thickness(sub, ssub, first)
-    jw_up = CryoGrid.boundaryflux(bc, top, water, sub, stop, ssub)*ssub.dt
-    jw_up = limit_upper_flux(water, jw_up, θw, θwi, θsat, sat, Δz)
-    ssub.jw[1] += jw_up
+    ssub.jw[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop, ssub)*ssub.dt
+    balancefluxes!(top, bc, sub, water, stop, ssub)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
-    θw = ssub.θw[end]
-    θwi = ssub.θwi[end]
-    θsat = ssub.θsat[end]
-    sat = ssub.sat[end]
-    Δz = CryoGrid.thickness(sub, ssub, first)
-    # sign flipped due to positive downward convention
-    jw_lo = -CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)*ssub.dt
-    jw_lo = limit_lower_flux(water, jw_lo, θw, θwi, θsat, sat, Δz)
-    ssub.jw[end] += jw_lo
+    ssub.jw[end] += CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)*ssub.dt
+    balancefluxes!(sub, water, bot, bc, ssub, sbot)
     return nothing
 end

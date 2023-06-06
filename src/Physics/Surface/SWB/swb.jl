@@ -44,7 +44,7 @@ end
 function runoff!(::Top, ::SurfaceWaterBalance, state)
     jw_rain = getscalar(state.jw_rain)
     jw_infil = getscalar(state.jw_infil)
-    @setscalar state.∂R∂t = (jw_rain - jw_infil)*area(state.grid)
+    @setscalar state.∂R∂t = max(zero(jw_rain), jw_rain - jw_infil)*area(state.grid)
 end
 
 function ETflux!(::Top, ::SurfaceEnergyWaterBalance, state)
@@ -94,6 +94,7 @@ function CryoGrid.interact!(
     # flip the sign from the ground ET flux which is positive downward
     @setscalar stop.jw_ET = -ground_ET(water, ssub)
     infiltrate!(top, swb, sub, water, stop, ssub)
+    Hydrology.balancefluxes!(top, swb, sub, water, stop, ssub)
     return nothing
 end
 

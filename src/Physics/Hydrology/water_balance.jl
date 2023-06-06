@@ -186,11 +186,12 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     θmin₁ = minwater(sub1, water1, state1, lastindex(state1.θw))
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
-    kw = state1.kw[end] = state2.kw[1] = harmonicmean(kwc₁, kwc₂, Δz₁, Δz₂)
+    kw = state1.kw[end] = state2.kw[1] = min(kwc₁, kwc₂)
     jw = advectiveflux(θw₁, θmin₁, kw)*state1.dt
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
     state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)
+    interact_ET!(sub1, water1, sub2, water2, state1, state2)
     return nothing
 end
 

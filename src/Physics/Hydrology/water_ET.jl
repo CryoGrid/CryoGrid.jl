@@ -95,7 +95,8 @@ CryoGrid.variables(et::DampedET) = (
     Diagnostic(:w_tr, OnGrid(Cells), u"m", desc="Damped grid cell weight for transpiration"),
     Diagnostic(:αᶿ, OnGrid(Cells), domain=0..1, desc="Water availability coefficient."),
 )
-function CryoGrid.interact!(
+
+function interact_ET!(
     ::SubSurface,
     ::WaterBalance{<:BucketScheme,<:DampedET},
     ::SubSurface,

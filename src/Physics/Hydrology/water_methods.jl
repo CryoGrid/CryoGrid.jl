@@ -14,6 +14,13 @@ Hydraulic conductivity at saturation.
 kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
 
 """
+    interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2)
+
+Specialized subsurface layer interaction for evapotranspirative processes. Default implementation does nothing.
+"""
+interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2) = nothing
+
+"""
     maxwater(sub::SubSurface, ::WaterBalance) 
     maxwater(sub::SubSurface, water::WaterBalance, state)
     maxwater(::SubSurface, ::WaterBalance, state, i)
@@ -69,14 +76,13 @@ hydraulicconductivity(sub::SubSurface, water::WaterBalance, θw, θwi, θsat) = 
 Computes hydraulic conductivities for the given subsurface layer and water balance scheme.
 """
 @inline function hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
-    Δkw = Δ(state.grid)
     @inbounds for i in eachindex(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],
             θwi = state.θwi[i];
             state.kwc[i] = hydraulicconductivity(sub, water, θw, θwi, θsat)
             if i > 1
-                state.kw[i] = Numerics.harmonicmean(state.kwc[i-1], state.kwc[i], Δkw[i-1], Δkw[i])
+                state.kw[i] = min(state.kwc[i-1], state.kwc[i])
             end
         end
     end
