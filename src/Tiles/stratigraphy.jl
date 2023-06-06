@@ -99,35 +99,45 @@ state object for the i'th layer in the stratigraphy.
 @generated function stratiterate(f!::F, strat::Stratigraphy{N,TLayers}, state) where {F,N,TLayers}
     expr = Expr(:block)
     # build expressions for checking whether each layer is active
-    can_interact_exprs = map(i -> :(CryoGrid.isactive(strat[$i].val, getproperty(state, layername(strat[$i])))), tuple(1:N...))
+    is_active_exprs = map(i -> :(CryoGrid.isactive(strat[$i].val, getproperty(state, layername(strat[$i])))), tuple(1:N...))
+    # header code; get layer names and evaluate `isactive` for each layer
     push!(
         expr.args,
         quote
             names = layernames(strat)
-            can_interact = tuple($(can_interact_exprs...))
+            is_active = tuple($(is_active_exprs...))
         end
     )
-    # We only invoke interact! on pairs of layers for which the following are satisfied:
-    # 1) Both layers have thickness > 0 (i.e. they occupy non-zero space in the stratigraphy)
-    # 2) Both layers are adjacent, or more crudely, all layers in between (if any) have zero thickness;
-    # In order to make this type stable, we pre-generate all possible interact! expressions in the
-    # downward direction and add a check to each one.
+    # We only invoke the function on pairs of layers for which the following are satisfied:
+    # 1) Both layers are currently "active" according to CryoGrid.isactive
+    # 2) Both layers are adjacent or all layers imbetween are currently inactive
+    # In order to make this type stable, we generate code for all combinations of layers i, j where j > i.
+    # This is effectively just a form of loop unrolling which greatly improves performance and avoids allocations.
     for i in 1:N-1
         for j in i+1:N
-            expr_next = if (i == 1 && j == 2) || (i == N-1 && j == N)
-                # always apply top and bottom interactions
-                quote
-                    f!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
-                end
-            else
-                innerchecks_exprs = j > i+1 ? map(k -> :(can_interact[$k]), i+1:j-1) : :(false)
-                quote
-                    if can_interact[$i] && can_interact[$j] && !any(tuple($(innerchecks_exprs...)))
+            expr_ij =
+                if j == i + 1
+                    # always invoke for adjacent layers
+                    quote
                         f!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
                     end
+                else
+                    # for layers that are non-adjacent, we only invoke f! if all layers between them are currently inactive.
+                    inactive_imbetween_layers = map(i+1:j-1) do k
+                        quote
+                            !is_active[$k]
+                        end
+                    end
+                    quote
+                        # if layers i and j are both active, and all imbetween layers are inactive, invoke f!;
+                        # note the splat syntax here: $(inactive_imbetween_layers...) simply expands the tuple of
+                        # expressions 'inactive_imbetween_layers' as arguments to `tuple`.
+                        if is_active[$i] && is_active[$j] && all(tuple($(inactive_imbetween_layers...)))
+                            f!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                        end
+                    end
                 end
-            end
-            push!(expr.args, expr_next)
+            push!(expr.args, expr_ij)
         end
     end
     push!(expr.args, :(return nothing))
@@ -226,6 +236,7 @@ CryoGrid.variables(::PrognosticVolume) = (
     Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
     Diagnostic(:z, Scalar, u"m"),
 )
+# collects all variables in the stratgriphy, returning a NamedTuple of variable sets.
 function CryoGrid.variables(strat::Stratigraphy)
     strat_nt = NamedTuple(strat)
     layervars = map(CryoGrid.variables, strat_nt)
@@ -236,11 +247,12 @@ function CryoGrid.variables(strat::Stratigraphy)
         )
     end
 end
+# collects and validates all variables in a given layer
 function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))
     layer = named_layer.val
     declared_vars = variables(layer)
     nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
-    all_vars = tuplejoin(declared_vars, nested_vars)
+    all_vars = vcat(declared_vars, nested_vars)
     # check for (permissible) duplicates between variables, excluding parameters
     groups = Utils.groupby(var -> varname(var), all_vars)
     for (id,vargroup) in filter(g -> length(g.second) > 1, groups)
@@ -250,10 +262,11 @@ function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))
     diag_vars = filter(isdiagnostic, all_vars)
     prog_vars = filter(isprognostic, all_vars)
     alg_vars = filter(isalgebraic, all_vars)
-    # check for duplicated algebraic/prognostic vars
+    # check for duplicated algebraic/prognostic vars by taking intersection of both sets of vars
     prog_alg_duplicated = prog_vars ∩ alg_vars
     @assert isempty(prog_alg_duplicated) "Variables $(prog_alg_duplicated) cannot be both prognostic and algebraic."
-    # check for re-definition of diagnostic variables as prognostic
+    # check for re-definition of diagnostic variables as prognostic;
+    # we take the union of both algebraic and prognostic variables and then check for matching diagnostic variables
     prog_alg = prog_vars ∪ alg_vars
     diag_prog = filter(v -> v ∈ prog_alg, diag_vars)
     # check for conflicting definitions of differential vars
