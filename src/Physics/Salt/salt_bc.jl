@@ -2,6 +2,8 @@
 const SaltBC = BoundaryProcess{T} where {SaltMassBalance<:T<:SubSurfaceProcess}
 const SaltHeatBC{TSalt,THeat} = Coupled2{THeat,TSalt} where {TSalt<:SaltBC,THeat<:HeatBC}
 
+SaltHeatBC(saltbc::SaltBC, heatbc::HeatBC) = Coupled(saltbc, heatbc)
+
 Base.@kwdef struct SaltGradient{TbenthicSalt, TsurfaceState} <: BoundaryProcess{SaltMassBalance}
     benthicSalt::TbenthicSalt
     surfaceState::TsurfaceState
