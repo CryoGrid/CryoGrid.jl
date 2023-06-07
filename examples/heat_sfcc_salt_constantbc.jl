@@ -24,11 +24,14 @@ integrator = init(prob, Euler(), dt=60.0, saveat=24*3600.0, progress=true);
 # run to end of tspan
 @time for i in integrator end
 out = CryoGridOutput(integrator.sol)
+
 # Plot it!
+import Plots
+
 zs = [5,15,25,35,45,55,65,75]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 total_salt = out.c.*out.θw
-plot(total_salt[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Salt concentration", leg=false, size=(800,500), dpi=150)
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-plot(out.c[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Salt concentration", leg=false, size=(800,500), dpi=150)
-plot(out.θw[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Liquid water content", leg=false, size=(800,500), dpi=150)
+Plots.plot(total_salt[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Salt concentration", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.c[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Salt concentration", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.θw[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Liquid water content", leg=false, size=(800,500), dpi=150)

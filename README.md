@@ -33,7 +33,7 @@ Single layer heat conduction model with free water freeze curve and air temperat
 
 ```julia
 using CryoGrid
-using Plots
+using Plots: plot
 
 # load provided forcing data from Samoylov;
 # The forcing file will be automatically downloaded to the input/ folder if not already present.

@@ -51,7 +51,7 @@ Plots.plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', 
 plt1 = Plots.plot!(ustrip.(out.snowpack.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
 Plots.plot(ustrip(out.snowpack.swe), ylabel="Depth (m)", label="Snow water equivalent", dpi=150)
 plt2 = Plots.plot!(ustrip.(out.snowpack.dsn), label="Snow depth", legend=nothing, legendtitle=nothing, dpi=150)
-plot(plt1, plt2, size=(1600,700), margins=5*Plots.Measures.mm)
+Plots.plot(plt1, plt2, size=(1600,700), margins=5*Plots.Measures.mm)
 # heatmap
 T_sub = out.T[Z(Between(0.0u"m",10.0u"m"))]
 Plots.heatmap(T_sub, yflip=true, size=(1200,600), dpi=150)

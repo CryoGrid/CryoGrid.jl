@@ -18,7 +18,7 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,))
 out = @time solve(prob, SSPRK22(), dt=300.0, saveat=3*3600.0, progress=true) |> CryoGridOutput;
 
 # Plot it!
-import CairoMakie
+import Plots
 
 zs = [5,10,15,20,25,30,40,50,100,500]u"cm"
 Diagnostics.plot_at_depths(:T, out, zs, ylabel="Temperature (°C)")

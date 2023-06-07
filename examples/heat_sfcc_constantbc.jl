@@ -26,12 +26,17 @@ u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=900.0, savevars=(:T,))
 @info "Running model"
 out = @time solve(prob, SSPRK43(), reltol=1e-8, saveat=900.0, progress=true) |> CryoGridOutput;
-# Plot it!
-zs = [5,10,15,20,25,30,40,50,100]u"cm"
-cg = Plots.cgrad(:copper,rev=true);
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-# plot(out.θw[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+
+# check mass conservation
 Htot = Diagnostics.integrate(out.H, grid)
-plot(uconvert.(u"MJ", Htot .- Htot[1]), title="Energy balance error")
 # compute final energy balance error
 mass_balance_error = Htot[end] - Htot[1]
+
+# Plot it!
+import Plots
+
+zs = [5,10,15,20,25,30,40,50,100]u"cm"
+Diagnostics.plot_at_depths(:T, out, zs, ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+
+# energy balance error over time
+Plots.plot(uconvert.(u"MJ", Htot .- Htot[1]), title="Energy balance error")

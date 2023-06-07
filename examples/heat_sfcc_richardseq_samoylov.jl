@@ -63,8 +63,10 @@ water_mass = Diagnostics.integrate(out.θwi, tile.grid)
 water_resid = water_mass[end] - water_mass[1] - water_added*1u"m^2"
 
 # Plot it!
+import Plots
+
 zs = [1,5,10,15,20,30,40,50,100,150,200]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-plot(out.sat[Z(1:10)], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.sat[Z(1:10)], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)

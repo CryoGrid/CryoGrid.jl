@@ -25,7 +25,8 @@ prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jH), step_limiter=nothing)
 out = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true) |> CryoGridOutput;
 
 # Plot it!
+import Plots
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)

@@ -31,7 +31,10 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)
+
 # Plot the results
+import Plots
+
 zs = [5,10,15,20,25,30,40,50,100,500,1000,5000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)
+Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)

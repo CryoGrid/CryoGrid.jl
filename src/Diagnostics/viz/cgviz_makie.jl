@@ -3,7 +3,7 @@ function plot_at_depths(var::Symbol, out::CryoGridOutput, depths; kwargs...)
     plot_at_depths!(fig[1,1], var, out, depths; kwargs...)
     return fig
 end
-function plot_at_depths!(fig, var::Symbol, out::CryoGridOutput, depths; axis_kwargs=(;), ylabel="", title="", xticks=nothing, color=:copper, kwargs...)
+function plot_at_depths!(fig, var::Symbol, out::CryoGridOutput, depths; axis_kwargs=(;), ylabel="", title="", xticks=nothing, cmap::Symbol=:copper, kwargs...)
     data = getproperty(out, var)
     subdata = data[Z(Near(depths))]
     ts = collect(dims(data, Ti))
@@ -15,7 +15,7 @@ function plot_at_depths!(fig, var::Symbol, out::CryoGridOutput, depths; axis_kwa
         xticks
     end
     ax = Makie.Axis(fig; title, ylabel, xticks, xticklabelrotation = π/4, axis_kwargs...)
-    cm = Makie.cgrad(color, size(subdata, Z), rev=true, categorical=true)
+    cm = Makie.cgrad(cmap, size(subdata, Z), rev=true, categorical=true)
     Makie.series!(1:length(ts), ustrip.(subdata.data), color=collect(cm), kwargs...)
     return ax
 end
