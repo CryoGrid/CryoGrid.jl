@@ -174,3 +174,10 @@ abstract type Parameterization end
 Base type for dynamic parameterizations whose values may be time or state dependent.
 """
 abstract type DynamicParameterization <: Parameterization end
+
+"""
+    VarInitializer{varname}
+
+Base type for state variable initializers.
+"""
+abstract type VarInitializer{varname} end

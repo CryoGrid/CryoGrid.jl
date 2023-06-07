@@ -119,13 +119,13 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
         # first invoke initialcondition! with initializers
         for init in all_inits
             if i == 1 && haskey(stateᵢ.states, varname(init))
-                CryoGrid.initialcondition!(layerᵢ, stateᵢ, init)
+                CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
             end
             if haskey(stateᵢ₊₁.states, varname(init))
-                CryoGrid.initialcondition!(layerᵢ₊₁, stateᵢ₊₁, init)
+                CryoGrid.initialcondition!(init, layerᵢ₊₁, stateᵢ₊₁)
             end
             if haskey(stateᵢ.states, varname(init)) && haskey(stateᵢ₊₁.states, varname(init))
-                CryoGrid.initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁, init)
+                CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
             end
         end
         # then invoke initialcondition! standalone

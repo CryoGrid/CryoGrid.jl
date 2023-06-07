@@ -8,7 +8,7 @@ initial surface temperature, `T1` is the permafrost temperature at `z_deep`,
 to be have temperature equal to `Tmelt`.
 """
 Base.@kwdef struct LinearTwoPhaseInitialTempProfile{TT,Tz} <: VarInitializer{:T}
-    T0::TT = 0.0u"°C"
+    T0::TT = 1.0u"°C"
     T1::TT = -10.0u"°C"
     Tmelt::TT = 0.0u"°C"
     z_top::Tz = 0.0u"m"
@@ -31,13 +31,13 @@ function (init::LinearTwoPhaseInitialTempProfile)(T::AbstractVector, grid::Grid)
     Tm = ustrip(init.Tmelt)
     z_top = ustrip(init.z_top)
     z_deep = ustrip(init.z_deep)
-    z_thaw = ustirp(init.z_thaw)
+    z_thaw = ustrip(init.z_thaw)
     z_base = ustrip(init.z_base)
     Ts = [T0, Tm, T1, Tm]
     zs = [z_top, z_thaw, z_deep, z_base]
-    f = Interp.extrapoloate(Interp.interpolate((zs,), Ts, Interp.Gridded(Interp.Linear())), Interp.Flat())
+    f = Interp.extrapolate(Interp.interpolate((zs,), Ts, Interp.Gridded(Interp.Linear())), Interp.Flat())
     # evaluate interpolant at grid cell midpoints
-    @. T = f(cells(grid))
+    T .= f.(cells(grid))
 end
 
 # implement initialcondition! for initializer type

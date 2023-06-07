@@ -41,9 +41,10 @@ export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
+export VarInitializer
 include("types.jl")
 
-export Prognostic, Algebraic, Diagnostic, Var, VarInitializer
+export Prognostic, Algebraic, Diagnostic, Var
 export VarDim, OnGrid, Shape, Scalar, GridOffset, Edges, Cells
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
