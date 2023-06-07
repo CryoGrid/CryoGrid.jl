@@ -41,7 +41,7 @@ function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, ::SubSurface, ::He
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = state.inputs.Tair
-    ssb.jH[1] += stop.Qg[1]
+    ssub.jH[1] += stop.Qg[1]
     return nothing
 end
 function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance{<:Numerical}, sub::SubSurface, ::HeatBalance, stop, ssub)
@@ -58,7 +58,7 @@ function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance{<:Numerical}, sub::
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = initialstate.inputs.Tair
-    ssb.jH[1] += stop.Qg[1]
+    ssub.jH[1] += stop.Qg[1]
     return nothing
 end
 

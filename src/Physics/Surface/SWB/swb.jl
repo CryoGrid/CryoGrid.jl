@@ -13,9 +13,9 @@ Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBala
 end
 
 """
-Type alias for `WaterHeatBC{TSEB,TSWB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}`.
+Type alias for `WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:SurfaceEnergyBalance}`.
 """
-const SurfaceEnergyWaterBalance{TSEB,TSWB} = WaterHeatBC{TSWB,TSEB} where {TSEB<:SurfaceEnergyBalance,TSWB<:SurfaceWaterBalance}
+const SurfaceWaterEnergyBalance{TSWB,TSEB} = WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:SurfaceEnergyBalance}
 
 rainfall(swb::SurfaceWaterBalance, t) = 0.0
 rainfall(swb::SurfaceWaterBalance{<:Forcing}, t) = swb.rainfall(t)
@@ -47,7 +47,7 @@ function runoff!(::Top, ::SurfaceWaterBalance, state)
     @setscalar state.∂R∂t = max(zero(jw_rain), jw_rain - jw_infil)*area(state.grid)
 end
 
-function ETflux!(::Top, ::SurfaceEnergyWaterBalance, state)
+function ETflux!(::Top, ::SurfaceWaterEnergyBalance, state)
     jw_ET = getscalar(stop.jw_ET)
     @setscalar stop.∂ET∂t = jw_ET*area(stop.grid)
 end
@@ -62,9 +62,9 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
     Diagnostic(:jw_ET, Scalar, u"m/s", domain=0..Inf),
 )
 
-CryoGrid.variables(top::Top, bc::SurfaceEnergyWaterBalance) = (
-    CryoGrid.variables(top, bc.water)...,
-    CryoGrid.variables(top, bc.heat)...,
+CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
+    CryoGrid.variables(top, bc[1])...,
+    CryoGrid.variables(top, bc[2])...,
     Prognostic(:ET, Scalar, u"m^3"),
 )
 

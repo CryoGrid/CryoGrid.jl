@@ -22,10 +22,9 @@ struct Stratigraphy{N,TLayers,TBoundaries}
         bot::Pair{<:DistQuantity,<:Bottom}
     ) = Stratigraphy(top,(sub,),bot)
     Stratigraphy(
-        # use @nospecialize to (hopefully) reduce compilation overhead
-        @nospecialize(top::Pair{<:DistQuantity,<:Top}),
-        @nospecialize(sub::AbstractVector{<:Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}}}),
-        @nospecialize(bot::Pair{<:DistQuantity,<:Bottom})
+        top::Pair{<:DistQuantity,<:Top},
+        sub::AbstractVector{<:Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}}},
+        bot::Pair{<:DistQuantity,<:Bottom}
     ) = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
@@ -91,9 +90,7 @@ end
 function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy)
     strat_grid = nothing
     for (bounds, named_layer) in zip(boundarypairs(strat)[2:end-1], layers(strat)[2:end-1])
-        if bounds[2] - bounds[1] <= zero(bounds[1])
-            continue
-        end
+        @assert bounds[2] - bounds[1] > zero(bounds[1]) "Subsurface layers must have thickness greater than zero in the stratigraphy. The initial thickness can be later updated in `initialcondition!`."
         layer = named_layer.val
         layer_grid = Numerics.makegrid(layer, strategy, bounds)
         if !isnothing(strat_grid)

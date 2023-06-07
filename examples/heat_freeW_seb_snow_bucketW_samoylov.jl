@@ -21,17 +21,17 @@ z = 2.0u"m";    # height [m] for which the forcing variables (Temp, humidity, wi
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
 swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
 upperbc = WaterHeatBC(swb, seb)
-soil_layers = map(enumerate(soilprofile)) do (i, soil_i)
-    name = Symbol(:soil, i)
-    heat = HeatBalance(:H, freezecurve=PainterKarra())
-    water = WaterBalance(BucketScheme(), DampedET())
-    soil_i.depth => name => HomogeneousSoil(soil_i.value; heat, water)
-end
+heat = HeatBalance(:H, freezecurve=PainterKarra())
+water = WaterBalance(BucketScheme(), DampedET())
 # build stratigraphy
 strat = @Stratigraphy(
-    -z*u"m" => Top(upperbc),
-    0.0u"m" => :snowpack => Snowpack(heat=HeatBalance()),
-    soil_layers...,
+    -z => Top(upperbc),
+    -z => :snowpack => Snowpack(heat=HeatBalance()),
+    soilprofile[1].depth => :soil1 => HomogeneousSoil(soilprofile[1].value; heat, water),
+    soilprofile[2].depth => :soil2 => HomogeneousSoil(soilprofile[2].value; heat, water),
+    soilprofile[3].depth => :soil3 => HomogeneousSoil(soilprofile[3].value; heat, water),
+    soilprofile[4].depth => :soil4 => HomogeneousSoil(soilprofile[4].value; heat, water),
+    soilprofile[5].depth => :soil5 => HomogeneousSoil(soilprofile[5].value; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 # create Tile
@@ -59,6 +59,7 @@ integrator = init(prob, Euler(), dt=60.0, progress=true)
     # print once per day to track progress
     @show Date(convert_t(t))
 end
+@run step!(integrator)
 # build output from solution
 out = CryoGridOutput(integrator.sol)
 
