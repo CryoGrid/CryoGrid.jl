@@ -52,8 +52,8 @@ Base.Dict(out::CryoGridOutput) = Dict(map(k -> string(k) => getproperty(out, k),
 
 Constructs a `CryoGridOutput` from the given `ODESolution`. Optional argument `tspan` restricts the time span of the output.
 """
-InputOutput.CryoGridOutput(sol::SciMLBase.ODESolution, tspan::NTuple{2,DateTime}) = CryoGridOutput(sol, convert_tspan(tspan))
-function InputOutput.CryoGridOutput(sol::SciMLBase.ODESolution, tspan::NTuple{2,Float64}=(-Inf,Inf))
+InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::NTuple{2,DateTime}) = CryoGridOutput(sol, convert_tspan(tspan))
+function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::NTuple{2,Float64}=(-Inf,Inf))
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(var::Var{name,<:CryoGrid.OnGrid{Cells}}, arr, grid, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(var::Var{name,<:CryoGrid.OnGrid{Edges}}, arr, grid, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))

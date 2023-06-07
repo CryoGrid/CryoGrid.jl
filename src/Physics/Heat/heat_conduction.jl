@@ -81,36 +81,6 @@ function CryoGrid.updatestate!(sub::SubSurface, heat::HeatBalance, state)
     return nothing
 end
 
-# Boundary fluxes
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalance, sub::SubSurface, stop, ssub)
-    Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
-    @inbounds let Tupper=boundaryvalue(bc, stop),
-        Tsub=ssub.T[1],
-        k=ssub.k[1],
-        δ=Δk/2; # distance to boundary
-        Numerics.flux(Tupper, Tsub, δ, k)
-    end
-end
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatBalance, sub::SubSurface, sbot, ssub)
-    Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
-    @inbounds let Tlower=boundaryvalue(bc, sbot),
-        Tsub=ssub.T[end],
-        k=ssub.k[end],
-        δ=Δk/2; # distance to boundary
-        Numerics.flux(Tsub, Tlower, δ, k)
-    end
-end
-
-function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatBalance, stop, ssub)
-    # boundary flux
-    ssub.jH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
-    return nothing
-end
-function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc::HeatBC, ssub, sbot)
-    # boundary flux; here we flip the sign since a positive flux is by convention downward
-    ssub.jH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
-    return nothing
-end
 function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, ::HeatBalance, s1, s2)
     Δk₁ = CryoGrid.thickness(sub1, s1, last)
     Δk₂ = CryoGrid.thickness(sub2, s2, first)

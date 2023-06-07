@@ -5,6 +5,35 @@ const HeatBC = BoundaryProcess{T} where {HeatBalance<:T<:SubSurfaceProcess}
 ConstantTemperature(value::UFloat"K") = ConstantBC(HeatBalance, Dirichlet, uconvert(u"°C", value))
 ConstantTemperature(value) = ConstantBC(HeatBalance, Dirichlet, value)
 
+# Boundary fluxes
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalance, sub::SubSurface, stop, ssub)
+    Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
+    @inbounds let Tupper=boundaryvalue(bc, stop),
+        Tsub=ssub.T[1],
+        k=ssub.k[1],
+        δ=Δk/2; # distance to boundary
+        Numerics.flux(Tupper, Tsub, δ, k)
+    end
+end
+@inline function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatBalance, sub::SubSurface, sbot, ssub)
+    Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
+    @inbounds let Tlower=boundaryvalue(bc, sbot),
+        Tsub=ssub.T[end],
+        k=ssub.k[end],
+        δ=Δk/2; # distance to boundary
+        Numerics.flux(Tsub, Tlower, δ, k)
+    end
+end
+
+function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatBalance, stop, ssub)
+    ssub.jH[1] += boundaryflux(bc, top, heat, sub, stop, ssub)
+    return nothing
+end
+function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc::HeatBC, ssub, sbot)
+    ssub.jH[end] += boundaryflux(bc, bot, heat, sub, sbot, ssub)
+    return nothing
+end
+
 """
     TemperatureGradient{E,F} <: BoundaryProcess{HeatBalance}
 

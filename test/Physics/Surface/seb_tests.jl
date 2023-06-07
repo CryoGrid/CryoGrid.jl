@@ -1,12 +1,4 @@
-using CryoGrid
-using CryoGrid.Surface
-using CryoGrid.Utils
-
-using NonlinearSolve
-using Test
-
-include("../../testutils.jl")
-include("../../types.jl")
+Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb.para.soil
 
 @testset "Surface Energy Balance" begin
     const_Tair = ConstantForcing(0.0u"°C", :Tair)
@@ -78,11 +70,12 @@ include("../../types.jl")
     )
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
-        layer = Top(seb)
-        stop = Diagnostics.build_dummy_state(grid, layer, with_units=false)
-        CryoGrid.initialcondition!(layer, stop)
+        toplayer = Top(seb)
+        sublayer = TestGroundLayer(nothing)
+        stop = Diagnostics.build_dummy_state(grid, toplayer, with_units=false)
+        CryoGrid.initialcondition!(toplayer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = Surface.SEBState(seb, stop, ssoil)
+        sebstate = Surface.SEBState(seb, sublayer, stop, ssoil)
         seb_output = solve(seb, sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)

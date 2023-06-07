@@ -41,21 +41,21 @@ include("../../testutils.jl")
         @test all(state.θw .< state.por)
     end
     @testset "interact!" begin
-        sediment1 = pstrip(SaltySoil())
-        sediment2 = pstrip(SaltySoil())
-        state1 = Diagnostics.build_dummy_state(testgrid[0.0u"m"..10.0u"m"], sediment1, with_units=false)
-        state2 = Diagnostics.build_dummy_state(testgrid[10.0u"m"..1000.0u"m"], sediment2, with_units=false)
+        soil1 = pstrip(SaltySoil())
+        soil2 = pstrip(SaltySoil())
+        state1 = Diagnostics.build_dummy_state(testgrid[0.0u"m"..10.0u"m"], soil1, with_units=false)
+        state2 = Diagnostics.build_dummy_state(testgrid[10.0u"m"..1000.0u"m"], soil2, with_units=false)
         # initialize variables
         state1.T .= -2.0
         state2.T .= -1.0
         state1.c .= 800.0
         state2.c .= 700.0
-        state1.por .= porosity(sediment1)
-        state2.por .= porosity(sediment2)
-        procs = CryoGrid.processes(sediment1)
-        CryoGrid.updatestate!(sediment1, procs, state1)
-        CryoGrid.updatestate!(sediment2, procs, state2)
-        CryoGrid.interact!(sediment1, sediment2, state1, state2)
+        state1.por .= porosity(soil1)
+        state2.por .= porosity(soil2)
+        procs = CryoGrid.processes(soil1)
+        CryoGrid.updatestate!(soil1, procs, state1)
+        CryoGrid.updatestate!(soil2, procs, state2)
+        CryoGrid.interact!(soil1, soil2, state1, state2)
         # check that 
         @test allfinite(state1.k) && allfinite(state2.k)
         @test allfinite(state1.θw) && allfinite(state2.θw)

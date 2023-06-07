@@ -19,6 +19,7 @@ import FreezeCurves
 import Unitful
 
 import ConstructionBase
+import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
 export Optional, Named, NamedTupleWrapper, DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
@@ -91,7 +92,7 @@ normalize_units(x::Number) = x
 normalize_units(::Missing) = missing
 
 # Add method dispatch for normalize_temperature in FreezeCurves.jl
-FreezeCurves.normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
+normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 
 """
     tuplejoin([x, y], z...)
