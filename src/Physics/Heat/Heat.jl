@@ -1,7 +1,5 @@
 module Heat
 
-import ConstructionBase
-
 using CryoGrid
 using CryoGrid.Hydrology
 using CryoGrid.Numerics
@@ -9,6 +7,9 @@ using CryoGrid.Utils
 
 using Base: @propagate_inbounds
 using Reexport: @reexport
+
+import ConstructionBase
+import Interpolations as Interp
 
 @reexport using FreezeCurves
 
@@ -28,6 +29,9 @@ include("heatcapacity.jl")
 
 export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, GroundHeatFlux, NFactor
 include("heat_bc.jl")
+
+export LinearTwoPhaseInitialTempProfile
+include("heat_init.jl")
 
 export heatconduction!
 include("heat_conduction.jl")
