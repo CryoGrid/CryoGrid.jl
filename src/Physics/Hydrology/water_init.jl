@@ -15,7 +15,7 @@ end
 
 function (init::WaterTableInitializer)(sat::AbstractVector, grid::Grid)
     z0 = ustrip(init.z0)
-    z_tab = ustirp(init.z_tab)
+    z_tab = ustrip(init.z_tab)
     sat0 = ustrip(init.sat0)
     f = Interp.extrapolate(
         Interp.interpolate(
@@ -25,7 +25,7 @@ function (init::WaterTableInitializer)(sat::AbstractVector, grid::Grid)
         ),
         Interp.Flat(),
     )
-    @. sat = f(cells(grid))
+    sat .= f.(cells(grid))
 end
 
 
