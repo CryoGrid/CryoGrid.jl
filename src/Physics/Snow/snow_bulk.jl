@@ -79,20 +79,6 @@ function CryoGrid.trigger!(
     state.H .= state.T.*C
     return nothing
 end
-# heat upper boundary (for all bulk implementations)
-function CryoGrid.interact!(
-    top::Top,
-    bc::HeatBC,
-    snow::BulkSnowpack,
-    heat::HeatBalance,
-    stop,
-    ssnow
-)
-    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
-    # boundary flux
-    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
-    return nothing
-end
 
 # ==== Dynamic bulk snow scheme ==== #
 

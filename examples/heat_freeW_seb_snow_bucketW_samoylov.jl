@@ -49,8 +49,8 @@ prob = CryoGridProblem(
     saveat=3*3600.0
 )
 # initialize integrator
-integrator = init(prob, Euler(), dt=60.0, progress=true)
-# step forwards 24 hours to check that everything is working
+integrator = init(prob, Euler(), dt=60.0, saveat=3*3600.0)
+# step forwards 24 hours and check for NaN/Inf values
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))
 # iterate over remaining timespan
@@ -59,7 +59,6 @@ integrator = init(prob, Euler(), dt=60.0, progress=true)
     # print once per day to track progress
     @show Date(convert_t(t))
 end
-@run step!(integrator)
 # build output from solution
 out = CryoGridOutput(integrator.sol)
 
@@ -68,7 +67,6 @@ import Plots
 
 zs = [1,5,10,15,20,25,30,40,50]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-Plots.plot(ustrip.(out.H[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
 Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
 Plots.plot(ustrip.(out.sat[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Soil saturation", leg=false, size=(800,500), dpi=150)
 Plots.plot(ustrip.(out.snowpack.dsn), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Snow depth", leg=false, size=(800,500), dpi=150)

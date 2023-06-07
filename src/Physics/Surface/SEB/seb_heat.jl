@@ -24,10 +24,23 @@ end
 
 CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
 
-"""
-Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
-"""
-function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, ::SubSurface, ::HeatBalance, stop, ssub)
+CryoGrid.boundaryvalue(::SurfaceEnergyBalance, state) = getscalar(state.Qg)
+
+# interact! with soil layer
+function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, soil::Soil, ::HeatBalance, stop, ssoil)
+    seb_output = updateseb!(seb, soil, stop, ssoil)
+    ssoil.jH[1] += seb_output.Qg
+    return nothing
+end
+# interact! with snowpack
+function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, snow::Snowpack, ::HeatBalance, stop, ssnow)
+    seb_output = updateseb!(seb, snow, stop, ssnow)
+    ssnow.jH[1] += seb_output.Qg
+    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
+    return nothing
+end
+
+function updateseb!(seb::SurfaceEnergyBalance, sub::SubSurface, stop, ssub)
     state = SEBState(seb, sub, stop, ssub)
     seb_output = seb(state)
     # copy outputs into state variables
@@ -41,10 +54,9 @@ function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, ::SubSurface, ::He
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = state.inputs.Tair
-    ssub.jH[1] += stop.Qg[1]
-    return nothing
+    return seb_output
 end
-function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance{<:Numerical}, sub::SubSurface, ::HeatBalance, stop, ssub)
+function updateseb!(seb::SurfaceEnergyBalance{<:Numerical}, sub::SubSurface, stop, ssub)
     initialstate = SEBState(seb, sub, stop, ssub)
     seb_output = solve(seb, initialstate)
     # copy outputs into state variables
@@ -58,8 +70,7 @@ function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance{<:Numerical}, sub::
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = initialstate.inputs.Tair
-    ssub.jH[1] += stop.Qg[1]
-    return nothing
+    return seb_output
 end
 
 function (seb::SurfaceEnergyBalance)(state::SEBState)
