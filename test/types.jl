@@ -1,9 +1,17 @@
 import CryoGrid
 
-struct TestGroundLayer{TProc} <: CryoGrid.SubSurface
-    proc::TProc
-end
-CryoGrid.processes(layer::TestGroundLayer) = layer.proc
-struct TestGroundProcess <: CryoGrid.SubSurfaceProcess end
-struct TestBoundary <: CryoGrid.BoundaryProcess{TestGroundProcess} end
 struct DummyInitializer{varname} <: CryoGrid.VarInitializer{varname} end
+
+struct TestGroundProcess <: CryoGrid.SubSurfaceProcess end
+
+struct TestBoundary <: CryoGrid.BoundaryProcess{TestGroundProcess} end
+
+mutable struct TestGroundLayer{TProc} <: CryoGrid.SubSurface
+    proc::TProc
+    isactive::Bool
+    TestGroundLayer(proc::TProc, isactive::Bool=true) where {TProc} = new{TProc}(proc, isactive)
+end
+
+CryoGrid.processes(layer::TestGroundLayer) = layer.proc
+
+CryoGrid.isactive(layer::TestGroundLayer) = layer.isactive

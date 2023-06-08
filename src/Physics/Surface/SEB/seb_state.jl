@@ -1,9 +1,9 @@
 """
-    SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ}
+    SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ,Tsurf}
 
 Non-prognostic input variables to the SEB that are assumed to be known a priori.
 """
-Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ}
+Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ,Tsurf}
     Ts::TT1
     Tair::TT2
     Lin::TR
@@ -12,8 +12,10 @@ Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ}
     qh::TQ
     wind::TW
     z::TZ
+    # surface properties
+    surf::Tsurf = SurfaceProperties()
 end
-function SEBInputs(seb::SurfaceEnergyBalance, stop, ssub)
+function SEBInputs(seb::SurfaceEnergyBalance, sub::SubSurface, stop, ssub)
     Ts = ssub.T[1] # soil temperature at surface
     Tair = seb.forcings.Tair(stop.t)
     Lin = seb.forcings.Lin(stop.t)
@@ -22,7 +24,8 @@ function SEBInputs(seb::SurfaceEnergyBalance, stop, ssub)
     qh = seb.forcings.qh(stop.t)
     wind = seb.forcings.wind(stop.t)
     z = seb.forcings.z
-    return SEBInputs(; Ts, Tair, Lin, Sin, pr, qh, wind, z)
+    surf = surfaceproperties(seb, sub)
+    return SEBInputs(; Ts, Tair, Lin, Sin, pr, qh, wind, z, surf)
 end
 
 """
@@ -37,12 +40,12 @@ Base.@kwdef struct SEBState{TQ,TL,TU,TIn}
     ustar::TU
     inputs::TIn
 end
-function SEBState(seb::SurfaceEnergyBalance, stop, ssub)
+function SEBState(seb::SurfaceEnergyBalance, sub::SubSurface, stop, ssub)
     Qh = getscalar(stop.Qh)
     Qe = getscalar(stop.Qe)
     Lstar = getscalar(stop.Lstar)
     ustar = getscalar(stop.ustar)
-    inputs = SEBInputs(seb, stop, ssub)
+    inputs = SEBInputs(seb, sub, stop, ssub)
     return SEBState(; Qh, Qe, Lstar, ustar, inputs)
 end
 

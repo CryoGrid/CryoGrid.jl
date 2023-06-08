@@ -23,28 +23,28 @@ variables(::Any) = ()
 """
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)
-    initialcondition!(::Layer, ::Process, state, initializer)
+    initialcondition!(::VarInitializer, ::Layer, ::Process, state)
 
 Defines the initial condition for a given `Layer` and possibly an `initializer`.
 `initialcondition!` should compute initial values into all relevant state variables in `state`.
 """
 initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(layer), state)
-initialcondition!(layer::Layer, state, initializer) = initialcondition!(layer, processes(layer), state, initializer)
+initialcondition!(initializer::VarInitializer, layer::Layer, state) = initialcondition!(initializer, layer, processes(layer), state)
 initialcondition!(::Layer, ::Process, state) = nothing
-initialcondition!(::Layer, ::Process, state, initializer) = nothing
+initialcondition!(::VarInitializer, ::Layer, ::Process, state) = nothing
 
 """
     initialcondition!(layer1::Layer, layer2::Layer, state1, state2)
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
-    initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2, initializer)
+    initialcondition!(::VarInitializer, ::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
 Defines the initial condition for two processes on adjacent layers. `initialcondition!` should write initial values into all
 relevant state variables in `state`.
 """
 initialcondition!(layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
-initialcondition!(layer1::Layer, layer2::Layer, state1, state2, initializer) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2, initializer)
+initialcondition!(initializer::VarInitializer, layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(initializer, layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
-initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2, initializer) = nothing
+initialcondition!(::VarInitializer, ::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 
 """
     updatestate!(l::Layer, state)
@@ -56,17 +56,6 @@ updatestate!(layer::Layer, state) = updatestate!(layer, processes(layer), state)
 updatestate!(::Layer, ::Process, state) = nothing
 
 """
-    computefluxes!(l::Layer, p::Process, state)
-
-Calculates all internal fluxes for a given layer. Note that an instance of `computefluxes!` must be provided
-for all non-boundary (subsurface) processes/layers.
-"""
-computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
-computefluxes!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
-computefluxes!(::Top, ::Process, state) = nothing
-computefluxes!(::Bottom, ::Process, state) = nothing
-
-"""
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
 Defines a boundary interaction between two processes on adjacent layers. For any interaction, the order of the arguments
@@ -75,6 +64,51 @@ and separate dispatches must be provided for interactions in reverse order.
 """
 interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+
+"""
+    computefluxes!(l::Layer, p::Process, state)
+
+Calculates all internal fluxes for a given layer. Note that an instance of `computefluxes!` must be provided
+for all non-boundary (subsurface) processes/layers.
+"""
+computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
+computefluxes!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
+computefluxes!(::Top, ::BoundaryProcess, state) = nothing
+computefluxes!(::Bottom, ::BoundaryProcess, state) = nothing
+
+"""
+    caninteract(layer1::Layer, layer2::Layer, state1, state2)
+    caninteract(l1::Layer, ::Process, l2::Layer, ::Process, state1, state2)
+
+Returns `true` if and only if the given layer/process types are able to interact based on the current state.
+Defaults to checking whether both layers are currently active. This behavior should be overridden by subtypes where necessary.
+"""
+caninteract(layer1::Layer, layer2::Layer, state1, state2) = caninteract(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
+caninteract(l1::Layer, ::Process, l2::Layer, ::Process, state1, state2) = isactive(l1, state1) && isactive(l2, state2)
+
+"""
+    interactmaybe!(layer1::Layer, layer2::Layer, state1, state2)
+    interactmaybe!(layer1::Layer, p1::Process, layer2::Layer, p2::Process, state1, state2)
+
+Conditionally invokes `interact!` if and only if `caninteract` is true.
+"""
+interactmaybe!(layer1::Layer, layer2::Layer, state1, state2) = interactmaybe!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
+function interactmaybe!(layer1::Layer, p1::Process, layer2::Layer, p2::Process, state1, state2)
+    if caninteract(layer1, p1, layer2, p2, state1, state2)
+        interact!(layer1, p1, layer2, p2, state1, state2)
+        return true
+    end
+    return false
+end
+
+"""
+    resetfluxes!(layer::Layer, state)
+    resetfluxes!(layer::Layer, ::Process, state)
+
+Resets all flux variables for the given layer/process to zero.
+"""
+resetfluxes!(layer::Layer, state) = resetfluxes!(layer, processes(layer), state)
+resetfluxes!(layer::Layer, proc::Process, state) = nothing
 
 """
     isactive(::Layer, state)
@@ -140,16 +174,17 @@ Note that this method uses a different argument order convention than `interact!
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
 boundaryflux(bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryflux(BCKind(bc), bc, b, p, sub, sbc, ssub)
+boundaryflux(::Neumann, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = boundaryvalue(bc, sbc)
 boundaryflux(s::BCKind, bc::BoundaryProcess, b::Union{Top,Bottom}, p::SubSurfaceProcess, sub::SubSurface, sbc, ssub) = error("missing implementation of $(typeof(s)) $(typeof(bc)) boundaryflux on $(typeof(b)) and $(typeof(p)) on $(typeof(sub))")
 
 """
-    boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, proc::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub)
+    boundaryvalue(bc::BoundaryProcess, state)
 
 Computes the value of the boundary condition specified by `bc` for the given layer/process combinations.
 Note that this method uses a different argument order convention than `interact!`. This is intended to faciliate stratigraphy independent implementations
 of certain boundary conditions (e.g. a simple Dirichlet boundary could be applied in the same manner to both the upper and lower boundary).
 """
-boundaryvalue(bc::BoundaryProcess, lbc::Union{Top,Bottom}, p::SubSurfaceProcess, lsub::SubSurfaceProcess, sbc, ssub) = error("missing implementation of boundaryvalue for $(typeof(bc)) on $(typeof(lbc)) and $(typeof(p)) on $(typeof(lsub))")
+boundaryvalue(bc::BoundaryProcess, state) = error("missing implementation of boundaryvalue for $(typeof(bc))")
 
 # Events
 """

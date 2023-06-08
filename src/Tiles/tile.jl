@@ -278,7 +278,7 @@ function update_layer_boundaries(tile::Tile, u)
         @setscalar z_state = z_acc - max(Δz, zero(Δz))
         z = getscalar(z_state)
         # strip ForwardDiff type if necessary and round to avoid numerical issues
-        return round(Numerics.ForwardDiff.value(z), digits=12)
+        return round(ForwardDiff.value(z), digits=12)
     end
 end
 

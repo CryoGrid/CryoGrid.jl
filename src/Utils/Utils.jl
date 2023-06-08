@@ -90,6 +90,7 @@ normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(
 normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
 normalize_units(x::Number) = x
 normalize_units(::Missing) = missing
+
 # Add method dispatch for normalize_temperature in FreezeCurves.jl
 normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 

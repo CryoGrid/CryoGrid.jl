@@ -16,7 +16,7 @@ struct ConstantBC{P,S,T} <: BoundaryProcess{P}
     ConstantBC(::Type{P}, ::Type{S}, value::T) where {P<:SubSurfaceProcess,S<:BCKind,T} = new{P,S,T}(value)
 end
 ConstructionBase.constructorof(::Type{<:ConstantBC{P,S}}) where {P,S} = value -> ConstantBC(P, S, value)
-CryoGrid.boundaryvalue(bc::ConstantBC,l1,p2,l2,s1,s2) = bc.value
+CryoGrid.boundaryvalue(bc::ConstantBC, state) = bc.value
 
 CryoGrid.BCKind(::Type{<:ConstantBC{P,S}}) where {P,S} = S()
 
@@ -35,7 +35,7 @@ struct PeriodicBC{P,S,T1,T2,T3,T4} <: BoundaryProcess{P}
         new{P,S,T1,T2,T3,T4}(period, amplitude, phaseshift, level)
 end
 ConstructionBase.constructorof(::Type{<:PeriodicBC{P,S}}) where {P,S} = (args...) -> PeriodicBC(P, S, args...)
-CryoGrid.boundaryvalue(bc::PeriodicBC,l1,p2,l2,s1,s2) = bc.amplitude*sin(2π*(s1.t/bc.period) + bc.phaseshift) + bc.level
+CryoGrid.boundaryvalue(bc::PeriodicBC, state) = bc.amplitude*sin(2π*(state.t/bc.period) + bc.phaseshift) + bc.level
 CryoGrid.BCKind(::Type{<:PeriodicBC{P,S}}) where {P,S} = S()
 
 # convenience constructors

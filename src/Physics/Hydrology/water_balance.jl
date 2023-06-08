@@ -129,9 +129,9 @@ reductionfactor(water::WaterBalance, x) = 1 - exp(-water.prop.r_β*(1-x)^2)
 
 Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
 """
-@inline function resetfluxes!(::SubSurface, water::WaterBalance, state)
+@inline function CryoGrid.resetfluxes!(::SubSurface, water::WaterBalance, state)
     state.jw .= zero(eltype(state.jw))
-    state.jwET .= zero(eltype(state.jwET))
+    state.jw_ET .= zero(eltype(state.jw_ET))
     state.∂θwi∂t .= zero(eltype(state.∂θwi∂t))
 end
 
@@ -140,7 +140,7 @@ CryoGrid.variables(water::WaterBalance) = (
     CryoGrid.variables(water.flow)...,
     CryoGrid.variables(water.et)...,
     Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
-    Diagnostic(:jwET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
+    Diagnostic(:jw_ET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
     Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
     Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
@@ -186,11 +186,12 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     θmin₁ = minwater(sub1, water1, state1, lastindex(state1.θw))
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
-    kw = state1.kw[end] = state2.kw[1] = harmonicmean(kwc₁, kwc₂, Δz₁, Δz₂)
+    kw = state1.kw[end] = state2.kw[1] = min(kwc₁, kwc₂)
     jw = advectiveflux(θw₁, θmin₁, kw)*state1.dt
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
     state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)
+    interact_ET!(sub1, water1, sub2, water2, state1, state2)
     return nothing
 end
 
@@ -209,8 +210,6 @@ function CryoGrid.timestep(
 end
 
 # No flow case
-resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
-
 hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.variables(::NoFlow) = (
@@ -226,5 +225,7 @@ end
 CryoGrid.computefluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.updatestate!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+
+CryoGrid.resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.timestep(::SubSurface, ::WaterBalance{NoFlow}, state) = Inf

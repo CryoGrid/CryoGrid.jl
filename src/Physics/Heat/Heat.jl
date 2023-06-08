@@ -1,15 +1,17 @@
 module Heat
 
-import ConstructionBase
-
 using CryoGrid
 using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds
-using FreezeCurves
-using FreezeCurves.Solvers
+using Reexport: @reexport
+
+import ConstructionBase
+import Interpolations as Interp
+
+@reexport using FreezeCurves
 
 export FreeWater, FreezeCurve
 
@@ -25,14 +27,20 @@ include("thermcond.jl")
 export heatcapacity, heatcapacity!
 include("heatcapacity.jl")
 
-export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, NFactor
+export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, GroundHeatFlux, NFactor
 include("heat_bc.jl")
+
+export LinearTwoPhaseInitialTempProfile
+include("heat_init.jl")
 
 export heatconduction!
 include("heat_conduction.jl")
 
 export HeatBalanceImplicit
 include("heat_implicit.jl")
+
+export WaterHeatBC
+include("heat_water.jl")
 
 export StefanProblem, StefanParameters
 include("analytic/stefan_analytic.jl")

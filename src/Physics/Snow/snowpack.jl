@@ -12,17 +12,17 @@ Base type for snowpack paramterization schemes.
 abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 """
-    Snowpack{Tpara<:SnowpackParameterization,Tprop,Tsp} <: CryoGrid.SubSurface
+    Snowpack{Tpara<:SnowpackParameterization,Tprop,Taux} <: CryoGrid.SubSurface
 
 Generic representation of a ground surface snow pack.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tprop,Tsp} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tprop,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
     heat::Theat = HeatBalance()
     water::Twater = nothing
     prop::Tprop = SnowpackProperties()
-    sp::Tsp = nothing
+    aux::Taux = nothing
 end
 
 # type aliases for convenience
@@ -92,7 +92,6 @@ Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
 
 # Default implementations of CryoGrid methods for Snowpack
 CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,Nothing}) = Coupled(snow.mass, snow.heat)
-
 CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,<:WaterBalance}) = Coupled(snow.mass, snow.water, snow.heat)
 
 CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
@@ -115,4 +114,33 @@ CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) 
         θi = θwi - θw;
         return (θw, θi, θa)
     end
+end
+
+# default interact! for heat
+function CryoGrid.interact!(
+    top::Top,
+    bc::HeatBC,
+    snow::Snowpack,
+    heat::HeatBalance,
+    stop,
+    ssnow
+)
+    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
+    # boundary flux
+    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    return nothing
+end
+# default interact! for coupled water/heat
+function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, HeatBalance), stop, ssub)
+    waterbc, heatbc = bc
+    snowmass, heat = ps
+    interactmaybe!(top, waterbc, snow, snowmass, stop, ssub)
+    interactmaybe!(top, heatbc, snow, heat, stop, ssub)
+end
+function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance), stop, ssub)
+    waterbc, heatbc = bc
+    snowmass, water, heat = ps
+    interactmaybe!(top, waterbc, snow, snowmass, stop, ssub)
+    interactmaybe!(top, waterbc, snow, water, stop, ssub)
+    interactmaybe!(top, heatbc, snow, heat, stop, ssub)
 end

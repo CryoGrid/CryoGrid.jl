@@ -24,11 +24,24 @@ end
 
 CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
 
-"""
-Top interaction, ground heat flux from surface energy balance. (no snow, no water body, no infiltration)
-"""
-function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance, ::SubSurface, stop, ssub)
-    state = SEBState(seb, stop, ssub)
+CryoGrid.boundaryvalue(::SurfaceEnergyBalance, state) = getscalar(state.Qg)
+
+# interact! with soil layer
+function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, soil::Soil, ::HeatBalance, stop, ssoil)
+    seb_output = updateseb!(seb, soil, stop, ssoil)
+    ssoil.jH[1] += seb_output.Qg
+    return nothing
+end
+# interact! with snowpack
+function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, snow::Snowpack, ::HeatBalance, stop, ssnow)
+    seb_output = updateseb!(seb, snow, stop, ssnow)
+    ssnow.jH[1] += seb_output.Qg
+    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
+    return nothing
+end
+
+function updateseb!(seb::SurfaceEnergyBalance, sub::SubSurface, stop, ssub)
+    state = SEBState(seb, sub, stop, ssub)
     seb_output = seb(state)
     # copy outputs into state variables
     @setscalar stop.Sout = seb_output.Sout
@@ -41,10 +54,10 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance, ::Top, ::HeatBalance,
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = state.inputs.Tair
-    return getscalar(stop.Qg)
+    return seb_output
 end
-function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, ::HeatBalance, ::SubSurface, stop, ssub)
-    initialstate = SEBState(seb, stop, ssub)
+function updateseb!(seb::SurfaceEnergyBalance{<:Numerical}, sub::SubSurface, stop, ssub)
+    initialstate = SEBState(seb, sub, stop, ssub)
     seb_output = solve(seb, initialstate)
     # copy outputs into state variables
     @setscalar stop.Sout = seb_output.Sout
@@ -57,18 +70,18 @@ function CryoGrid.boundaryvalue(seb::SurfaceEnergyBalance{<:Numerical}, ::Top, :
     @setscalar stop.ustar = seb_output.state.ustar
     # TODO: in the future, consider near surface air convection?
     @setscalar stop.T_ub = initialstate.inputs.Tair
-    return getscalar(stop.Qg)
+    return seb_output
 end
 
 function (seb::SurfaceEnergyBalance)(state::SEBState)
     # 1. calculate radiation budget
     # outgoing shortwave radiation as reflected
-    Sout = let α = seb.para.α,
+    Sout = let α = state.inputs.surf.α,
         Sin = state.inputs.Sin;
         -α * Sin  # Eq. (2) in Westermann et al. (2016)
     end
     # outgoing longwave radiation composed of emitted and reflected radiation
-    Lout = let ϵ = seb.para.ϵ,
+    Lout = let ϵ = state.inputs.surf.ϵ,
         σ = seb.para.σ,
         T₀ = state.inputs.Ts,
         Lin = state.inputs.Lin;
@@ -143,7 +156,7 @@ function u_star(seb::SurfaceEnergyBalance, state::SEBState)
     let κ = seb.para.κ,
         uz = state.inputs.wind, # wind speed at height z
         z = state.inputs.z, # height z of wind forcing
-        z₀ = seb.para.z₀, # aerodynamic roughness length [m]
+        z₀ = state.inputs.surf.z₀, # aerodynamic roughness length [m]
         Lstar = state.Lstar;
         κ * uz ./ (log(z / z₀) - Ψ_M(seb, z / Lstar, z₀ / Lstar)) # Eq. (7) in Westermann et al. (2016)
     end
@@ -189,7 +202,7 @@ function L_star(seb::SurfaceEnergyBalance{Analytical}, state::SEBState)
             p₀ = state.inputs.pr, # normal pressure (for now assumed to be equal to p)
             uz = state.inputs.wind, # wind speed at height z
             z = state.inputs.z, # height z of wind forcing
-            z₀ = seb.para.z₀, # aerodynamic roughness length [m]
+            z₀ = state.inputs.surf.z₀, # aerodynamic roughness length [m]
             Pr₀ = seb.para.Pr₀, # turbulent Prandtl number
             γₕ = seb.para.γₕ,
             γₘ = seb.para.γₘ,
@@ -243,7 +256,7 @@ function Q_H(seb::SurfaceEnergyBalance, state::SEBState)
         Lstar = state.Lstar,
         ustar = state.ustar,
         pr = state.inputs.pr,
-        z₀ = seb.para.z₀,
+        z₀ = state.inputs.surf.z₀,
         ρₐ = density_air(seb, Tₕ, pr); # density of air at surface air temperature and surface pressure [kg/m^3]
 
         rₐᴴ = (κ * ustar)^-1 * (log(z / z₀) - Ψ_HW(seb, z / Lstar, z₀ / Lstar)) # Eq. (6) in Westermann et al. (2016)
@@ -267,12 +280,12 @@ function Q_E(seb::SurfaceEnergyBalance, state::SEBState)
         p = state.inputs.pr, # atmospheric pressure at surface
         qₕ = state.inputs.qh, # specific humidity at height h over surface
         z = state.inputs.z, # height at which forcing data are provided
-        rₛ = seb.para.rₛ, # surface resistance against evapotranspiration / sublimation [1/m]
+        rₛ = state.inputs.surf.rₛ, # surface resistance against evapotranspiration / sublimation [1/m]
         Lstar = state.Lstar,
         ustar = state.ustar,
         Llg = L_lg(state.inputs.Ts),
         Lsg = L_sg(state.inputs.Ts),
-        z₀ = seb.para.z₀, # aerodynamic roughness length [m]
+        z₀ = state.inputs.surf.z₀, # aerodynamic roughness length [m]
         ρₐ = density_air(seb, Tₕ, state.inputs.pr); # density of air at surface air temperature and surface pressure [kg/m^3]
 
         q₀ = γ * estar(T₀) / p # saturation pressure of water/ice at the surface; Eq. (B1) in Westermann et al (2016)

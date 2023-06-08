@@ -79,22 +79,6 @@ function CryoGrid.trigger!(
     state.H .= state.T.*C
     return nothing
 end
-# heat upper boundary (for all bulk implementations)
-function CryoGrid.interact!(
-    top::Top,
-    bc::HeatBC,
-    snow::BulkSnowpack,
-    heat::HeatBalance,
-    stop,
-    ssnow
-)
-    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
-    if CryoGrid.isactive(snow, ssnow)
-        # boundary flux
-        ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
-    end
-    return nothing
-end
 
 # ==== Dynamic bulk snow scheme ==== #
 
@@ -112,7 +96,7 @@ function CryoGrid.updatestate!(
     smb, heat = procs
     ρsn = snow.prop.mass.ρsn_new
     ρw = snow.prop.mass.ρw
-    Heat.resetfluxes!(snow, heat, state)
+    resetfluxes!(snow, heat, state)
     state.θwi .= ρsn / ρw
     state.ρsn .= ρsn
     @setscalar state.dsn = getscalar(state.Δz)
@@ -124,21 +108,6 @@ function CryoGrid.updatestate!(
         state.k .= state.kc[1]
     end
     return nothing
-end
-# snowfall upper boundary
-function CryoGrid.interact!(
-    top::Top,
-    bc::Snowfall,
-    snow::BulkSnowpack,
-    smb::DynamicSnowMassBalance{<:LinearAccumulation},
-    stop,
-    ssnow
-)
-    # upper boundary condition for snow mass balance;
-    # apply snowfall to swe
-    rate_scale = accumulation(smb).rate_scale
-    snowfall_rate = boundaryvalue(bc, top, smb, snow, stop, ssnow)
-    @. ssnow.∂swe∂t += rate_scale*snowfall_rate
 end
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
@@ -221,7 +190,7 @@ function CryoGrid.updatestate!(
 )
     smb, heat = procs
     ρw = snow.prop.mass.ρw
-    Heat.resetfluxes!(snow, heat, state)
+    resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn

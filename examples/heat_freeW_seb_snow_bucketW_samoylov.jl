@@ -1,21 +1,7 @@
 using CryoGrid
-using Dates
-using Plots
 
 # Custom grid;
-# Similar to Presets.DefaultGrid_2cm but includes one large cell above the surface for snow.
-const gridvals = vcat([
-    -2.0,
-    0:0.02:2...,
-    2.05:0.05:4.0...,
-	4.1:0.1:10...,
-    10.2:0.2:20...,
-    21:1:30...,
-	35:5:50...,
-    60:10:100...,
-    200:100:1000...]...
-)u"m"
-modelgrid = Grid(gridvals);
+modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
 # soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
     0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
@@ -31,19 +17,21 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # initialize saturation to match soil profile
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
-z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
+z = 2.0u"m";    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
-soil_layers = map(enumerate(soilprofile)) do (i, soil_i)
-    name = Symbol(:soil, i)
-    heat = HeatBalance(:H, freezecurve=PainterKarra())
-    water = WaterBalance(BucketScheme(), DampedET())
-    soil_i.depth => name => HomogeneousSoil(soil_i.value; heat, water)
-end
+swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
+upperbc = WaterHeatBC(swb, seb)
+heat = HeatBalance(:H, freezecurve=PainterKarra())
+water = WaterBalance(BucketScheme(), DampedET())
 # build stratigraphy
 strat = @Stratigraphy(
-    -z*u"m" => Top(seb, Rainfall(forcings.rainfall), Snowfall(forcings.snowfall)),
-    0.0u"m" => :snowpack => Snowpack(heat=HeatBalance()),
-    soil_layers...,
+    -z => Top(upperbc),
+    -z => :snowpack => Snowpack(heat=HeatBalance()),
+    soilprofile[1].depth => :soil1 => HomogeneousSoil(soilprofile[1].value; heat, water),
+    soilprofile[2].depth => :soil2 => HomogeneousSoil(soilprofile[2].value; heat, water),
+    soilprofile[3].depth => :soil3 => HomogeneousSoil(soilprofile[3].value; heat, water),
+    soilprofile[4].depth => :soil4 => HomogeneousSoil(soilprofile[4].value; heat, water),
+    soilprofile[5].depth => :soil5 => HomogeneousSoil(soilprofile[5].value; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 # create Tile
@@ -61,8 +49,8 @@ prob = CryoGridProblem(
     saveat=3*3600.0
 )
 # initialize integrator
-integrator = init(prob, Euler(), dt=60.0, progress=true)
-# step forwards 24 hours to check that everything is working
+integrator = init(prob, Euler(), dt=60.0, saveat=3*3600.0)
+# step forwards 24 hours and check for NaN/Inf values
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))
 # iterate over remaining timespan
@@ -73,11 +61,13 @@ integrator = init(prob, Euler(), dt=60.0, progress=true)
 end
 # build output from solution
 out = CryoGridOutput(integrator.sol)
+
 # Plot it!
+import Plots
+
 zs = [1,5,10,15,20,25,30,40,50]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(ustrip.(out.H[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-plot(ustrip.(out.sat[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Soil saturation", leg=false, size=(800,500), dpi=150)
-plot(ustrip.(out.snowpack.dsn), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Snow depth", leg=false, size=(800,500), dpi=150)
-plot(ustrip.(cumsum(out.top.Qg, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)
+Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+Plots.plot(ustrip.(out.sat[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Soil saturation", leg=false, size=(800,500), dpi=150)
+Plots.plot(ustrip.(out.snowpack.dsn), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Snow depth", leg=false, size=(800,500), dpi=150)
+Plots.plot(ustrip.(cumsum(out.top.Qg, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)

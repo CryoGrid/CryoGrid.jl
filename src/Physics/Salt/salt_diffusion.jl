@@ -1,9 +1,3 @@
-function resetfluxes!(::SaltySoil, salt::SaltMassBalance, state)
-    state.dc_F .= zero(eltype(state.∂c∂t))
-    state.jc .= zero(eltype(state.∂c∂t))
-    return nothing
-end
-
 # Heat methods
 
 function Heat.freezethaw!(
@@ -64,7 +58,7 @@ function CryoGrid.updatestate!(
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     salt, heat = ps
-    Heat.resetfluxes!(soil, heat, state)
+    resetfluxes!(soil, heat, state)
     resetfluxes!(soil, salt, state)
     # Evaluate freeze/thaw processes
     freezethaw!(soil, ps, state)
@@ -174,5 +168,11 @@ function CryoGrid.computefluxes!(
 
     @. state.∂T∂t = (-B * G + D * E) / (A * E - B * F)
     @. state.∂c∂t = (-F * D + A * G) / (A * E - B * F)
+    return nothing
+end
+
+function CryoGrid.resetfluxes!(::SaltySoil, salt::SaltMassBalance, state)
+    state.dc_F .= zero(eltype(state.∂c∂t))
+    state.jc .= zero(eltype(state.∂c∂t))
     return nothing
 end

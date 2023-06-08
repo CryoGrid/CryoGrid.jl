@@ -1,6 +1,4 @@
 using CryoGrid
-using Dates
-using Plots
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 # define time span for simulation
@@ -23,10 +21,11 @@ sfcc = PainterKarra(ω=0.0, swrc=swrc)
 waterflow = RichardsEq(swrc=swrc)
 # Enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
 heatop = Heat.EnthalpyForm(SFCCNewtonSolver())
+upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair, NFactor()))
 # We will use a simple stratigraphy with 3 subsurface soil layers
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
-    -2.0u"m" => Top(TemperatureGradient(forcings.Tair, NFactor()), Rainfall(forcings.rainfall)),
+    -2.0u"m" => Top(upperbc),
     0.0u"m" => :topsoil => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
     0.2u"m" => :subsoil => HomogeneousSoil(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
     2.0u"m" => :substrat => HomogeneousSoil(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
@@ -64,8 +63,10 @@ water_mass = Diagnostics.integrate(out.θwi, tile.grid)
 water_resid = water_mass[end] - water_mass[1] - water_added*1u"m^2"
 
 # Plot it!
+import Plots
+
 zs = [1,5,10,15,20,30,40,50,100,150,200]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
-plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-plot(out.sat[Z(1:10)], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.H[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Enthalpy", leg=false, dpi=150)
+Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.sat[Z(1:10)], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)

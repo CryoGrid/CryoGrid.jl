@@ -1,22 +1,3 @@
-module SEB
-
-import CryoGrid
-import Flatten
-
-using CryoGrid
-using CryoGrid.Heat
-using CryoGrid.Hydrology
-using CryoGrid.Soils
-using CryoGrid.Numerics
-using CryoGrid.Utils
-
-using NonlinearSolve
-using Setfield
-using StaticArrays: @SVector
-using Unitful
-
-export SurfaceEnergyBalance, SEBParams
-
 abstract type SolutionScheme end
 """
     Analytical
@@ -55,12 +36,20 @@ SHEBA, Uttal et al., 2002, Grachev et al. 2007 (stable conditions)
 """
 struct HøgstrømSHEBA <: StabilityFunctions end
 
-Utils.@properties SEBParams(
+Utils.@properties SurfaceProperties(
     # surface properties --> should be associated with the Stratigraphy and maybe made state variables or parameters
     α = 0.2,             # initial surface albedo [-]
     ϵ = 0.97,            # initial surface emissivity [-]
     z₀ = 1e-3u"m",       # initial surface roughness length [m]
     rₛ = 50.0u"s/m",     # initial surface resistance against evapotranspiration and sublimation [s/m]
+)
+
+Utils.@properties SEBParams(
+    # surface propertiess; includes soil and snow by default;
+    # this can be easily extended by the user to include other layers by adding more
+    # fields to `SEBParams` and then implementing `surfaceproperties` for those layers.
+    soil = SurfaceProperties(),
+    snow = SurfaceProperties(α=0.8, ϵ=0.99, z₀=5e-4),
 
     # "natural" constant
     σ = 5.6704e-8u"J/(s*m^2*K^4)",   # Stefan-Boltzmann constant
@@ -94,7 +83,7 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
     # Default constructor with exact fields for reconstruction
     SurfaceEnergyBalance(forcings::NamedTuple, para::SEBParams, solscheme::SolutionScheme, stabfun::StabilityFunctions) =
         new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
-    # User facing constructor
+    # User facing constructors
     function SurfaceEnergyBalance(
         Tair::TemperatureForcing, # air temperature
         pr::PressureForcing, # air pressure
@@ -112,9 +101,16 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
     end
 end
 
+"""
+    surfaceproperties(::SurfaceEnergyBalance, ::SubSurface)
+
+Retrieves the `SurfaceProperties` for the given `SubSurface` layer.
+"""
+surfaceproperties(seb::SurfaceEnergyBalance, sub::SubSurface) = error("surfaceproperties not implemented for layer of type $(typeof(sub))")
+surfaceproperties(seb::SurfaceEnergyBalance, ::Soil) = seb.para.soil
+surfaceproperties(seb::SurfaceEnergyBalance, ::Snowpack) = seb.para.snow
+
 include("seb_state.jl")
 include("seb_solve.jl")
 include("seb_heat.jl")
 include("seb_water.jl")
-
-end

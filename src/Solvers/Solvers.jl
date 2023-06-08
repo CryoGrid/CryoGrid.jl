@@ -3,9 +3,15 @@ using CryoGrid.Utils
 
 using Reexport
 
-# CryoGridLite standalone driver
+export CryoGridIntegrator, CryoGridSolution
+include("integrator.jl")
+
+export CGEuler
+include("basic_solvers.jl")
+
+# CryoGridLite solvers
+export LiteImplicit
 include("LiteImplicit/LiteImplicit.jl")
 
-# DiffEq/SciML driver (possibly should be a soft dependency with Requires.jl)
 include("DiffEq/DiffEq.jl")
 @reexport using .DiffEq

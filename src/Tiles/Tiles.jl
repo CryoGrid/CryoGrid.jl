@@ -24,13 +24,14 @@ using Setfield
 
 import ConstructionBase
 import Flatten
+import ForwardDiff
 import Interpolations
 
 export TileState, LayerState
 include("state.jl")
 
 export Stratigraphy, @Stratigraphy, NamedLayer
-export layernames, layertypes, layers, boundaries, layername, stratiterate
+export layernames, layertypes, layers, boundaries, layername
 export top, bottom, subsurface
 include("stratigraphy.jl")
 

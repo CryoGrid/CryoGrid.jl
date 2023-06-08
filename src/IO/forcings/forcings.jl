@@ -41,10 +41,10 @@ struct InterpolatedForcing{unit,T,TI<:Interpolations.AbstractInterpolation{T}} <
       name::Symbol
       InterpolatedForcing(unit::Unitful.Units, interpolant::TI, name::Symbol) where {TI} = new{unit,eltype(interpolant),TI}(interpolant, name)
 end
-function InterpolatedForcing(timestamps::AbstractArray{DateTime,1}, values::A, name::Symbol; interpolation_mode=Linear()) where {T,A<:AbstractArray{T,1}}
+function InterpolatedForcing(timestamps::AbstractArray{DateTime,1}, values::A, name::Symbol; interpolation_mode=Interpolations.Linear()) where {T,A<:AbstractArray{T,1}}
       ts = convert_t.(timestamps)
       values_converted = Utils.normalize_units.(values)
-      interp = interpolate((ts,), ustrip.(values_converted), Gridded(interpolation_mode))
+      interp = Interpolations.interpolate((ts,), ustrip.(values_converted), Interpolations.Gridded(interpolation_mode))
       return InterpolatedForcing(unit(eltype(values_converted)), interp, name)
 end
 ConstructionBase.constructorof(::Type{<:InterpolatedForcing{unit}}) where {unit} = (interp, name) -> InterpolatedForcing(unit, interp, name)

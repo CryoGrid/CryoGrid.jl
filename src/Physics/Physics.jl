@@ -1,6 +1,4 @@
-import Flatten: flattenable
-
-export volumetricfractions
+using Reexport
 
 Constants = (
     ρw = 1000.0u"kg/m^3", # density of water at standard conditions
@@ -24,8 +22,6 @@ ordering, so be sure to double check your implementation, otherwise this can cau
 @inline volumetricfractions(::SubSurface, state) = ()
 @inline volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
 
-export ConstantBC, PeriodicBC
-export ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux
 include("simple_bc.jl")
 include("composite_bc.jl")
 include("steplimiters.jl")
@@ -40,7 +36,7 @@ include("Soils/Soils.jl")
 @reexport using .Soils
 include("Salt/Salt.jl")
 @reexport using .Salt
-include("SEB/SEB.jl")
-@reexport using .SEB
+include("Surface/Surface.jl")
+@reexport using .Surface
 include("Sources/Sources.jl")
 @reexport using .Sources

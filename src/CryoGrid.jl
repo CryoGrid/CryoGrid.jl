@@ -22,12 +22,15 @@ import Flatten
 import Interpolations
 
 # Re-exported packages
-@reexport using Dates: Dates, Date, DateTime
+@reexport using Dates
+@reexport using DiffEqBase
+@reexport using DiffEqCallbacks
 @reexport using DimensionalData
 @reexport using IfElse
 @reexport using IntervalSets
 @reexport using ModelParameters
 @reexport using Setfield: @set, @set!
+@reexport using SciMLBase
 @reexport using Unitful
 @reexport using UnPack
 
@@ -38,9 +41,10 @@ export Layer, SubSurface, Top, Bottom
 export Process, SubSurfaceProcess, BoundaryProcess, CoupledProcesses
 export Coupled, Coupled2, Coupled3, Coupled4
 export DiscreteEvent, ContinuousEvent, GridContinuousEvent
+export VarInitializer
 include("types.jl")
 
-export Prognostic, Algebraic, Diagnostic, Var, VarInitializer
+export Prognostic, Algebraic, Diagnostic, Var
 export VarDim, OnGrid, Shape, Scalar, GridOffset, Edges, Cells
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
@@ -48,7 +52,8 @@ include("variables.jl")
 export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
 
-export variables, processes, initializers, initialcondition!, updatestate!, computefluxes!, interact!, timestep
+export initialcondition!, updatestate!, interact!, interactmaybe!, computefluxes!, resetfluxes!
+export variables, processes, initializers, timestep, isactive, caninteract
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
 
@@ -72,6 +77,8 @@ include("Tiles/Tiles.jl")
 @reexport using .Tiles
 parameters = Tiles.parameters
 
+export ConstantBC, PeriodicBC, ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux
+export volumetricfractions
 include("Physics/Physics.jl")
 
 include("Diagnostics/Diagnostics.jl")

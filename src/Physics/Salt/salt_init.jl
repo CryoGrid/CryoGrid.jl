@@ -11,7 +11,7 @@ function compaction!(por::AbstractVector, init::SedimentCompactionInitializer, g
     porosityZero = init.porosityZero;
     bulkDensityZero = 1.0 ./ ((porosityZero .+ 0.6845) ./ 1.8)
     bulkDensity = bulkDensityZero .+ 0.0037 .* z .^ 0.766
-    @. por = min(1.80 * bulkDensity ^ (-1.0) - 0.6845, init.porosityMin)
+    @. por = max(1.80 * bulkDensity ^ (-1.0) - 0.6845, init.porosityMin)
 end
 
 function CryoGrid.initialcondition!(::Soil, state, init::SedimentCompactionInitializer)

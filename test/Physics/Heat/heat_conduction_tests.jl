@@ -34,8 +34,10 @@ include("../../types.jl")
 		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
 		bc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
+		# remember that fluxes are positive *downward*!!!
 		@testset "top: +, bot: -" begin
-			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
+			# initial condition: -1°C
+			T₀ = -ones(length(xc))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
@@ -43,7 +45,8 @@ include("../../types.jl")
 			@test boundaryflux(bc,Bottom(bc),heat,sub,state,state) < 0.0u"W/m^2"
 		end
 		@testset "top: -, bot: +" begin
-			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
+			# initial condition: 1°C
+			T₀ = ones(length(xc))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,grid=x,grids=(T=xc,k=x),t=0.0)
@@ -87,7 +90,7 @@ end
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
 			updatestate!(Top(zerobc), tgrad, state)
-			return boundaryvalue(tgrad,Top(zerobc),heat,sub,state,state)
+			return boundaryvalue(tgrad, state)
 		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])

@@ -1,11 +1,4 @@
-using CryoGrid
-using CryoGrid.SEB
-using CryoGrid.Utils
-
-using NonlinearSolve
-using Test
-
-include("../../testutils.jl")
+Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb.para.soil
 
 @testset "Surface Energy Balance" begin
     const_Tair = ConstantForcing(0.0u"°C", :Tair)
@@ -24,18 +17,19 @@ include("../../testutils.jl")
             const_Lin,
             const_Sin,
             z,
-            solscheme = SEB.Iterative(),
+            solscheme = Surface.Iterative(),
         )
         # TODO: would be good to have SEB work correctly with units to verify correctness;
         # however, at the moment it seems there are some constants that are used without units
         # which means that it unfortunately will not work
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
-        layer = Top(seb)
-        stop = Diagnostics.build_dummy_state(grid, layer, with_units=false)
-        CryoGrid.initialcondition!(layer, stop)
+        toplayer = Top(seb)
+        sublayer = TestGroundLayer(nothing)
+        stop = Diagnostics.build_dummy_state(grid, toplayer, with_units=false)
+        CryoGrid.initialcondition!(toplayer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = SEB.SEBState(seb, stop, ssoil)
+        sebstate = Surface.SEBState(seb, sublayer, stop, ssoil)
         seb_output = seb(sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
@@ -49,15 +43,16 @@ include("../../testutils.jl")
             const_Lin,
             const_Sin,
             z,
-            solscheme = SEB.Analytical(),
+            solscheme = Surface.Analytical(),
         )
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
-        layer = Top(seb)
-        stop = Diagnostics.build_dummy_state(grid, layer, with_units=false)
-        CryoGrid.initialcondition!(layer, stop)
+        toplayer = Top(seb)
+        sublayer = TestGroundLayer(nothing)
+        stop = Diagnostics.build_dummy_state(grid, toplayer, with_units=false)
+        CryoGrid.initialcondition!(toplayer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = SEB.SEBState(seb, stop, ssoil)
+        sebstate = Surface.SEBState(seb, sublayer, stop, ssoil)
         seb_output = seb(sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
@@ -71,15 +66,16 @@ include("../../testutils.jl")
         const_Lin,
         const_Sin,
         z,
-        solscheme=SEB.Numerical()
+        solscheme=Surface.Numerical()
     )
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
-        layer = Top(seb)
-        stop = Diagnostics.build_dummy_state(grid, layer, with_units=false)
-        CryoGrid.initialcondition!(layer, stop)
+        toplayer = Top(seb)
+        sublayer = TestGroundLayer(nothing)
+        stop = Diagnostics.build_dummy_state(grid, toplayer, with_units=false)
+        CryoGrid.initialcondition!(toplayer, stop)
         ssoil = (T=[-1.0],)
-        sebstate = SEB.SEBState(seb, stop, ssoil)
+        sebstate = Surface.SEBState(seb, sublayer, stop, ssoil)
         seb_output = solve(seb, sebstate)
         @test isfinite(seb_output.Qg)
         @test seb_output.Qg > zero(seb_output.Qg)
