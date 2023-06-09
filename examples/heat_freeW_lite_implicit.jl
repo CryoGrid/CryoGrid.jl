@@ -14,11 +14,11 @@ initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit()
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    0.0u"m" => :topsoil1 => HomogeneousSoil(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop)),
-    0.1u"m" => :topsoil2 => HomogeneousSoil(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop)),
-    0.4u"m" => :sediment1 => HomogeneousSoil(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop)),
-    3.0u"m" => :sediment2 => HomogeneousSoil(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop)),
-    10.0u"m" => :sediment3 => HomogeneousSoil(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop)),
+    0.0u"m" => :topsoil1 => SimpleSoil(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop)),
+    0.1u"m" => :topsoil2 => SimpleSoil(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop)),
+    0.4u"m" => :sediment1 => SimpleSoil(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop)),
+    3.0u"m" => :sediment2 => SimpleSoil(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop)),
+    10.0u"m" => :sediment3 => SimpleSoil(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop)),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"

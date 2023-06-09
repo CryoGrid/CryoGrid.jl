@@ -19,12 +19,14 @@ using UnPack
 # Re-export FreezeCurves package
 @reexport using FreezeCurves
 
+import ConstructionBase
+
 # aliases for heat formulations in Heat module
 const Temperature = Heat.Temperature
 const Enthalpy = Heat.Enthalpy
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, SoilParameterization, HomogeneousSoil
+export Soil, SoilParameterization, SimpleSoil
 include("soil_types.jl")
 
 export SoilProfile, porosity, mineral, organic

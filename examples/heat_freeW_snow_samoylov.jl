@@ -19,11 +19,11 @@ upperbc = WaterHeatBC(
 strat = @Stratigraphy(
     z_top => Top(upperbc),
     z_top => :snowpack => Snowpack(para=Snow.Bulk(thresh=2.0u"cm"), mass=snowmass, heat=HeatBalance()),
-    z_sub[1] => :topsoil1 => HomogeneousSoil(soilprofile[1].value, heat=HeatBalance()),
-    z_sub[2] => :topsoil2 => HomogeneousSoil(soilprofile[2].value, heat=HeatBalance()),
-    z_sub[3] => :sediment1 => HomogeneousSoil(soilprofile[3].value, heat=HeatBalance()),
-    z_sub[4] => :sediment2 => HomogeneousSoil(soilprofile[4].value, heat=HeatBalance()),
-    z_sub[5] => :sediment3 => HomogeneousSoil(soilprofile[5].value, heat=HeatBalance()),
+    z_sub[1] => :topsoil1 => SimpleSoil(soilprofile[1].value, heat=HeatBalance()),
+    z_sub[2] => :topsoil2 => SimpleSoil(soilprofile[2].value, heat=HeatBalance()),
+    z_sub[3] => :sediment1 => SimpleSoil(soilprofile[3].value, heat=HeatBalance()),
+    z_sub[4] => :sediment2 => SimpleSoil(soilprofile[4].value, heat=HeatBalance()),
+    z_sub[5] => :sediment3 => SimpleSoil(soilprofile[5].value, heat=HeatBalance()),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_5cm

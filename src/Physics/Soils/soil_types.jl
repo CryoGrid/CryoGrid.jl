@@ -13,15 +13,15 @@ Base type for all soil or soil-like layers.
 abstract type Soil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}} <: SubSurface end
 
 """
-    HomogeneousSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
+    SimpleSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
 
 Generic representation of a soil layer.
 """
-Base.@kwdef struct HomogeneousSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
+Base.@kwdef struct SimpleSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
     para::Tpara = MineralOrganic() # soil parameterization
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = nothing # water balance
     aux::Taux = nothing # user-defined specialization
 end
 # Convenience constructor
-HomogeneousSoil(para::SoilParameterization; kwargs...) = HomogeneousSoil(; para, kwargs...)
+SimpleSoil(para::SoilParameterization; kwargs...) = SimpleSoil(; para, kwargs...)

@@ -26,9 +26,9 @@ upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), Temperatu
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => :topsoil => HomogeneousSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
-    0.2u"m" => :subsoil => HomogeneousSoil(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
-    2.0u"m" => :substrat => HomogeneousSoil(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
+    0.0u"m" => :topsoil => SimpleSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
+    0.2u"m" => :subsoil => SimpleSoil(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
+    2.0u"m" => :substrat => SimpleSoil(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_2cm
