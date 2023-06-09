@@ -1,4 +1,5 @@
 using CryoGrid
+using CryoGrid.LiteImplicit
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 tempprofile_linear = TemperatureProfile(
