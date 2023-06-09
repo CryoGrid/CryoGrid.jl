@@ -25,3 +25,16 @@ Base.@kwdef struct SimpleSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optiona
 end
 # Convenience constructor
 SimpleSoil(para::SoilParameterization; kwargs...) = SimpleSoil(; para, kwargs...)
+
+"""
+    Heterogeneous{Tpara,Taux} <: SoilParameterization
+
+Specialized `SoilParameterization` which wraps another soil parameterization
+to make it heterogeneous with respect to depth. Parameterizations which support
+this should provide dispatches for `Heterogeneous{...}` that instantiate the
+relevant soil properties as on-grid state variables.
+"""
+Base.@kwdef struct Heterogeneous{Tpara,Taux} <: SoilParameterization
+    para::Tpara
+    aux::Taux = nothing
+end

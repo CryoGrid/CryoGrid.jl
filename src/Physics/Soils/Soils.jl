@@ -26,7 +26,7 @@ const Temperature = Heat.Temperature
 const Enthalpy = Heat.Enthalpy
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, SoilParameterization, SimpleSoil
+export Soil, SoilParameterization, SimpleSoil, Heterogeneous
 include("soil_types.jl")
 
 export SoilProfile, porosity, mineral, organic

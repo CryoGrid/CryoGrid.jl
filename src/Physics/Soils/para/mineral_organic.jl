@@ -27,13 +27,7 @@ porosity(soil::Soil{<:MineralOrganic}) = soil.para.por
 mineral(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θm}(), soil.para)
 organic(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θo}(), soil.para)
 
-# CryoGrid methods
-CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
-    por = CryoGrid.parameterize(para.por, domain=0..1),
-    sat = CryoGrid.parameterize(para.sat, domain=0..1),
-    org = CryoGrid.parameterize(para.org, domain=0..1),
-)
-CryoGrid.variables(soil::Soil{<:MineralOrganic}) = CryoGrid.variables(soil, processes(soil))
+
 
 # Soil thermal properties
 const DefaultThermalProperties = Heat.ThermalProperties()
@@ -51,15 +45,47 @@ SoilThermalProperties(
     ch_m=2.0e6u"J/K/m^3", # heat capacity mineral
 ) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o)
 
+# CryoGrid methods
+CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
+    por = CryoGrid.parameterize(para.por, domain=0..1),
+    sat = CryoGrid.parameterize(para.sat, domain=0..1),
+    org = CryoGrid.parameterize(para.org, domain=0..1),
+)
+
+CryoGrid.variables(soil::Soil{<:MineralOrganic}) = CryoGrid.variables(soil, processes(soil))
+CryoGrid.variables(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
+    Diagnostic(:por, OnGrid(Cells), 0..1),
+    Diagnostic(:sat, OnGrid(Cells), 0..1),
+    Diagnostic(:org, OnGrid(Cells), 0..1),
+    Diagnostic(:θm, OnGrid(Cells), 0..1),
+    Diagnostic(:θo, OnGrid(Cells), 0..1),
+    variables(soil, processes(soil))...
+)
+
+CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
+    initializer(:por, soil.para.para.por),
+    initializer(:sat, soil.para.para.sat),
+    initializer(:org, soil.para.para.org),
+)
+
+function CryoGrid.initialcondition!(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, state)
+    # initialize θo and θm variables
+    @. state.θo = soilcomponent(Val{:θo}(), state.por, state.sat, state.org)
+    @. state.θm = soilcomponent(Val{:θm}(), state.por, state.sat, state.org)
+    initialcondition!(soil, processes(soil), state)
+end
+
 """
 Gets the `ThermalProperties` for the given soil layer.
 """
 Heat.thermalproperties(soil::Soil{<:MineralOrganic}) = soil.para.heat
+Heat.thermalproperties(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = soil.para.para.heat
 
 """
 Gets the `HydraulicProperties` for the given soil layer.
 """
 Hydrology.hydraulicproperties(soil::Soil{<:MineralOrganic}) = soil.para.water
+Hydrology.hydraulicproperties(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = soil.para.para.water
 
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
