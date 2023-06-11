@@ -110,7 +110,7 @@ CryoGrid.initializers(strat::Stratigraphy) = tuplejoin(map(initializers, map(l -
 
 function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
-    # we can just loop over everything naively
+    # we can just loop over everything
     all_inits = tuple(initializers(strat)..., inits...)
     for i in 1:length(strat)-1
         layerᵢ = strat[i].val

@@ -52,7 +52,6 @@ function CryoGrid.initialcondition!(
     solver = Heat.fcsolver(heat)
     @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
     L = heat.prop.L
-    hc = partial_heatcapacity(soil, heat)
     θsat = porosity(soil, state)
     @unpack ch_w, ch_i = thermalproperties(soil)
     FreezeCurves.initialize!(solver, fc, hc; θsat)

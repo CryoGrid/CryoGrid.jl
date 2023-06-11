@@ -22,6 +22,11 @@ Base.@kwdef struct SimpleSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optiona
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = nothing # water balance
     aux::Taux = nothing # user-defined specialization
+    function SimpleSoil(para, heat, water, aux)
+        solver = Heat.fcsolver(heat)
+        @assert checksolver(para, solver) "SFCCPreSolver requires homogeneous soil properties in each layer."
+        new{typeof(para),typeof(heat),typeof(water),typeof(aux)}(para, heat, water, aux)
+    end
 end
 # Convenience constructor
 SimpleSoil(para::SoilParameterization; kwargs...) = SimpleSoil(; para, kwargs...)
@@ -37,4 +42,8 @@ relevant soil properties as on-grid state variables.
 Base.@kwdef struct Heterogeneous{Tpara,Taux} <: SoilParameterization
     para::Tpara
     aux::Taux = nothing
+    Heterogeneous(para::SoilParameterization, aux=nothing) = new{typeof(para),typeof(aux)}(para, aux)
 end
+
+checksolver(::SoilParameterization, ::Union{Nothing,SFCCSolver}) = true
+checksolver(::Heterogeneous, ::SFCCPreSolver) = false

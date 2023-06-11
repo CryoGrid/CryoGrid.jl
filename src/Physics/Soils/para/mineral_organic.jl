@@ -22,12 +22,18 @@ soilcomponent(::Val{:θm}, ϕ, θ, ω) = (1-ϕ)*(1-ω)
 soilcomponent(::Val{:θo}, ϕ, θ, ω) = (1-ϕ)*ω
 
 # Soil methods
+
+# homogeneous
 saturation(soil::Soil{<:MineralOrganic}) = soil.para.sat
 porosity(soil::Soil{<:MineralOrganic}) = soil.para.por
 mineral(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θm}(), soil.para)
 organic(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θo}(), soil.para)
 
-
+# heterogeneous (soil composition discretized on the grid)
+saturation(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.sat
+porosity(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.por
+mineral(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.θm
+organic(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.θo
 
 # Soil thermal properties
 const DefaultThermalProperties = Heat.ThermalProperties()
@@ -54,11 +60,12 @@ CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
 
 CryoGrid.variables(soil::Soil{<:MineralOrganic}) = CryoGrid.variables(soil, processes(soil))
 CryoGrid.variables(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
-    Diagnostic(:por, OnGrid(Cells), 0..1),
-    Diagnostic(:sat, OnGrid(Cells), 0..1),
-    Diagnostic(:org, OnGrid(Cells), 0..1),
-    Diagnostic(:θm, OnGrid(Cells), 0..1),
-    Diagnostic(:θo, OnGrid(Cells), 0..1),
+    Diagnostic(:por, OnGrid(Cells), domain=0..1),
+    Diagnostic(:sat, OnGrid(Cells), domain=0..1),
+    Diagnostic(:org, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θm, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θo, OnGrid(Cells), domain=0..1),
     variables(soil, processes(soil))...
 )
 
@@ -66,6 +73,8 @@ CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
     initializer(:por, soil.para.para.por),
     initializer(:sat, soil.para.para.sat),
     initializer(:org, soil.para.para.org),
+    initializer(:θwi, (soil,state) -> state.θwi .= state.por.*state.sat),
+    initializers(soil, processes(soil))...,
 )
 
 function CryoGrid.initialcondition!(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, state)
