@@ -27,11 +27,11 @@ water = WaterBalance(BucketScheme(), DampedET())
 strat = @Stratigraphy(
     -z => Top(upperbc),
     -z => :snowpack => Snowpack(heat=HeatBalance()),
-    soilprofile[1].depth => :soil1 => HomogeneousSoil(soilprofile[1].value; heat, water),
-    soilprofile[2].depth => :soil2 => HomogeneousSoil(soilprofile[2].value; heat, water),
-    soilprofile[3].depth => :soil3 => HomogeneousSoil(soilprofile[3].value; heat, water),
-    soilprofile[4].depth => :soil4 => HomogeneousSoil(soilprofile[4].value; heat, water),
-    soilprofile[5].depth => :soil5 => HomogeneousSoil(soilprofile[5].value; heat, water),
+    soilprofile[1].depth => :soil1 => SimpleSoil(soilprofile[1].value; heat, water),
+    soilprofile[2].depth => :soil2 => SimpleSoil(soilprofile[2].value; heat, water),
+    soilprofile[3].depth => :soil3 => SimpleSoil(soilprofile[3].value; heat, water),
+    soilprofile[4].depth => :soil4 => SimpleSoil(soilprofile[4].value; heat, water),
+    soilprofile[5].depth => :soil5 => SimpleSoil(soilprofile[5].value; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 # create Tile

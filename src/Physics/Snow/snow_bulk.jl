@@ -18,14 +18,6 @@ const Enthalpy = Heat.Enthalpy
 
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
-function partial_heatcapacity(snow::Snowpack, heat::HeatBalance)
-    function heatcap(θw, θwi, θsat)
-        θi = θwi - θw
-        θa = θsat - θwi
-        return heatcapacity(snow, heat, θw, θi, θa)
-    end
-end
-
 CryoGrid.makegrid(::BulkSnowpack, strategy, bounds) = Grid([bounds[1], bounds[2]])
 
 # Initialization

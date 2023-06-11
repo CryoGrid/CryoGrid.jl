@@ -18,7 +18,7 @@ Flatten.flattenable(::Type{<:FunctionInitializer}, ::Type{Val{:f}}) = false
 
 ConstructionBase.constructorof(::Type{T}) where {varname,T<:FunctionInitializer{varname}} = f -> FunctionInitializer(varname, f)
 
-CryoGrid.initialcondition!(layer::Layer, state, init::FunctionInitializer) = init.f(layer, state)
+CryoGrid.initialcondition!(init::FunctionInitializer, layer::Layer, state) = init.f(layer, state)
 
 Base.getindex(init::FunctionInitializer, itrv::Interval) = init
 
@@ -38,7 +38,7 @@ end
 
 ConstructionBase.constructorof(::Type{T}) where {varname,T<:InterpInitializer{varname}} = (profile, interp, extrap) -> InterpInitializer(varname, profile, interp, extrap)
 
-function CryoGrid.initialcondition!(::Layer, state, init::InterpInitializer{var}) where var
+function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(map(knot -> ustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
