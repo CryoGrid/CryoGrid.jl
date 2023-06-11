@@ -12,11 +12,13 @@ const modules = [
        CryoGrid.Heat,
        CryoGrid.Hydrology,
        CryoGrid.Soils,
-       CryoGrid.Solvers,
        CryoGrid.Snow,
        CryoGrid.Surface,
        CryoGrid.Presets,
        CryoGrid.Diagnostics,
+       # solvers
+       CryoGrid.DiffEq,
+       CryoGrid.LiteImplicit
 ]
 
 makedocs(modules=modules,
@@ -35,15 +37,18 @@ makedocs(modules=modules,
                        "Numerics" => "api/numerics.md",
                        "Utilities" => "api/utils.md",
                        "Physics" => [
-                            "Heat Conduction" => "api/heat_conduction.md",
-                            "Hydrology" => "api/hydrology.md",
-                            "Soils" => "api/soils.md",
-                            "Snow" => "api/snow.md",
-                            "Surface Energy Balance" => "api/seb.md",
-                            "Salt" => "api/salt.md"
+                            "Heat Conduction" => "api/physics/heat_conduction.md",
+                            "Hydrology" => "api/physics/hydrology.md",
+                            "Soils" => "api/physics/soils.md",
+                            "Snow" => "api/physics/snow.md",
+                            "Surface Energy Balance" => "api/physics/seb.md",
+                            "Salt" => "api/physics/salt.md"
                        ],
                        "Tiles" => "api/tiles.md",
-                       "Solvers" => "api/solvers.md",
+                       "Solvers" => [
+                            "SciML/DiffEq" => "api/solvers/diffeq.md",
+                            "CryoGridLite" => "api/solvers/lite_implicit.md",
+                       ],
                        "Diagnostics" => "api/diagnostics.md",
                        "Presets" => "api/presets.md",
                 ],

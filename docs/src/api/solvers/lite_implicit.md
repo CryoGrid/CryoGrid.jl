@@ -1,7 +1,7 @@
-# Solvers
+# CryoGridLite
 
 ```@autodocs
-Modules = [CryoGrid.Solvers]
+Modules = [CryoGrid.LiteImplicit]
 Private = false
 Order = [:type, :function, :macro]
 ```
