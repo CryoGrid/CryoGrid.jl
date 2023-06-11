@@ -17,14 +17,14 @@ Author: Brian Groenke (brian.groenke@awi.de)
 `CryoGrid.jl` can be installed via the Julia package manager:
 
 ```
-add https://gitlab.awi.de/sparcs/cryogrid/cryogridjulia
+add CryoGrid
 ```
 
 or equivalently in code/REPL:
 
 ```julia
 import Pkg
-Pkg.add(url="https://gitlab.awi.de/sparcs/cryogrid/cryogridjulia")
+Pkg.add("CryoGrid")
 ```
 
 ### Quick start
