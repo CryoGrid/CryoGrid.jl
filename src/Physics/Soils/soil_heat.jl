@@ -40,6 +40,7 @@ function sfccsolver!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TO
         @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
         FreezeCurves.initialize!(solver, fc, hc; sat, θsat)
     end
+    return solver
 end
 
 """

@@ -69,6 +69,11 @@ CryoGrid.variables(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
     variables(soil, processes(soil))...
 )
 
+CryoGrid.initializers(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}) where {THeat} = (
+    initializer(:sat, soil.para.sat),
+    initializers(soil, processes(soil))...,
+)
+
 CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
     initializer(:por, soil.para.para.por),
     initializer(:sat, soil.para.para.sat),

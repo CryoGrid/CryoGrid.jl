@@ -74,6 +74,8 @@ Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
 Base.size(strat::Stratigraphy) = size(layers(strat))
 Base.length(strat::Stratigraphy) = length(layers(strat))
 Base.getindex(strat::Stratigraphy, i::Int) = layers(strat)[i]
+Base.firstindex(strat::Stratigraphy) = 1
+Base.lastindex(strat::Stratigraphy) = length(strat)
 Base.iterate(strat::Stratigraphy) = (layers(strat)[1],layers(strat)[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
@@ -106,19 +108,24 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
     return strat_grid
 end
 
-CryoGrid.initializers(strat::Stratigraphy) = tuplejoin(map(initializers, map(l -> l.val, layers(strat)))...)
-
 function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
-    # we can just loop over everything
-    all_inits = tuple(initializers(strat)..., inits...)
+    # we can just loop over everything.
+    # first invoke default layer initializers for last layer
+    for init in CryoGrid.initializers(strat[end].val)
+        state = getproperty(state, layername(strat[end]))
+        CryoGrid.initialcondtition!(init, strat[end].val, state)
+    end
     for i in 1:length(strat)-1
         layerᵢ = strat[i].val
         layerᵢ₊₁ = strat[i+1].val
         stateᵢ = getproperty(state, layername(strat[i]))
         stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
         # first invoke initialcondition! with initializers
-        for init in all_inits
+        for init in CryoGrid.initializers(layerᵢ)
+            CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+        end
+        for init in inits
             if i == 1 && haskey(stateᵢ.states, varname(init))
                 CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
             end
