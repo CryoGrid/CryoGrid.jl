@@ -80,10 +80,3 @@ function CryoGrid.updatestate!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBa
     # then hydraulic conductivity (requires liquid water content from heat conduction)
     Hydrology.hydraulicconductivity!(sub, water, state)
 end
-
-# Flux calculation
-function CryoGrid.computefluxes!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
-    water, heat = ps
-    CryoGrid.computefluxes!(sub, water, state)
-    CryoGrid.computefluxes!(sub, heat, state)
-end
