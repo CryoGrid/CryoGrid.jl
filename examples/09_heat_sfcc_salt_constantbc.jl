@@ -1,3 +1,9 @@
+# # Example 9
+# ## Coupled heat and salt diffusion on salty soil column
+# In this example, we construct a `Tile` from a Stratigraphy of three "salty soil" layers
+# which include coupled salt/heat diffusion. Note that this is currently only supported for
+# the temperature-based form of the heat equation.
+
 using CryoGrid
 
 initT = initializer(:T, -2.0)

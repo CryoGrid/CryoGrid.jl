@@ -1,7 +1,16 @@
-using CryoGrid
-using NonlinearSolve
+# # Example 2
+# ## Heat conduction on soil column with SFCC and zero-flux boundaries.
+# In this example, we use the preset `SoilHeatTile` to construct
+# a `Tile` consisting of a soil column with heat conduction
+# and zero-flux boundary conditions. This is a useful test case for
+# checking energy conservation since we can guarantee that no energy
+# is being added or removed at the boundaries.
 
+using CryoGrid
+
+# Select default grid with 2 cm near-surface spacing.
 grid = CryoGrid.Presets.DefaultGrid_2cm
+# Specify initial temperature and soil profiles.
 tempprofile = TemperatureProfile(
     0.0u"m" => -5.0u"°C",
     10.0u"m" => -1.0u"°C",
@@ -11,7 +20,12 @@ soilprofile = SoilProfile(
     0.0u"m" => MineralOrganic()
 )
 initT = initializer(:T, tempprofile)
+# Here we specify the soil freezing characteristic curve (SFCC) formulation of Painter and Karra (2014).
+# The van Genuchten parameters `α=0.5` and `n=1.8` correspond to a silty soil.
 sfcc = PainterKarra(swrc=VanGenuchten(α=0.5, n=1.8))
+# Enthalpy form of the heat transfer operator (i.e. prognostic :H). In this case, this is equivalent to
+# the shorthand `SoilHeatTile(:H, ...)`. However, it's worth demonstrating how the operator can be explicitly
+# specified.
 heatop = Heat.EnthalpyForm(SFCCPreSolver())
 tile = CryoGrid.Presets.SoilHeatTile(
     heatop,
@@ -22,10 +36,10 @@ tile = CryoGrid.Presets.SoilHeatTile(
     grid, 
     freezecurve=sfcc
 )
-# define time span
+# Define the simulation time span.
 tspan = (DateTime(2010,1,1),DateTime(2010,3,31))
 u0, du0 = initialcondition!(tile, tspan)
-# CryoGrid front-end for ODEProblem
+# Construct and solve the `CryoGridProblem`:
 prob = CryoGridProblem(tile, u0, tspan, saveat=900.0, savevars=(:T,), step_limiter=nothing)
 @info "Running model"
 out = @time solve(prob, Euler(), dt=120.0, saveat=900.0, progress=true) |> CryoGridOutput;

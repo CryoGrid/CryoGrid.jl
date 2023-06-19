@@ -1,7 +1,12 @@
+# # Example 4
+# ## Heat conduction on soil column with bulk snow scheme
+# In this example, we construct a `Tile` consisting of a soil column with (i) heat conduction
+# and (ii) a bulk (single-layer) snow scheme. The snowfall data comes
+# from the ERA-Interim reanalysis product.
+
 using CryoGrid
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
-# use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 z_top = -2.0u"m"

@@ -1,6 +1,6 @@
-# Tile
+# [Tiles](@id tiles)
 
-This module contains `Tile` and related types for building and evaluating a CryoGrid 1-D process model.
+This module contains `Tile`, `Stratigraphy`, and all related methods and types necessary for constructing a 1-D CryoGrid process model.
 
 ```@autodocs
 Modules = [Tiles]

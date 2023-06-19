@@ -1,3 +1,10 @@
+# # Example 8
+# ## Coupled heat and water flow on soil column
+# In this example, we construct a `Tile` from a Stratigraphy of three soil layers
+# with coupled water and heat transport. We use the Richards-Richardson equation for
+# unsaturated flow in porous media to account for flow due to capillary suction and
+# pressure gradients.
+
 using CryoGrid
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
@@ -11,19 +18,15 @@ tempprofile = TemperatureProfile(
     1000.0u"m" => 1.0u"°C"
 )
 initT = initializer(:T, tempprofile)
-# initialize saturation to match soil profile
-initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
-# soil water retention curve and freeze curve
+# Here we define the water retention curve and freeze curve.
 swrc = VanGenuchten(α=0.1, n=1.8)
 sfcc = PainterKarra(ω=0.0, swrc=swrc)
-# water flow: bucket scheme vs richard's eq
-# waterflow = BucketScheme()
 waterflow = RichardsEq(swrc=swrc)
-# Enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
+# We use the enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
 heatop = Heat.EnthalpyForm(SFCCNewtonSolver())
 upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair, NFactor()))
-# We will use a simple stratigraphy with 3 subsurface soil layers
-# Note that the @Stratigraphy macro lets us list multiple subsurface layers
+# We will use a simple stratigraphy with three subsurface soil layers.
+# Note that the @Stratigraphy macro lets us list multiple subsurface layers without wrapping them in a tuple.
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
     0.0u"m" => :topsoil => SimpleSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
@@ -32,18 +35,18 @@ strat = @Stratigraphy(
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_2cm
-tile = Tile(strat, grid, initT, initsat);
+tile = Tile(strat, grid, initT);
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw))
-# note that this is currently somewhat slow since the integrator must take very small time steps during the thawed season;
+# This is currently somewhat slow since the integrator must take very small time steps during the thawed season;
 # expect it to take about 3-5 minutes per year on a typical workstation/laptop;
 # minor speed-ups might be possible by tweaking the dt limiters or by using the SFCCPreSolver
 integrator = init(prob, Euler(), dt=1.0, saveat=3*3600.0)
-# take one step to check if it's working
+# Here we take just one step to checgk if it's working.
 step!(integrator)
-# we can use the `getstate` function to construct the current Tile state from the integrator
-state = getstate(integrator)
-# check that all water fluxes are near zero since we're starting in frozen conditions
+# We can use the `getstate` function to construct the current Tile state from the integrator.
+# We then check that all water fluxes are near zero since we're starting in frozen conditions.
+state = getstate(integrator);
 @assert all(isapprox.(0.0, state.topsoil.jw, atol=1e-14))
 # run the integrator forward in time until the end of the tspan
 @time while integrator.t < prob.tspan[end]

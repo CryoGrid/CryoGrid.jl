@@ -1,3 +1,10 @@
+# # Example 9
+# ## Computing parameter sensitivities with forward-mode automatic differentiation
+# This example demonstrates how to parameterize and differentiate a simulation with
+# two parameters (summer and winter n-factors).
+#
+# TODO: add more detail/background
+
 using CryoGrid
 using Statistics
 

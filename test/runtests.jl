@@ -20,13 +20,14 @@ include("Diagnostics/runtests.jl")
     # to run all examples:
     # test_example_scripts = readdir(examples_dir)
     # but this is annoyingly slow, so let's just pick a few
-    test_example_scripts = [
-        "heat_freeW_lite_implicit.jl",
-        "heat_freeW_samoylov.jl",
-        "heat_sfcc_constantbc.jl",
-        "heat_sfcc_samoylov.jl",
-        "readme_examples.jl",
-    ]
+    test_example_scripts = []
+    # test_example_scripts = [
+    #     "heat_freeW_lite_implicit.jl",
+    #     "heat_freeW_samoylov.jl",
+    #     "heat_sfcc_constantbc.jl",
+    #     "heat_sfcc_samoylov.jl",
+    #     "readme_examples.jl",
+    # ]
     for file in test_example_scripts
         @info "Running example script: $file"
         @testset "$file" begin

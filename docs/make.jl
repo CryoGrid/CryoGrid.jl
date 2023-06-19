@@ -1,5 +1,6 @@
 using CryoGrid
 using Documenter
+using Literate
 
 IS_LOCAL = haskey(ENV,"LOCALDOCS") && ENV["LOCALDOCS"] == "true"
 
@@ -19,7 +20,20 @@ const modules = [
        # solvers
        CryoGrid.DiffEq,
        CryoGrid.LiteImplicit
-]
+];
+
+examples_dir = joinpath(@__DIR__, "..", "examples")
+examples_output_dir = joinpath(@__DIR__, "src", "examples")
+# remove existing files
+rm(examples_output_dir, recursive=true)
+# recreate directory
+mkpath(examples_output_dir)
+# generate example docs from scripts
+example_docs = map(readdir(examples_dir)) do f
+       infile = joinpath(examples_dir, f)
+       Literate.markdown(infile, examples_output_dir)
+       return joinpath("examples", replace(f, "jl" => "md"))
+end
 
 makedocs(modules=modules,
          sitename="CryoGrid.jl",
@@ -28,31 +42,40 @@ makedocs(modules=modules,
          pages=["Home" => "index.md",
                 "Installation" => "installation.md",
                 "Getting Started" => "quickstart.md",
-                "Manual" => [
+                "User manual" => [
                        "Overview" => "manual/overview.md",
+                       "Architecture" => "manual/architecture.md",
+                       "Model interface" => "manual/interface.md",
+                       "Coupling layers and processes" => "manual/coupling.md",
                 ],
-                "Library" => [
-                       "Index" => "api/index.md",
-                       "Method interface" => "api/toplevel.md",
-                       "Numerics" => "api/numerics.md",
-                       "Utilities" => "api/utils.md",
-                       "Physics" => [
-                            "Heat Conduction" => "api/physics/heat_conduction.md",
-                            "Hydrology" => "api/physics/hydrology.md",
-                            "Soils" => "api/physics/soils.md",
-                            "Snow" => "api/physics/snow.md",
-                            "Surface Energy Balance" => "api/physics/seb.md",
-                            "Salt" => "api/physics/salt.md"
-                       ],
-                       "Tiles" => "api/tiles.md",
-                       "Solvers" => [
-                            "SciML/DiffEq" => "api/solvers/diffeq.md",
-                            "CryoGridLite" => "api/solvers/lite_implicit.md",
-                       ],
-                       "Diagnostics" => "api/diagnostics.md",
-                       "Presets" => "api/presets.md",
+                "Examples" => example_docs,
+                "Developer guide" => [
+                     "Concepts" => "dev/concepts.md",
+                     "Debugging" => "dev/debugging.md",
+                     "Contributing" => "dev/contributing.md",
                 ],
-                "Contributing" => "contributing.md",
+                "API" => [
+                     "Index" => "api/index.md",
+                     "CryoGrid" => "api/toplevel.md",
+                     "Numerics" => "api/numerics.md",
+                     "Utilities" => "api/utils.md",
+                     "Physics" => [
+                          "Heat Conduction" => "api/physics/heat_conduction.md",
+                          "Hydrology" => "api/physics/hydrology.md",
+                          "Soils" => "api/physics/soils.md",
+                          "Snow" => "api/physics/snow.md",
+                          "Surface Energy Balance" => "api/physics/seb.md",
+                          "Salt" => "api/physics/salt.md"
+                     ],
+                     "Tiles" => "api/tiles.md",
+                     "Solvers" => [
+                          "Built-in" => "api/solvers/basic_solvers.md",
+                          "SciML/DiffEq" => "api/solvers/diffeq.md",
+                          "CryoGridLite" => "api/solvers/lite_implicit.md",
+                     ],
+                     "Diagnostics" => "api/diagnostics.md",
+                     "Presets" => "api/presets.md",
+              ],
 ])
 
 deploydocs(repo="github.com/CryoGrid/CryoGrid.jl.git", push_preview=true)

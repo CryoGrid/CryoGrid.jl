@@ -1,3 +1,8 @@
+# # Example 7
+# ## Heat conduction on soil column solved with CryoGridLite
+# This example is very similar to [Example 1](@ref) but uses the
+# fast implicit CryoGridLite solver of Langer et al. 2023.
+
 using CryoGrid
 using CryoGrid.LiteImplicit
 
@@ -24,7 +29,8 @@ strat = @Stratigraphy(
 );
 @info "Building tile"
 tile = @time Tile(strat, AutoGrid(), initT)
-# define time span, 5 years
+# Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
+# Here we specify a time span of 5 years.
 tspan = (DateTime(2010,12,30), DateTime(2015,12,30))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = @time initialcondition!(tile, tspan);
@@ -33,7 +39,7 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)
 
-# Plot the results
+# Plot the results!
 import Plots
 
 zs = [5,10,15,20,25,30,40,50,100,500,1000,5000]u"cm"

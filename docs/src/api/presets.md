@@ -1,3 +1,5 @@
+# Presets (@)
+
 ```@autodocs
 Modules = [CryoGrid.Presets]
 Private = false
