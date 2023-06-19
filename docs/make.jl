@@ -25,7 +25,7 @@ const modules = [
 examples_dir = joinpath(@__DIR__, "..", "examples")
 examples_output_dir = joinpath(@__DIR__, "src", "examples")
 # remove existing files
-rm(examples_output_dir, recursive=true)
+rm(examples_output_dir, recursive=true, force=true)
 # recreate directory
 mkpath(examples_output_dir)
 # generate example docs from scripts
