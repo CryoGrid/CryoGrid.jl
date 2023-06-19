@@ -6,9 +6,8 @@
 
 using CryoGrid
 
-# Custom grid;
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
-# soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
+## soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
     0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
     0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
@@ -16,20 +15,20 @@ soilprofile = SoilProfile(
     3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
     10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
 );
-# mid-winter temperature profile
+## mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-# initialize saturation to match soil profile
+## initialize saturation to match soil profile
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
-z = 2.0u"m";    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
+z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
 swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
 upperbc = WaterHeatBC(swb, seb)
 heat = HeatBalance(:H, freezecurve=PainterKarra())
 water = WaterBalance(BucketScheme(), DampedET())
-# build stratigraphy
+## build stratigraphy
 strat = @Stratigraphy(
     -z => Top(upperbc),
     -z => :snowpack => Snowpack(heat=HeatBalance()),
@@ -40,12 +39,12 @@ strat = @Stratigraphy(
     soilprofile[5].depth => :soil5 => SimpleSoil(soilprofile[5].value; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
-# create Tile
+## create Tile
 tile = Tile(strat, modelgrid, initT, initsat);
 
-# define time span
+## define time span
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
-# generate initial condition and set up CryoGridProblem
+## generate initial condition and set up CryoGridProblem
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(
     tile,
@@ -54,18 +53,17 @@ prob = CryoGridProblem(
     savevars=(:T,:jH,:top => (:Qh,:Qe,:Qg,),:snowpack => (:dsn,)),
     saveat=3*3600.0
 )
-# initialize integrator
+## initialize integrator
 integrator = init(prob, Euler(), dt=60.0, saveat=3*3600.0)
-# step forwards 24 hours and check for NaN/Inf values
+## step forwards 24 hours and check for NaN/Inf values
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))
-# iterate over remaining timespan
+## iterate over remaining timespan
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
     @assert isfinite(getstate(:top, integrator).Qg[1])
-    # print once per day to track progress
     @show Date(convert_t(t))
 end
-# build output from solution
+## build output from solution
 out = CryoGridOutput(integrator.sol)
 
 # Plot it!
