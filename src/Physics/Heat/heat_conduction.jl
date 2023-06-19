@@ -94,7 +94,6 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     return nothing
 end
 
-
 function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances

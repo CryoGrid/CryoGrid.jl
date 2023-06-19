@@ -49,12 +49,10 @@ function CryoGrid.initialcondition!(
     CryoGrid.updatestate!(soil, water, state)
     # initialize heat
     fc = heat.freezecurve
-    solver = Heat.fcsolver(heat)
+    solver = sfccsolver!(soil, heat, state)
     @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
     L = heat.prop.L
-    θsat = porosity(soil, state)
     @unpack ch_w, ch_i = thermalproperties(soil)
-    FreezeCurves.initialize!(solver, fc, hc; θsat)
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         T = state.T[i]
@@ -70,11 +68,15 @@ end
 function CryoGrid.updatestate!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     # Reset fluxes
+    resetfluxes!(sub, heat, state)
     resetfluxes!(sub, water, state)
     # Compute water contents from current state
     Hydrology.watercontent!(sub, water, state)
     # HeatBalance diagnostics
-    Heat.updatestate!(sub, heat, state)
+    # Evaluate freeze/thaw processes
+    Heat.freezethaw!(sub, state)
+    # Update thermal conductivity
+    Heat.thermalconductivity!(sub, heat, state)
     # then hydraulic conductivity (requires liquid water content from heat conduction)
     Hydrology.hydraulicconductivity!(sub, water, state)
 end
@@ -83,9 +85,5 @@ end
 function CryoGrid.computefluxes!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.computefluxes!(sub, water, state)
-    L = heat.prop.L
-    @unpack ch_w, ch_i = thermalproperties(sub)
-    # heat flux due to change in water content
-    @. state.∂H∂t += state.∂θwi∂t*(state.T*(ch_w - ch_i) + L)
     CryoGrid.computefluxes!(sub, heat, state)
 end

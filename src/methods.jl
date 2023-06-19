@@ -36,7 +36,6 @@ initialcondition!(::VarInitializer, ::Layer, ::Process, state) = nothing
 """
     initialcondition!(layer1::Layer, layer2::Layer, state1, state2)
     initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
-    initialcondition!(::VarInitializer, ::Layer, ::Process, ::Layer, ::Process, state1, state2)
 
 Defines the initial condition for two processes on adjacent layers. `initialcondition!` should write initial values into all
 relevant state variables in `state`.
@@ -44,7 +43,6 @@ relevant state variables in `state`.
 initialcondition!(layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 initialcondition!(initializer::VarInitializer, layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(initializer, layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
-initialcondition!(::VarInitializer, ::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 
 """
     updatestate!(l::Layer, state)

@@ -190,7 +190,9 @@ function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEven
     zs = initboundaries!(tile, u)
     state = TileState(tile.state, zs, u, du, t0, 1.0, Val{iip}())
     CryoGrid.initialcondition!(strat, state, tile.inits)
-    return u, du    
+    # evaluate initial time derivative
+    evaluate!(tile, du, u, p, t0)
+    return u, du
 end
 
 """

@@ -111,32 +111,22 @@ end
 function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything.
-    # first invoke default layer initializers for last layer
-    for init in CryoGrid.initializers(strat[end].val)
-        state = getproperty(state, layername(strat[end]))
-        CryoGrid.initialcondtition!(init, strat[end].val, state)
+    # first invoke initialconditon! with initializers
+    for i in 1:length(strat)
+        layerᵢ = strat[i].val
+        stateᵢ = getproperty(state, layername(strat[i]))
+        for init in tuplejoin(CryoGrid.initializers(layerᵢ), inits)
+            if haskey(stateᵢ.states, varname(init))
+                CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+            end
+        end
     end
+    # then invoke non-specific layer inits
     for i in 1:length(strat)-1
         layerᵢ = strat[i].val
         layerᵢ₊₁ = strat[i+1].val
         stateᵢ = getproperty(state, layername(strat[i]))
         stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
-        # first invoke initialcondition! with initializers
-        for init in CryoGrid.initializers(layerᵢ)
-            CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
-        end
-        for init in inits
-            if i == 1 && haskey(stateᵢ.states, varname(init))
-                CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
-            end
-            if haskey(stateᵢ₊₁.states, varname(init))
-                CryoGrid.initialcondition!(init, layerᵢ₊₁, stateᵢ₊₁)
-            end
-            if haskey(stateᵢ.states, varname(init)) && haskey(stateᵢ₊₁.states, varname(init))
-                CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
-            end
-        end
-        # then invoke initialcondition! standalone
         if i == 1
             CryoGrid.initialcondition!(layerᵢ, stateᵢ)
         end

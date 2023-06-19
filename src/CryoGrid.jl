@@ -21,7 +21,7 @@ using Reexport
 import Flatten
 import Interpolations
 
-# Re-exported packages
+# Re-exported third-party packages (for convenience)
 @reexport using Dates
 @reexport using DiffEqBase
 @reexport using DiffEqCallbacks
@@ -91,8 +91,10 @@ include("coupling.jl")
 export CryoGridProblem
 include("problem.jl")
 
-# include dependent submodules
+# Solvers
+export CGEuler, CryoGridIntegrator, CryoGridSolution
 include("Solvers/Solvers.jl")
+# Presets
 include("Presets/Presets.jl")
 
 end # module

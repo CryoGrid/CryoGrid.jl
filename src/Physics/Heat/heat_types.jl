@@ -82,7 +82,7 @@ end
 
 Implicit enthalpy formulation of Swaminathan and Voller (1992) and Langer et al. (2022). Note that this
 heat operator formulation does not compute a divergence `∂H∂t` but only computes the necessary diffusion
-coefficients for use by an appropriate solver. See the `Solvers.LiteImplicit` module for the appropriate
+coefficients for use by an appropriate solver. See the `LiteImplicit` module for the appropriate
 solver algorithms.
 """
 struct EnthalpyImplicit{Tsolver,Tcond,Thc} <: HeatOperator{:H}
