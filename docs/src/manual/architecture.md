@@ -13,7 +13,7 @@ In Julia, namespaces are declared via [modules](https://docs.julialang.org/en/v1
 The `CryoGrid` module provided by CryoGrid.jl is organized into a series of submodules:
 
 |Name|Description|Depends on|
-|-|-|-|
+|----|-----------|----------|
 |`Utils`|Miscellaneous utility methods and types.||
 |`Numerics`|Utilities for math, array caches, and spatial discretization.|`Utils`|
 |`InputOutput`|Methods and types related to reading and writing input and output data.|`Utils`,`Numerics`|

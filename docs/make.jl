@@ -45,7 +45,6 @@ makedocs(modules=modules,
                 "User manual" => [
                        "Overview" => "manual/overview.md",
                        "Architecture" => "manual/architecture.md",
-                       "Model interface" => "manual/interface.md",
                        "Coupling layers and processes" => "manual/coupling.md",
                 ],
                 "Developer guide" => [
