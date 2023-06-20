@@ -29,10 +29,28 @@ rm(examples_output_dir, recursive=true, force=true)
 # recreate directory
 mkpath(examples_output_dir)
 # generate example docs from scripts
-example_docs = map(readdir(examples_dir)) do f
+example_docfiles = map(readdir(examples_dir)) do f
        infile = joinpath(examples_dir, f)
        Literate.markdown(infile, examples_output_dir)
-       return joinpath("examples", replace(f, "jl" => "md"))
+       return f
+end
+
+name_lookup = Dict(
+       "01_heat_freeW_samoylov.md" => "Soil heat with free water freeze curve",
+       "02_heat_sfcc_constantbc.md" => "Soil heat with SFCC and constant BCs",
+       "03_heat_sfcc_samoylov.md" => "Soil heat with SFCC",
+       "04_heat_freeW_snow_samoylov.md" => "Soil heat with bulk snow scheme",
+       "05_heat_freeW_bucketW_samoylov.md" => "Soil heat with bucket water scheme",
+       "06_heat_freeW_seb_snow_bucketW_samoylov.md" => "Soil heat w/ SEB, snow cover, and bucket water scheme",
+       "07_heat_freeW_lite_implicit.md" => "Fast heat conduction with CryoGridLite",
+       "08_heat_sfcc_richardseq_samoylov.md" => "Coupled soil heat and water transport",
+       "09_heat_sfcc_salt_constantbc.md" => "Coupled heat and salt diffusion on salty soil column",
+       "10_heat_simple_autodiff_grad.md" => "Computing parameter sensitivities with autodiff",
+)
+
+example_docpages = map(example_docfiles) do f
+       docpage = replace(f, "jl" => "md")
+       name_lookup[docpage] => joinpath("examples", docpage)
 end
 
 makedocs(modules=modules,
@@ -52,7 +70,7 @@ makedocs(modules=modules,
                      "Debugging" => "dev/debugging.md",
                      "Contributing" => "dev/contributing.md",
                 ],
-                "Examples" => example_docs,
+                "Examples" => example_docpages,
                 "API" => [
                      "Index" => "api/index.md",
                      "CryoGrid" => "api/toplevel.md",

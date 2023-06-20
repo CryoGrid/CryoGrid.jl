@@ -1,4 +1,4 @@
-# # [Speeding up simulations with CryoGridLite](@id example7)
+# # [Fast heat conduction with CryoGridLite](@id example7)
 # This example is very similar to [Example 1](@ref) but uses the
 # fast implicit CryoGridLite solver of Langer et al. 2023.
 
