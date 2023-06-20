@@ -1,5 +1,4 @@
-# # Example 5
-# ## Heat conduction on soil column with bucket water scheme
+# # [Soil heat with bucket water scheme](@id example5)
 # In this example, we construct a `Tile` consisting of a soil column with (i) heat conduction
 # and (ii) a bucket hydrology scheme. The rainfall data comes
 # from the ERA5-Interim reanalysis product.

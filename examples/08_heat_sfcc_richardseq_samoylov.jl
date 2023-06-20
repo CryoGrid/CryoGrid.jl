@@ -1,5 +1,4 @@
-# # Example 8
-# ## Coupled heat and water flow on soil column
+# # [Coupled soil heat and water transport](@id example8)
 # In this example, we construct a `Tile` from a Stratigraphy of three soil layers
 # with coupled water and heat transport. We use the Richards-Richardson equation for
 # unsaturated flow in porous media to account for flow due to capillary suction and

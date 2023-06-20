@@ -1,5 +1,4 @@
-# # Example 2
-# ## Heat conduction on soil column with SFCC and zero-flux boundaries.
+# # [Soil heat with SFCC and constant BCs](@id example2)
 # In this example, we use the preset `SoilHeatTile` to construct
 # a `Tile` consisting of a soil column with heat conduction
 # and zero-flux boundary conditions. This is a useful test case for

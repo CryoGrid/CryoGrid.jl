@@ -1,5 +1,4 @@
-# # Example 7
-# ## Heat conduction on soil column solved with CryoGridLite
+# # [Speeding up simulations with CryoGridLite](@id example7)
 # This example is very similar to [Example 1](@ref) but uses the
 # fast implicit CryoGridLite solver of Langer et al. 2023.
 

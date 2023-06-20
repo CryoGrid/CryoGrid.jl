@@ -1,7 +1,6 @@
-# # Example 9
-# ## Computing parameter sensitivities with forward-mode automatic differentiation
+# # [Computing parameter sensitivities with autodiff](@id example10)
 # This example demonstrates how to parameterize and differentiate a simulation with
-# two parameters (summer and winter n-factors).
+# two parameters (summer and winter n-factors) using forward-mode automatic simulation.
 #
 # TODO: add more detail/background
 

@@ -1,5 +1,4 @@
-# # Example 3
-# ## Heat conduction on soil column with SFCC
+# # [Heat conduction on soil column with SFCC](@id example3)
 # In this example, we use the preset `SoilHeatTile` to construct
 # a `Tile` consisting of a soil column with heat conduction
 # forced using air temperatures from Samoylov Island. We use the

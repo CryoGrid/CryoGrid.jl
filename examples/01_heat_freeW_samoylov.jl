@@ -1,5 +1,4 @@
-# # [Example 1](@id example1)
-# ## Heat conduction on soil column with free water freeze curve
+# # [Soil heat with freeW freeze curve](@id example1)
 # In this example, we use the preset `SoilHeatTile` to construct
 # a `Tile` consisting of a soil column with heat conduction
 # forced using air temperatures from Samoylov Island.

@@ -1,5 +1,4 @@
-# # Example 4
-# ## Heat conduction on soil column with bulk snow scheme
+# # [Soil heat with bulk snow scheme](@id example4)
 # In this example, we construct a `Tile` consisting of a soil column with (i) heat conduction
 # and (ii) a bulk (single-layer) snow scheme. The snowfall data comes
 # from the ERA-Interim reanalysis product.

@@ -48,12 +48,12 @@ makedocs(modules=modules,
                        "Model interface" => "manual/interface.md",
                        "Coupling layers and processes" => "manual/coupling.md",
                 ],
-                "Examples" => example_docs,
                 "Developer guide" => [
                      "Concepts" => "dev/concepts.md",
                      "Debugging" => "dev/debugging.md",
                      "Contributing" => "dev/contributing.md",
                 ],
+                "Examples" => example_docs,
                 "API" => [
                      "Index" => "api/index.md",
                      "CryoGrid" => "api/toplevel.md",

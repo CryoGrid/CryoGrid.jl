@@ -1,5 +1,4 @@
-# # Example 6
-# ## Heat conduction on soil column with surface energy balance, snow cover, and bucket water scheme
+# # [Soil heat w/ SEB, snow cover, and bucket water scheme](@id example6)
 # In this example, we construct a `Tile` consisting of a soil column with (i) heat conduction
 # forced by the surface energy balance (SEB), (ii) a bulk snow scheme, and
 # (iii) a bucket hydrology scheme.
