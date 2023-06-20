@@ -18,16 +18,14 @@ strat = @Stratigraphy(
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_10cm
 tile = Tile(strat, modelgrid, initT, initsalt, initpor)
-# define time span
 tspan = (DateTime(1990,1,1),DateTime(2000,12,31))
 u0, du0 = initialcondition!(tile, tspan)
-# CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:θw,:k,:dₛ))
 @info "Running model"
 integrator = init(prob, Euler(), dt=60.0, saveat=24*3600.0, progress=true);
-# step forawrd 24 hours
+# Initial step forawrd 24 hours...
 @time step!(integrator, 24*3600)
-# run to end of tspan
+# Run to end of time span.
 @time for i in integrator end
 out = CryoGridOutput(integrator.sol)
 

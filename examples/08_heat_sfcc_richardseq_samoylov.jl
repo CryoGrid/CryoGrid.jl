@@ -8,8 +8,9 @@
 using CryoGrid
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
-# define time span for simulation
+# Define time span for simulation
 tspan = (DateTime(2011,1,1),DateTime(2012,1,1))
+# Construct initial temperature profile.
 T0 = values(forcings.Tair(tspan[1]))[1]
 tempprofile = TemperatureProfile(
     0.0u"m" => T0*u"°C",
@@ -18,7 +19,8 @@ tempprofile = TemperatureProfile(
     1000.0u"m" => 1.0u"°C"
 )
 initT = initializer(:T, tempprofile)
-# Here we define the water retention curve and freeze curve.
+# Here we conigure the water retention curve and freeze curve. The van Genuchten parameters coorespond to that
+# which would be reasonable for a silty soil.
 swrc = VanGenuchten(α=0.1, n=1.8)
 sfcc = PainterKarra(ω=0.0, swrc=swrc)
 waterflow = RichardsEq(swrc=swrc)
@@ -52,7 +54,7 @@ state = getstate(integrator);
 @time while integrator.t < prob.tspan[end]
     @assert all(isfinite.(integrator.u))
     @assert all(0 .<= integrator.u.sat .<= 1)
-    # run the integrator forward in daily increments
+    ## run the integrator forward in daily increments
     step!(integrator, 24*3600.0)
     t = convert_t(integrator.t)
     @info "t=$t, current dt=$(integrator.dt*u"s")"
@@ -60,7 +62,7 @@ end
 
 out = CryoGridOutput(integrator.sol)
 
-# check mass conservation; TODO: need to track surface water runoff to close the water balance
+# Check mass conservation...
 water_added = values(sum(upreferred.(forcings.rainfall.(tspan[1]:Hour(3):tspan[2]).*u"m/s".*3u"hr")))[1]
 water_mass = Diagnostics.integrate(out.θwi, tile.grid)
 water_resid = water_mass[end] - water_mass[1] - water_added*1u"m^2"

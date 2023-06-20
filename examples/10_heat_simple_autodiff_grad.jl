@@ -9,12 +9,9 @@ using CryoGrid
 using Statistics
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044, :Tair => u"°C");
-# use default profiles for samoylov
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
-# "simple" heat conduction model w/ 5 cm grid spacing (defaults to free water freezing scheme)
 grid = CryoGrid.Presets.DefaultGrid_5cm
 initT = initializer(:T, tempprofile)
-# construct soil Tile with heat conduction and parameterized n-factors
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
     TemperatureGradient(forcings.Tair, NFactor(nf=Param(0.5), nt=Param(0.9))),
@@ -23,13 +20,12 @@ tile = CryoGrid.Presets.SoilHeatTile(
     initT;
     grid=grid
 )
-# define time span
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
+# Collect model parameters
 p = CryoGrid.parameters(tile)
-# construct CryoGridProblem with tile, initial condition, and timespan;
-# we disable the default timestep limiter since we will use an adaptive solver.
-prob = CryoGridProblem(tile, u0, tspan, collect(p), savevars=(:T,), step_limiter=nothing)
+# Set up the `CryoGridProblem`
+prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,), step_limiter=nothing)
 
 function loss(p)
     u0, du0 = initialcondition!(tile, tspan, p)
