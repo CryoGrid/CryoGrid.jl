@@ -1,6 +1,12 @@
 # [Overview](@id overview)
 ## Setting up a model
 
+```@meta
+DocTestSetup = quote
+    using CryoGrid
+end
+```
+
 At the highest level, a model in `CryoGrid.jl` is defined by one or more [`Tile`](@ref)s each consisting of a [`Grid`](@ref) and a [`Stratigraphy`](@ref), constructed top-down from individual [`Layer`](@ref)s, each of which has one or more [`Process`](@ref)es. Each layer in the `Stratigraphy` is assigned a depth, which then aligns it with the `Grid`. All models must consist of at least three layers/nodes: `Top` and `Bottom` layers with corresponding boundary conditions, as well as one or more [`SubSurface`](@ref) layers. Here we define a simple three-layer model (or one-layer, exlcuding the boundaries) with a single sub-surface process, i.e. [`HeatBalance`](@ref) (heat conduction):
 
 ```julia

@@ -1,4 +1,4 @@
-# Concepts
+# [Concepts](@id concepts)
 
 This page provides a brief(-ish) overview of the basic programming and Julia-language concepts needed in order to develop and extend CryoGrid.jl.
  

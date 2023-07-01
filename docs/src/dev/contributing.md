@@ -1,3 +1,3 @@
-# Contributing
+# [Contributing](@id contrib)
 
 TODO

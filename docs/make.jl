@@ -2,6 +2,8 @@ using CryoGrid
 using Documenter
 using Literate
 
+# ENV["LOCALDOCS"] = "true"
+
 IS_LOCAL = haskey(ENV,"LOCALDOCS") && ENV["LOCALDOCS"] == "true"
 
 const modules = [
@@ -31,7 +33,7 @@ mkpath(examples_output_dir)
 # generate example docs from scripts
 example_docfiles = map(readdir(examples_dir)) do f
        infile = joinpath(examples_dir, f)
-       Literate.markdown(infile, examples_output_dir)
+       Literate.markdown(infile, examples_output_dir, execute=false)
        return f
 end
 
