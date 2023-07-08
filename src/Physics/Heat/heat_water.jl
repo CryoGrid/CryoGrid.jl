@@ -5,24 +5,26 @@ const WaterHeatBC{TWater,THeat} = Coupled2{TWater,THeat} where {TWater<:WaterBC,
 WaterHeatBC(waterbc::WaterBC, heatbc::HeatBC) = Coupled(waterbc, heatbc)
 
 """
-    advectiveflux(jw, C, T)
+    advectiveflux(jw, cw, T₁, T₂)
 
-Advective energy flux: `jw*C*T` (TODO: should latent heat also be accounted for?)
+Computes the advective energy flux between two grid cells with temperatures `T₁` and `T₂`.
+This function assumes that `jw` is positive downward such that a positive temperature gradient
+`T₁ - T₂` would result in a positive (downward) energy flux `jH`.
 """
-advectiveflux(jw, C, T) = jw*C*T
+advectiveflux(jw, cw, T₁, T₂) = jw*cw*(T₁ - T₂)*sign(jw)
 
 """
     energyadvection!(::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
 
 Adds advective energy fluxes for all internal grid cell faces.
 """
-function energyadvection!(::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
+function energyadvection!(sub::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
+    @unpack ch_w = thermalproperties(sub)
     @inbounds for i in 2:length(state.jw)-1
         let jw = state.jw[i],
-            idx = ifelse(jw < 0, i, i-1),
-            C = state.C[idx],
-            T = state.T[idx];
-            state.jH[i] += advectiveflux(jw, C, T)
+            T₁ = state.jw[i-1],
+            T₂ = state.jw[i];
+            state.jH[i] += advectiveflux(jw, ch_w, T₁, T₂)
         end
     end
 end
