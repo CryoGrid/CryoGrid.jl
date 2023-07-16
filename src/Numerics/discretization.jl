@@ -54,4 +54,4 @@ makegrid(::Layer, strategy, bounds) = makegrid(strategy, bounds)
 Produces a discretization of the given variable based on `T` and array type `A`.
 """
 instantiate(var::Var, d::AbstractDiscretization{Q,N}) where {Q,N} = instantiate(var, d, Array{vartype(var),N})
-instantiate(var::Var, grid::Grid, ::Type{A}) where {A<:AbstractVector} = zero(similar(A, dimlength(var.dim, length(edges(grid)))))
+instantiate(var::Var, grid::Grid, ::Type{A}) where {A<:AbstractVector} = adapt(A, zeros(dimlength(var.dim, length(edges(grid)))))

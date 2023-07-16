@@ -435,8 +435,7 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     default_chunk_size = length(para) > 0 ? length(para) : 12
     chunk_size = isnothing(chunk_size) ? default_chunk_size : chunk_size
     # rebuild grid with type compatible with state arrays
-    gridvals = zero(similar(A, length(grid)))
-    copyto!(gridvals, ustrip.(grid))
+    gridvals = adapt(A, ustrip.(grid))
     tile_grid = Grid(gridvals, grid.geometry)
     # create state variable cache
     states = StateVars(vars, tile_grid, cachetype, arraytype; chunk_size)

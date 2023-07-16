@@ -53,7 +53,8 @@ function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state
             ),
             extrap
         )
-        @. u = f(z)
+        f_adapt = adapt(Numerics.arraytype(state.grid), f)
+        @. u = f_adapt(z)
         return u
     else
         # if only one knot is defined, set to this value over all z;

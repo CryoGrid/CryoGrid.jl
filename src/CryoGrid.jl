@@ -9,6 +9,7 @@ function debug(debug::Bool)
     return CRYOGRID_DEBUG
 end
 
+using Adapt
 using Base: @propagate_inbounds
 using ComponentArrays
 using ConstructionBase

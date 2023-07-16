@@ -9,6 +9,7 @@ using CryoGrid.InputOutput: Forcing, CryoGridParams
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using Adapt
 using ComponentArrays
 using Dates
 using DimensionalData

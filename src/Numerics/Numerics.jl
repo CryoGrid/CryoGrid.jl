@@ -3,6 +3,7 @@ module Numerics
 using CryoGrid
 using CryoGrid.Utils
 
+using Adapt
 using Base: @inbounds, @propagate_inbounds
 using ComponentArrays
 using DimensionalData: AbstractDimArray, DimArray, Dim, At, dims, Z

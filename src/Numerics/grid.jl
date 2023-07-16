@@ -57,6 +57,8 @@ function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     r_ind = min(r_ind, length(grid))
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
+
+@inline arraytype(::Grid{S,G,Q,A}) where {S,G,Q,A} = A
 @inline bounds(grid::Grid{Edges}) = grid.bounds
 @inline bounds(grid::Grid{Cells}) = first(grid.bounds):last(grid.bounds)-1
 @inline Δbounds(grid::Grid{Edges}) = first(grid.bounds):last(grid.bounds)-1
