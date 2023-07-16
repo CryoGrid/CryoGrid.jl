@@ -88,7 +88,7 @@ function Tile(
     @nospecialize(inits::VarInitializer...);
     metadata::Dict=Dict(),
     cachetype::Type{T}=DiffCache,
-    arraytype::Type{A}=Vector,
+    arraytype::Type{A}=Vector{Float64},
     iip::Bool=true,
     chunk_size=nothing,
 ) where {T<:Numerics.StateVarCache,A<:AbstractArray}
@@ -434,7 +434,12 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     para = params(strat)
     default_chunk_size = length(para) > 0 ? length(para) : 12
     chunk_size = isnothing(chunk_size) ? default_chunk_size : chunk_size
-    states = StateVars(vars, Grid(ustrip.(grid), grid.geometry), cachetype, arraytype; chunk_size)
+    # rebuild grid with type compatible with state arrays
+    gridvals = zero(similar(A, length(grid)))
+    copyto!(gridvals, ustrip.(grid))
+    tile_grid = Grid(gridvals, grid.geometry)
+    # create state variable cache
+    states = StateVars(vars, tile_grid, cachetype, arraytype; chunk_size)
     return states
 end
 

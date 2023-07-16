@@ -38,7 +38,7 @@ function StateVars(
     freeprogvars = map(group -> filter(!isongrid, group), progvars)
     vartypes = map(vartype, tuplejoin(gridprogvars, _flatten(freeprogvars)))
     @assert all(map(==(first(vartypes)), vartypes)) "All prognostic variables must have same data type"
-    uproto = prognosticstate(TArray{first(vartypes)}, D, freeprogvars, gridprogvars)
+    uproto = prognosticstate(TArray, D, freeprogvars, gridprogvars)
     # build non-gridded (i.e. "free") diagnostic state vectors
     freediagvars = map(group -> filter(!isongrid, group), diagvars)
     freediagstate = map(group -> (;map(v -> varname(v) => TCache(varname(v), instantiate(v, D, TArray); cache_kwargs...), group)...), freediagvars)
