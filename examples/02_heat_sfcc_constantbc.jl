@@ -25,7 +25,7 @@ sfcc = PainterKarra(swrc=VanGenuchten(α=0.5, n=1.8))
 # Enthalpy form of the heat transfer operator (i.e. prognostic :H). In this case, this is equivalent to
 # the shorthand `SoilHeatTile(:H, ...)`. However, it's worth demonstrating how the operator can be explicitly
 # specified.
-heatop = Heat.EnthalpyForm(SFCCPreSolver())
+heatop = Heat.EnthalpyForm(SFCCNewtonSolver())
 tile = CryoGrid.Presets.SoilHeatTile(
     heatop,
     ConstantBC(HeatBalance, CryoGrid.Neumann, 0.0u"W/m^2"),
@@ -33,15 +33,16 @@ tile = CryoGrid.Presets.SoilHeatTile(
     soilprofile,
     initT;
     grid, 
-    freezecurve=sfcc
+    freezecurve=sfcc,
+    cachetype=CryoGrid.Numerics.ArrayCache,
 )
 # Define the simulation time span.
-tspan = (DateTime(2010,1,1),DateTime(2010,3,31))
+tspan = (DateTime(2010,1,1),DateTime(2010,12,31))
 u0, du0 = initialcondition!(tile, tspan)
 # Construct and solve the `CryoGridProblem`:
-prob = CryoGridProblem(tile, u0, tspan, saveat=900.0, savevars=(:T,), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, saveat=3600.0, savevars=(:T,))
 @info "Running model"
-out = @time solve(prob, Euler(), dt=120.0, saveat=900.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, Euler(), dt=120.0, saveat=3600.0, progress=true) |> CryoGridOutput;
 
 # check mass conservation
 Htot = Diagnostics.integrate(out.H, grid)
@@ -51,7 +52,7 @@ mass_balance_error = Htot[end] - Htot[1]
 # Plot it!
 import Plots
 
-zs = [1,3,5,7,11,31,51,101]u"cm"
+zs = [1,51,101]u"cm"
 Diagnostics.plot_at_depths(:T, out, zs, ylabel="Temperature", leg=false, size=(800,500), dpi=150)
 
 # energy balance error over time

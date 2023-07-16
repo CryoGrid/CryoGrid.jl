@@ -74,12 +74,12 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
         @nospecialize(discretization_strategy::DiscretizationStrategy),
         @nospecialize(inits::VarInitializer...);
         metadata::Dict=Dict(),
-        arrayproto::Type{A}=Vector,
+        arraytype::Type{A}=Vector,
         iip::Bool=true,
         chunk_size=nothing,
     )
 
-Constructs a `Tile` from the given stratigraphy and discretization strategy. `arrayproto` keyword arg should be an array instance
+Constructs a `Tile` from the given stratigraphy and discretization strategy. `arraytype` keyword arg should be an array instance
 (of any arbitrary length, including zero, contents are ignored) that will determine the array type used for all state vectors.
 """
 function Tile(
@@ -87,10 +87,11 @@ function Tile(
     @nospecialize(discretization_strategy::DiscretizationStrategy),
     @nospecialize(inits::VarInitializer...);
     metadata::Dict=Dict(),
-    arrayproto::Type{A}=Vector,
+    cachetype::Type{T}=DiffCache,
+    arraytype::Type{A}=Vector,
     iip::Bool=true,
     chunk_size=nothing,
-) where {A<:AbstractArray}
+) where {T<:Numerics.StateVarCache,A<:AbstractArray}
     grid = Numerics.makegrid(strat, discretization_strategy)
     strat = stripunits(strat)
     events = CryoGrid.events(strat)
@@ -101,7 +102,7 @@ function Tile(
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
     # construct state variables
-    states = _initstatevars(strat, grid, vars, chunk_size, arrayproto)
+    states = _initstatevars(strat, grid, vars, cachetype, arraytype; chunk_size)
     if isempty(inits)
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
@@ -421,11 +422,11 @@ end
 debughook!(tile, state, err) = throw(err)
 
 # ==== Internal methods for initializing types and state variables ====
+
 """
 Initialize `StateVars` which holds the caches for all defined state variables.
 """
-function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::NamedTuple), chunk_size::Union{Nothing,Int}, arrayproto::Type{A}) where {A}
-    layernames = [layername(layer) for layer in strat]
+function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::Grid), @nospecialize(vars::NamedTuple), cachetype::Type{T}, arraytype::Type{A}; chunk_size::Union{Nothing,Int}) where {T,A}
     npvars = (length(filter(isprognostic, var)) + length(filter(isalgebraic, var)) for var in vars) |> sum
     ndvars = (length(filter(isdiagnostic, var)) for var in vars) |> sum
     @assert (npvars + ndvars) > 0 "No variable definitions found. Did you add a method definition for CryoGrid.variables(::L,::P) where {L<:Layer,P<:Process}?"
@@ -433,7 +434,7 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     para = params(strat)
     default_chunk_size = length(para) > 0 ? length(para) : 12
     chunk_size = isnothing(chunk_size) ? default_chunk_size : chunk_size
-    states = StateVars(vars, Grid(ustrip.(grid), grid.geometry), chunk_size, arrayproto)
+    states = StateVars(vars, Grid(ustrip.(grid), grid.geometry), cachetype, arraytype; chunk_size)
     return states
 end
 

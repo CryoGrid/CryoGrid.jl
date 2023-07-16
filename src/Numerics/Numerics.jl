@@ -20,7 +20,6 @@ using StructTypes
 import ConstructionBase
 import ForwardDiff
 import ModelParameters
-import PreallocationTools as Prealloc
 
 USE_TURBO = true
 function turbo(value::Bool)
@@ -39,8 +38,8 @@ include("grid.jl")
 export DiscretizationStrategy, PresetGrid, AutoGrid, LinearSpacing, makegrid, discretize
 include("discretization.jl")
 
-export DiffCache, retrieve
-include("diffcache.jl")
+export DiffCache, ArrayCache, retrieve
+include("caches.jl")
 
 export StateVars, getvar, getvars
 include("statevars.jl")
