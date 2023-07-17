@@ -45,7 +45,7 @@ maxwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(maxwa
 
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
-minwater(::SubSurface, water::WaterBalance) = 0.0
+minwater(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).fieldcapacity
 minwater(sub::SubSurface, water::WaterBalance, state) = minwater(sub, water)
 minwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(minwater(sub, water, state), i)
 

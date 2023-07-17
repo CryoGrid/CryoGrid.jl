@@ -9,7 +9,10 @@ Base.@kwdef struct WaterBalanceProperties{Tρw,TLsg,Trb,Trc}
     r_β::Trb = 1e3 # reduction factor scale parameter
     r_c::Trc = 0.96325 # reduction factor shift parameter
 end
+
+# do not parameterize water balance constants
 CryoGrid.parameterize(prop::WaterBalanceProperties) = prop
+
 """
     HydraulicProperties
 
@@ -17,7 +20,9 @@ Default material hydraulic properties.
 """
 Utils.@properties HydraulicProperties(
     kw_sat = 1e-5u"m/s",
+    fieldcapacity = 0.05,
 )
+
 function CryoGrid.parameterize(prop::HydraulicProperties)
     return HydraulicProperties(
         map(values(prop)) do val
@@ -26,18 +31,21 @@ function CryoGrid.parameterize(prop::HydraulicProperties)
         end
     )
 end
+
 """
     WaterFlow
 
 Base type for different formulations of water flow in `WaterBalance`.
 """
 abstract type WaterFlow end
+
 """
     Evapotranspiration
 
 Base type for parameterizations of evapotranspiration (ET).
 """
 abstract type Evapotranspiration end
+
 """
     WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,Taux,TProp} <: CryoGrid.SubSurfaceProcess
 
@@ -50,18 +58,21 @@ struct WaterBalance{TFlow<:WaterFlow,TET<:Union{Nothing,Evapotranspiration},Tdt,
     dtlim::Tdt # dtlim
     aux::Taux # user-defined specialization
 end
+
 """
     NoFlow <: WaterFlow
 
 Represents a zero flow scheme 
 """
 struct NoFlow <: WaterFlow end
+
 """
     BucketScheme <: WaterFlow
 
 "Bucket" water scheme for downward advective flow due to gravity.
 """
 Base.@kwdef struct BucketScheme <: WaterFlow end
+
 # default dt limiters
 default_dtlim(::BucketScheme) = CryoGrid.MaxDelta(0.01)
 default_dtlim(::WaterFlow) = CryoGrid.MaxDelta(Inf)

@@ -5,11 +5,11 @@ using CryoGrid.Snow: DynamicSnowMassBalance, LinearAccumulation
 
 The `SurfaceWaterBalance` represents the closure of the water balance at the surface and acts as both
 a Neumann-type upper boundary condition for snow and water fluxes as well as an accountant for the
-overall water budget.
+water mass balance at the surface.
 """
 Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
-    rainfall::TR = nothing
-    snowfall::TS = nothing
+    rainfall::TR = ConstantForcing(0.0u"m/s", :rainfall)
+    snowfall::TS = ConstantForcing(0.0u"m/s", :snowfall)
 end
 
 """
@@ -17,34 +17,27 @@ Type alias for `WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:Su
 """
 const SurfaceWaterEnergyBalance{TSWB,TSEB} = WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:SurfaceEnergyBalance}
 
-rainfall(swb::SurfaceWaterBalance, t) = 0.0
-rainfall(swb::SurfaceWaterBalance{<:Forcing}, t) = swb.rainfall(t)
-
-snowfall(swb::SurfaceWaterBalance, t) = 0.0
-snowfall(swb::SurfaceWaterBalance{TR,<:Forcing}, t) where {TR} = swb.snowfall(t)
-
-function infiltrate!(::Top, swb::SurfaceWaterBalance, ::SubSurface, ::WaterBalance, stop, ssub)
-    @setscalar stop.jw_infil = min(stop.jw_rain[1], ssub.kw[1])
-    ssub.jw[1] += getscalar(stop.jw_infil)
-    return nothing
+function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water::WaterBalance, stop, ssub)
+    jw_in = min(stop.jw_rain[1], ssub.kw[1])
+    ssub.jw[1] += jw_in
+    Hydrology.balancefluxes!(top, swb , sub, water, stop, ssub)
+    # set infiltration flux after balancing
+    @setscalar stop.jw_infil = ssub.jw[1]
 end
 
-function accumulatesnow!(
-    ::Top,
-    swb::SurfaceWaterBalance,
-    ::Snowpack,
-    snowmass::DynamicSnowMassBalance{<:LinearAccumulation},
-    stop,
-    ssnow,
-)
-    rate_scale = snowmass.para.accumulation.rate_scale
-    ssnow.∂swe∂t[1] += rate_scale*stop.jw_snow[1]
+function infiltrate!(top::Top, swb::SurfaceWaterBalance, snow::Snowpack, water::WaterBalance, stop, ssnow)
+    # we'll just set infiltration into snow = rainfall for now.... not sure if this is correct
+    jw_in = stop.jw_rain[1]
+    ssnow.jw[1] += jw_in
+    Hydrology.balancefluxes!(top, swb , snow, water, stop, ssnow)
+    # set infiltration flux after balancing
+    @setscalar stop.jw_infil = ssnow.jw[1]
 end
 
 function runoff!(::Top, ::SurfaceWaterBalance, state)
     jw_rain = getscalar(state.jw_rain)
     jw_infil = getscalar(state.jw_infil)
-    @setscalar state.∂R∂t = max(zero(jw_rain), jw_rain - jw_infil)*area(state.grid)
+    @setscalar state.∂runoff∂t = max(zero(jw_rain), jw_rain - jw_infil)*area(state.grid)
 end
 
 function ETflux!(::Top, ::SurfaceWaterEnergyBalance, state)
@@ -55,7 +48,7 @@ end
 CryoGrid.BCKind(::Type{<:SurfaceWaterBalance}) = CryoGrid.Neumann()
 
 CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
-    Prognostic(:R, Scalar, u"m^3", domain=0..Inf),
+    Prognostic(:runoff, Scalar, u"m^3", domain=0..Inf),
     Diagnostic(:jw_rain, Scalar, u"m/s", domain=0..Inf),
     Diagnostic(:jw_snow, Scalar, u"m/s", domain=0..Inf),
     Diagnostic(:jw_infil, Scalar, u"m/s", domain=0..Inf),
@@ -69,8 +62,8 @@ CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
 )
 
 function CryoGrid.updatestate!(::Top, swb::SurfaceWaterBalance, stop)
-    @setscalar stop.jw_snow = snowfall(swb, stop.t)
-    @setscalar stop.jw_rain = rainfall(swb, stop.t)
+    @setscalar stop.jw_snow = swb.snowfall(stop.t)
+    @setscalar stop.jw_rain = swb.rainfall(stop.t)
 end
 
 function CryoGrid.computefluxes!(top::Top, swb::SurfaceWaterBalance, state)
@@ -94,18 +87,5 @@ function CryoGrid.interact!(
     # flip the sign from the ground ET flux which is positive downward
     @setscalar stop.jw_ET = -ground_ET(water, ssub)
     infiltrate!(top, swb, sub, water, stop, ssub)
-    Hydrology.balancefluxes!(top, swb, sub, water, stop, ssub)
-    return nothing
-end
-
-function CryoGrid.interact!(
-    top::Top,
-    swb::SurfaceWaterBalance,
-    sub::Snowpack,
-    snowmass::SnowMassBalance,
-    stop,
-    ssub
-)
-    accumulatesnow!(top, swb, sub, snowmass, stop, ssub)
     return nothing
 end

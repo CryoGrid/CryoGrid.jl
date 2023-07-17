@@ -1,6 +1,3 @@
-# Default minwater for bucket scheme (must be nonzero for ET)
-minwater(::SubSurface, water::WaterBalance{<:BucketScheme}) = 0.01
-
 function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (i): jw < 0 -> outflow -> limit based on available water
     # case (ii): jw > 0 -> inflow -> limit based on available space

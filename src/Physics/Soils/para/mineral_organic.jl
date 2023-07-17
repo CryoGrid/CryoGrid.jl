@@ -10,7 +10,7 @@ Base.@kwdef struct MineralOrganic{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterizatio
     sat::Tsat = 1.0 # saturation
     org::Torg = 0.0 # organic fraction of solid; mineral fraction is 1-org
     heat::Thp = SoilThermalProperties(MineralOrganic)
-    water::Twp = HydraulicProperties()
+    water::Twp = HydraulicProperties(fieldcapacity=0.20)
 end
 
 # Helper functions for obtaining soil compositions from characteristic fractions.

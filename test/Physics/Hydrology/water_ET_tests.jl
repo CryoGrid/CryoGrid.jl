@@ -5,6 +5,8 @@ using Test
 include("../../testutils.jl")
 include("../../types.jl")
 
+Hydrology.hydraulicproperties(::TestGroundLayer) = HydraulicProperties()
+
 function evapotranspiration_tests()
     layer = stripparams(TestGroundLayer(WaterBalance(BucketScheme(), DampedET())))
     water = processes(layer)
