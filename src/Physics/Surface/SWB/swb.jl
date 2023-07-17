@@ -98,9 +98,6 @@ function CryoGrid.interact!(
     return nothing
 end
 
-# SWB can always interact with snowpack
-CryoGrid.caninteract(::Top, ::WaterBC, ::Snowpack, ::SnowMassBalance, s1, s2) = true
-
 function CryoGrid.interact!(
     top::Top,
     swb::SurfaceWaterBalance,

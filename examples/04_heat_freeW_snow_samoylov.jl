@@ -8,30 +8,37 @@ using CryoGrid
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
+initsat = initializer(:sat, 1.0)
 z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = 1000.0u"m"
+upperbc = WaterHeatBC(
+    SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall),
+    TemperatureGradient(forcings.Tair)
+)
 snowmass = SnowMassBalance(
     para = Snow.DynamicSnow(
         ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
     )
 )
-upperbc = WaterHeatBC(
-    SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall),
-    TemperatureGradient(forcings.Tair)
+snowpack = Snowpack(
+    para=Snow.Bulk(thresh=2.0u"cm"),
+    mass=snowmass,
+    heat=HeatBalance(),
+    water=WaterBalance(BucketScheme())
 )
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    z_top => :snowpack => Snowpack(para=Snow.Bulk(thresh=2.0u"cm"), mass=snowmass, heat=HeatBalance()),
-    z_sub[1] => :topsoil1 => SimpleSoil(soilprofile[1].value, heat=HeatBalance()),
-    z_sub[2] => :topsoil2 => SimpleSoil(soilprofile[2].value, heat=HeatBalance()),
-    z_sub[3] => :sediment1 => SimpleSoil(soilprofile[3].value, heat=HeatBalance()),
-    z_sub[4] => :sediment2 => SimpleSoil(soilprofile[4].value, heat=HeatBalance()),
-    z_sub[5] => :sediment3 => SimpleSoil(soilprofile[5].value, heat=HeatBalance()),
+    z_top => :snowpack => snowpack,
+    z_sub[1] => :topsoil1 => SimpleSoil(soilprofile[1].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[2] => :topsoil2 => SimpleSoil(soilprofile[2].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[3] => :sediment1 => SimpleSoil(soilprofile[3].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[4] => :sediment2 => SimpleSoil(soilprofile[4].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[5] => :sediment3 => SimpleSoil(soilprofile[5].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_5cm
-tile = Tile(strat, modelgrid, initT)
+tile = Tile(strat, modelgrid, initT, initsat)
 # define time span, 2 years + 3 months
 tspan = (DateTime(2010,9,30), DateTime(2012,9,30))
 u0, du0 = initialcondition!(tile, tspan)

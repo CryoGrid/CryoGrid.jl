@@ -13,13 +13,13 @@ using ModelParameters
 using Unitful
 using UnPack
 
-export SnowMassBalance, SnowBC
-include("snow_mass.jl")
-
-export Snowpack, SnowProperties
-export swe, snowdensity
+export Snowpack, SnowMassBalance, SnowProperties, SnowMassProperties, SnowBC
 include("snowpack.jl")
 
+export swe, snowdensity
+include("snow_methods.jl")
+
+# bulk snow scheme
 include("snow_bulk.jl")
 
 end

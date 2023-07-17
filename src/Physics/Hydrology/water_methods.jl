@@ -4,7 +4,7 @@
 Retrieves the hydraulic properties from the given subsurface layer. Default implementation
 simply returns the default configuration of `HydraulicProperties`.
 """
-hydraulicproperties(::SubSurface) = HydraulicProperties()
+hydraulicproperties(::SubSurface) = error("not implemented")
 
 """
     kwsat(::SubSurface, ::WaterBalance)

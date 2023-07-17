@@ -4,7 +4,7 @@ Heat.freezethaw!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state) = He
 # this is necessary because of the need to compute ∂θw∂ψ
 function Heat.freezethaw!(
     soil::Soil,
-    ps::Coupled2{<:WaterBalance{<:RichardsEq{Pressure}},<:HeatBalance{<:SFCC,THeatForm}},
+    ps::Coupled(WaterBalance{<:RichardsEq{Pressure}},HeatBalance{<:SFCC,THeatForm}),
     state
 ) where {THeatForm<:Heat.HeatOperator}
     water, heat = ps

@@ -1,7 +1,54 @@
+# Snow mass balance
+Utils.@properties SnowMassProperties(
+    ρw = CryoGrid.Constants.ρw,
+)
+
 Base.@kwdef struct SnowpackProperties{Tmp,Thp,Twp}
     mass::Tmp = SnowMassProperties()
     heat::Thp = ThermalProperties()
     water::Twp = HydraulicProperties()
+end
+
+"""
+    SnowAblationScheme
+
+Base type for different snow ablation (i.e. melting or redistribution) schemes.
+"""
+abstract type SnowAblationScheme end
+
+Base.@kwdef struct DegreeDayMelt{Tfactor,Tmax} <: SnowAblationScheme
+    factor::Tfactor = 5.0u"mm/K/d"
+    max_unfrozen::Tmax = 0.5
+end
+
+abstract type SnowAccumulationScheme end
+
+Base.@kwdef struct LinearAccumulation{S} <: SnowAccumulationScheme
+    rate_scale::S = 1.0 # scaling factor for snowfall rate
+end
+
+abstract type SnowDensityScheme end
+
+# constant density (using Snowpack properties)
+Base.@kwdef struct ConstantDensity{Tρsn}
+    ρsn::Tρsn = 250.0u"kg/m^3"
+end
+
+abstract type SnowMassParameterization end
+
+Base.@kwdef struct PrescribedSnow{Tswe,Tρsn} <: SnowMassParameterization
+    swe::Tswe = 0.0u"m" # depth snow water equivalent [m]
+    ρsn::Tρsn = 250.0u"kg/m^3" # snow density [kg m^-3]
+end
+
+Base.@kwdef struct DynamicSnow{TAcc,TAbl,TDen} <: SnowMassParameterization
+    accumulation::TAcc = LinearAccumulation()
+    ablation::TAbl = DegreeDayMelt()
+    density::TDen = ConstantDensity()
+end
+
+Base.@kwdef struct SnowMassBalance{Tpara} <: CryoGrid.SubSurfaceProcess
+    para::Tpara = DynamicSnow()
 end
 
 """
@@ -16,83 +63,46 @@ abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 Generic representation of a ground surface snow pack.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tprop,Taux} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:WaterBalance,Tprop,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
     heat::Theat = HeatBalance()
-    water::Twater = nothing
+    water::Twater = WaterBalance()
     prop::Tprop = SnowpackProperties()
     aux::Taux = nothing
 end
 
-# type aliases for convenience
+# Snowpack parameterization type aliases
 const PrescribedSnowpack{T} = Snowpack{T,<:SnowMassBalance{<:PrescribedSnow}} where {T}
 const DynamicSnowpack{T} = Snowpack{T,<:SnowMassBalance{<:DynamicSnow}} where {T}
 
-# Snow methods
-"""
-    threshold(::Snowpack)
+# Processes type aliases
+const CoupledSnowWaterHeat{Tmass,Twater,Theat} = Coupled(SnowMassBalance, WaterBalance, HeatBalance)
 
-Retrieves the snow cover threshold for this `Snowpack` layer to become active.
+# convenience type aliases
 """
-threshold(::Snowpack) = 0.01 # meters
+    PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{PrescribedSnow{Tswe,Tρsn}} where {Tswe,Tρsn}
 """
-    swe(::Snowpack, ::SnowMassBalance, state)
-
-Retrieve the current snow water equivalent of the snowpack.
+const PrescribedSnowMassBalance{Tswe,Tρsn} = SnowMassBalance{PrescribedSnow{Tswe,Tρsn}} where {Tswe,Tρsn}
 """
-swe(::Snowpack, ::SnowMassBalance, state) = state.swe
-swe(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow}, state) = smb.para.swe
-swe(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{<:Forcing{u"m"}}}, state) = smb.para.swe(state.t)
-
+    DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{DynamicSnow{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
 """
-    snowdensity(::Snowpack, ::SnowMassBalance, state)
+const DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{DynamicSnow{TAcc,TAbl,TDen}} where {TAcc,TAbl,TDen}
 
-Retrieve the current snow density.
-"""
-snowdensity(::Snowpack, ::SnowMassBalance, state) = state.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow}, state) = smb.para.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = smb.para.ρsn(state.t)
+const SnowBC = BoundaryProcess{T} where {SnowMassBalance<:T<:SubSurfaceProcess}
 
-"""
-    snowdepth(::Snowpack, ::SnowMassBalance, state)
-
-Retrieve the current snow depth.
-"""
-snowdepth(snow::Snowpack, ::SnowMassBalance, state) = CryoGrid.thickness(snow, state)
-
-"""
-    accumulation(snow::SnowMassBalance{<:DynamicSnow})
-
-Get the snow accumulation scheme from the given `SnowMassBalance` parameterization.
-"""
-accumulation(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.accumulation
-
-"""
-    ablation(snow::SnowMassBalance{<:DynamicSnow})
-
-Get the snow ablation scheme from the given `SnowMassBalance` parameterization.
-"""
-ablation(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.ablation
-
-"""
-    density(snow::SnowMassBalance{<:DynamicSnow})
-
-Get the snow density scheme from the given `SnowMassBalance` parameterization.
-"""
-density(snow::SnowMassBalance{<:DynamicSnow}) = snow.para.density
-
-snowvariables(::Snowpack) = (
-    Diagnostic(:dsn, Scalar, u"m", domain=0..Inf),
-    Diagnostic(:T_ub, Scalar, u"°C"),
-)
-
+# Heat methods;
 # thermal properties of snowpack
 Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
 
+# Hydrology methods;
+Hydrology.hydraulicproperties(snow::Snowpack) = snow.prop.water
+
+# max (fully saturated) water content
+Hydrology.maxwater(::Snowpack, ::WaterBalance, state) = 1.0
+
 # Default implementations of CryoGrid methods for Snowpack
-CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,Nothing}) = Coupled(snow.mass, snow.heat)
-CryoGrid.processes(snow::Snowpack{<:SnowpackParameterization,<:SnowMassBalance,<:HeatBalance,<:WaterBalance}) = Coupled(snow.mass, snow.water, snow.heat)
+CryoGrid.processes(snow::Snowpack) = Coupled(snow.mass, snow.water, snow.heat)
 
 CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
 
@@ -115,6 +125,9 @@ CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) 
         return (θw, θi, θa)
     end
 end
+
+# always allow Top interactions with Snowpack
+CryoGrid.caninteract(::Top, ::WaterBC, ::Snowpack, ::SnowMassBalance, s1, s2) = true
 
 # default interact! for heat
 function CryoGrid.interact!(
