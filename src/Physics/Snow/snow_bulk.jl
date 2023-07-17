@@ -160,7 +160,6 @@ function CryoGrid.updatestate!(
     state
 ) where {TAcc,TAbl<:DegreeDayMelt,TDen<:ConstantDensity}
     mass, water, heat = procs
-    resetfluxes!(snow, heat, state)
     # update snow density
     snowdensity!(snow, mass, state)
     # update snow depth
@@ -258,7 +257,6 @@ function CryoGrid.updatestate!(
 )
     smb, heat = procs
     ρw = waterdensity(snow)
-    resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn

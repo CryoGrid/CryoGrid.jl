@@ -67,9 +67,6 @@ end
 # Diagnostic step
 function CryoGrid.updatestate!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
-    # Reset fluxes
-    resetfluxes!(sub, heat, state)
-    resetfluxes!(sub, water, state)
     # Compute water contents from current state
     Hydrology.watercontent!(sub, water, state)
     # HeatBalance diagnostics

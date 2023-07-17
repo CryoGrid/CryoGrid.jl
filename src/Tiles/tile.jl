@@ -144,6 +144,7 @@ function evaluate!(
     zs = map(getscalar, boundaries!(tile, u))
     # zs = boundaries(strat)
     state = TileState(tile.state, zs, u, du, t, dt, Val{true}())
+    CryoGrid.resetfluxes!(strat, state)
     CryoGrid.updatestate!(strat, state)
     checkstate!(tile, state, u, du, :updatestate!)
     CryoGrid.interact!(strat, state)

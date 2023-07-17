@@ -58,8 +58,6 @@ function CryoGrid.updatestate!(
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     salt, heat = ps
-    resetfluxes!(soil, heat, state)
-    resetfluxes!(soil, salt, state)
     # Evaluate freeze/thaw processes
     freezethaw!(soil, ps, state)
     # Update thermal conductivity

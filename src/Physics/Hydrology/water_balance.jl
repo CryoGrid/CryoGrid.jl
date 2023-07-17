@@ -157,7 +157,6 @@ function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance, state)
 end
 
 function CryoGrid.updatestate!(sub::SubSurface, water::WaterBalance, state)
-    resetfluxes!(sub, water, state)
     watercontent!(sub, water, state)
     hydraulicconductivity!(sub, water, state)
     evapotranspiration!(sub, water, state)

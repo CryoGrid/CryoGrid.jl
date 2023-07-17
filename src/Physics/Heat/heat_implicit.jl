@@ -23,7 +23,6 @@ function CryoGrid.updatestate!(
     heat::HeatBalanceImplicit,
     state
 )
-    resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
     freezethaw!(sub, heat, state)
     # Update thermal conductivity
