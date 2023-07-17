@@ -20,8 +20,6 @@ swe(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{<:Forcing{u"m"}}}, state) 
 Retrieve the current snow density.
 """
 snowdensity(::Snowpack, ::SnowMassBalance, state) = state.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow}, state) = smb.para.ρsn
-snowdensity(::Snowpack, smb::SnowMassBalance{<:PrescribedSnow{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = smb.para.ρsn(state.t)
 
 """
     snowdensity!(::Snowpack, ::SnowMassBalance, state)

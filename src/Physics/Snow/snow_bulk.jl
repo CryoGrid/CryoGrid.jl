@@ -1,10 +1,12 @@
 """
-    Bulk{Tthresh} <: SnowpackParameterization
+    Bulk{Tthresh,Theat,Twater} <: SnowpackParameterization
 
 Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
 """
-Base.@kwdef struct Bulk{Tthresh} <: SnowpackParameterization
+Base.@kwdef struct Bulk{Tthresh,Theat,Twater} <: SnowpackParameterization
     thresh::Tthresh = 0.02u"m" # snow threshold
+    heat::Theat = ThermalProperties()
+    water::Twater = HydraulicProperties()
 end
 
 """
@@ -23,8 +25,8 @@ function snowdensity!(
     mass::DynamicSnowMassBalance{TAcc,TAbl,TDen},
     state
 ) where {TAcc,TAbl,TDen<:ConstantDensity}
-    ρsn = mass.para.density.ρsn
-    ρw = snow.prop.mass.ρw
+    ρsn = snowdensity(snow, mass, state)
+    ρw = waterdensity(snow)
     state.ρsn .= ρsn
     state.por .= 1 - ρsn / ρw
     return nothing
@@ -39,7 +41,7 @@ function snowdepth!(
 end
 
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
-    ρw = snow.prop.mass.ρw
+    ρw = waterdensity(snow)
     ρsn = snowdensity(snow, snow.mass, state)
     # total water content = snow water + pore water
     @. state.θwi = ρsn / ρw + state.por*state.sat
@@ -195,7 +197,7 @@ function CryoGrid.computefluxes!(
         state.jH[1] *= 1 - (dmelt > zero(dmelt))
     end
     ρsn = snowdensity(snow, mass, state)
-    ρw = snow.prop.mass.ρw
+    ρw = waterdensity(snow)
     # compute time derivative for moving boundary
     @. state.∂Δz∂t += state.∂swe∂t*ρw/ρsn
     return nothing
@@ -219,7 +221,7 @@ function CryoGrid.criterion(
     smb::PrescribedSnowMassBalance,
     state,
 )
-    ρw = snow.prop.mass.ρw
+    ρw = waterdensity(snow)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)
     new_dsn = new_swe*ρw/new_ρsn
@@ -255,7 +257,7 @@ function CryoGrid.updatestate!(
     state
 )
     smb, heat = procs
-    ρw = snow.prop.mass.ρw
+    ρw = waterdensity(snow)
     resetfluxes!(snow, heat, state)
     new_swe = swe(snow, smb, state)
     new_ρsn = snowdensity(snow, smb, state)

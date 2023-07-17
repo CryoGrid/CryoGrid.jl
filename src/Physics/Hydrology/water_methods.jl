@@ -7,6 +7,14 @@ simply returns the default configuration of `HydraulicProperties`.
 hydraulicproperties(::SubSurface) = error("not implemented")
 
 """
+    waterdensity(sub::SubSurface)
+
+Retrieves the density of water `ρw` from the given `SubSurface` layer. Default implementation assumes that
+`WaterBalance` is provided as a field `water` on `sub`; this can of course, however, be overridden.
+"""
+waterdensity(sub::SubSurface) = sub.water.prop.ρw
+
+"""
     kwsat(::SubSurface, ::WaterBalance)
 
 Hydraulic conductivity at saturation.

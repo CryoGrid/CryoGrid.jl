@@ -1,14 +1,3 @@
-# Snow mass balance
-Utils.@properties SnowMassProperties(
-    ρw = CryoGrid.Constants.ρw,
-)
-
-Base.@kwdef struct SnowpackProperties{Tmp,Thp,Twp}
-    mass::Tmp = SnowMassProperties()
-    heat::Thp = ThermalProperties()
-    water::Twp = HydraulicProperties()
-end
-
 """
     SnowAblationScheme
 
@@ -31,7 +20,7 @@ abstract type SnowDensityScheme end
 
 # constant density (using Snowpack properties)
 Base.@kwdef struct ConstantDensity{Tρsn}
-    ρsn::Tρsn = 250.0u"kg/m^3"
+    ρsn::Tρsn = 250.0u"kg/m^3" # constant snow density
 end
 
 abstract type SnowMassParameterization end
@@ -59,22 +48,17 @@ Base type for snowpack paramterization schemes.
 abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 """
-    Snowpack{Tpara<:SnowpackParameterization,Tprop,Taux} <: CryoGrid.SubSurface
+    Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
 
-Generic representation of a ground surface snow pack.
+Generic representation of a snowpack "subsurface" layer.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:Optional{HeatBalance},Twater<:WaterBalance,Tprop,Taux} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
     heat::Theat = HeatBalance()
     water::Twater = WaterBalance()
-    prop::Tprop = SnowpackProperties()
     aux::Taux = nothing
 end
-
-# Snowpack parameterization type aliases
-const PrescribedSnowpack{T} = Snowpack{T,<:SnowMassBalance{<:PrescribedSnow}} where {T}
-const DynamicSnowpack{T} = Snowpack{T,<:SnowMassBalance{<:DynamicSnow}} where {T}
 
 # Processes type aliases
 const CoupledSnowWaterHeat{Tmass,Twater,Theat} = Coupled(SnowMassBalance, WaterBalance, HeatBalance)
@@ -91,12 +75,16 @@ const DynamicSnowMassBalance{TAcc,TAbl,TDen} = SnowMassBalance{DynamicSnow{TAcc,
 
 const SnowBC = BoundaryProcess{T} where {SnowMassBalance<:T<:SubSurfaceProcess}
 
+snowdensity(::Snowpack, mass::SnowMassBalance{<:DynamicSnow}, state) = mass.density.ρsn
+snowdensity(::Snowpack, mass::SnowMassBalance{<:PrescribedSnow}, state) = mass.para.ρsn
+snowdensity(::Snowpack, mass::SnowMassBalance{<:PrescribedSnow{Tswe,<:Forcing{u"kg/m^3"}}}, state) where {Tswe} = mass.para.ρsn(state.t)
+
 # Heat methods;
 # thermal properties of snowpack
-Heat.thermalproperties(snow::Snowpack) = snow.prop.heat
+Heat.thermalproperties(snow::Snowpack) = snow.para.heat
 
 # Hydrology methods;
-Hydrology.hydraulicproperties(snow::Snowpack) = snow.prop.water
+Hydrology.hydraulicproperties(snow::Snowpack) = snow.para.water
 
 # max (fully saturated) water content
 Hydrology.maxwater(::Snowpack, ::WaterBalance, state) = 1.0
@@ -110,8 +98,8 @@ CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + ge
 
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
-CryoGrid.Volume(::Type{<:PrescribedSnowpack}) = CryoGrid.DiagnosticVolume()
-CryoGrid.Volume(::Type{<:DynamicSnowpack}) = CryoGrid.PrognosticVolume()
+CryoGrid.Volume(::Type{<:Snowpack{T,<:PrescribedSnowMassBalance}}) where {T} = CryoGrid.DiagnosticVolume()
+CryoGrid.Volume(::Type{<:Snowpack{T,<:DynamicSnowMassBalance}}) where {T} = CryoGrid.PrognosticVolume()
 
 # for prescribed snow depth/density, the mass balance is given so we do not need to do anything here
 CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance{<:PrescribedSnow}, ssnow) = nothing

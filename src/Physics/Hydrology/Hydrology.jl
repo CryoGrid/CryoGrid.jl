@@ -12,7 +12,7 @@ export WaterBalanceProperties, HydraulicProperties
 export WaterBalance, WaterFlow, BucketScheme, NoFlow, Evapotranspiration
 include("water_types.jl")
 
-export SaturationProfile,  hydraulicproperties, hydraulicconductivity!
+export SaturationProfile,  hydraulicproperties, hydraulicconductivity!, watercontent!, watercontent, maxwater, minwater, waterdensity
 include("water_methods.jl")
 
 export ConstantInfiltration, ImpermeableBoundary, WaterBC
