@@ -14,11 +14,11 @@ This function assumes that `jw` is positive downward such that a positive temper
 advectiveflux(jw, cw, T₁, T₂) = jw*cw*(T₁ - T₂)*sign(jw)
 
 """
-    energyadvection!(::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
+    water_energy_advection!(::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
 
 Adds advective energy fluxes for all internal grid cell faces.
 """
-function energyadvection!(sub::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
+function water_energy_advection!(sub::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
     @unpack ch_w = thermalproperties(sub)
     @inbounds for i in 2:length(state.jw)-1
         let jw = state.jw[i],
@@ -53,6 +53,6 @@ end
 function CryoGrid.computefluxes!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.computefluxes!(sub, water, state)
-    energyadvection!(sub, ps, state)
+    water_energy_advection!(sub, ps, state)
     CryoGrid.computefluxes!(sub, heat, state)
 end

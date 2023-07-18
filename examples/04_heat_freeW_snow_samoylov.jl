@@ -4,7 +4,7 @@
 # from the ERA-Interim reanalysis product.
 
 using CryoGrid
-using Plots: Measures, plot, plot!, heatmap, cgrad
+using Plots: plot, plot!, heatmap, cgrad, Measures
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
@@ -52,7 +52,6 @@ integrator = init(prob, Euler(), dt=300.0, saveat=3*3600.0)
 @info "Running model ..."
 sol = @time solve(prob, Euler(), dt=300.0, saveat=3*3600.0, progress=true);
 out = CryoGridOutput(sol)
-plot(out.T[Z(1)])
 
 # Plot it!
 zs = [1,10,20,30,50,100,200,500]u"cm"

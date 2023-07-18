@@ -25,15 +25,6 @@ function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water:
     @setscalar stop.jw_infil = ssub.jw[1]
 end
 
-function infiltrate!(top::Top, swb::SurfaceWaterBalance, snow::Snowpack, water::WaterBalance, stop, ssnow)
-    # we'll just set infiltration into snow = rainfall for now.... not sure if this is correct
-    jw_in = stop.jw_rain[1]
-    ssnow.jw[1] += jw_in
-    Hydrology.balancefluxes!(top, swb , snow, water, stop, ssnow)
-    # set infiltration flux after balancing
-    @setscalar stop.jw_infil = ssnow.jw[1]
-end
-
 function runoff!(::Top, ::SurfaceWaterBalance, state)
     jw_rain = getscalar(state.jw_rain)
     jw_infil = getscalar(state.jw_infil)

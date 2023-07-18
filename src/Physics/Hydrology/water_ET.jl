@@ -74,15 +74,11 @@ function evapotranspirative_fluxes!(
     @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
         state.jw_ET[i] += fᵢ * ETflux(sub, water, state)
-        # add ET fluxes to total water flux
-        state.jw[i] += state.jw_ET[i]
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
     state.jw_ET[1] += ETflux(sub, water, state)
-    # add ET fluxes to total water flux
-    state.jw[1] += state.jw_ET[1]
 end
 # CryoGrid methods
 ETvariables(::Evapotranspiration) = (

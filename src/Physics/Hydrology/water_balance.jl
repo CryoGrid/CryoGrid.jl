@@ -54,7 +54,9 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
             sat_lo = state.sat[i],
             Δz_up = CryoGrid.thickness(sub, state, i-1),
             Δz_lo = CryoGrid.thickness(sub, state, i),
-            jw = state.jw[i]*dt;
+            jw_ET = state.jw_ET[i],
+            jw_v = state.jw_v[i],
+            jw = (jw_ET + jw_v)*dt;
             state.jw[i] = balanceflux(water, jw, θw_up, θw_lo, θwi_up, θwi_lo, θsat_up, θsat_lo, sat_up, sat_lo, Δz_up, Δz_lo)
         end
     end
@@ -87,7 +89,7 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
             θfc = minwater(sub, water, state, i),
             kw = state.kw[i];
             # compute fluxes over inner grid cell faces
-            state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
+            state.jw_v[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
         end
     end
 end
@@ -128,6 +130,7 @@ Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
 """
 @inline function CryoGrid.resetfluxes!(::SubSurface, water::WaterBalance, state)
     state.jw .= zero(eltype(state.jw))
+    state.jw_v .= zero(eltype(state.jw_v))
     state.jw_ET .= zero(eltype(state.jw_ET))
     state.∂θwi∂t .= zero(eltype(state.∂θwi∂t))
 end
@@ -136,8 +139,9 @@ end
 CryoGrid.variables(water::WaterBalance) = (
     CryoGrid.variables(water.flow)...,
     CryoGrid.variables(water.et)...,
-    Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
-    Diagnostic(:jw_ET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
+    Diagnostic(:jw, OnGrid(Edges), u"m/s", desc="Total water flux over grid edges."), # water fluxes over grid cell boundaries
+    Diagnostic(:jw_v, OnGrid(Edges), u"m/s", desc="Advective/diffusive water flux over grid edges."), # vertical water fluxes over grid cell boundaries
+    Diagnostic(:jw_ET, OnGrid(Edges), u"m/s", desc="Water fluxes due to evapotranspiration."), # water fluxes due to evapotranspiration
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
     Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
     Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
@@ -162,6 +166,7 @@ end
 function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
     evapotranspirative_fluxes!(sub, water, state)
     wateradvection!(sub, water, state)
+    waterdiffusion!(sub, water, state)
     balancefluxes!(sub, water, state)
     Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grid))
     waterprognostic!(sub, water, state)

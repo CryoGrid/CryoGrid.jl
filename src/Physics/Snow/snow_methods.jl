@@ -86,6 +86,9 @@ Heat.thermalproperties(snow::Snowpack) = snow.para.heat
 # Hydrology methods;
 Hydrology.hydraulicproperties(snow::Snowpack) = snow.para.water
 
+# for snow, use constant hydraulic conductivity
+Hydrology.hydraulicconductivity(snow::Snowpack, water::WaterBalance, θw, θwi, θsat) = Hydrology.kwsat(snow, water)
+
 # max (fully saturated) water content
 Hydrology.maxwater(::Snowpack, ::WaterBalance, state) = 1.0
 

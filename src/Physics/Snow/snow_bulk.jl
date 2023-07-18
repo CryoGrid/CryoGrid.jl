@@ -59,11 +59,11 @@ function ablation!(
         # thickness flux
         por = getscalar(ssnow.por)
         θis = 1 - por # solid ice
-        Δdsn = getscalar(ssnow.∂swe∂t) / θis
+        Δdsn = -dmelt / θis
         @. ssnow.∂Δz∂t += Δdsn
         # add water flux due to melt
         sat = getscalar(ssnow.sat)
-        ssnow.jw[1] += dmelt + Δdsn*por*sat
+        ssnow.jw[1] += dmelt - Δdsn*por*sat
     end
 end
 
@@ -152,7 +152,7 @@ function CryoGrid.trigger!(
     state.T .= state.T_ub
     state.H .= state.T.*C
     state.por .= 1 - getscalar(state.ρsn) / waterdensity(snow)
-    state.sat .= minwater(snow, snow.water) / getscalar(state.por)
+    state.sat .= zero(eltype(state.sat))
     return nothing
 end
 

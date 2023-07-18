@@ -97,7 +97,7 @@ end
 
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     # compute diffusive fluxes from pressure, if enabled
-    Numerics.flux!(state.jw, state.ψ, Δ(cells(state.grid)), state.kw)
+    Numerics.flux!(state.jw_v, state.ψ, Δ(cells(state.grid)), state.kw)
     return nothing
 end
 
