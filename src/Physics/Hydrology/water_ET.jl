@@ -60,7 +60,7 @@ end
     evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `computefluxes!`.
+This method should generally be called *in or after* `interact!` for `WaterBalance`, e.g. in `computefluxes!`.
 """
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
 function evapotranspirative_fluxes!(
@@ -69,11 +69,12 @@ function evapotranspirative_fluxes!(
     state
 )
     f_norm = sum(parent(state.f_et))
+    Q_ET = ETflux(sub, water, state)
     # I guess we just ignore the flux at the lower boundary here... it will either be set
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
     @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
-        state.jw_ET[i] += fᵢ * ETflux(sub, water, state)
+        state.jw_ET[i] += fᵢ * Q_ET
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
@@ -82,7 +83,7 @@ function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:Water
 end
 # CryoGrid methods
 ETvariables(::Evapotranspiration) = (
-    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by an interaction
+    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by a surface interaction
 )
 CryoGrid.variables(et::DampedET) = (
     ETvariables(et)...,

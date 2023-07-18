@@ -94,6 +94,7 @@ Computes hydraulic conductivities for the given subsurface layer and water balan
             end
         end
     end
+    # set hydraulic conductivity at boundaries equal to cell conductivities
     state.kw[1] = state.kwc[1]
     state.kw[end] = state.kwc[end]
 end

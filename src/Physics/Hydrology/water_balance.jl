@@ -1,3 +1,9 @@
+"""
+    limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
+
+Flux limiter for fluxes coming from "above"; limits `jw` based on the
+available water in the current cell as well as free pore space.
+"""
 function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (i): jw < 0 -> outflow -> limit based on available water
     # case (ii): jw > 0 -> inflow -> limit based on available space
@@ -8,6 +14,12 @@ function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     return r*jw
 end
 
+"""
+    limit_lower_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
+
+Flux limiter for fluxes coming from "below"; limits `jw` based on the
+available water in the current cell as well as free pore space.
+"""
 function limit_lower_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (i): jw < 0 -> inflow -> limit based on available space
     # case (ii): jw > 0 -> outflow -> limit based on available water
@@ -38,7 +50,7 @@ end
 """
     balancefluxes!(sub::SubSurface, water::WaterBalance, state)
 
-Applies `balancefluxes!` to all internal cell faces.
+Sums vertical and evapotranspirative flux components `jw_v` and `jw_ET` and applies `balanceflux` to all grid cell faces.
 """
 function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
     N = length(state.kw)
@@ -60,6 +72,10 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
             state.jw[i] = balanceflux(water, jw, θw_up, θw_lo, θwi_up, θwi_lo, θsat_up, θsat_lo, sat_up, sat_lo, Δz_up, Δz_lo)
         end
     end
+    # apply flux limits to uppermost and lowermost edges;
+    # this may in some cases be redundant with interact! but is necessary due to the possible addition of ET fluxes
+    state.jw[1] = limit_upper_flux(water, state.jw[1], state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])
+    state.jw[end] = limit_lower_flux(water, state.jw[end], state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])
     return nothing
 end
 
@@ -188,7 +204,7 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     kw = state1.kw[end] = state2.kw[1] = min(kwc₁, kwc₂)
-    jw = advectiveflux(θw₁, θmin₁, kw)*state1.dt
+    jw_v = advectiveflux(θw₁, θmin₁, kw)*state1.dt
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
     state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)
