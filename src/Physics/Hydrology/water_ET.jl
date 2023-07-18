@@ -60,7 +60,7 @@ end
     evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *in or after* `interact!` for `WaterBalance`, e.g. in `computefluxes!`.
+This method should generally be called *in or after* the surface interaction for `WaterBalance`.
 """
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
 function evapotranspirative_fluxes!(
@@ -94,13 +94,29 @@ CryoGrid.variables(et::DampedET) = (
 )
 
 function interact_ET!(
-    ::SubSurface,
-    ::WaterBalance{<:BucketScheme,<:DampedET},
-    ::SubSurface,
-    ::WaterBalance{<:BucketScheme,<:DampedET},
+    ::Top,
+    ::WaterHeatBC,
+    sub::SubSurface,
+    water::WaterBalance{<:BucketScheme,<:DampedET},
+    stop,
+    ssub
+)
+    # propagate surface latent heat flux to next layer
+    ssub.Qe .= stop.Qe
+    # compute ET fluxes for subsurface layer
+    evapotranspirative_fluxes!(sub, water, ssub)
+end
+
+function interact_ET!(
+    sub1::SubSurface,
+    water1::WaterBalance{<:BucketScheme,<:DampedET},
+    sub2::SubSurface,
+    water2::WaterBalance{<:BucketScheme,<:DampedET},
     state1,
     state2
 )
     # propagate surface latent heat flux to next layer
     state2.Qe .= state1.Qe
+    # compute ET fluxes for next layer
+    evapotranspirative_fluxes!(sub2, water2, state2)
 end

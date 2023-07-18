@@ -22,10 +22,15 @@ Hydraulic conductivity at saturation.
 kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
 
 """
+    interact_ET!(::Top, ::WaterHeatBC, ::SubSurface, ::WaterBalance, state1, state2)
+    interact_ET!(::SubSurface, ::WaterBalance, ::Bottom, ::WaterHeatBC, state1, state2)
     interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2)
 
-Specialized subsurface layer interaction for evapotranspirative processes. Default implementation does nothing.
+Specialized layer interaction for evapotranspirative processes. Default implementation does nothing.
+Can be overridden by ET schemes and invoked in the relevant `interact!` implementation.
 """
+interact_ET!(::Top, ::WaterHeatBC, ::SubSurface, ::WaterBalance, state1, state2) = nothing
+interact_ET!(::SubSurface, ::WaterBalance, ::Bottom, ::WaterHeatBC, state1, state2) = nothing
 interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2) = nothing
 
 """

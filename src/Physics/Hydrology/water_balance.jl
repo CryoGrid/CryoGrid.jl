@@ -74,8 +74,8 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
     end
     # apply flux limits to uppermost and lowermost edges;
     # this may in some cases be redundant with interact! but is necessary due to the possible addition of ET fluxes
-    state.jw[1] = limit_upper_flux(water, state.jw[1], state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])
-    state.jw[end] = limit_lower_flux(water, state.jw[end], state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])
+    @inbounds state.jw[1] = limit_upper_flux(water, state.jw[1], state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])
+    @inbounds state.jw[end] = limit_lower_flux(water, state.jw[end], state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])
     return nothing
 end
 
@@ -180,7 +180,6 @@ function CryoGrid.updatestate!(sub::SubSurface, water::WaterBalance, state)
 end
 
 function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
-    evapotranspirative_fluxes!(sub, water, state)
     wateradvection!(sub, water, state)
     waterdiffusion!(sub, water, state)
     balancefluxes!(sub, water, state)
@@ -189,6 +188,7 @@ function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
 end
 
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)
+    interact_ET!(sub1, water1, sub2, water2, state1, state2)
     θw₁ = state1.θw[end]
     θw₂ = state2.θw[1]
     θwi₁ = state1.θwi[end]
@@ -205,10 +205,11 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     kwc₂ = state2.kwc[1]
     kw = state1.kw[end] = state2.kw[1] = min(kwc₁, kwc₂)
     jw_v = advectiveflux(θw₁, θmin₁, kw)*state1.dt
+    jw_ET = state2.jw_ET[1]
+    jw = jw_v + jw_ET
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
     state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)
-    interact_ET!(sub1, water1, sub2, water2, state1, state2)
     return nothing
 end
 
