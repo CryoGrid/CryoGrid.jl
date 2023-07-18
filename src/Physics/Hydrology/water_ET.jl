@@ -95,7 +95,7 @@ CryoGrid.variables(et::DampedET) = (
 
 function interact_ET!(
     ::Top,
-    ::WaterHeatBC,
+    ::WaterBC,
     sub::SubSurface,
     water::WaterBalance{<:BucketScheme,<:DampedET},
     stop,

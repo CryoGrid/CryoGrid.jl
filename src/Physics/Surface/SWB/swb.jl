@@ -12,11 +12,6 @@ Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBala
     snowfall::TS = ConstantForcing(0.0u"m/s", :snowfall)
 end
 
-"""
-Type alias for `WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:SurfaceEnergyBalance}`.
-"""
-const SurfaceWaterEnergyBalance{TSWB,TSEB} = WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:SurfaceEnergyBalance}
-
 function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water::WaterBalance, stop, ssub)
     jw_in = min(stop.jw_rain[1], ssub.kw[1])
     ssub.jw[1] += jw_in
@@ -31,11 +26,6 @@ function runoff!(::Top, ::SurfaceWaterBalance, state)
     @setscalar state.∂runoff∂t = max(zero(jw_rain), jw_rain - jw_infil)*area(state.grid)
 end
 
-function ETflux!(::Top, ::SurfaceWaterEnergyBalance, state)
-    jw_ET = getscalar(stop.jw_ET)
-    @setscalar stop.∂ET∂t = jw_ET*area(stop.grid)
-end
-
 CryoGrid.BCKind(::Type{<:SurfaceWaterBalance}) = CryoGrid.Neumann()
 
 CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
@@ -44,12 +34,6 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
     Diagnostic(:jw_snow, Scalar, u"m/s", domain=0..Inf),
     Diagnostic(:jw_infil, Scalar, u"m/s", domain=0..Inf),
     Diagnostic(:jw_ET, Scalar, u"m/s", domain=0..Inf),
-)
-
-CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
-    CryoGrid.variables(top, bc[1])...,
-    CryoGrid.variables(top, bc[2])...,
-    Prognostic(:ET, Scalar, u"m^3"),
 )
 
 function CryoGrid.updatestate!(::Top, swb::SurfaceWaterBalance, stop)
@@ -80,3 +64,6 @@ function CryoGrid.interact!(
     infiltrate!(top, swb, sub, water, stop, ssub)
     return nothing
 end
+
+# surface water + energy balance
+include("coupled_sweb.jl")
