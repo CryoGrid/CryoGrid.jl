@@ -29,8 +29,8 @@ function StateVars(
 ) where {TCache,TArray<:AbstractVector}
     _flatten(vars) = Flatten.flatten(vars, Flatten.flattenable, Var)
     # select each variable type
-    diagvars = map(group -> filter(isdiagnostic, group), vars)
     progvars = map(group -> filter(isprognostic, group), vars)
+    diagvars = map(group -> filter(isdiagnostic, group), vars)
     algvars = map(group -> filter(isalgebraic, group), vars)
     # create variables for time delta variables (divergence/residual)
     dpvars = map(group -> map(CryoGrid.DVar, filter(var -> isalgebraic(var) || isprognostic(var), group)), vars)
@@ -39,10 +39,10 @@ function StateVars(
     vartypes = map(vartype, tuplejoin(gridprogvars, _flatten(freeprogvars)))
     @assert all(map(==(first(vartypes)), vartypes)) "All prognostic variables must have same data type"
     uproto = prognosticstate(TArray, D, freeprogvars, gridprogvars)
-    # build non-gridded (i.e. "free") diagnostic state vectors
+    # build off-grid (i.e. "free") diagnostic state vectors
     freediagvars = map(group -> filter(!isongrid, group), diagvars)
     freediagstate = map(group -> (;map(v -> varname(v) => TCache(varname(v), instantiate(v, D, TArray); cache_kwargs...), group)...), freediagvars)
-    # build gridded diagnostic state vectors
+    # build on-grid diagnostic state vectors;
     griddiagvars = Tuple(unique(filter(isongrid, _flatten(diagvars))))
     griddiagstate = map(v -> varname(v) => TCache(varname(v), instantiate(v, D, TArray); cache_kwargs...), griddiagvars)
     # join prognostic variables with delta and flux variables, then build nested named tuples in each group with varnames as keys

@@ -1,6 +1,9 @@
-# Default minwater for bucket scheme (must be nonzero for ET)
-minwater(::SubSurface, water::WaterBalance{<:BucketScheme}) = 0.01
+"""
+    limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
 
+Flux limiter for fluxes coming from "above"; limits `jw` based on the
+available water in the current cell as well as free pore space.
+"""
 function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (i): jw < 0 -> outflow -> limit based on available water
     # case (ii): jw > 0 -> inflow -> limit based on available space
@@ -11,6 +14,12 @@ function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     return r*jw
 end
 
+"""
+    limit_lower_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
+
+Flux limiter for fluxes coming from "below"; limits `jw` based on the
+available water in the current cell as well as free pore space.
+"""
 function limit_lower_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (i): jw < 0 -> inflow -> limit based on available space
     # case (ii): jw > 0 -> outflow -> limit based on available water
@@ -41,7 +50,7 @@ end
 """
     balancefluxes!(sub::SubSurface, water::WaterBalance, state)
 
-Applies `balancefluxes!` to all internal cell faces.
+Sums vertical and evapotranspirative flux components `jw_v` and `jw_ET` and applies `balanceflux` to all grid cell faces.
 """
 function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
     N = length(state.kw)
@@ -57,10 +66,16 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
             sat_lo = state.sat[i],
             Δz_up = CryoGrid.thickness(sub, state, i-1),
             Δz_lo = CryoGrid.thickness(sub, state, i),
-            jw = state.jw[i]*dt;
+            jw_ET = state.jw_ET[i],
+            jw_v = state.jw_v[i],
+            jw = (jw_ET + jw_v)*dt;
             state.jw[i] = balanceflux(water, jw, θw_up, θw_lo, θwi_up, θwi_lo, θsat_up, θsat_lo, sat_up, sat_lo, Δz_up, Δz_lo)
         end
     end
+    # apply flux limits to uppermost and lowermost edges;
+    # this may in some cases be redundant with interact! but is necessary due to the possible addition of ET fluxes
+    @inbounds state.jw[1] = limit_upper_flux(water, state.jw[1], state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])
+    @inbounds state.jw[end] = limit_lower_flux(water, state.jw[end], state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])
     return nothing
 end
 
@@ -90,7 +105,7 @@ function wateradvection!(sub::SubSurface, water::WaterBalance, state)
             θfc = minwater(sub, water, state, i),
             kw = state.kw[i];
             # compute fluxes over inner grid cell faces
-            state.jw[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
+            state.jw_v[i] += advectiveflux(θwᵢ₋₁, θfc, kw)
         end
     end
 end
@@ -131,6 +146,7 @@ Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
 """
 @inline function CryoGrid.resetfluxes!(::SubSurface, water::WaterBalance, state)
     state.jw .= zero(eltype(state.jw))
+    state.jw_v .= zero(eltype(state.jw_v))
     state.jw_ET .= zero(eltype(state.jw_ET))
     state.∂θwi∂t .= zero(eltype(state.∂θwi∂t))
 end
@@ -139,8 +155,9 @@ end
 CryoGrid.variables(water::WaterBalance) = (
     CryoGrid.variables(water.flow)...,
     CryoGrid.variables(water.et)...,
-    Diagnostic(:jw, OnGrid(Edges), u"m/s"), # water fluxes over grid cell boundaries
-    Diagnostic(:jw_ET, OnGrid(Edges), u"m/s"), # water fluxes due to evapotranspiration
+    Diagnostic(:jw, OnGrid(Edges), u"m/s", desc="Total water flux over grid edges."), # water fluxes over grid cell boundaries
+    Diagnostic(:jw_v, OnGrid(Edges), u"m/s", desc="Advective/diffusive water flux over grid edges."), # vertical water fluxes over grid cell boundaries
+    Diagnostic(:jw_ET, OnGrid(Edges), u"m/s", desc="Water fluxes due to evapotranspiration."), # water fluxes due to evapotranspiration
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
     Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
     Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
@@ -157,21 +174,21 @@ function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance, state)
 end
 
 function CryoGrid.updatestate!(sub::SubSurface, water::WaterBalance, state)
-    resetfluxes!(sub, water, state)
     watercontent!(sub, water, state)
     hydraulicconductivity!(sub, water, state)
     evapotranspiration!(sub, water, state)
 end
 
 function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
-    evapotranspirative_fluxes!(sub, water, state)
     wateradvection!(sub, water, state)
+    waterdiffusion!(sub, water, state)
     balancefluxes!(sub, water, state)
     Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grid))
     waterprognostic!(sub, water, state)
 end
 
 function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketScheme}, sub2::SubSurface, water2::WaterBalance{<:BucketScheme}, state1, state2)
+    interact_ET!(sub1, water1, sub2, water2, state1, state2)
     θw₁ = state1.θw[end]
     θw₂ = state2.θw[1]
     θwi₁ = state1.θwi[end]
@@ -187,11 +204,12 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     kw = state1.kw[end] = state2.kw[1] = min(kwc₁, kwc₂)
-    jw = advectiveflux(θw₁, θmin₁, kw)*state1.dt
+    jw_v = advectiveflux(θw₁, θmin₁, kw)*state1.dt
+    jw_ET = state2.jw_ET[1]
+    jw = jw_v + jw_ET
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
     state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)
-    interact_ET!(sub1, water1, sub2, water2, state1, state2)
     return nothing
 end
 
@@ -213,7 +231,7 @@ end
 hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.variables(::NoFlow) = (
-    Diagnostic(:sat, OnGrid(Cells), domain=0..1), # autmoatically generates ∂sat∂t
+    Diagnostic(:sat, OnGrid(Cells), domain=0..1),
 )
 
 function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}, state)

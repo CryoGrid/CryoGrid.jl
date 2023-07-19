@@ -135,6 +135,12 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     end
 end
 
+@inline function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
+    fastiterate(layers(strat)) do named_layer
+        CryoGrid.resetfluxes!(named_layer.val, getproperty(state, layername(named_layer)))
+    end
+end
+
 @inline function CryoGrid.updatestate!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
         CryoGrid.updatestate!(named_layer.val, getproperty(state, layername(named_layer)))

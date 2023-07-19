@@ -70,7 +70,7 @@ Calculates all internal fluxes for a given layer. Note that an instance of `comp
 for all non-boundary (subsurface) processes/layers.
 """
 computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
-computefluxes!(layer::Layer, proc::Process, state) = error("no prognostic step defined for $(typeof(layer)) with $(typeof(proc))")
+computefluxes!(layer::Layer, proc::Process, state) = error("computefluxes! defined for $(typeof(layer)) with $(typeof(proc))")
 computefluxes!(::Top, ::BoundaryProcess, state) = nothing
 computefluxes!(::Bottom, ::BoundaryProcess, state) = nothing
 

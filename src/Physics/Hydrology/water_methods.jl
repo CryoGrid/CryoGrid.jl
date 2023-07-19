@@ -4,7 +4,15 @@
 Retrieves the hydraulic properties from the given subsurface layer. Default implementation
 simply returns the default configuration of `HydraulicProperties`.
 """
-hydraulicproperties(::SubSurface) = HydraulicProperties()
+hydraulicproperties(::SubSurface) = error("not implemented")
+
+"""
+    waterdensity(sub::SubSurface)
+
+Retrieves the density of water `ρw` from the given `SubSurface` layer. Default implementation assumes that
+`WaterBalance` is provided as a field `water` on `sub`; this can of course, however, be overridden.
+"""
+waterdensity(sub::SubSurface) = sub.water.prop.ρw
 
 """
     kwsat(::SubSurface, ::WaterBalance)
@@ -14,10 +22,15 @@ Hydraulic conductivity at saturation.
 kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
 
 """
+    interact_ET!(::Top, ::WaterBC, ::SubSurface, ::WaterBalance, state1, state2)
+    interact_ET!(::SubSurface, ::WaterBalance, ::Bottom, ::WaterBC, state1, state2)
     interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2)
 
-Specialized subsurface layer interaction for evapotranspirative processes. Default implementation does nothing.
+Specialized layer interaction for evapotranspirative processes. Default implementation does nothing.
+Can be overridden by ET schemes and invoked in the relevant `interact!` implementation.
 """
+interact_ET!(::Top, ::WaterBC, ::SubSurface, ::WaterBalance, state1, state2) = nothing
+interact_ET!(::SubSurface, ::WaterBalance, ::Bottom, ::WaterBC, state1, state2) = nothing
 interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2) = nothing
 
 """
@@ -37,7 +50,7 @@ maxwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(maxwa
 
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
-minwater(::SubSurface, water::WaterBalance) = 0.0
+minwater(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).fieldcapacity
 minwater(sub::SubSurface, water::WaterBalance, state) = minwater(sub, water)
 minwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(minwater(sub, water, state), i)
 
@@ -86,6 +99,7 @@ Computes hydraulic conductivities for the given subsurface layer and water balan
             end
         end
     end
+    # set hydraulic conductivity at boundaries equal to cell conductivities
     state.kw[1] = state.kwc[1]
     state.kw[end] = state.kwc[end]
 end

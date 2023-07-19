@@ -4,10 +4,9 @@ Base.@kwdef struct SURFEX{Tρs,Tρo,Tpo,Ttex<:SoilTexture,Thp,Twp} <: SoilParame
     ρ_org::Tρo = 1300u"kg/m^3"
     por_org::Tpo = 0.90
     wilting_point = 0.05
-    field_capacity = 0.20
     texture::Ttex = SoilTexture()
     heat::Thp = SoilThermalProperties(MineralOrganic) # same thermal properties as MineralOrganic
-    water::Twp = HydraulicProperties() # hydraulic properties
+    water::Twp = HydraulicProperties(fieldcapacity=0.20) # hydraulic properties
 end
 
 # SURFEX functions
@@ -33,5 +32,3 @@ end
 Heat.thermalproperties(soil::Soil{<:SURFEX}) = soil.para.heat
 
 Hydrology.hydraulicproperties(soil::Soil{<:SURFEX}) = soil.para.water
-
-Hydrology.minwater(soil::Soil{<:SURFEX}, ::WaterBalance) = soil.para.field_capacity

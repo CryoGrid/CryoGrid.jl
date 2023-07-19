@@ -60,7 +60,7 @@ end
     evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `computefluxes!`.
+This method should generally be called *in or after* the surface interaction for `WaterBalance`.
 """
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
 function evapotranspirative_fluxes!(
@@ -69,24 +69,21 @@ function evapotranspirative_fluxes!(
     state
 )
     f_norm = sum(parent(state.f_et))
+    Q_ET = ETflux(sub, water, state)
     # I guess we just ignore the flux at the lower boundary here... it will either be set
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
     @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
-        state.jw_ET[i] += fᵢ * ETflux(sub, water, state)
-        # add ET fluxes to total water flux
-        state.jw[i] += state.jw_ET[i]
+        state.jw_ET[i] += fᵢ * Q_ET
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
     state.jw_ET[1] += ETflux(sub, water, state)
-    # add ET fluxes to total water flux
-    state.jw[1] += state.jw_ET[1]
 end
 # CryoGrid methods
 ETvariables(::Evapotranspiration) = (
-    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by an interaction
+    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by a surface interaction
 )
 CryoGrid.variables(et::DampedET) = (
     ETvariables(et)...,
@@ -97,13 +94,29 @@ CryoGrid.variables(et::DampedET) = (
 )
 
 function interact_ET!(
-    ::SubSurface,
-    ::WaterBalance{<:BucketScheme,<:DampedET},
-    ::SubSurface,
-    ::WaterBalance{<:BucketScheme,<:DampedET},
+    ::Top,
+    ::WaterBC,
+    sub::SubSurface,
+    water::WaterBalance{<:BucketScheme,<:DampedET},
+    stop,
+    ssub
+)
+    # propagate surface latent heat flux to next layer
+    ssub.Qe .= stop.Qe
+    # compute ET fluxes for subsurface layer
+    evapotranspirative_fluxes!(sub, water, ssub)
+end
+
+function interact_ET!(
+    sub1::SubSurface,
+    water1::WaterBalance{<:BucketScheme,<:DampedET},
+    sub2::SubSurface,
+    water2::WaterBalance{<:BucketScheme,<:DampedET},
     state1,
     state2
 )
     # propagate surface latent heat flux to next layer
     state2.Qe .= state1.Qe
+    # compute ET fluxes for next layer
+    evapotranspirative_fluxes!(sub2, water2, state2)
 end

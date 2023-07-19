@@ -37,6 +37,7 @@ prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jH), step_limiter=nothing)
 # note that, due to compile time, this may take 1-2 minutes when executed in a fresh Julia
 # session. Subsequent solves will be much faster.
 sol = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true)
+out = CryoGridOutput(sol)
 
 # Now we plot the reuslts!
 import Plots
