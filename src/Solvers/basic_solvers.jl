@@ -27,12 +27,12 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     # evaluate tile at initial condition
     tile = Tiles.resolve(Tile(prob.f), u0, prob.p, t0)
     tile(du0, u0, prob.p, t0, dt)
-    # reset SavedValues on tile.hist
+    # reset SavedValues on tile.data
     initialsave = prob.savefunc(tile, u0, similar(u0))
     savevals = SavedValues(Float64, typeof(initialsave))
     push!(savevals.saveval, initialsave)
     push!(savevals.t, t0)
-    tile.hist.vals = savevals
+    tile.data.outputs = savevals
     sol = CryoGridSolution(prob, u_storage, t_storage, alg, ReturnCode.Default)
     cache = CGEulerCache(
         similar(prob.u0),
@@ -59,8 +59,8 @@ function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
     integrator.t = t₀ + dt
     integrator.step += 1
     # invoke auxiliary state saving function in CryoGridProblem
-    push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
-    push!(tile.hist.vals.t, integrator.t)
+    push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
+    push!(tile.data.outputs.t, integrator.t)
     # save state in solution
     push!(integrator.sol.t, integrator.t)
     push!(integrator.sol.u, integrator.u)

@@ -88,7 +88,7 @@ function CryoGridProblem(
     usercallbacks = isnothing(callback) ? () : callback
     callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
-    tile.hist.vals = savevals
+    tile.data.outputs = savevals
     M = Numerics.build_mass_matrix(tile.state)
 	func = odefunction(tile, u0, p, tspan; mass_matrix=M, specialization, function_kwargs...)
 	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, getsavestate, isoutofdomain, prob_kwargs)

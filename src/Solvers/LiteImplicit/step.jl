@@ -15,8 +15,8 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     integrator.t = t
     integrator.step += 1
     # invoke auxiliary state saving function in CryoGridProblem
-    push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
-    push!(tile.hist.vals.t, integrator.t)
+    push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
+    push!(tile.data.outputs.t, integrator.t)
     # save state in solution
     push!(integrator.sol.t, integrator.t)
     push!(integrator.sol.u, integrator.u)

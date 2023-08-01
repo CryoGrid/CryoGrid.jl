@@ -1,6 +1,6 @@
-mutable struct StateHistory
-    vals::Union{Missing,<:Any}
-    StateHistory() = new(missing)
+mutable struct TileData
+    outputs::Any
+    TileData() = new(missing)
 end
 
 """
@@ -8,7 +8,7 @@ end
 
 Base type for 1D tiles. `iip` is a boolean value that indicates, if true,
 whether the model operates on state variables in-place (overwriting arrays) or
-if false, out-of-place (copying arrays).
+if false, out-of-place (copying arrays). Current only in-place is supported.
 """
 abstract type AbstractTile{iip} end
 """
@@ -19,6 +19,13 @@ Invokes the corresponding `evaluate!` function to compute the time derivative du
 """
 (tile::AbstractTile{true})(du, u, p, t, dt=1.0) = evaluate!(tile,du,u,p,t,dt)
 (tile::AbstractTile{false})(u, p, t, dt=1.0) = evaluate(tile,u,p,t,dt)
+
+"""
+    isinplace(tile::AbstractTile{iip}) where {iip}
+
+Returns true if `tile` uses in-place mode, false if out-of-place.
+"""
+isinplace(::AbstractTile{iip}) where {iip} = iip
 
 """
     evaluate!(::T,du,u,p,t) where {T<:AbstractTile}
@@ -44,23 +51,23 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
     state::TStates # state variables
     inits::TInits # initializers
     events::TEvents # events
+    data::TileData # output data
     metadata::Dict # metadata
-    hist::StateHistory # mutable "history" type for state tracking
     function Tile(
         strat::TStrat,
         grid::TGrid,
         state::TStates,
         inits::TInits,
         events::TEvents,
+        data::TileData=TileData(),
         metadata::Dict=Dict(),
-        hist::StateHistory=StateHistory(),
         iip::Bool=true) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
-        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,metadata,hist)
+        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,data,metadata)
     end
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
-    (strat, grid, state, inits, events, metadata, hist) -> Tile(strat, grid, state, inits, events, metadata, hist, iip)
+    (strat, grid, state, inits, events, data, metadata) -> Tile(strat, grid, state, inits, events, data, metadata, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -109,7 +116,7 @@ function Tile(
     inits = map(inits) do init
         _addlayerfield(init, Symbol(:init_, varname(init)))
     end
-    return Tile(strat, grid, states, inits, (;events...), metadata, StateHistory(), iip)
+    return Tile(strat, grid, states, inits, (;events...), TileData(), metadata, iip)
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
@@ -155,17 +162,18 @@ function evaluate!(
 end
 
 """
-    timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
+    timestep(_tile::Tile, _du, _u, p, t)
 
 Computes the maximum permissible forward timestep for this `Tile` given the current `u`, `p`, and `t`.
 """
-function CryoGrid.timestep(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
+function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
+    iip = isinplace(_tile)
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
-    state = TileState(tile.state, zs, u, du, t, 1.0, Val{true}())
+    state = TileState(tile.state, zs, u, du, t, 1.0, Val{iip}())
     CryoGrid.timestep(strat::Stratigraphy, state)
 end
 
@@ -176,8 +184,9 @@ end
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
 CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-function CryoGrid.initialcondition!(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, tspan::NTuple{2,Float64}, p=nothing) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
+function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
     t0 = tspan[1]
+    iip = isinplace(tile)
     # if there are parameters defined on `tile` but the user did not supply a parameter vector,
     # automatically extract the parameters from the Tile.
     tile_params = isempty(ModelParameters.params(tile)) ? [] : parameters(tile)
@@ -314,7 +323,8 @@ Constructs a `LayerState` representing the full state of `layername` given `tile
 time step `t`.
 """
 getstate(layername::Symbol, tile::Tile, u, du, t, dt=1.0) = getstate(Val{layername}(), tile, u, du, t, dt)
-function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernames},TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {layername,TStrat,TGrid,TInits,TEvents,iip,layernames}
+function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernames}}, _u, _du, t, dt=1.0) where {layername,TStrat,TGrid,layernames}
+    iip = isinplace(tile)
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     i = 1
@@ -348,7 +358,7 @@ function CryoGrid.parameterize(tile::Tile)
         name => _addlayerfield(evs, name)
     end
     new_strat = Stratigraphy(boundaries(tile.strat), Tuple(new_layers))
-    return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.hist)
+    return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data)
 end
 
 """
@@ -374,7 +384,8 @@ as `setup.uproto`.
 withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.uproto))
 withaxes(u::ComponentArray, ::Tile) = u
 
-function getstate(tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}, _u, _du, t, dt=1.0) where {TStrat,TGrid,TStates,TInits,TEvents,iip}
+function getstate(tile::Tile, _u, _du, t, dt=1.0)
+    iip = isinplace(tile)
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
     return TileState(tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt, Val{iip}())

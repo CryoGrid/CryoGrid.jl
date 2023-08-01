@@ -60,7 +60,7 @@ function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::N
     withdims(var::Var{name}, arr, zs, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Dim{name}(1:size(arr,1)),Ti(ts)))
     save_interval = ClosedInterval(tspan...)
     tile = Tile(sol.prob.f) # Tile
-    ts = tile.hist.vals.t # use save callback time points
+    ts = tile.data.outputs.t # use save callback time points
     # check if last value is duplicated
     ts = ts[end] == ts[end-1] ? ts[1:end-1] : ts
     t_mask = map(∈(save_interval), ts) # indices within t interval
@@ -68,7 +68,7 @@ function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::N
     u_mat = reduce(hcat, u_all) # build prognostic state from continuous solution
     pax = ComponentArrays.indexmap(getaxes(tile.state.uproto)[1])
     # get saved diagnostic states and timestamps only in given interval
-    savedstates = tile.hist.vals.saveval[1:length(ts)][t_mask]
+    savedstates = tile.data.outputs.saveval[1:length(ts)][t_mask]
     ts_datetime = Dates.epochms2datetime.(round.(ts[t_mask]*1000.0))
     allvars = variables(tile)
     progvars = tuplejoin(filter(isprognostic, allvars), filter(isalgebraic, allvars))
