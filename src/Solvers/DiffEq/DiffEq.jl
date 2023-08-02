@@ -45,13 +45,13 @@ export CryoGridEnsembleSetup, CryoGridEnsembleProblem
 include("ensemble.jl")
 
 # solve/init interface
-function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
+function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; saveat=prob.saveat, kwargs...)
     ode_prob = ODEProblem(prob)
-    return DiffEqBase.solve(ode_prob, alg, args...; kwargs...)
+    return DiffEqBase.solve(ode_prob, alg, args...; saveat, kwargs...)
 end
-function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; kwargs...)
+function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; saveat=prob.saveat, kwargs...)
     ode_prob = ODEProblem(prob)
-    return DiffEqBase.init(ode_prob, alg, args...; kwargs...)
+    return DiffEqBase.init(ode_prob, alg, args...; saveat, kwargs...)
 end
 
 # Add method dispatches for other CryoGrid methods on DEIntegrator type

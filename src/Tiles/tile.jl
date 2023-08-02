@@ -358,7 +358,7 @@ function CryoGrid.parameterize(tile::Tile)
         name => _addlayerfield(evs, name)
     end
     new_strat = Stratigraphy(boundaries(tile.strat), Tuple(new_layers))
-    return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data)
+    return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data, tile.metadata)
 end
 
 """

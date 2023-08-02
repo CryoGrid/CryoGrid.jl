@@ -35,7 +35,7 @@ tspan_sol = convert_tspan(tspan)
 u0, du0 = @time initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 @info "Running model"
-sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
+sol = @time solve(prob, LiteImplicitEuler())
 out = CryoGridOutput(sol)
 
 # Plot the results!

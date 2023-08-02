@@ -1,18 +1,20 @@
 """
-    CryoGridProblem{iip,Tu,Tt,Tp,TT,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
+    CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
 
 Represents a CryoGrid discretized PDE forward model configuration using the `SciMLBase`/`DiffEqBase` problem interface.
 """
-struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
+struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
     f::TT
     u0::Tu
     tspan::NTuple{2,Tt}
     p::Tp
     callbacks::Tcb
+    saveat::Tsv
     savefunc::Tsf
     isoutofdomain::Tdf
     kwargs::Tkw
-    CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsf,Tcb,Tdf,Tkw} = new{iip,Tu,Tt,Tp,TF,Tsf,Tcb,Tdf,Tkw}(f,u0,tspan,p,cbs,savefunc,iood,kwargs)
+    CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, saveat::Tsv, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tcb,Tdf,Tkw} =
+        new{iip,Tu,Tt,Tp,TF,Tsv,Tsf,Tcb,Tdf,Tkw}(f,u0,tspan,p,cbs,saveat,savefunc,iood,kwargs)
 end
 (prob::Type{<:CryoGridProblem{iip}})(; f=prob.f, u0=prob.u0, tspan=prob.tspan, p=prob.p, callbacks=prob.callbacks, savefunc=prob.savefunc, isoutofdomain=prob.isoutofdomain, kwargs...) where {iip} =
     CryoGridProblem{iip}(f, u0, tspan, p, callbacks, savefunc, isoutofdomain, kwargs)
@@ -79,7 +81,8 @@ function CryoGridProblem(
     # set up saving callback
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
-    savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_start=save_start, save_end=save_end, save_everystep=save_everystep)
+    saveat = expandtstep(saveat)
+    savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
     # add step limiter to default callbacks, if defined
     defaultcallbacks = isnothing(step_limiter) ? (savingcallback,) : (savingcallback, StepsizeLimiter(step_limiter; safety_factor, max_step))
     # build layer callbacks
@@ -89,9 +92,9 @@ function CryoGridProblem(
     callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
     tile.data.outputs = savevals
-    M = Numerics.build_mass_matrix(tile.state)
-	func = odefunction(tile, u0, p, tspan; mass_matrix=M, specialization, function_kwargs...)
-	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, getsavestate, isoutofdomain, prob_kwargs)
+    mass_matrix = Numerics.build_mass_matrix(tile.state)
+	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
+	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
 end
 """
     CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)

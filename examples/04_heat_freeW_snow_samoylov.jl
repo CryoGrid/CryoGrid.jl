@@ -44,7 +44,7 @@ u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
 
 # set up integrator
-integrator = init(prob, Euler(), dt=300.0, saveat=3*3600.0)
+integrator = init(prob, Euler(), dt=300.0)
 # advance 24 hours for testing
 @time step!(integrator, 24*3600.0)
 

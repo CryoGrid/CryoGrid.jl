@@ -24,12 +24,12 @@ u0, du0 = initialcondition!(tile, tspan)
 # Collect model parameters
 p = CryoGrid.parameters(tile)
 # Set up the `CryoGridProblem`
-prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0, savevars=(:T,), step_limiter=nothing)
 
 function loss(p)
     u0, du0 = initialcondition!(tile, tspan, p)
     prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,), step_limiter=nothing)
-    sol = @time solve(prob, Euler(), dt=300.0, saveat=24*3600.0, progress=true);
+    sol = @time solve(prob, Euler(), dt=300.0, progress=true);
     return mean(sol.u[end])
 end
 

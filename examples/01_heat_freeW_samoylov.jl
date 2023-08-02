@@ -32,11 +32,11 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 # Here we construct a CryoGridProblem with tile, initial condition, and timespan;
 # we disable the default timestep limiter since we will use an adaptive solver.
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jH), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:jH), step_limiter=nothing)
 # Solve the configured problem with the implicit trapezoid method (a.k.a Crank-Nicolson);
 # note that, due to compile time, this may take 1-2 minutes when executed in a fresh Julia
 # session. Subsequent solves will be much faster.
-sol = @time solve(prob, Trapezoid(), saveat=24*3600.0, progress=true)
+sol = @time solve(prob, Trapezoid(), progress=true)
 out = CryoGridOutput(sol)
 
 # Now we plot the reuslts!
