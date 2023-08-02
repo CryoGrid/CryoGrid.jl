@@ -48,11 +48,13 @@ function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
     du = integrator.cache.du
     t₀ = integrator.t
     p = integrator.p
-    dt = integrator.dt
     initial_tile = Tile(integrator.sol.prob.f)
     tile = Tiles.resolve(initial_tile, u, p, t₀)
     # compute time derivative du
     tile(du, u, p, t₀)
+    # compute maximum timestep
+    dtmax = CryoGrid.timestep(tile, du, u, p, t)
+    dt = min(dtmax, integrator.dt)
     # update u
     @inbounds @. u += dt*du
     integrator.u = u
