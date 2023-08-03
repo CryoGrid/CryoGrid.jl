@@ -42,7 +42,7 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:
 # This is currently somewhat slow since the integrator must take very small time steps during the thawed season;
 # expect it to take about 3-5 minutes per year on a typical workstation/laptop;
 # minor speed-ups might be possible by tweaking the dt limiters or by using the SFCCPreSolver
-integrator = init(prob, Euler(), dt=1.0)
+integrator = init(prob, CGEuler(), dt=1.0)
 # Here we take just one step to checgk if it's working.
 step!(integrator)
 # We can use the `getstate` function to construct the current Tile state from the integrator.

@@ -23,7 +23,7 @@ tspan = (DateTime(2010,11,30),DateTime(2011,11,30))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,), step_limiter=nothing)
 @info "Running model"
-sol = @time solve(prob, SSPRK43(), progress=true);
+sol = @time solve(prob, CGEuler(), dt=300.0, progress=true);
 out = CryoGridOutput(sol)
 
 # Plot it!

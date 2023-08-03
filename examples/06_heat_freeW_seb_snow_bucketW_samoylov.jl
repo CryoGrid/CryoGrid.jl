@@ -53,7 +53,7 @@ prob = CryoGridProblem(
     saveat=3*3600.0
 )
 ## initialize integrator
-integrator = init(prob, Euler(), dt=60.0)
+integrator = init(prob, CGEuler(), dt=60.0)
 ## step forwards 24 hours and check for NaN/Inf values
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))

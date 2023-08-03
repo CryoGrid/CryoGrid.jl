@@ -42,7 +42,7 @@ u0, du0 = initialcondition!(tile, tspan)
 # Construct and solve the `CryoGridProblem`:
 prob = CryoGridProblem(tile, u0, tspan, saveat=3600.0, savevars=(:T,))
 @info "Running model"
-sol = @time solve(prob, Euler(), dt=120.0, progress=true);
+sol = @time solve(prob, CGEuler(), dt=120.0, progress=true);
 out = CryoGridOutput(sol)
 
 # check mass conservation

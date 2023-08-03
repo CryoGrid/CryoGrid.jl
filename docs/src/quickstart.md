@@ -24,8 +24,7 @@ u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
 # solve discretized system, saving every 3 hours;
-# Trapezoid on a discretized PDE is analogous to the well known Crank-Nicolson method.
-out = @time solve(prob, Trapezoid(), saveat=3*3600.0, progress=true) |> CryoGridOutput;
+out = @time solve(prob, saveat=3*3600.0, progress=true) |> CryoGridOutput;
 zs = [2,7,12,22,32,42,50,100,500]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
@@ -40,9 +39,7 @@ tile2 = CryoGrid.Presets.SoilHeatTile(TemperatureGradient(forcings.Tair), Geothe
 u0, du0 = initialcondition!(tile2, tspan)
 # CryoGrid front-end for ODEProblem
 prob2 = CryoGridProblem(tile2, u0, tspan, savevars=(:T,))
-# stiff solvers don't work well with Dall'Amico due to the ill-conditioned Jacobian;
-# We can just forward Euler instead.
-out2 = @time solve(prob2, Euler(), dt=300.0, saveat=3*3600.0, progress=true) |> CryoGridOutput;
+out2 = @time solve(prob2, saveat=3*3600.0, progress=true) |> CryoGridOutput;
 plot(out2.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
 Note that `SoilHeatTile` uses energy as the state variable by default. To use temperature as the state variable instead:

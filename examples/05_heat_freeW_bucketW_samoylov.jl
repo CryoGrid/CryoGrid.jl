@@ -25,7 +25,7 @@ tile = Tile(strat, modelgrid, initT, initsat);
 tspan = (DateTime(2011,10,30),DateTime(2012,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jw,:θw,:θwi), saveat=3600.0)
-integrator = init(prob, Euler(), dt=300.0)
+integrator = init(prob, CGEuler(), dt=300.0)
 @time for i in integrator
     @assert all(isfinite.(integrator.u))
 end

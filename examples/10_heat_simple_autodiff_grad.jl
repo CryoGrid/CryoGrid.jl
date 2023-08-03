@@ -29,7 +29,7 @@ prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0, savevars=(:T,), ste
 function loss(p)
     u0, du0 = initialcondition!(tile, tspan, p)
     prob = CryoGridProblem(tile, u0, tspan, p, savevars=(:T,), step_limiter=nothing)
-    sol = @time solve(prob, Euler(), dt=300.0, progress=true);
+    sol = @time solve(prob, CGEuler(), dt=300.0, progress=true);
     return mean(sol.u[end])
 end
 

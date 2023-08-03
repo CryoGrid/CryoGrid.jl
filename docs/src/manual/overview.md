@@ -36,8 +36,8 @@ prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0, savevars=(:T,)) # p
 It can then be solved/integrated using the `solve` function (from `DiffEqBase` and `OrdinaryDiffEq`):
 
 ```julia
-# solve with forward Euler (fixed 5 minute time steps) and construct CryoGridOutput from solution
-sol = @time solve(prob, Euler(), dt=5*60.0, saveat=24*3600.0, progress=true);
+# solve and construct CryoGridOutput from solution
+sol = @time solve(prob, saveat=24*3600.0, progress=true);
 out = CryoGridOutput(sol)
 ```
 

@@ -56,9 +56,9 @@ tspan = (DateTime(2010,11,30),DateTime(2011,11,30))
 u0, du0 = initialcondition!(tile, tspan)
 # CryoGrid front-end for ODEProblem
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,))
-# solve discretized system, saving every 3 hours;
-# Trapezoid on a discretized PDE is analogous to the well known Crank-Nicolson method.
-out = @time solve(prob, Trapezoid(), saveat=3*3600.0, progress=true) |> CryoGridOutput;
+# solve discretized system, saving every 3 hours
+sol = @time solve(prob, saveat=3*3600.0, progress=true);
+out = CryoGridOutput(sol)
 zs = [2,7,12,22,32,42,50,100,500]u"cm"
 cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
