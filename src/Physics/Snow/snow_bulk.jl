@@ -191,7 +191,8 @@ function CryoGrid.computefluxes!(
     return nothing
 end
 
-# Timestep control
+# ==== Timestep control ==== #
+# Heat
 CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
 function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
     Δx = Δ(state.grid)
@@ -201,6 +202,19 @@ function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp
             dtmax = min(dtmax, heat.dtlim(state.∂H∂t[i], state.H[i], state.t))
         end
         dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
+    end
+    return dtmax
+end
+# Snow mass
+function CryoGrid.timestep(snow::BulkSnowpack, mass::SnowMassBalance, state)
+    ∂Δz∂t = getscalar(state.∂Δz∂t)
+    dsn = getscalar(state.dsn)
+    thresh = snow.para.thresh
+    dtmax = Inf
+    if dsn > thresh && ∂Δz∂t < zero(∂Δz∂t)
+        dtmax = (dsn - thresh) / abs(∂Δz∂t)
+    elseif dsn < thresh && ∂Δz∂t > zero(∂Δz∂t)
+        dtmax = (thresh - dsn) / ∂Δz∂t
     end
     return dtmax
 end
