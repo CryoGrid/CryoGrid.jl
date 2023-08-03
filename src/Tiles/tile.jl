@@ -121,6 +121,14 @@ end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, inits...; discretization_strategy=AutoGrid(), kwargs...) = Tile(strat, discretization_strategy, inits...; kwargs...)
+# convenience function to unwrap Tile from ODEFunction
+function Tile(f::ODEFunction)
+    extract_f(tile::Tile) = tile
+    extract_f(f::ODEFunction) = f.f
+    extract_f(f::DiffEqBase.Void) = f.f
+    extract_f(f) = SciMLBase.unwrapped_f(f)
+    return extract_f(f.f)
+end
 
 """
     evaluate!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
@@ -337,6 +345,19 @@ function getstate(::Val{layername}, tile::Tile{TStrat,TGrid,<:StateVars{layernam
     z = boundarypairs(map(ustrip, stripparams(boundaries(tile.strat))))[i]
     return LayerState(tile.state, z, u, du, t, dt, Val{layername}(), Val{iip}())
 end
+"""
+    getstate(integrator::SciMLBase.DEIntegrator)
+    getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator)
+
+Builds the state named tuple for `layername` given an initialized integrator.
+"""
+getstate(integrator::SciMLBase.DEIntegrator) = Tiles.getstate(Tile(integrator), integrator.u, get_du(integrator), integrator.t)
+getstate(layername::Symbol, integrator::SciMLBase.DEIntegrator) = Tiles.getstate(Val{layername}(), integrator)
+getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername} = Tiles.getstate(Val{layername}(), Tile(integrator), integrator.u, get_du(integrator), integrator.t)
+"""
+    getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
+"""
+Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u)
 
 """
     parameterize(tile::Tile)
