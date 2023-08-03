@@ -19,7 +19,7 @@ end
     T_f = H / C
     T_t = (H - Lθ) / C
     T = IfElse.ifelse(
-        H < zero(θtot),
+        H < zero(θwi),
         # Case 1: H < 0 -> frozen
         T_f,
         # Case 2: H >= 0
