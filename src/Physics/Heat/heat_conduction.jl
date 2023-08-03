@@ -13,10 +13,24 @@ end
     θwi = Hydrology.watercontent(sub, state, i)
     H = state.H[i]
     L = heat.prop.L
-    θw, I_t, I_f, I_c, Lθ = FreezeCurves.freewater(H, θwi, L)
+    θw, Lθ = FreezeCurves.freewater(H, θwi, L)
     θfracs = volumetricfractions(sub, state, i)
     C = heatcapacity(sub, heat, θfracs...)
-    T = (I_t*(H-Lθ) + I_f*H)/C
+    T_f = H / C
+    T_t = (H - Lθ) / C
+    T = IfElse.ifelse(
+        H < zero(θtot),
+        # Case 1: H < 0 -> frozen
+        T_f,
+        # Case 2: H >= 0
+        IfElse.ifelse(
+            H >= Lθ,
+            # Case 2a: H >= Lθ -> thawed
+            T_t,
+            # Case 2b: 0 <= H < Lθ -> phase change
+            zero(T_f)
+        )
+    )
     return T, θw, C
 end
 
