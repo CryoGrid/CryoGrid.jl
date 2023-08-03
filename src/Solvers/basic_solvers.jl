@@ -11,6 +11,9 @@ struct CGEuler <: CryoGridODEAlgorithm end
 DiffEqBase.check_prob_alg_pairing(::CryoGridProblem, ::CGEuler) = nothing
 DiffEqBase.check_prob_alg_pairing(prob, alg::CGEuler) = throw(DiffEqBase.ProblemSolverPairingError(prob, alg))
 
+# if no solver is specified, solve with CGEuler
+DiffEqBase.solve(prob::CryoGridProblem; kwargs...) = solve(prob, CGEuler(); kwargs...)
+
 struct CGEulerCache{Tu} <: SciMLBase.DECache
     uprev::Tu
     du::Tu
@@ -53,21 +56,36 @@ function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
     # compute time derivative du
     tile(du, u, p, t₀)
     # compute maximum timestep
-    dtmax = CryoGrid.timestep(tile, du, u, p, t₀)
-    dt = min(dtmax, integrator.dt)
+    dt = integrator.dt
     # update u
     @inbounds @. u += dt*du
     integrator.u = u
     integrator.t = t₀ + dt
+    integrator.dt = dt
     integrator.step += 1
-    # invoke auxiliary state saving function in CryoGridProblem
-    push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
-    push!(tile.data.outputs.t, integrator.t)
     # save state in solution
-    push!(integrator.sol.t, integrator.t)
-    push!(integrator.sol.u, integrator.u)
+    dtsave = save!(tile, integrator)
+    # set next dt
+    dtmax = CryoGrid.timestep(tile, du, u, p, t₀)
+    integrator.dt = min(dtmax, dtsave)
     return nothing
 end
 
-# if no solver is specified, solve with CGEuler
-DiffEqBase.solve(prob::CryoGridProblem; kwargs...) = solve(prob, CGEuler(); kwargs...)
+function save!(tile::Tile, integrator::CryoGridIntegrator)
+    du = get_du(integrator)
+    prob = integrator.sol.prob
+    saveat = prob.saveat
+    t_saves = integrator.sol.t
+    u_saves = integrator.sol.u
+    res = searchsorted(saveat, integrator.t)
+    i_next = first(res)
+    i_prev = last(res)
+    if i_next == i_prev    
+        push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
+        push!(tile.data.outputs.t, integrator.t)
+        push!(u_saves, copy(integrator.u))
+        push!(t_saves, integrator.t)
+        return Inf
+    end
+    return saveat[i_next] - integrator.t
+end
