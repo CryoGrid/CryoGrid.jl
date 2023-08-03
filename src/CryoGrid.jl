@@ -18,6 +18,7 @@ using IfElse
 using LinearAlgebra
 using ModelParameters
 using Reexport
+using Requires
 
 import Flatten
 import Interpolations
@@ -97,5 +98,13 @@ export CGEuler, CryoGridIntegrator, CryoGridSolution
 include("Solvers/Solvers.jl")
 # Presets
 include("Presets/Presets.jl")
+
+function __init__()
+    # OrdinaryDiffEq compatibility
+    @require OrdinaryDiffEq="1dea7af3-3e70-54e6-95c3-0bf5283fa5ed" begin
+        include("Solvers/DiffEq/DiffEq.jl")
+        @reexport using .DiffEq
+    end
+end
 
 end # module
