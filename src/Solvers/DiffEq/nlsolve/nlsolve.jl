@@ -1,5 +1,3 @@
-using OrdinaryDiffEq: NLSolver
-
 """
 Base type for custom nonlinear solver algorithms.
 """

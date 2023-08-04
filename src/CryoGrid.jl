@@ -102,8 +102,9 @@ include("Presets/Presets.jl")
 function __init__()
     # OrdinaryDiffEq compatibility
     @require OrdinaryDiffEq="1dea7af3-3e70-54e6-95c3-0bf5283fa5ed" begin
-        include("Solvers/DiffEq/DiffEq.jl")
         using .OrdinaryDiffEq
+        using .OrdinaryDiffEq: NLSolver
+        include("Solvers/DiffEq/DiffEq.jl")
         @reexport using .DiffEq
     end
 end
