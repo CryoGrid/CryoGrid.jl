@@ -23,7 +23,6 @@ using Unitful
 using UnPack
 
 using DiffEqBase
-using OrdinaryDiffEq
 
 # re-export DiffEqCallbacks
 @reexport using DiffEqCallbacks
