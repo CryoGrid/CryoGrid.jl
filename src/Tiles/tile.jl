@@ -423,7 +423,7 @@ Resolves/updates the given `tile` by:
 Returns the reconstructed `Tile` instance.
 """
 function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
-    IgnoreTypes = Union{TGrid,TStates,StateHistory,Unitful.Quantity,Numerics.ForwardDiff.Dual}
+    IgnoreTypes = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
     # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct method directly...
     # so that's what we do here. The last integer argument denotes the index of the first parameter.
