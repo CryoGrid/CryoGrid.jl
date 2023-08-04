@@ -12,3 +12,6 @@ include("basic_solvers.jl")
 # CryoGridLite solvers
 export LiteImplicit
 include("LiteImplicit/LiteImplicit.jl")
+
+include("DiffEq/DiffEq.jl")
+@reexport using .DiffEq

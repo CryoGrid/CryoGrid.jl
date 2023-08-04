@@ -19,6 +19,7 @@ using ModelParameters
 using LinearAlgebra
 using LinearSolve
 using Reexport
+using Requires
 using Unitful
 using UnPack
 
@@ -37,20 +38,16 @@ export ImplicitEuler, ImplicitMidpoint, Trapezoid, SSPSDIRK2
 export TDMASolver
 include("linsolve.jl")
 
-export NLCGLite
-include("nlsolve/nlsolve.jl")
-
 export CryoGridEnsembleSetup, CryoGridEnsembleProblem
 include("ensemble.jl")
 
-# solve/init interface
-function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; saveat=prob.saveat, kwargs...)
-    ode_prob = ODEProblem(prob)
-    return DiffEqBase.solve(ode_prob, alg, args...; saveat, kwargs...)
-end
-function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; saveat=prob.saveat, kwargs...)
-    ode_prob = ODEProblem(prob)
-    return DiffEqBase.init(ode_prob, alg, args...; saveat, kwargs...)
+function __init__()
+    # OrdinaryDiffEq compatibility
+    @require OrdinaryDiffEq="1dea7af3-3e70-54e6-95c3-0bf5283fa5ed" begin
+        using .OrdinaryDiffEq
+        using .OrdinaryDiffEq: NLSolver
+        include("ode_solvers.jl")
+    end
 end
 
 end
