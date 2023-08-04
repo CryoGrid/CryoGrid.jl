@@ -54,17 +54,4 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgor
     return DiffEqBase.init(ode_prob, alg, args...; saveat, kwargs...)
 end
 
-# Add method dispatches for other CryoGrid methods on DEIntegrator type
-"""
-    Tile(integrator::SciMLBase.DEIntegrator)
-
-Constructs a `Tile` from a `SciMLBase` integrator.
-"""
-function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
-    tile = Tiles.Tile(integrator.sol.prob.f)
-    du = get_du(integrator)
-    u = integrator.u
-    return Tiles.resolve(tile, Tiles.withaxes(u, tile), integrator.p, integrator.t)
-end
-
 end

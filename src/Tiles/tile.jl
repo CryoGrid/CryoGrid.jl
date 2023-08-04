@@ -129,6 +129,18 @@ function Tile(f::ODEFunction)
     extract_f(f) = SciMLBase.unwrapped_f(f)
     return extract_f(f.f)
 end
+# and also from a DEIntegrator
+"""
+    Tile(integrator::SciMLBase.DEIntegrator)
+
+Constructs a `Tile` from a `SciMLBase` DEIntegrator.
+"""
+function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
+    tile = Tiles.Tile(integrator.sol.prob.f)
+    du = get_du(integrator)
+    u = integrator.u
+    return Tiles.resolve(tile, Tiles.withaxes(u, tile), integrator.p, integrator.t)
+end
 
 """
     evaluate!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
