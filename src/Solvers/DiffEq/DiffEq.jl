@@ -28,13 +28,6 @@ using DiffEqBase
 # re-export DiffEqCallbacks
 @reexport using DiffEqCallbacks
 
-# re-export selected types from OrdinaryDiffEq;
-export OrdinaryDiffEq
-# explicit methods
-export Euler, Heun, DP5, Tsit5, ROCK2, ROCK4, SSPRK22, SSPRK33, SSPRK43
-# implicit methods
-export ImplicitEuler, ImplicitMidpoint, Trapezoid, SSPSDIRK2
-
 export TDMASolver
 include("linsolve.jl")
 
@@ -46,6 +39,12 @@ function __init__()
     @require OrdinaryDiffEq="1dea7af3-3e70-54e6-95c3-0bf5283fa5ed" begin
         using .OrdinaryDiffEq
         using .OrdinaryDiffEq: NLSolver
+        # re-export selected types from OrdinaryDiffEq;
+        export OrdinaryDiffEq
+        # explicit methods
+        export Euler, Heun, DP5, Tsit5, ROCK2, ROCK4, SSPRK22, SSPRK33, SSPRK43
+        # implicit methods
+        export ImplicitEuler, ImplicitMidpoint, Trapezoid, SSPSDIRK2
         include("ode_solvers.jl")
     end
 end
