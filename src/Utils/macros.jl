@@ -99,6 +99,11 @@ macro properties(expr)
         struct $(esc(name)){$(esc(:TV))} <: $(esc(:(Utils.NamedTupleWrapper)))
             values::$(esc(:TV))
             function $(esc(name))(;
+                values::NamedTuple
+            )
+                new{typeof(values)}(values)
+            end
+            function $(esc(name))(;
                 $(map(esc, kwargs)...),
                 $(esc(:additional_kwargs))...
             )
