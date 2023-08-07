@@ -56,6 +56,8 @@ CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
     por = CryoGrid.parameterize(para.por, domain=0..1),
     sat = CryoGrid.parameterize(para.sat, domain=0..1),
     org = CryoGrid.parameterize(para.org, domain=0..1),
+    heat = CryoGrid.parameterize(para.heat, domain=0..Inf),
+    water = CryoGrid.parameterize(para.water, domain=0..Inf),
 )
 
 CryoGrid.variables(soil::Soil{<:MineralOrganic}) = CryoGrid.variables(soil, processes(soil))

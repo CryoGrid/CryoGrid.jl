@@ -116,12 +116,3 @@ Utils.@properties ThermalProperties(
     ch_i = 1.9e6u"J/K/m^3", # heat capacity of ice
     ch_a = 0.00125e6u"J/K/m^3", # heat capacity of air
 )
-function CryoGrid.parameterize(props::ThermalProperties)
-    @set! props.kh_w = CryoGrid.parameterize(props.kh_w)
-    @set! props.kh_i = CryoGrid.parameterize(props.kh_i)
-    @set! props.kh_a = CryoGrid.parameterize(props.kh_a)
-    @set! props.ch_w = CryoGrid.parameterize(props.ch_w)
-    @set! props.ch_i = CryoGrid.parameterize(props.ch_i)
-    @set! props.ch_a = CryoGrid.parameterize(props.ch_a)
-    return props
-end
