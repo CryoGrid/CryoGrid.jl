@@ -98,7 +98,7 @@ macro properties(expr)
     quote
         struct $(esc(name)){$(esc(:TV))} <: $(esc(:(Utils.NamedTupleWrapper)))
             values::$(esc(:TV))
-            function $(esc(name))(;
+            function $(esc(name))(
                 values::NamedTuple
             )
                 new{typeof(values)}(values)

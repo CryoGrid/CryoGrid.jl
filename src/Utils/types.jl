@@ -46,4 +46,4 @@ function Base.getproperty(wrapper::TC, name::Symbol) where {TC<:NamedTupleWrappe
 end
 Base.getindex(wrapper::NamedTupleWrapper, name::Symbol) = getproperty(values(wrapper), name)
 Base.propertynames(wrapper::NamedTupleWrapper) = propertynames(values(wrapper))
-ConstructionBase.setproperties(wrapper::T, patch::NamedTuple) where {T<:NamedTupleWrapper} = T(setproperties(wrapper.values, patch))
+ConstructionBase.setproperties(wrapper::T, patch::NamedTuple) where {T<:NamedTupleWrapper} = T.name.wrapper(ConstructionBase.setproperties(wrapper.values, patch))
