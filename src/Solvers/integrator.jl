@@ -75,6 +75,14 @@ function DiffEqBase.__solve(prob::CryoGridProblem, alg::CryoGridODEAlgorithm, ar
     if integrator.sol.retcode == ReturnCode.Default
         integrator.sol.retcode = ReturnCode.Success
     end
+    # if no save points are specified, save final state
+    if isempty(prob.saveat)
+        tile = Tile(integrator)
+        push!(tile.data.outputs.saveval, prob.savefunc(tile, integrator.u, get_du(integrator)))
+        push!(tile.data.outputs.t, ForwardDiff.value(integrator.t))
+        push!(integrator.sol.u, integrator.u)
+        push!(integrator.sol.t, integrator.t)
+    end
     return integrator.sol
 end
 

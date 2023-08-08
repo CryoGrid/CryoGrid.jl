@@ -25,7 +25,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     du0 = zero(u0)
     t0 = prob.tspan[1]
     # initialize storage
-    u_storage = [u0]
+    u_storage = [copy(u0)]
     t_storage = [prob.tspan[1]*one(eltype(u0))]
     # evaluate tile at initial condition
     tile = Tiles.resolve(Tile(prob.f), u0, prob.p, t0)
@@ -43,7 +43,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
     opts = CryoGridIntegratorOptions()
-    return CryoGridIntegrator(alg, cache, opts, sol, u0, p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
+    return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end
 
 function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
