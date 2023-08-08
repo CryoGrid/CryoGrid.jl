@@ -14,12 +14,9 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     implicit_step!(integrator, tile, du, u, p, t)
     integrator.t = t
     integrator.step += 1
-    # invoke auxiliary state saving function in CryoGridProblem
-    push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
-    push!(tile.data.outputs.t, integrator.t)
     # save state in solution
-    push!(integrator.sol.t, integrator.t)
-    push!(integrator.sol.u, integrator.u)
+    dtsave = CryoGrid.saveat!(tile, integrator)
+    integrator.dt = min(dtsave, integrator.opts.dtmax)
     return nothing
 end
 

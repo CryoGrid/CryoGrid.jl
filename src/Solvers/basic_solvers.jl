@@ -42,7 +42,8 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
         similar(prob.u0),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    return CryoGridIntegrator(alg, cache, sol, u0, p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
+    opts = CryoGridIntegratorOptions()
+    return CryoGridIntegrator(alg, cache, opts, sol, u0, p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end
 
 function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
@@ -64,28 +65,9 @@ function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
     integrator.dt = dt
     integrator.step += 1
     # save state in solution
-    dtsave = save!(tile, integrator)
+    dtsave = saveat!(tile, integrator)
     # set next dt
     dtmax = CryoGrid.timestep(tile, du, u, p, t₀)
     integrator.dt = min(dtmax, dtsave)
     return nothing
-end
-
-function save!(tile::Tile, integrator::CryoGridIntegrator)
-    du = get_du(integrator)
-    prob = integrator.sol.prob
-    saveat = prob.saveat
-    t_saves = integrator.sol.t
-    u_saves = integrator.sol.u
-    res = searchsorted(saveat, integrator.t)
-    i_next = first(res)
-    i_prev = last(res)
-    if i_next == i_prev    
-        push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
-        push!(tile.data.outputs.t, ForwardDiff.value(integrator.t))
-        push!(u_saves, copy(integrator.u))
-        push!(t_saves, integrator.t)
-        return Inf
-    end
-    return saveat[i_next] - integrator.t
 end

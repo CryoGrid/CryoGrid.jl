@@ -49,9 +49,15 @@ function DiffEqBase.sensitivity_solution(sol::CryoGridSolution, u, t)
                       nothing, sol.retcode)
 end
 
-mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Tsol,Tcache} <: SciMLBase.DEIntegrator{Talg,true,Tu,Tt}
+Base.@kwdef mutable struct CryoGridIntegratorOptions
+    dtmin = 1.0
+    dtmax = 24*3600.0
+end
+
+mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.DEIntegrator{Talg,true,Tu,Tt}
     alg::Talg
     cache::Tcache
+    opts::Topts
     sol::Tsol
     u::Tu
     p::Tp
@@ -70,4 +76,26 @@ function DiffEqBase.__solve(prob::CryoGridProblem, alg::CryoGridODEAlgorithm, ar
         integrator.sol.retcode = ReturnCode.Success
     end
     return integrator.sol
+end
+
+function saveat!(tile::Tile, integrator::CryoGridIntegrator)
+    du = get_du(integrator)
+    prob = integrator.sol.prob
+    saveat = prob.saveat
+    t_saves = integrator.sol.t
+    u_saves = integrator.sol.u
+    res = searchsorted(saveat, integrator.t)
+    i_next = first(res)
+    i_prev = last(res)
+    if i_next == i_prev    
+        push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
+        push!(tile.data.outputs.t, ForwardDiff.value(integrator.t))
+        push!(u_saves, copy(integrator.u))
+        push!(t_saves, integrator.t)
+        return Inf
+    elseif i_next > length(saveat)
+        return Inf
+    else
+        return saveat[i_next] - integrator.t
+    end
 end

@@ -27,13 +27,14 @@ strat = @Stratigraphy(
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"
-tile = @time Tile(strat, AutoGrid(), initT)
+modelgrid = CryoGrid.Presets.DefaultGrid_2cm
+tile = Tile(strat, modelgrid, initT)
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 5 years.
-tspan = (DateTime(2010,12,30), DateTime(2015,12,30))
+tspan = (DateTime(2005,12,30), DateTime(2010,12,30))
 tspan_sol = convert_tspan(tspan)
-u0, du0 = @time initialcondition!(tile, tspan);
-prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
+u0, du0 = initialcondition!(tile, tspan);
+prob = CryoGridProblem(tile, u0, tspan, saveat=30*24*3600.0, savevars=(:T,))
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler())
 out = CryoGridOutput(sol)

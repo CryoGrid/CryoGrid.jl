@@ -4,7 +4,7 @@ using ForwardDiff
 
 using Reexport
 
-export CryoGridIntegrator, CryoGridSolution
+export CryoGridIntegrator, CryoGridIntegratorOptions, CryoGridSolution
 include("integrator.jl")
 
 export CGEuler
