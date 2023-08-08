@@ -129,7 +129,6 @@ function handle_tstops!(integrator::CryoGridIntegrator)
     if !isempty(integrator.tstops)
         next_tstop = first(integrator.tstops)
         dt_to_stop = next_tstop - integrator.t
-        println(dt_to_stop)
         if dt_to_stop > zero(dt_to_stop)
             integrator.dt = min(integrator.dt, dt_to_stop)
         else
