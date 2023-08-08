@@ -1,3 +1,5 @@
+using DataStructures: SortedSet
+
 abstract type CryoGridODEAlgorithm <: SciMLBase.AbstractODEAlgorithm end
 
 mutable struct CryoGridSolution{TT,Tu<:AbstractVector{TT},Tt,Talg,Tprob} <: SciMLBase.AbstractODESolution{TT,1,Tu}
@@ -59,6 +61,7 @@ mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.
     cache::Tcache
     opts::Topts
     sol::Tsol
+    tstops::SortedSet{Tt}
     u::Tu
     p::Tp
     t::Tt
@@ -68,6 +71,16 @@ mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.
 end
 SciMLBase.done(integrator::CryoGridIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
 SciMLBase.get_du(integrator::CryoGridIntegrator) = integrator.cache.du
+SciMLBase.add_tstop!(integrator::CryoGridIntegrator, t) = push!(integrator.tstops, t)
+
+# add tstop by default because we don't support fancy interpolation
+DiffEqBase.step!(integrator::CryoGridIntegrator, dt) = step!(integrator, dt, true)
+
+function DiffEqBase.step!(integrator::CryoGridIntegrator)
+    handle_tstops!(integrator)
+    perform_step!(integrator)
+    saveat!(integrator)
+end
 
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::CryoGridODEAlgorithm, args...; kwargs...)
     integrator = DiffEqBase.__init(prob, alg, args...; kwargs...)
@@ -86,7 +99,10 @@ function DiffEqBase.__solve(prob::CryoGridProblem, alg::CryoGridODEAlgorithm, ar
     return integrator.sol
 end
 
-function saveat!(tile::Tile, integrator::CryoGridIntegrator)
+perform_step!(integrator::CryoGridIntegrator) = error("perform_step! not implemented for algorithm $(integrator.alg)")
+
+function saveat!(integrator::CryoGridIntegrator)
+    tile = Tile(integrator)
     du = get_du(integrator)
     prob = integrator.sol.prob
     saveat = prob.saveat
@@ -95,15 +111,29 @@ function saveat!(tile::Tile, integrator::CryoGridIntegrator)
     res = searchsorted(saveat, integrator.t)
     i_next = first(res)
     i_prev = last(res)
-    if i_next == i_prev    
+    dtsave = if i_next == i_prev    
         push!(tile.data.outputs.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
         push!(tile.data.outputs.t, ForwardDiff.value(integrator.t))
         push!(u_saves, copy(integrator.u))
         push!(t_saves, integrator.t)
-        return Inf
+        Inf
     elseif i_next > length(saveat)
-        return Inf
+        Inf
     else
-        return saveat[i_next] - integrator.t
+        saveat[i_next] - integrator.t
+    end
+    integrator.dt = min(integrator.dt, dtsave)
+end
+
+function handle_tstops!(integrator::CryoGridIntegrator)
+    if !isempty(integrator.tstops)
+        next_tstop = first(integrator.tstops)
+        dt_to_stop = next_tstop - integrator.t
+        println(dt_to_stop)
+        if dt_to_stop > zero(dt_to_stop)
+            integrator.dt = min(integrator.dt, dt_to_stop)
+        else
+            pop!(integrator.tstops)
+        end
     end
 end

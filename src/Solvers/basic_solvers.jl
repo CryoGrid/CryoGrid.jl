@@ -43,10 +43,10 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
     opts = CryoGridIntegratorOptions()
-    return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
+    return CryoGridIntegrator(alg, cache, opts, sol, SortedSet{typeof(t0)}(), copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end
 
-function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
+function perform_step!(integrator::CryoGridIntegrator{CGEuler})
     copyto!(integrator.cache.uprev, integrator.u)
     u = integrator.u
     du = integrator.cache.du
@@ -64,10 +64,8 @@ function DiffEqBase.step!(integrator::CryoGridIntegrator{CGEuler})
     integrator.t = t₀ + dt
     integrator.dt = dt
     integrator.step += 1
-    # save state in solution
-    dtsave = saveat!(tile, integrator)
     # set next dt
     dtmax = CryoGrid.timestep(tile, du, u, p, t₀)
-    integrator.dt = min(dtmax, dtsave)
+    integrator.dt = dtmax
     return nothing
 end

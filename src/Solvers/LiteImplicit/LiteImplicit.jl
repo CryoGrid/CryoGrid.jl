@@ -4,6 +4,7 @@ using CryoGrid
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
+using DataStructures
 using DiffEqBase, DiffEqCallbacks
 using Interpolations
 
@@ -14,6 +15,6 @@ include("cglite_types.jl")
 
 const CGLiteIntegrator = CryoGridIntegrator{T} where {T<:LiteImplicitEuler}
 
-include("step.jl")
+include("cglite_step.jl")
 
 end
