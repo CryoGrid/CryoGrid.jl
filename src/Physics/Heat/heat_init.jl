@@ -1,5 +1,5 @@
 """
-    LinearTwoPhaseInitialTempProfile{TT,Tz} <: VarInitializer{:T}
+    LinearTwoPhaseInitialTempProfile{TT1,TT2,TTm,Tz1,Tz2,Tz3,Tz4} <: VarInitializer{:T}
 
 Simple, piecewise linear temprature initializer that uses two temperature values
 and three characteristic depths to initialize the temperature profile. `T0` is the
@@ -7,14 +7,14 @@ initial surface temperature, `T1` is the permafrost temperature at `z_deep`,
 `z_thaw` and `z_base` are the top and bottom freezing fronts which are both assumed
 to be have temperature equal to `Tmelt`.
 """
-Base.@kwdef struct LinearTwoPhaseInitialTempProfile{TT,Tz} <: VarInitializer{:T}
-    T0::TT = 1.0u"°C"
-    T1::TT = -10.0u"°C"
-    Tmelt::TT = 0.0u"°C"
-    z_top::Tz = 0.0u"m"
-    z_deep::Tz = 20.0u"m"
-    z_thaw::Tz = 0.5u"m"
-    z_base::Tz = 500.0u"m"
+Base.@kwdef struct LinearTwoPhaseInitialTempProfile{TT1,TT2,TTm,Tz1,Tz2,Tz3,Tz4} <: VarInitializer{:T}
+    T0::TT1 = 1.0u"°C"
+    T1::TT2 = -10.0u"°C"
+    Tmelt::TTm = 0.0u"°C"
+    z_top::Tz1 = 0.0u"m"
+    z_deep::Tz2 = 20.0u"m"
+    z_thaw::Tz3 = 0.5u"m"
+    z_base::Tz4 = 500.0u"m"
 end
 
 # make initializer callable
