@@ -34,7 +34,7 @@ tile = Tile(strat, modelgrid, initT)
 tspan = (DateTime(2005,12,30), DateTime(2010,12,30))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = initialcondition!(tile, tspan);
-prob = CryoGridProblem(tile, u0, tspan, saveat=[], savevars=(:T,))
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,))
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler())
 out = CryoGridOutput(sol)
