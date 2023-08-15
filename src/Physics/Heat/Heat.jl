@@ -8,6 +8,8 @@ using CryoGrid.Utils
 using Base: @propagate_inbounds
 using Reexport: @reexport
 
+using IfElse
+
 import ConstructionBase
 import Interpolations as Interp
 
