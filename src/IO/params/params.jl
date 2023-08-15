@@ -1,4 +1,3 @@
-# Parameter array
 """
     CryoGridParams{T} <: DenseArray{T,1}
 
@@ -10,17 +9,44 @@ struct CryoGridParams{T} <: DenseArray{T,1}
     table::Model # param table
     CryoGridParams(table::AbstractModel) = new{eltype(table[:val])}(table)
 end
+
+"""
+    CryoGridParams(obj)
+
+Constructs a `modelParameters.Model` wrapped with `CryoGridParams` from `obj`. If `full_metadata` is `true`, additonal fields
+for nested `Parameterization` types will be added.
+"""
+function CryoGridParams(obj)
+    m = Model(obj)
+    m[:idx] = 1:length(m)
+    m[:name] = map(paramname, params(m), m[:component], m[:fieldname])
+    m = _setparafields(m)
+    return CryoGridParams(m)
+end
+
 Base.values(ps::CryoGridParams) = ps.table[:val]
+
 Base.axes(ps::CryoGridParams) = axes(collect(values(ps)))
+
 Base.LinearIndices(ps::CryoGridParams) = LinearIndices(collect(values(ps)))
 Base.IndexStyle(::Type{<:CryoGridParams}) = Base.IndexLinear()
+
 Base.similar(ps::CryoGridParams) = CryoGridParams(Model(ps.table))
 Base.similar(ps::CryoGridParams, ::Type{T}) where T = CryoGridParams(Model(parent(ps.table)))
+
 Base.length(ps::CryoGridParams) = length(ps.table)
+
 Base.size(ps::CryoGridParams) = size(ps.table)
+
 Base.keys(ps::CryoGridParams) = keys(ps.table)
+
 Base.getindex(ps::CryoGridParams, i::Int) = values(ps)[i]
 Base.getindex(ps::CryoGridParams, col::Symbol) = ps.table[col]
+
+Base.names(ps::CryoGridParams) = map(paramname, params(ps.table), ps[:component], ps[:fieldname])
+
+Base.vec(ps::CryoGridParams) = ComponentArray(groupparams(ps.table, :layer, :name))
+
 Base.setindex!(ps::CryoGridParams, val, i::Int) = ps[:val] = map(enumerate(values(ps))) do (j,p)
     j == i ? val : p
 end
@@ -34,12 +60,17 @@ function Base.setindex!(ps::CryoGridParams, vals, col::Symbol; kwargs...)
         length(r) == 1 ?  vals[first(r)] : ps[col][i]
     end
 end
+
 function Base.show(io::IO, ::MIME"text/plain", ps::CryoGridParams{T}) where T
     println(io, "CryoGridParams{$T} with $(length(ps)) parameters")
     ModelParameters.printparams(io, ps.table)
 end
+
+paramname(p::Param, component::Type{T}, fieldname::Symbol) where {T} = fieldname
+
 Tables.columns(ps::CryoGridParams) = Tables.columns(ps.table)
 Tables.rows(ps::CryoGridParams) = Tables.rows(ps.table)
+
 function _setparafields(m::Model)
     function _setparafield(name, type::Type, para::CryoGrid.Parameterization)
         if length(ModelParameters.params(para)) > 0
@@ -59,16 +90,4 @@ function _setparafields(m::Model)
     # by rebuilding the parameter Model `m`.
     newparent = Flatten.reconstruct(parent(m), updated_parameterizations, CryoGrid.Parameterization)
     return Model(newparent)
-end
-"""
-Constructs a `modelParameters.Model` wrapped with `CryoGridParams` from `obj`. If `full_metadata` is `true`, additonal fields
-for nested `Parameterization` types will be added.
-"""
-function CryoGridParams(obj; full_metadata=false)
-    m = Model(obj)
-    if full_metadata
-        m[:idx] = 1:length(m)
-        m = _setparafields(m)
-    end
-    return CryoGridParams(m)
 end
