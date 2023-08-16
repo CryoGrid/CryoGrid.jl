@@ -17,7 +17,7 @@ surfaceState(bc::SaltGradient{<:Forcing}, t) = bc.surfaceState(t)
 
 CryoGrid.BCKind(::Type{<:SaltGradient}) = CryoGrid.Dirichlet()
 
-function CryoGrid.interact!(::Top, bc::SaltGradient, soil::SaltySoil, ::SaltMassBalance, stop, ssed)
+function CryoGrid.interact!(::Top, bc::SaltGradient, soil::SalineSoil, ::SaltMassBalance, stop, ssed)
     # upper boundary
     surfaceState_t = surfaceState(bc, stop.t)
     benthicSalt_t = benthicSalt(bc, stop.t)

@@ -13,9 +13,9 @@ upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), Temperatu
 # The @Stratigraphy macro is just a small convenience that automatically wraps the subsurface layers in a tuple.
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => :topsoil => SimpleSoil(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    0.2u"m" => :subsoil => SimpleSoil(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    2.0u"m" => :substrat => SimpleSoil(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.0u"m" => :topsoil => Ground(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.2u"m" => :subsoil => Ground(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    2.0u"m" => :substrat => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm

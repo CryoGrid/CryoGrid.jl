@@ -12,7 +12,7 @@ sfcc = DallAmicoSalt(swrc=VanGenuchten(α=4.06, n=2.03))
 upperbc = SaltHeatBC(SaltGradient(benthicSalt=900.0, surfaceState=0), ConstantTemperature(0.0))
 strat = @Stratigraphy(
     0.0u"m" => Top(upperbc),
-    0.0u"m" => :sediment => SaltySoil(heat=HeatBalance(:T, freezecurve=sfcc), salt=SaltMassBalance()),
+    0.0u"m" => :sediment => SalineSoil(heat=HeatBalance(:T, freezecurve=sfcc), salt=SaltMassBalance()),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_10cm

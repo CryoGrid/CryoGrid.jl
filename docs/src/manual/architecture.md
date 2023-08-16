@@ -64,7 +64,7 @@ Note that, due to the nature of multiple dispatch, the execution path (i.e. with
 using CryoGrid
 using CryoGrid.Diagnostics
 
-soil = SimpleSoil()
+soil = Ground()
 grid = CryoGrid.Presets.DefaultGrid_5cm
 state = Diagnostics.build_dummy_state(grid, soil)
 

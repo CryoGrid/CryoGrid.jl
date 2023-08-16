@@ -9,7 +9,7 @@ include("../../testutils.jl")
 @testset "Salt" begin
     testgrid = CryoGrid.Presets.DefaultGrid_2cm
     @testset "variables" begin
-        soil = SaltySoil()
+        soil = SalineSoil()
         vars = CryoGrid.variables(soil)
         prognostic_vars = filter(CryoGrid.isprognostic, vars)
         diagnostic_vars = filter(CryoGrid.isdiagnostic, vars)
@@ -24,7 +24,7 @@ include("../../testutils.jl")
         @test isa(procs[2], Salt.CoupledHeatSalt)
     end
     @testset "updatestate!" begin
-        soil = pstrip(SaltySoil())
+        soil = pstrip(SalineSoil())
         state = Diagnostics.build_dummy_state(testgrid, soil, with_units=false)
         # initialize variables
         state.T .= -2.0
@@ -41,8 +41,8 @@ include("../../testutils.jl")
         @test all(state.θw .< state.por)
     end
     @testset "interact!" begin
-        soil1 = pstrip(SaltySoil())
-        soil2 = pstrip(SaltySoil())
+        soil1 = pstrip(SalineSoil())
+        soil2 = pstrip(SalineSoil())
         state1 = Diagnostics.build_dummy_state(testgrid[0.0u"m"..10.0u"m"], soil1, with_units=false)
         state2 = Diagnostics.build_dummy_state(testgrid[10.0u"m"..1000.0u"m"], soil2, with_units=false)
         # initialize variables
@@ -66,7 +66,7 @@ include("../../testutils.jl")
         @test state2.jc[1] == state1.jc[end]
     end
     @testset "computefluxes!" begin
-        soil = pstrip(SaltySoil())
+        soil = pstrip(SalineSoil())
         state = Diagnostics.build_dummy_state(testgrid, soil, with_units=false)
         # initialize variables
         state.T .= LinRange(-2.0, -3.0, length(cells(testgrid)))

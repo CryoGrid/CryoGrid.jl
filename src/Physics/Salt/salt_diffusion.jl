@@ -1,7 +1,7 @@
 # Heat methods
 
 function Heat.freezethaw!(
-    soil::SaltySoil,
+    soil::SalineSoil,
     ps::CoupledHeatSalt{THeat},
     state
 ) where {THeat<:HeatBalance{<:DallAmicoSalt,<:Temperature}}
@@ -46,12 +46,12 @@ CryoGrid.variables(::SaltMassBalance) = (
     Diagnostic(:ctmp_F, OnGrid(Cells)),
 )
 
-function CryoGrid.initialcondition!(soil::SaltySoil, ps::CoupledHeatSalt, state)
+function CryoGrid.initialcondition!(soil::SalineSoil, ps::CoupledHeatSalt, state)
     CryoGrid.updatestate!(soil, ps, state)
 end
 
 function CryoGrid.updatestate!(
-    soil::SaltySoil,
+    soil::SalineSoil,
     ps::CoupledHeatSalt{THeat},
     state
 ) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
@@ -82,8 +82,8 @@ function CryoGrid.updatestate!(
     return nothing # ensure no allocation
 end
 
-# interaction for two SaltySoil layers
-function CryoGrid.interact!(sediment1::SaltySoil, sediment2::SaltySoil, state1, state2)
+# interaction for two SalineSoil layers
+function CryoGrid.interact!(sediment1::SalineSoil, sediment2::SalineSoil, state1, state2)
     # water interaction
     interact!(sediment1, sediment1.water, sediment2, sediment2.water, state1, state2)
     # heat interaction
@@ -93,7 +93,7 @@ function CryoGrid.interact!(sediment1::SaltySoil, sediment2::SaltySoil, state1, 
 end
 
 # interaction for salt mass balance
-function CryoGrid.interact!(sediment1::SaltySoil, ::SaltMassBalance, sediment2::SaltySoil, ::SaltMassBalance, state1, state2)
+function CryoGrid.interact!(sediment1::SalineSoil, ::SaltMassBalance, sediment2::SalineSoil, ::SaltMassBalance, state1, state2)
     thick1 = CryoGrid.thickness(sediment1, state1, last)
     thick2 = CryoGrid.thickness(sediment2, state2, first)
     z1 = last(cells(state1.grid))
@@ -109,7 +109,7 @@ function CryoGrid.interact!(sediment1::SaltySoil, ::SaltMassBalance, sediment2::
     return nothing
 end
 
-function CryoGrid.timestep(::SaltySoil, salt::SaltMassBalance{T,<:CryoGrid.CFL}, state) where {T}
+function CryoGrid.timestep(::SalineSoil, salt::SaltMassBalance{T,<:CryoGrid.CFL}, state) where {T}
     dtlim = salt.dtlim
     Δx = Δ(state.grid)
     Δc_max = dtlim.maxdelta.Δmax
@@ -127,7 +127,7 @@ function CryoGrid.timestep(::SaltySoil, salt::SaltMassBalance{T,<:CryoGrid.CFL},
 end
 
 function CryoGrid.computefluxes!(
-    ::SaltySoil,
+    ::SalineSoil,
     ps::CoupledHeatSalt{THeat},
     state
 ) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
@@ -169,7 +169,7 @@ function CryoGrid.computefluxes!(
     return nothing
 end
 
-function CryoGrid.resetfluxes!(::SaltySoil, salt::SaltMassBalance, state)
+function CryoGrid.resetfluxes!(::SalineSoil, salt::SaltMassBalance, state)
     state.dc_F .= zero(eltype(state.∂c∂t))
     state.jc .= zero(eltype(state.∂c∂t))
     return nothing

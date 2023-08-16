@@ -14,7 +14,7 @@ At the highest level, a model in `CryoGrid.jl` is defined by one or more [`Tile`
 # see examples/heat_vgfc_seb_saoylov_custom.jl for more details
 strat = Stratigraphy(
     -2.0u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
-    0.0u"m" => SimpleSoil(soilprofile, HeatBalance(:H; freezecurve=DallAmico())),
+    0.0u"m" => Ground(soilprofile, HeatBalance(:H; freezecurve=DallAmico())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_5cm
@@ -52,7 +52,7 @@ julia> out.T
 
 ## Defining model behavior
 
-Notice that, in the example above, it is types such as `SimpleSoil`, `HeatBalance`, `DallAmico`, etc. that specify which components the model should use. These components are defined by adding method dispatches to the [CryoGrid interface](@ref toplevel) methods. State variables are declared via the [`variables`](@ref) method, e.g:
+Notice that, in the example above, it is types such as `Ground`, `HeatBalance`, `DallAmico`, etc. that specify which components the model should use. These components are defined by adding method dispatches to the [CryoGrid interface](@ref toplevel) methods. State variables are declared via the [`variables`](@ref) method, e.g:
 
 ```julia
 variables(soil::Soil, heat::HeatBalance{<:Enthalpy}) = (
