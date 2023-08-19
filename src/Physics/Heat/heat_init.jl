@@ -1,13 +1,13 @@
 """
-    LinearTwoPhaseInitialTempProfile{TT1,TT2,TTb,TTm,Tz1,Tz2,Tz3,Tz4} <: VarInitializer{:T}
+    LinearTwoPhaseTempProfile{TT1,TT2,TTb,TTm,Tz1,Tz2,Tz3,Tz4} <: VarInitializer{:T}
 
-Simple, piecewise linear temprature initializer that uses two temperature values
-and three characteristic depths to initialize the temperature profile. `T0` is the
+Simple, piecewise linear temprature initializer that uses three temperature values
+and four characteristic depths to initialize the temperature profile. `T0` is the
 initial surface temperature, `T1` is the permafrost temperature at `z_deep`,
 `z_thaw` and `z_base` are the top and bottom freezing fronts which are both assumed
 to be have temperature equal to `Tm`.
 """
-Base.@kwdef struct LinearTwoPhaseInitialTempProfile{TT1,TT2,TTb,TTm,Tz1,Tz2,Tz3,Tz4} <: VarInitializer{:T}
+Base.@kwdef struct LinearTwoPhaseTempProfile{TT1,TT2,TTb,TTm,Tz1,Tz2,Tz3,Tz4} <: VarInitializer{:T}
     T0::TT1 = 1.0u"°C"
     T1::TT2 = -10.0u"°C"
     Tm::TTm = 0.0u"°C"
@@ -20,12 +20,12 @@ end
 
 # make initializer callable
 """
-    (init::LinearTwoPhaseInitialTempProfile)(T::AbstractVector, grid::Grid)
+    (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
 
 Evaluate the initializer on the given temperature vector `T` which should match the length of
 `cells(grid)`.
 """
-function (init::LinearTwoPhaseInitialTempProfile)(T::AbstractVector, grid::Grid)
+function (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
     @assert length(T) == length(cells(grid))
     T0 = ustrip(init.T0)
     T1 = ustrip(init.T1)
