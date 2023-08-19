@@ -44,7 +44,7 @@ function (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
 end
 
 # implement initialcondition! for initializer type
-function CryoGrid.initialcondition!(init!::LinearTwoPhaseInitialTempProfile, ::SubSurface, ::HeatBalance, state)
+function CryoGrid.initialcondition!(init!::LinearTwoPhaseTempProfile, ::SubSurface, ::HeatBalance, state)
     init!(state.T, state.grid)
     return nothing
 end
