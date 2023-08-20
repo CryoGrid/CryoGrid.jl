@@ -1,6 +1,4 @@
 [deps]
 CryoGrid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
-Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
