@@ -1,8 +1,7 @@
 """
     hydraulicproperties(::SubSurface)
 
-Retrieves the hydraulic properties from the given subsurface layer. Default implementation
-simply returns the default configuration of `HydraulicProperties`.
+Retrieves the hydraulic properties from the given subsurface layer.
 """
 hydraulicproperties(::SubSurface) = error("not implemented")
 
@@ -72,6 +71,9 @@ Computes the volumetric water content from current saturation or pressure state.
     @inbounds for i in eachindex(state.sat)
         state.θsat[i] = maxwater(sub, water, state, i)
         state.θwi[i] = state.sat[i]*state.θsat[i]
+        # initially set unfrozen water = water+ice;
+        # when heat conduction is included, it should update this based on temperature.
+        state.θw[i] = state.θwi[i]
     end
 end
 

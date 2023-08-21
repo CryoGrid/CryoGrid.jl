@@ -14,7 +14,7 @@ end
 
 function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water::WaterBalance, stop, ssub)
     jw_in = min(stop.jw_rain[1], ssub.kw[1])
-    ssub.jw[1] += jw_in
+    ssub.jw_v[1] += jw_in
     Hydrology.balancefluxes!(top, swb, sub, water, stop, ssub)
     # set infiltration flux after balancing
     @setscalar stop.jw_infil = ssub.jw[1]

@@ -6,7 +6,6 @@ Abstract type representing a generic external forcing term.
 abstract type Forcing{unit,T} end
 Base.nameof(f::Forcing) = f.name
 CryoGrid.parameterize(f::Forcing; ignored...) = f
-Flatten.flattenable(::Type{<:Forcing}, ::Type) = false
 @inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
 @inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
 
@@ -26,7 +25,7 @@ const EnergyFluxForcing = Forcing{upreferred(u"W/m^2"),T} where {T}
 struct ConstantForcing{unit,T} <: Forcing{unit,T}
       value::T
       name::Symbol
-      ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(ustrip(qty))}(ustrip(qty), name)
+      ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(qty)}(qty, name)
       ConstantForcing(qty::Number, name::Symbol) = new{Unitful.NoUnits,typeof(qty)}(qty, name)
 end
 (f::ConstantForcing)(::Number) = f.value
@@ -48,6 +47,7 @@ function InterpolatedForcing(timestamps::AbstractArray{DateTime,1}, values::A, n
       return InterpolatedForcing(unit(eltype(values_converted)), interp, name)
 end
 ConstructionBase.constructorof(::Type{<:InterpolatedForcing{unit}}) where {unit} = (interp, name) -> InterpolatedForcing(unit, interp, name)
+Flatten.flattenable(::Type{<:InterpolatedForcing}, ::Type) = false
 Base.getindex(f::InterpolatedForcing, i::Integer) = f.interpolant.coefs[i]
 Base.getindex(f::InterpolatedForcing, t) = f(t)
 Base.length(f::InterpolatedForcing) = length(f.interpolant)

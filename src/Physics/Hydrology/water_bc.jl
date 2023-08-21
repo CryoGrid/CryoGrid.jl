@@ -14,7 +14,8 @@ function balancefluxes!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBala
     θsat = ssub.θsat[1]
     sat = ssub.sat[1]
     Δz = CryoGrid.thickness(sub, ssub, first)
-    ssub.jw[1] = limit_upper_flux(water, ssub.jw[1], θw, θwi, θsat, sat, Δz)
+    jw = ssub.jw_v[1] + ssub.jw_ET[1]
+    ssub.jw[1] = limit_upper_flux(water, jw*stop.dt, θw, θwi, θsat, sat, Δz)/stop.dt
 end
 
 function balancefluxes!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
@@ -23,7 +24,8 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::W
     θsat = ssub.θsat[end]
     sat = ssub.sat[end]
     Δz = CryoGrid.thickness(sub, ssub, last)
-    ssub.jw[end] = limit_lower_flux(water, ssub.jw[end], θw, θwi, θsat, sat, Δz)
+    jw = ssub.jw_v[end] + ssub.jw_ET[end]
+    ssub.jw[end] = limit_lower_flux(water, jw*sbot.dt, θw, θwi, θsat, sat, Δz)/sbot.dt
 end
 
 @inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
