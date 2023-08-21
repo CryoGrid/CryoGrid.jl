@@ -24,16 +24,14 @@ modelgrid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, modelgrid, initT, initsat);
 
 # Now we set up the problem and solve using the integrator interface.
-tspan = (DateTime(2011,10,30),DateTime(2012,10,30))
+tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jw,:θw,:θwi), saveat=3600.0)
-integrator = init(prob, CGEuler(), dt=300.0)
+prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jw,:θw,:θwi), saveat=3*3600.0)
+integrator = init(prob, Euler(), dt=120.0)
 ## Take a single step:
 step!(integrator)
 ## ...then iterate over the remaining steps.
-@time for i in integrator
-    @assert all(isfinite.(integrator.u))
-end
+@time for i in integrator end
 out = CryoGridOutput(integrator.sol)
 
 # Now let's check mass conservation for water.
@@ -43,7 +41,7 @@ water_mass = Diagnostics.integrate(out.θwi, tile.grid)
 
 # Plot the results:
 import Plots
-zs = [1,3,5,7,9,15,21,33,55]u"cm"
+zs = [1,3,5,7,9,15,21,33,55,65,75,100]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 
 # Temperature:
@@ -53,7 +51,7 @@ Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="
 Plots.plot(out.θw[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Unfrozen water content", leg=false, size=(800,500), dpi=150)
 
 # Saturation:
-Plots.plot(out.sat[Z(1:2:10)], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
+Plots.plot(out.sat[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
 
 # Runoff:
 Plots.plot(out.top.runoff[1,:], ylabel="Runoff")

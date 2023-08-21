@@ -48,12 +48,12 @@ end
 end
 
 function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
-    ssub.jw[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop, ssub)*ssub.dt
+    ssub.jw_v[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop, ssub)*ssub.dt
     balancefluxes!(top, bc, sub, water, stop, ssub)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
-    ssub.jw[end] += CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)*ssub.dt
+    ssub.jw_v[end] += CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)*ssub.dt
     balancefluxes!(sub, water, bot, bc, ssub, sbot)
     return nothing
 end

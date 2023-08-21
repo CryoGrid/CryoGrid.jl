@@ -5,7 +5,6 @@
 # pressure gradients.
 
 using CryoGrid
-using OrdinaryDiffEq
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 tspan = (DateTime(2011,1,1),DateTime(2011,12,31))
 T0 = values(forcings.Tair(tspan[1]))[1]
@@ -44,7 +43,7 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:
 # This is currently somewhat slow since the integrator must take very small time steps during the thawed season;
 # expect it to take about 3-5 minutes per year on a typical workstation/laptop.
 # Minor speed-ups might be possible by tweaking the dt limiters or by using the `SFCCPreSolver` for the freeze curve.
-integrator = init(prob, SSPRK43())
+integrator = init(prob, CGEuler())
 
 # Here we take just one step to check if it's working.
 step!(integrator)

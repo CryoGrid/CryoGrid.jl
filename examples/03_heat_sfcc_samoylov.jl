@@ -22,7 +22,7 @@ u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,), step_limiter=nothing);
 
 # ... then solve it with the built-in forward Euler integrator.
-sol = @time solve(prob, CGEuler(), dt=300.0, progress=true);
+sol = @time solve(prob, CGEuler());
 out = CryoGridOutput(sol)
 
 # Finally, plot the resulting temperatures.

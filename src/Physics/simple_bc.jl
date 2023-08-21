@@ -17,7 +17,6 @@ struct ConstantBC{P,S,T} <: BoundaryProcess{P}
 end
 ConstructionBase.constructorof(::Type{<:ConstantBC{P,S}}) where {P,S} = value -> ConstantBC(P, S, value)
 CryoGrid.boundaryvalue(bc::ConstantBC, state) = bc.value
-
 CryoGrid.BCKind(::Type{<:ConstantBC{P,S}}) where {P,S} = S()
 
 """
@@ -43,3 +42,18 @@ ConstantValue(::Type{P}, value::T) where {P<:SubSurfaceProcess,T} = ConstantBC(P
 PeriodicValue(::Type{P}, args...) where {P<:SubSurfaceProcess} = PeriodicBC(P, Dirichlet, args...)
 ConstantFlux(::Type{P}, value::T) where {P<:SubSurfaceProcess,T} = ConstantBC(P, Neumann, value)
 PeriodicFlux(::Type{P}, args...) where {P<:SubSurfaceProcess} = PeriodicBC(P, Neumann, args...)
+
+"""
+    FunctionBC{P,S,F} <: BoundaryProcess{P}
+
+Generic boundary condition type that invokes a user supplied function `func(state)` where `state` is the
+layer state associated with the boundary layer.
+"""
+struct FunctionBC{P,S,F} <: BoundaryProcess{P}
+    func::F
+    FunctionBC(::Type{P}, ::Type{S}, func::F) where {P<:SubSurfaceProcess,S<:BCKind,F} = new{P,S,F}(func)
+end
+ConstructionBase.constructorof(::Type{<:FunctionBC{P,S}}) where {P,S} = f -> FunctionBC(P, S, f)
+CryoGrid.boundaryvalue(bc::FunctionBC, state) = bc.func(state)
+CryoGrid.BCKind(::Type{<:FunctionBC{P,S}}) where {P,S} = S()
+
