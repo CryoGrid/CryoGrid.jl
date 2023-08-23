@@ -1,7 +1,7 @@
 using ..LiteImplicit
 
 Base.@kwdef struct NLCGLite <: AbstractCryoGridNLSolverAlgorithm
-    max_iter::Int = 100
+    max_iter::Int = 1000
 end
 
 mutable struct NLCGLiteCache{Tu,Tt,Tcache} <: OrdinaryDiffEq.AbstractNLSolverCache
@@ -69,7 +69,7 @@ OrdinaryDiffEq.@muladd function OrdinaryDiffEq.compute_step!(nlsolver::NLSolver{
     ap = getvar(Val{:DT_ap}(), tile, ustep; interp=false)
     bp = getvar(Val{:DT_bp}(), tile, ustep; interp=false)
     LiteImplicit.cglite_linsolve!(innercache, ustep.H , Hinv, dHdT, an, as, ap, bp, dt)
-    
+
     # update stats
     if DiffEqBase.has_stats(integrator)
         integrator.stats.nsolve += 1
