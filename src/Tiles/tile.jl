@@ -369,7 +369,7 @@ getstate(::Val{layername}, integrator::SciMLBase.DEIntegrator) where {layername}
 """
     getvar(var::Symbol, integrator::SciMLBase.DEIntegrator)
 """
-Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u)
+Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator; interp=true) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u; interp)
 
 """
     parameterize(tile::Tile)

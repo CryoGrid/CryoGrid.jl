@@ -3,41 +3,22 @@
 
 Base type for parameterizations of soil consituents.
 """
-abstract type SoilParameterization end
+abstract type SoilParameterization <: GroundParameterization end
 
 """
-    Soil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}} <: SubSurface
+    Soil{Tpara,Theat,Twater}
 
-Base type for all soil or soil-like layers.
+Type alias for any `AbstractGround` layer with a `SoilParameterization`.
 """
-abstract type Soil{Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}} <: SubSurface end
-
-"""
-    SimpleSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
-
-Generic representation of a soil layer.
-"""
-Base.@kwdef struct SimpleSoil{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
-    para::Tpara = MineralOrganic() # soil parameterization
-    heat::Theat = HeatBalance() # heat conduction
-    water::Twater = nothing # water balance
-    aux::Taux = nothing # user-defined specialization
-    function SimpleSoil(para, heat, water, aux)
-        solver = Heat.fcsolver(heat)
-        @assert checksolver(para, solver) "SFCCPreSolver requires homogeneous soil properties in each layer."
-        new{typeof(para),typeof(heat),typeof(water),typeof(aux)}(para, heat, water, aux)
-    end
-end
-# Convenience constructor
-SimpleSoil(para::SoilParameterization; kwargs...) = SimpleSoil(; para, kwargs...)
+const Soil{Tpara,Theat,Twater} = AbstractGround{Tpara,Theat,Twater} where {Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}}
 
 """
     Heterogeneous{Tpara,Taux} <: SoilParameterization
 
-Specialized `SoilParameterization` which wraps another soil parameterization
-to make it heterogeneous with respect to depth. Parameterizations which support
-this should provide dispatches for `Heterogeneous{...}` that instantiate the
-relevant soil properties as on-grid state variables.
+Special `SoilParameterization` which wraps another soil parameterization type
+to indicate that it should be heterogeneous with over depth. Parameterizations
+that support such configurations should provide dispatches for `Heterogeneous{...}`
+that instantiate the relevant soil properties as on-grid state variables.
 """
 Base.@kwdef struct Heterogeneous{Tpara,Taux} <: SoilParameterization
     para::Tpara
@@ -45,5 +26,4 @@ Base.@kwdef struct Heterogeneous{Tpara,Taux} <: SoilParameterization
     Heterogeneous(para::SoilParameterization, aux=nothing) = new{typeof(para),typeof(aux)}(para, aux)
 end
 
-checksolver(::SoilParameterization, ::Union{Nothing,SFCCSolver}) = true
-checksolver(::Heterogeneous, ::SFCCPreSolver) = false
+checksolver!(::Heterogeneous, ::SFCCPreSolver) = error("SFCCPreSolver requires homogeneous soil properties in each layer.")

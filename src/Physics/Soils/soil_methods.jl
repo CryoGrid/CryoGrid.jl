@@ -50,6 +50,9 @@ saturation(soil::Soil, state) = saturation(soil)
 saturation(::Soil{<:Any,<:Any,<:WaterBalance}, state) = state.sat
 saturation(::Soil) = error("not implemented for $(typeof(soil))")
 
+# assume compatibility by default (probably not the best idea)
+checksolver!(::GroundParameterization, ::Union{Nothing,SFCCSolver}) = nothing
+
 # Constructors
 """
     SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...)

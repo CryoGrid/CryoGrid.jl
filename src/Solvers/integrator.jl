@@ -52,7 +52,6 @@ function DiffEqBase.sensitivity_solution(sol::CryoGridSolution, u, t)
 end
 
 Base.@kwdef mutable struct CryoGridIntegratorOptions
-    dtmin = 1.0
     dtmax = 24*3600.0
 end
 
@@ -79,7 +78,9 @@ DiffEqBase.step!(integrator::CryoGridIntegrator, dt) = step!(integrator, dt, tru
 function DiffEqBase.step!(integrator::CryoGridIntegrator)
     handle_tstops!(integrator)
     perform_step!(integrator)
-    saveat!(integrator)
+    saveat!(integrator)    
+    # ajust dt based on options
+    integrator.dt = min(integrator.opts.dtmax, integrator.dt)
 end
 
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::CryoGridODEAlgorithm, args...; kwargs...)

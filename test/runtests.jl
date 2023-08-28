@@ -15,6 +15,7 @@ include("Diagnostics/runtests.jl")
 # these tests verify that (some of) the example scripts do not error;
 # the actual model output is not verified!
 @testset "Examples" begin
+    # get examples project directory
     examples_dir = joinpath(dirname(Base.current_project()), "examples")
     @test isdir(examples_dir)
     # to run all examples:

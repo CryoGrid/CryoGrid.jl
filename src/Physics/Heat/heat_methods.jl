@@ -78,3 +78,4 @@ Retreives the nonlinear solver for the enthalpy/temperature constitutive relatio
 fcsolver(::HeatOperator) = nothing
 fcsolver(op::Enthalpy) = op.fcsolver
 fcsolver(heat::HeatBalance) = fcsolver(heat.op)
+fcsolver(::Nothing) = nothing

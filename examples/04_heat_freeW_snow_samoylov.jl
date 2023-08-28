@@ -4,8 +4,8 @@
 # from the ERA-Interim reanalysis product.
 
 using CryoGrid
-using Plots: plot, plot!, heatmap, cgrad, Measures
 
+# First we set up the model:
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
@@ -29,11 +29,11 @@ snowpack = Snowpack(
 strat = @Stratigraphy(
     z_top => Top(upperbc),
     z_top => :snowpack => snowpack,
-    z_sub[1] => :topsoil1 => SimpleSoil(soilprofile[1].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[2] => :topsoil2 => SimpleSoil(soilprofile[2].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[3] => :sediment1 => SimpleSoil(soilprofile[3].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[4] => :sediment2 => SimpleSoil(soilprofile[4].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[5] => :sediment3 => SimpleSoil(soilprofile[5].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[1] => :topsoil1 => Ground(soilprofile[1].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[2] => :topsoil2 => Ground(soilprofile[2].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[3] => :sediment1 => Ground(soilprofile[3].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[4] => :sediment2 => Ground(soilprofile[4].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_sub[5] => :sediment3 => Ground(soilprofile[5].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_5cm
@@ -54,19 +54,25 @@ sol = @time solve(prob, CGEuler(), dt=300.0, saveat=3*3600.0, progress=true);
 out = CryoGridOutput(sol)
 
 # Plot it!
+using Plots: plot, plot!, heatmap, cgrad, Measures
 zs = [1,10,20,30,50,100,200,500]u"cm"
 cg = cgrad(:copper,rev=true);
 plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature (°C)", leg=false, dpi=150)
 plt1 = plot!(ustrip.(out.snowpack.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
+
+# Plot snow water equivalent and depth:
 plot(ustrip(out.snowpack.swe), ylabel="Depth (m)", label="Snow water equivalent", dpi=150)
 plt2 = plot!(ustrip.(out.snowpack.dsn), label="Snow depth", legend=nothing, legendtitle=nothing, dpi=150)
 plot(plt1, plt2, size=(1600,700), margins=5*Measures.mm)
-# heatmap
+
+# Temperature heatmap:
 T_sub = out.T[Z(Between(0.0u"m",10.0u"m"))]
 heatmap(T_sub, yflip=true, size=(1200,600), dpi=150)
-# thaw depth
+
+# Thaw depth:
 td = Diagnostics.thawdepth(out.T)
 plot(td, yflip=true, ylabel="Thaw depth (m)", size=(1200,600))
-# active layer thickness
+
+# ...and finally active layer thickness
 alt = Diagnostics.active_layer_thickness(out.T)
 plot(ustrip.(alt), ylabel="Active layer thickness (m)", xlabel="Number of years", label="ALT", size=(1200,600))

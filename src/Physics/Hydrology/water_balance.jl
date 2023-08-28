@@ -10,7 +10,7 @@ function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (iii): jw = 0 -> no flow, limit has no effect
     jw = min(max(jw, -θw*Δz), (θsat - θwi)*Δz)
     # influx reduction factor
-    r = reductionfactor(water, sat)*(jw > 0) + 1.0*(jw <= 0)
+    r = reductionfactor(water, sat)*(jw > zero(jw)) + 1.0*(jw <= zero(jw))
     return r*jw
 end
 
@@ -26,7 +26,7 @@ function limit_lower_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (iii): jw = 0 -> no flow, limit has no effect
     jw = min(max(jw, (θwi - θsat)*Δz), θw*Δz)
     # influx reduction factor
-    r = reductionfactor(water, sat)*(jw < 0) + 1.0*(jw >= 0)
+    r = reductionfactor(water, sat)*(jw < zero(jw)) + 1.0*(jw >= zero(jw))
     return r*jw
 end
 
@@ -44,7 +44,7 @@ function balanceflux(water_up::WaterBalance, water_lo::WaterBalance, jw, θw_up,
     # flux for lower boundary of upper grid cell
     jw_up = limit_lower_flux(water_up, jw, θw_up, θwi_up, θsat_up, sat_up, Δz_up)
     # take min if positive flux, max otherwise
-    return max(jw, jw_lo, jw_up)*(jw <= 0) + min(jw, jw_lo, jw_up)*(jw > 0)
+    return max(jw, jw_lo, jw_up)*(jw <= zero(jw)) + min(jw, jw_lo, jw_up)*(jw > zero(jw))
 end
 
 """
@@ -69,13 +69,13 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
             jw_ET = state.jw_ET[i],
             jw_v = state.jw_v[i],
             jw = (jw_ET + jw_v)*dt;
-            state.jw[i] = balanceflux(water, jw, θw_up, θw_lo, θwi_up, θwi_lo, θsat_up, θsat_lo, sat_up, sat_lo, Δz_up, Δz_lo)
+            state.jw[i] = balanceflux(water, jw, θw_up, θw_lo, θwi_up, θwi_lo, θsat_up, θsat_lo, sat_up, sat_lo, Δz_up, Δz_lo)/dt
         end
     end
     # apply flux limits to uppermost and lowermost edges;
     # this may in some cases be redundant with interact! but is necessary due to the possible addition of ET fluxes
-    @inbounds state.jw[1] = limit_upper_flux(water, state.jw[1], state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])
-    @inbounds state.jw[end] = limit_lower_flux(water, state.jw[end], state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])
+    @inbounds state.jw[1] = limit_upper_flux(water, state.jw[1]*dt, state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])/dt
+    @inbounds state.jw[end] = limit_lower_flux(water, state.jw[end]*dt, state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])/dt
     return nothing
 end
 
@@ -161,7 +161,7 @@ CryoGrid.variables(water::WaterBalance) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1), # total volumetric water+ice content
     Diagnostic(:θw, OnGrid(Cells), domain=0..1), # unfrozen/liquid volumetric water content
     Diagnostic(:θsat, OnGrid(Cells), domain=0..1), # maximum volumetric water content (saturation point)
-    Diagnostic(:∂θwi∂t, OnGrid(Cells)), # divergence of total water content
+    Diagnostic(:∂θwi∂t, OnGrid(Cells), u"1/s"), # divergence of total water content
     Diagnostic(:kw, OnGrid(Edges), u"m/s", domain=0..Inf), # hydraulic conductivity (edges)
     Diagnostic(:kwc, OnGrid(Cells), u"m/s", domain=0..Inf), # hydraulic conductivity (cells)
 )
@@ -183,7 +183,7 @@ function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
     wateradvection!(sub, water, state)
     waterdiffusion!(sub, water, state)
     balancefluxes!(sub, water, state)
-    Numerics.divergence!(state.∂θwi∂t, state.jw, Δ(state.grid))
+    divergence!(state.∂θwi∂t, state.jw, Δ(state.grid))
     waterprognostic!(sub, water, state)
 end
 
@@ -204,12 +204,12 @@ function CryoGrid.interact!(sub1::SubSurface, water1::WaterBalance{<:BucketSchem
     kwc₁ = state1.kwc[end]
     kwc₂ = state2.kwc[1]
     kw = state1.kw[end] = state2.kw[1] = min(kwc₁, kwc₂)
-    jw_v = advectiveflux(θw₁, θmin₁, kw)*state1.dt
+    jw_v = advectiveflux(θw₁, θmin₁, kw)
     jw_ET = state2.jw_ET[1]
-    jw = jw_v + jw_ET
+    jw = (jw_v + jw_ET)*state1.dt
     # setting both jw[end] on the upper layer and jw[1] on the lower layer is redundant since they refer to the same
     # element of the same underlying state array, but it's nice for clarity
-    state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)
+    state1.jw[end] = state2.jw[1] = balanceflux(water1, water2, jw, θw₁, θw₂, θwi₁, θwi₂, θsat₁, θsat₂, sat₁, sat₂, Δz₁, Δz₂)/state1.dt
     return nothing
 end
 

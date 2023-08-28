@@ -31,9 +31,9 @@ rm(examples_output_dir, recursive=true, force=true)
 # recreate directory
 mkpath(examples_output_dir)
 # generate example docs from scripts
-example_docfiles = map(readdir(examples_dir)) do f
+example_docfiles = map(filter(∉(["Manifest.toml", "Project.toml"]), readdir(examples_dir))) do f
        infile = joinpath(examples_dir, f)
-       Literate.markdown(infile, examples_output_dir, execute=false)
+       Literate.markdown(infile, examples_output_dir, execute=false, documenter=true)
        return f
 end
 
@@ -51,6 +51,7 @@ name_lookup = Dict(
 )
 
 example_docpages = map(example_docfiles) do f
+       @info "Registering example script $f for doc generation"
        docpage = replace(f, "jl" => "md")
        name_lookup[docpage] => joinpath("examples", docpage)
 end

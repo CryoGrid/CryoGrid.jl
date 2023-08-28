@@ -3,10 +3,9 @@
 # forced by the surface energy balance (SEB), (ii) a bulk snow scheme, and
 # (iii) a bucket hydrology scheme.
 
+# First, load the forcings and construct the Tile.
 using CryoGrid
-
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
-## soil profile: depth => (excess ice, natural porosity, saturation, organic fraction)
 soilprofile = SoilProfile(
     0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
     0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
@@ -31,17 +30,17 @@ water = WaterBalance(BucketScheme(), DampedET())
 strat = @Stratigraphy(
     -z => Top(upperbc),
     -z => :snowpack => Snowpack(heat=HeatBalance()),
-    soilprofile[1].depth => :soil1 => SimpleSoil(soilprofile[1].value; heat, water),
-    soilprofile[2].depth => :soil2 => SimpleSoil(soilprofile[2].value; heat, water),
-    soilprofile[3].depth => :soil3 => SimpleSoil(soilprofile[3].value; heat, water),
-    soilprofile[4].depth => :soil4 => SimpleSoil(soilprofile[4].value; heat, water),
-    soilprofile[5].depth => :soil5 => SimpleSoil(soilprofile[5].value; heat, water),
+    soilprofile[1].depth => :soil1 => Ground(soilprofile[1].value; heat, water),
+    soilprofile[2].depth => :soil2 => Ground(soilprofile[2].value; heat, water),
+    soilprofile[3].depth => :soil3 => Ground(soilprofile[3].value; heat, water),
+    soilprofile[4].depth => :soil4 => Ground(soilprofile[4].value; heat, water),
+    soilprofile[5].depth => :soil5 => Ground(soilprofile[5].value; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 ## create Tile
 tile = Tile(strat, modelgrid, initT, initsat);
 
-## define time span
+# Set up the problem and solve it!
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
 ## generate initial condition and set up CryoGridProblem
 u0, du0 = initialcondition!(tile, tspan)
@@ -52,25 +51,28 @@ prob = CryoGridProblem(
     savevars=(:T,:jH,:top => (:Qh,:Qe,:Qg,),:snowpack => (:dsn,)),
     saveat=3*3600.0
 )
-## initialize integrator
 integrator = init(prob, CGEuler(), dt=60.0)
 ## step forwards 24 hours and check for NaN/Inf values
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))
-## iterate over remaining timespan
+## iterate over remaining timespan at fixed points using `TimeChoiceIterator`
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
     @assert isfinite(getstate(:top, integrator).Qg[1])
     @show Date(convert_t(t))
 end
-## build output from solution
 out = CryoGridOutput(integrator.sol)
 
 # Plot it!
 import Plots
-
 zs = [1,5,10,15,20,25,30,40,50]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+
+# Saturation:
 Plots.plot(ustrip.(out.sat[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Soil saturation", leg=false, size=(800,500), dpi=150)
+
+# Snow depth:
 Plots.plot(ustrip.(out.snowpack.dsn), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Snow depth", leg=false, size=(800,500), dpi=150)
+
+# Integrated ground heat flux:
 Plots.plot(ustrip.(cumsum(out.top.Qg, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)
