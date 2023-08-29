@@ -43,7 +43,7 @@ Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop}
 end
 # convenience constructors for HeatBalance
 HeatBalance(var::Symbol; kwargs...) = HeatBalance(Val{var}(); kwargs...)
-HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater, fcsolver=default_fcsolver(freezecurve), kwargs...) = HeatBalance(; op=EnthalpyForm(fcsolver), freezecurve, kwargs...)
+HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater(), fcsolver=default_fcsolver(freezecurve), kwargs...) = HeatBalance(; op=EnthalpyForm(fcsolver), freezecurve, kwargs...)
 HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=TemperatureForm(), freezecurve, kwargs...)
 HeatBalance(op::HeatOperator; kwargs...) = HeatBalance(; op, kwargs...)
 # validation of HeatBalance freezecurve/operator configuration

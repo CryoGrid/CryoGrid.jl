@@ -25,7 +25,7 @@ z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind,
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
 swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
 upperbc = WaterHeatBC(swb, seb)
-heat = HeatBalance(:H, freezecurve=PainterKarra())
+heat = HeatBalance(:H)
 water = WaterBalance(BucketScheme(), DampedET())
 ## build stratigraphy
 strat = @Stratigraphy(
@@ -62,10 +62,6 @@ integrator = init(prob, Euler(), dt=60.0)
     @info "Current t=$(Date(convert_t(t))), dt=$(integrator.dt)"
 end
 out = CryoGridOutput(integrator.sol)
-
-while convert_t(integrator.t) < DateTime(2011,6,1)
-    step!(integrator)
-end
 
 # Plot it!
 import Plots
