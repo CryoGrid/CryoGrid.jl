@@ -19,7 +19,7 @@ soilprofile = SoilProfile(
 ## mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
-soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
+tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 initT = initializer(:T, tempprofile)
 z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)

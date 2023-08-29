@@ -1,7 +1,7 @@
 """
     RREqForm
 
-Base type for different formulations of Richard's equation.
+Base type for different formulations of Richardson-Richard's equation.
 """
 abstract type RREqForm end
 """
