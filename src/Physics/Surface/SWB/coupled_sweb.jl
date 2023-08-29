@@ -9,20 +9,20 @@ CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
     Prognostic(:ET, Scalar, u"m^3"),
 )
 
-function interact!(top::Top, bc::SurfaceWaterEnergyBalance, sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), stop, ssub)
-    swb, seb = bc.proc
+function CryoGrid.interact!(top::Top, bc::SurfaceWaterEnergyBalance, sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), stop, ssub)
+    swb, seb = bc
     water, heat = ps
     # first compute SEB interaction for heat
-    interact!(top, seb, sub, heat, stop, ssub)
+    CryoGrid.interact!(top, seb, sub, heat, stop, ssub)
     # then ET interaction
     Hydrology.interact_ET!(top, bc, sub, water, stop, ssub)
     # then SWB interaction for water...
-    interact!(top, swb, sub, water, stop, ssub)
+    CryoGrid.interact!(top, swb, sub, water, stop, ssub)
     # ..and for heat
-    interact!(top, swb, sub, heat, stop, ssub)
+    CryoGrid.interact!(top, swb, sub, heat, stop, ssub)
 end
 
-function interact!(
+function CryoGrid.interact!(
     top::Top,
     bc::SurfaceWaterEnergyBalance,
     snow::Snowpack,
@@ -30,10 +30,24 @@ function interact!(
     stop,
     ssnow
 )
-    swb, seb = bc.proc
+    swb, seb = bc
     mass, water, heat = ps
     # snow mass interaction
-    interact!(top, water, snow, mass, stop, ssub)
+    CryoGrid.interact!(top, swb, snow, mass, stop, ssnow)
     # water/heat interactions
-    interact!(top, bc, snow, Coupled(water, heat), stop, ssub)
+    CryoGrid.interact!(top, bc, snow, Coupled(water, heat), stop, ssnow)
+end
+
+function Hydrology.interact_ET!(
+    ::Top,
+    ::SurfaceWaterEnergyBalance,
+    sub::SubSurface,
+    water::WaterBalance{<:BucketScheme,<:DampedET},
+    stop,
+    ssub
+)
+    # propagate surface latent heat flux to next layer
+    ssub.Qe .= stop.Qe
+    # compute ET fluxes for subsurface layer
+    Hydrology.evapotranspirative_fluxes!(sub, water, ssub)
 end

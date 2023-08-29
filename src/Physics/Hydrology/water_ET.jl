@@ -74,12 +74,12 @@ function evapotranspirative_fluxes!(
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
     @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
-        state.jw_ET[i] += fᵢ * Q_ET
+        state.jw_ET[i] -= fᵢ * Q_ET
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
-    state.jw_ET[1] += ETflux(sub, water, state)
+    state.jw_ET[1] -= ETflux(sub, water, state)
 end
 # CryoGrid methods
 ETvariables(::Evapotranspiration) = (
@@ -92,20 +92,6 @@ CryoGrid.variables(et::DampedET) = (
     Diagnostic(:w_tr, OnGrid(Cells), u"m", desc="Damped grid cell weight for transpiration"),
     Diagnostic(:αᶿ, OnGrid(Cells), domain=0..1, desc="Water availability coefficient."),
 )
-
-function interact_ET!(
-    ::Top,
-    ::WaterBC,
-    sub::SubSurface,
-    water::WaterBalance{<:BucketScheme,<:DampedET},
-    stop,
-    ssub
-)
-    # propagate surface latent heat flux to next layer
-    ssub.Qe .= stop.Qe
-    # compute ET fluxes for subsurface layer
-    evapotranspirative_fluxes!(sub, water, ssub)
-end
 
 function interact_ET!(
     sub1::SubSurface,

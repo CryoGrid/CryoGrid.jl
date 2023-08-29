@@ -10,7 +10,7 @@ WaterHeatBC(waterbc::WaterBC, heatbc::HeatBC) = Coupled(waterbc, heatbc)
 Computes the advective energy flux from a grid cell with temperature `T`, water heat capacity `cw`,
 and latent heat of fusion `L`.
 """
-advectiveflux(jw, T₁, T₂, cw, L) = jw*(cw*(T₁ - T₂)*(jw > zero(jw)) + cw*(T₂ - T₁)*(jw < zero(jw)) + L)
+advectiveflux(jw, T₁, T₂, cw, L) = jw*(cw*T₁*(jw > zero(jw)) + cw*T₂*(jw < zero(jw)) + L)
 
 """
     water_energy_advection!(::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)

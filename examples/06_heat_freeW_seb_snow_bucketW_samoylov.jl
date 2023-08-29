@@ -3,15 +3,18 @@
 # forced by the surface energy balance (SEB), (ii) a bulk snow scheme, and
 # (iii) a bucket hydrology scheme.
 
-# First, load the forcings and construct the Tile.
+# For this example, we need to use an OrdinaryDiffEq integrator.
 using CryoGrid
+using OrdinaryDiffEq
+
+# First, load the forcings and construct the Tile.
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-    0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+    0.0u"m" => MineralOrganic(por=0.80,sat=0.8,org=0.75),
+    0.1u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.25),
+    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
+    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
+    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
 );
 ## mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
@@ -27,7 +30,7 @@ water = WaterBalance(BucketScheme(), DampedET())
 ## build stratigraphy
 strat = @Stratigraphy(
     -z => Top(upperbc),
-    -z => :snowpack => Snowpack(heat=HeatBalance()),
+    -z => :snowpack => Snowpack(heat=HeatBalance(), water=water),
     soilprofile[1].depth => :soil1 => Ground(soilprofile[1].value; heat, water),
     soilprofile[2].depth => :soil2 => Ground(soilprofile[2].value; heat, water),
     soilprofile[3].depth => :soil3 => Ground(soilprofile[3].value; heat, water),
@@ -49,20 +52,24 @@ prob = CryoGridProblem(
     savevars=(:T,:jH,:top => (:Qh,:Qe,:Qg,),:snowpack => (:dsn,)),
     saveat=3*3600.0
 )
-integrator = init(prob, CGEuler(), dt=60.0)
+integrator = init(prob, Euler(), dt=60.0)
 ## step forwards 24 hours and check for NaN/Inf values
 @time step!(integrator, 24*3600)
 @assert all(isfinite.(integrator.u))
 ## iterate over remaining timespan at fixed points using `TimeChoiceIterator`
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
     @assert isfinite(getstate(:top, integrator).Qg[1])
-    @show Date(convert_t(t))
+    @info "Current t=$(Date(convert_t(t))), dt=$(integrator.dt)"
 end
 out = CryoGridOutput(integrator.sol)
 
+while convert_t(integrator.t) < DateTime(2011,6,1)
+    step!(integrator)
+end
+
 # Plot it!
 import Plots
-zs = [1,5,10,15,20,25,30,40,50]u"cm"
+zs = [1,5,10,15,20,25,30,40,50,100,150,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
 
