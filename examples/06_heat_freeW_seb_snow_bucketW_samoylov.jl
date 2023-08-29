@@ -18,8 +18,6 @@ tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-## initialize saturation to match soil profile
-initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat)
 z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
 seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
 swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
@@ -38,7 +36,7 @@ strat = @Stratigraphy(
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 ## create Tile
-tile = Tile(strat, modelgrid, initT, initsat);
+tile = Tile(strat, modelgrid, initT);
 
 # Set up the problem and solve it!
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
