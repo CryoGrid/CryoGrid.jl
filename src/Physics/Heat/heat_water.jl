@@ -5,26 +5,29 @@ const WaterHeatBC{TWater,THeat} = Coupled2{TWater,THeat} where {TWater<:WaterBC,
 WaterHeatBC(waterbc::WaterBC, heatbc::HeatBC) = Coupled(waterbc, heatbc)
 
 """
-    advectiveflux(jw, cw, T₁, T₂)
+    advectiveflux(jw, T, cw, L)
 
-Computes the advective energy flux between two grid cells with temperatures `T₁` and `T₂`.
-This function assumes that `jw` is positive downward such that a positive temperature gradient
-`T₁ - T₂` would result in a positive (downward) energy flux `jH`.
+Computes the advective energy flux from a grid cell with temperature `T`, water heat capacity `cw`,
+and latent heat of fusion `L`.
 """
-advectiveflux(jw, cw, T₁, T₂) = jw*cw*(T₁ - T₂)*sign(jw)
+advectiveflux(jw, T₁, T₂, cw, L) = jw*(cw*(T₁ - T₂)*(jw > zero(jw)) + cw*(T₂ - T₁)*(jw < zero(jw)) + L)
 
 """
     water_energy_advection!(::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
 
 Adds advective energy fluxes for all internal grid cell faces.
 """
-function water_energy_advection!(sub::SubSurface, ::Coupled(WaterBalance, HeatBalance), state)
-    @unpack ch_w = thermalproperties(sub)
+function water_energy_advection!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+    water, heat = ps
+    cw = heatcapacity_water(sub)
     @inbounds for i in 2:length(state.jw)-1
         let jw = state.jw[i],
-            T₁ = state.jw[i-1],
-            T₂ = state.jw[i];
-            state.jH[i] += advectiveflux(jw, ch_w, T₁, T₂)
+            T₁ = state.T[i-1],
+            T₂ = state.T[i],
+            # T = (jw > zero(jw))*T₁ + (jw < zero(jw))*T₂,
+            L = heat.prop.L;
+            jH_w = advectiveflux(jw, T₁, T₂, cw, L)
+            state.jH[i] += jH_w
         end
     end
 end
@@ -39,17 +42,23 @@ end
 function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, heat::HeatBalance, stop, ssub)
     T_ub = getscalar(stop.T_ub)
     Ts = ssub.T[1]
-    cw = thermalproperties(sub).ch_w
+    cw = heatcapacity_water(sub)
+    L = heat.prop.L
     jw = ssub.jw[1]
-    ssub.jH[1] += advectiveflux(jw, cw, T_ub, Ts)
+    # T = (jw > zero(jw))*T_ub + (jw < zero(jw))*Ts
+    jH_w = advectiveflux(jw, T_ub, Ts, cw, L)
+    ssub.jH[1] += jH_w
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
     Ts = ssub.T[end]
-    T_ub = getscalar(sbot.T_ub)
-    cw = thermalproperties(sub).ch_w
+    T_lb = getscalar(sbot.T_ub)
+    cw = heatcapacity_water(sub)
+    L = heat.prop.L
     jw = ssub.jw[end]
-    ssub.jH[end] += advectiveflux(jw, cw, Ts, T_ub)
+    # T = (jw > zero(jw))*Ts + (jw < zero(jw))*T_lb
+    jH_w = advectiveflux(jw, Ts, T_lb, cw, L)
+    ssub.jH[end] += jH_w
     return nothing
 end
 function CryoGrid.interact!(
@@ -65,19 +74,27 @@ function CryoGrid.interact!(
     # heat interaction
     interact!(sub1, p1[2], sub2, p2[2], state1, state2)
     # advective energy flux
-    T1 = state1.T[end]
-    T2 = state2.T[1]
+    T₁ = state1.T[end]
+    T₂ = state2.T[1]
     jw = state1.jw[end]
-    cw1 = thermalproperties(sub1).ch_w
-    cw2 = thermalproperties(sub2).ch_w
-    cw = (jw > 0)*cw1 + (jw < 0)*cw2
-    state1.jH[end] += advectiveflux(jw, cw, T1, T2)
+    L = p1[2].prop.L
+    cw1 = heatcapacity_water(sub1)
+    cw2 = heatcapacity_water(sub2)
+    cw = (jw >= zero(jw))*cw1 + (jw < zero(jw))*cw2
+    # T = (jw > zero(jw))*T₁ + (jw < zero(jw))*T₂
+    jH_w = advectiveflux(jw, T₁, T₂, cw, L)
+    state1.jH[end] = state2.jH[1] += jH_w
 end
 
 # Flux calculation
 function CryoGrid.computefluxes!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     CryoGrid.computefluxes!(sub, water, state)
-    CryoGrid.computefluxes!(sub, heat, state)
     water_energy_advection!(sub, ps, state)
+    CryoGrid.computefluxes!(sub, heat, state)
+end
+
+function heatcapacity_water(sub::SubSurface)
+    @unpack ch_w = thermalproperties(sub)
+    return ch_w
 end

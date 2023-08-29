@@ -110,15 +110,23 @@ end
 function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
-    # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set;
+    # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
+    # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
+    # nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    flux!(state.jH, state.T, ΔT, state.k)
+    divergence!(state.∂H∂t, state.jH, Δk)
     return nothing
 end
 function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:Temperature}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
+    # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
+    # nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    flux!(state.jH, state.T, ΔT, state.k)
+    divergence!(state.∂H∂t, state.jH, Δk)
     # Compute temperature flux by dividing by ∂H∂T;
     # ∂H∂T should be computed by the freeze curve.
     @inbounds @. state.∂T∂t = state.∂H∂t / state.∂H∂T

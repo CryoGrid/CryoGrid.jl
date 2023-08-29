@@ -9,29 +9,31 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 _, tempprofile = CryoGrid.Presets.SamoylovDefault;
 initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat);
-upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair));
+upperbc = WaterHeatBC(SurfaceWaterBalance(rainfall=forcings.rainfall), TemperatureGradient(forcings.Tair, NFactor(0.5,0.9)));
 
 # The `@Stratigraphy` macro is just a small convenience that automatically wraps the three subsurface layers in a tuple.
 # It would be equivalent to use the `Stratigraphy` constructor directly and wrap these layers in a tuple or list.
 strat = @Stratigraphy(
-    -2.0u"m" => Top(upperbc),
-    0.0u"m" => :topsoil => Ground(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    0.2u"m" => :subsoil => Ground(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.0u"m" => Top(upperbc),
+    0.0u"m" => :topsoil => Ground(MineralOrganic(por=0.80,sat=0.5,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.2u"m" => :subsoil => Ground(MineralOrganic(por=0.40,sat=0.75,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     2.0u"m" => :substrat => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
+    1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2")),
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, modelgrid, initT, initsat);
 
 # Now we set up the problem and solve using the integrator interface.
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+tspan = (DateTime(2010,5,30),DateTime(2012,8,30))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, savevars=(:T,:jw,:θw,:θwi), saveat=3*3600.0)
-integrator = init(prob, Euler(), dt=120.0)
+integrator = init(prob, CGEuler())
 ## Take a single step:
 step!(integrator)
 ## ...then iterate over the remaining steps.
-@time for i in integrator end
+@time for i in integrator
+    ## can add code here if necessary
+end
 out = CryoGridOutput(integrator.sol)
 
 # Now let's check mass conservation for water.
@@ -41,7 +43,7 @@ water_mass = Diagnostics.integrate(out.θwi, tile.grid)
 
 # Plot the results:
 import Plots
-zs = [1,3,5,7,9,15,21,33,55,65,75,100]u"cm"
+zs = [1,5,9,15,21,25,33,55,65,75,100]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 
 # Temperature:
