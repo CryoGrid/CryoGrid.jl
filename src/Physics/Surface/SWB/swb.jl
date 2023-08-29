@@ -7,10 +7,13 @@ The `SurfaceWaterBalance` represents the closure of the water balance at the sur
 a Neumann-type upper boundary condition for snow and water fluxes as well as an accountant for the
 water mass balance at the surface.
 """
-Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
-    rainfall::TR = ConstantForcing(0.0u"m/s", :rainfall)
-    snowfall::TS = ConstantForcing(0.0u"m/s", :snowfall)
+struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
+    rainfall::TR
+    snowfall::TS
+    SurfaceWaterBalance(rainfall::VelocityForcing, snowfall::VelocityForcing) =
+        new{typeof(rainfall),typeof(snowfall)}(rainfall, snowfall)
 end
+SurfaceWaterBalance(forcings::Forcings) = SurfaceWaterBalance(forcings.rainfall, forcings.snowfall)
 
 function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water::WaterBalance, stop, ssub)
     jw_in = min(stop.jw_rain[1], ssub.kw[1])

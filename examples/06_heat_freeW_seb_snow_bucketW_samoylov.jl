@@ -22,14 +22,14 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 initT = initializer(:T, tempprofile)
 z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
-seb = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
-swb = SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall)
+seb = SurfaceEnergyBalance(forcings, z)
+swb = SurfaceWaterBalance(forcings)
 upperbc = WaterHeatBC(swb, seb)
 heat = HeatBalance(:H)
 water = WaterBalance(BucketScheme(), DampedET())
 ## build stratigraphy
 strat = @Stratigraphy(
-    -z => Top(upperbc),
+    -z => Top(upperbc), 
     -z => :snowpack => Snowpack(heat=HeatBalance(), water=water),
     soilprofile[1].depth => :soil1 => Ground(soilprofile[1].value; heat, water),
     soilprofile[2].depth => :soil2 => Ground(soilprofile[2].value; heat, water),

@@ -80,25 +80,23 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
     # type-dependent parameters
     solscheme::TSolution
     stabfun::TStabFun
-    # Default constructor with exact fields for reconstruction
-    SurfaceEnergyBalance(forcings::NamedTuple, para::SEBParams, solscheme::SolutionScheme, stabfun::StabilityFunctions) =
-        new{typeof(solscheme),typeof(stabfun),typeof(para),typeof(forcings)}(forcings, para, solscheme, stabfun)
-    # User facing constructors
-    function SurfaceEnergyBalance(
-        Tair::TemperatureForcing, # air temperature
-        pr::PressureForcing, # air pressure
-        qh::HumidityForcing, # specific humidity
-        wind::VelocityForcing, # non-directional wind speed
-        Lin::EnergyFluxForcing, # long-wave incoming radiation
-        Sin::EnergyFluxForcing, # short-wave incoming radiation
-        z; # height [m] of air temperature and wind forcing
-        para::SEBParams = SEBParams(),
-        solscheme::SolutionScheme = Numerical(),
-        stabfun::StabilityFunctions = HøgstrømSHEBA(),
-    )
-        forcings = (; Tair, pr, qh, wind, Lin, Sin, z);
-        SurfaceEnergyBalance(forcings, para, solscheme, stabfun)
-    end
+end
+# User facing constructors
+SurfaceEnergyBalance(forcings::Forcings, z=-2.0u"m") = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
+function SurfaceEnergyBalance(
+    Tair::TemperatureForcing, # air temperature
+    pr::PressureForcing, # air pressure
+    qh::HumidityForcing, # specific humidity
+    wind::VelocityForcing, # non-directional wind speed
+    Lin::EnergyFluxForcing, # long-wave incoming radiation
+    Sin::EnergyFluxForcing, # short-wave incoming radiation
+    z; # height [m] of air temperature and wind forcing
+    para::SEBParams = SEBParams(),
+    solscheme::SolutionScheme = Numerical(),
+    stabfun::StabilityFunctions = HøgstrømSHEBA(),
+)
+    forcings = (; Tair, pr, qh, wind, Lin, Sin, z);
+    SurfaceEnergyBalance(forcings, para, solscheme, stabfun)
 end
 
 """

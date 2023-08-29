@@ -16,11 +16,11 @@ specific types `T<:ForcingFormat` that they implement.
 abstract type ForcingFormat end
 
 # Aliases for forcing types
-const TemperatureForcing = Forcing{u"°C",T} where {T}
-const VelocityForcing = Forcing{u"m/s",T} where {T}
-const HumidityForcing = Forcing{u"kg/kg",T} where {T}
-const PressureForcing = Forcing{upreferred(u"Pa"),T} where {T}
-const EnergyFluxForcing = Forcing{upreferred(u"W/m^2"),T} where {T}
+const TemperatureForcing{T} = Forcing{u"°C",T} where {T}
+const VelocityForcing{T} = Forcing{u"m/s",T} where {T}
+const HumidityForcing{T} = Forcing{u"kg/kg",T} where {T}
+const PressureForcing{T} = Forcing{upreferred(u"Pa"),T} where {T}
+const EnergyFluxForcing{T} = Forcing{upreferred(u"W/m^2"),T} where {T}
 
 struct ConstantForcing{unit,T} <: Forcing{unit,T}
       value::T
