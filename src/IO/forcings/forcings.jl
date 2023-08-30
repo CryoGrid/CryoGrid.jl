@@ -52,7 +52,9 @@ Base.getindex(f::InterpolatedForcing, i::Integer) = f.interpolant.coefs[i]
 Base.getindex(f::InterpolatedForcing, t) = f(t)
 Base.length(f::InterpolatedForcing) = length(f.interpolant)
 Base.show(io::IO, forcing::InterpolatedForcing{u}) where u = print(io, "InterpolatedForcing $(forcing.name) [$u] of length $(length(forcing)) with time span $(convert_tspan(extrema(forcing.interpolant.knots[1])))")
-Base.show(io::IO, ::Type{<:InterpolatedForcing{unit,T}}) where {unit,T} = print(io, "InterpolatedForcing{$unit, $T, ...}") # type piracy to truncate type name in stacktraces
+# Base.show(io::IO, ::Type{<:InterpolatedForcing}) = print(io, "InterpolatedForcing") 
+# Base.show(io::IO, ::Type{<:InterpolatedForcing{unit}}) where {unit} = print(io, "InterpolatedForcing{$unit}") 
+# Base.show(io::IO, ::Type{<:InterpolatedForcing{unit,T}}) where {unit,T} = print(io, "InterpolatedForcing{$unit, $T, ...}") # type piracy to truncate type name in stacktraces
 """
 Get interpolated forcing value at t seconds from t0.
 """
