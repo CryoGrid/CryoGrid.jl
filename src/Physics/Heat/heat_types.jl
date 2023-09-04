@@ -37,8 +37,7 @@ Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop}
     function HeatBalance(freezecurve, op, prop, dtlim)
         # check that heat configuration is valid
         _validate_heat_config(freezecurve, op)
-        op = deepcopy(op) # make a deep copy in case of freeze curve solver caches
-        return new{typeof(freezecurve), typeof(op), typeof(dtlim), typeof(prop)}(freezecurve, op, prop, dtlim)
+        return new{typeof(freezecurve),typeof(op),typeof(dtlim),typeof(prop)}(freezecurve, op, prop, dtlim)
     end
 end
 # convenience constructors for HeatBalance

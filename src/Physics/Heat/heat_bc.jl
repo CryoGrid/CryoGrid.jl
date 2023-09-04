@@ -49,9 +49,10 @@ CryoGrid.BCKind(::Type{<:TemperatureGradient}) = Dirichlet()
 
 CryoGrid.boundaryvalue(bc::TemperatureGradient, state) = getscalar(state.T_ub)
 
-CryoGrid.variables(::Top, bc::TemperatureGradient) = (
+CryoGrid.variables(::Union{Top,Bottom}, bc::TemperatureGradient) = (
     Diagnostic(:T_ub, Scalar, u"K"),
 )
+
 function CryoGrid.updatestate!(::Top, bc::TemperatureGradient, state)
     @setscalar state.T_ub = bc.T(state.t)
 end
