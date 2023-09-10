@@ -45,7 +45,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 Adapt = "3"
-ComponentArrays = "0.13"
+ComponentArrays = "0.13, 0.15"
 ConstructionBase = "1.4"
 DataStructures = "0.18"
 DiffEqBase = "6"
