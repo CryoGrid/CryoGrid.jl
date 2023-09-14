@@ -2,10 +2,10 @@ const RESERVED_LAYER_NAMES = (:top, :bottom, :strat, :init, :event)
 
 # NamedLayer type (alias of Named for Layer types)
 const NamedLayer{name,TLayer} = Named{name,TLayer} where {name,TLayer<:Layer}
-@inline layertype(layer::NamedLayer) = layertype(typeof(layer))
-@inline layertype(::Type{<:NamedLayer{name,TLayer}}) where {name,TLayer} = TLayer
-@inline layername(layer::NamedLayer) = layername(typeof(layer))
-@inline layername(::Type{<:NamedLayer{name}}) where {name} = name
+layertype(layer::NamedLayer) = layertype(typeof(layer))
+layertype(::Type{<:NamedLayer{name,TLayer}}) where {name,TLayer} = TLayer
+layername(layer::NamedLayer) = layername(typeof(layer))
+layername(::Type{<:NamedLayer{name}}) where {name} = name
 
 """
     Stratigraphy{N,TLayers,TBoundaries}
@@ -135,13 +135,13 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     end
 end
 
-@inline function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
+function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
         CryoGrid.resetfluxes!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
-@inline function CryoGrid.updatestate!(strat::Stratigraphy, state)
+function CryoGrid.updatestate!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
         CryoGrid.updatestate!(named_layer.val, getproperty(state, layername(named_layer)))
     end
@@ -205,13 +205,13 @@ that `getproperty(state, layername(strat[i]))` would return the appropriate stat
     return expr
 end
 
-@inline function CryoGrid.computefluxes!(strat::Stratigraphy, state)
+function CryoGrid.computefluxes!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
         CryoGrid.computefluxes!(named_layer.val, getproperty(state, layername(named_layer)))
     end
 end
 
-@inline function CryoGrid.timestep(strat::Stratigraphy, state)
+function CryoGrid.timestep(strat::Stratigraphy, state)
     max_dts = fastmap(layers(strat)) do named_layer
         CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
     end

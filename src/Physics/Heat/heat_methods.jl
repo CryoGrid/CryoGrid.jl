@@ -35,20 +35,20 @@ function heatcapacities end
 
 Discrete enthalpy function on temperature, heat capacity, specific latent heat of fusion, and liquid water content.
 """
-@inline enthalpy(T, C, L, θ) = T*C + L*θ
+enthalpy(T, C, L, θ) = T*C + L*θ
 """
     enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 
 Discrete inverse enthalpy function given H, C, L, and θ.
 """
-@inline enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 """
     dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 
 Computes the apparent or "effective" heat capacity `∂H∂T` as a function of temperature, volumetric heat capacity,
 latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
 """
-@inline dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
+dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
 

@@ -54,18 +54,18 @@ sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 
-@inline function Heat.thermalconductivities(soil::Soil)
+function Heat.thermalconductivities(soil::Soil)
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
     return kh_w, kh_i, kh_a, kh_m, kh_o
 end
 
-@inline function Heat.heatcapacities(soil::Soil)
+function Heat.heatcapacities(soil::Soil)
     @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil)
     return ch_w, ch_i, ch_a, ch_m, ch_o
 end
 
 # Define volumetricfractions for Soil layer
-@inline function CryoGrid.volumetricfractions(soil::Soil, state, i)
+function CryoGrid.volumetricfractions(soil::Soil, state, i)
     return let θwi = Hydrology.watercontent(soil, state, i),
         θw = state.θw[i],
         θm = mineral(soil, state, i),

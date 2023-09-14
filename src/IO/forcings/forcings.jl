@@ -6,8 +6,8 @@ Abstract type representing a generic external forcing term.
 abstract type Forcing{unit,T} end
 Base.nameof(f::Forcing) = f.name
 CryoGrid.parameterize(f::Forcing; ignored...) = f
-@inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
-@inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
+@propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
+@propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
 
 """
 Represents an externally specified format for forcing inputs. IO functions should dispatch on
@@ -58,7 +58,7 @@ Base.show(io::IO, forcing::InterpolatedForcing{u}) where u = print(io, "Interpol
 """
 Get interpolated forcing value at t seconds from t0.
 """
-@inline @propagate_inbounds (forcing::InterpolatedForcing)(t::Number) = forcing.interpolant(t)
+@propagate_inbounds (forcing::InterpolatedForcing)(t::Number) = forcing.interpolant(t)
 
 """
       Forcings{names,TF,TMeta}

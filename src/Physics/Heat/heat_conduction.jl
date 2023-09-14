@@ -42,7 +42,7 @@ Assumes that `state` contains at least temperature (T), enthalpy (H), heat capac
 total water content (θwi), and liquid water content (θw).
 """
 freezethaw!(sub, state) = freezethaw!(sub, processes(sub), state)
-@inline function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state)
+function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state)
     @inbounds for i in 1:length(state.H)
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)

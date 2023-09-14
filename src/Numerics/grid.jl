@@ -69,17 +69,17 @@ end
 @inline cells(grid::Grid{Cells}) = grid
 @inline edges(grid::Grid{Edges}) = grid
 @inline edges(grid::Grid{Cells}) = Grid(Edges, grid)
-@inline Base.parent(grid::Grid{Edges}) = Grid(grid, 1..length(grid.values.edges))
-@inline Base.parent(grid::Grid{Cells}) = Grid(grid, 1..length(grid.values.cells))
-@inline Base.collect(grid::Grid) = collect(values(grid))
-@inline Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
-@inline Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
-@inline Base.similar(grid::Grid{Edges}) = Grid(copy(grid.values.edges))
-@inline Base.similar(grid::Grid{Cells}) = similar(edges(grid)) |> cells
-@inline Base.size(grid::Grid) = (length(grid),)
-@inline Base.length(grid::Grid) = last(bounds(grid)) - first(bounds(grid)) + 1
-@inline Base.firstindex(grid::Grid) = 1
-@inline Base.lastindex(grid::Grid) = length(grid)
+Base.parent(grid::Grid{Edges}) = Grid(grid, 1..length(grid.values.edges))
+Base.parent(grid::Grid{Cells}) = Grid(grid, 1..length(grid.values.cells))
+Base.collect(grid::Grid) = collect(values(grid))
+Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
+Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
+Base.similar(grid::Grid{Edges}) = Grid(copy(grid.values.edges))
+Base.similar(grid::Grid{Cells}) = similar(edges(grid)) |> cells
+Base.size(grid::Grid) = (length(grid),)
+Base.length(grid::Grid) = last(bounds(grid)) - first(bounds(grid)) + 1
+Base.firstindex(grid::Grid) = 1
+Base.lastindex(grid::Grid) = length(grid)
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
 @propagate_inbounds Base.getindex(grid::Grid, i::AbstractRange) = grid[grid[first(i)]..grid[last(i)]]
 @propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = grid[subgridinds(grid, interval)]
@@ -105,8 +105,8 @@ function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where 
 end
 
 # unit rectangle defaults
-@inline volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
-@inline area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
+volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
+area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
 
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}

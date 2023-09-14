@@ -85,7 +85,7 @@ end
 Computes the advective downward water flux given liquid water content in the upper grid cell (θw_up),
 the minimum water content (θmin), and hydraulic conductivity at the boundary (kw).
 """
-@inline function advectiveflux(θw_up, θmin, kw)
+function advectiveflux(θw_up, θmin, kw)
     # downward advective flux due to gravity;
     # the grid in CryoGrid.jl is positive downward, so no negative sign is necessary
     jw = kw*(θw_up > θmin)
@@ -144,7 +144,7 @@ reductionfactor(water::WaterBalance, x) = 1 - exp(-water.prop.r_β*(1-x)^2)
 
 Resets flux terms (`jw` and `∂θwi∂t`) for `WaterBalance`.
 """
-@inline function CryoGrid.resetfluxes!(::SubSurface, water::WaterBalance, state)
+function CryoGrid.resetfluxes!(::SubSurface, water::WaterBalance, state)
     state.jw .= zero(eltype(state.jw))
     state.jw_v .= zero(eltype(state.jw_v))
     state.jw_ET .= zero(eltype(state.jw_ET))

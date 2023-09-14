@@ -67,7 +67,7 @@ watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, stat
 
 Computes the volumetric water content from current saturation or pressure state.
 """
-@inline function watercontent!(sub::SubSurface, water::WaterBalance, state)
+function watercontent!(sub::SubSurface, water::WaterBalance, state)
     @inbounds for i in eachindex(state.sat)
         state.θsat[i] = maxwater(sub, water, state, i)
         state.θwi[i] = state.sat[i]*state.θsat[i]
@@ -90,7 +90,7 @@ hydraulicconductivity(sub::SubSurface, water::WaterBalance, θw, θwi, θsat) = 
 
 Computes hydraulic conductivities for the given subsurface layer and water balance scheme.
 """
-@inline function hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
+function hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
     @inbounds for i in eachindex(state.kwc)
         let θsat = Hydrology.maxwater(sub, water, state, i),
             θw = state.θw[i],

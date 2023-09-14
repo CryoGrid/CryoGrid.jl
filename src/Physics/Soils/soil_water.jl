@@ -60,7 +60,7 @@ Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.005)
 
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 
-@inline function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}, state)
+function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}, state)
     let swrc = swrc(water);
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = Hydrology.maxwater(soil, water, state, i)
@@ -71,7 +71,7 @@ Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state,
         end
     end
 end
-@inline function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}, state)
+function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}, state)
     let f = swrc(water),
         f⁻¹ = inv(f),
         θres = f.vol.θres;

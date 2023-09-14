@@ -102,7 +102,7 @@ CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + ge
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
 # volumetric fractions for snowpack
-@inline function CryoGrid.volumetricfractions(::Snowpack, state, i)
+function CryoGrid.volumetricfractions(::Snowpack, state, i)
     @inbounds let θwi = state.θwi[i],
         θw = state.θw[i],
         θa = 1.0 - θwi,

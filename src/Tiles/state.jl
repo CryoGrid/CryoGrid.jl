@@ -23,7 +23,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
     end
 end
 Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :states, :bounds, :t, :dt)
-@inline function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
+function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
     z_inds = subgridinds(edges(sv.grid), zs[1]..zs[2])
     return LayerState(
         sv.grid[z_inds],
@@ -59,7 +59,7 @@ function Base.getproperty(state::TileState, sym::Symbol)
     end
 end
 Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:states,:t,:dt)
-@inline @generated function TileState(sv::StateVars{names}, zs, u=copy(sv.uproto), du=similar(sv.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
+@generated function TileState(sv::StateVars{names}, zs, u=copy(sv.uproto), du=similar(sv.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
     layerstates = (
         quote
             bounds_i = (bounds[$i][1], bounds[$i][2])

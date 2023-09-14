@@ -28,7 +28,7 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::W
     ssub.jw[end] = limit_lower_flux(water, jw*sbot.dt, θw, θwi, θsat, sat, Δz)/sbot.dt
 end
 
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
     @inbounds let ψupper=boundaryvalue(bc, stop),
         ψsub=ssub.ψ[1],
@@ -37,7 +37,7 @@ end
         Numerics.flux(ψupper, ψsub, δ, k)
     end
 end
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub)
     Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
     @inbounds let ψlower=boundaryvalue(bc, sbot),
         ψsub=ssub.ψ[end],
