@@ -1,20 +1,21 @@
 using CryoGrid: DVar
 
 """
-    LayerState{iip,TGrid,TStates,Tt,Tdt,Tz,varnames}
+    LayerState{iip,TGrid,TStates,Tt,Tdt,Tz}
 
-Represents the state of a single component (layer + processes) in the stratigraphy.
+Represents the state of a single layer in the stratigraphy.
 """
-struct LayerState{iip,TGrid,TStates,TBounds,Tt,Tdt,varnames}
+struct LayerState{iip,TGrid,TStates,TBounds,Tt,Tdt}
     grid::TGrid
-    states::NamedTuple{varnames,TStates}
+    states::TStates
     bounds::TBounds
     t::Tt
     dt::Tdt
-    LayerState(grid::TG, states::NamedTuple{varnames,Tvs}, bounds::TB, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
-        {TG,TB,Tvs,Tt,Tdt,varnames,iip} = new{iip,TG,Tvs,TB,Tt,Tdt,varnames}(grid, states, bounds, t, dt)
+    LayerState(grid::TG, states::TStates, bounds::TB, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
+        {TG,TB,TStates<:NamedTuple,Tt,Tdt,iip} = new{iip,TG,TStates,TB,Tt,Tdt}(grid, states, bounds, t, dt)
 end
 Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
+Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :states, :bounds, :t, :dt)
 function Base.getproperty(state::LayerState, sym::Symbol)
     return if sym ∈ (:grid, :states, :bounds, :t, :dt)
         getfield(state, sym)
@@ -22,7 +23,7 @@ function Base.getproperty(state::LayerState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :states, :bounds, :t, :dt)
+
 function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
     z_inds = subgridinds(edges(sv.grid), zs[1]..zs[2])
     return LayerState(
@@ -36,21 +37,23 @@ function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip
 end
 
 """
-    TileState{iip,TGrid,TStates,Tt,Tdt,names}
+    TileState{iip,TGrid,TStates,Tt,Tdt}
 
-Represents the instantaneous state of a CryoGrid `Tile`.
+Represents the state of a CryoGrid `Tile`.
 """
-struct TileState{iip,TGrid,TStates,Tt,Tdt,names}
+struct TileState{iip,TGrid,TStates,Tt,Tdt}
     grid::TGrid
-    states::NamedTuple{names,TStates}
+    states::TStates
     t::Tt
     dt::Tdt
-    TileState(grid::TGrid, states::NamedTuple{names,TS}, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
-        {TGrid<:Numerics.AbstractDiscretization,TS<:Tuple{Vararg{LayerState}},Tt,Tdt,names,iip} =
-            new{iip,TGrid,TS,Tt,Tdt,names}(grid, states, t, dt)
+    TileState(grid::TGrid, states::TStates, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
+        {TGrid<:Numerics.AbstractDiscretization,TStates<:NamedTuple,Tt,Tdt,iip} =
+            new{iip,TGrid,TStates,Tt,Tdt}(grid, states, t, dt)
 end
+
 Base.getindex(state::TileState, sym::Symbol) = Base.getproperty(state, sym)
 Base.getindex(state::TileState, i::Int) = state.states[i]
+Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:states,:t,:dt)
 function Base.getproperty(state::TileState, sym::Symbol)
     return if sym ∈ (:grid,:states,:t,:dt)
         getfield(state, sym)
@@ -58,7 +61,7 @@ function Base.getproperty(state::TileState, sym::Symbol)
         getproperty(getfield(state, :states), sym)
     end
 end
-Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:states,:t,:dt)
+
 @generated function TileState(sv::StateVars{names}, zs, u=copy(sv.uproto), du=similar(sv.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
     layerstates = (
         quote
@@ -78,6 +81,7 @@ Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:st
         )
     end
 end
+
 # internal method dispatches for type stable construction of state types
 @inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
 @inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = error("prognostic variables on grid edges not supported")
