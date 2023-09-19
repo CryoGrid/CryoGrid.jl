@@ -36,6 +36,9 @@ for specific `Layer` types when layers have specific discretization requirements
 function makegrid(strategy::PresetGrid, bounds::NTuple{2,<:DistQuantity})
     return strategy.grid[bounds[1]..bounds[2]]
 end
+function makegrid(strategy::PresetGrid, bounds::NTuple{2,Real})
+    return strategy.grid[bounds[1]*u"m"..bounds[2]*u"m"]
+end
 function makegrid(strategy::AutoGrid{LinearSpacing}, bounds::NTuple{2,T}) where {T<:DistQuantity}
     @unpack spacing, z0 = strategy
     @unpack min_thick, max_cells_per_layer = spacing
