@@ -53,7 +53,7 @@ CryoGrid.variables(::Union{Top,Bottom}, bc::TemperatureGradient) = (
     Diagnostic(:T_ub, Scalar, u"K"),
 )
 
-function CryoGrid.updatestate!(::Top, bc::TemperatureGradient, state)
+function CryoGrid.updatestate!(::Union{Top,Bottom}, bc::TemperatureGradient, state)
     @setscalar state.T_ub = bc.T(state.t)
 end
 
