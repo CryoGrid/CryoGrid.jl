@@ -26,4 +26,8 @@ Base.@kwdef struct Heterogeneous{Tpara,Taux} <: SoilParameterization
     Heterogeneous(para::SoilParameterization, aux=nothing) = new{typeof(para),typeof(aux)}(para, aux)
 end
 
+# forward getproperty to nested parameterization
+Base.propertynames(para::Heterogeneous) = (:para, Base.propertynames(getfield(para, :para))...)
+Base.getproperty(para::Heterogeneous, name::Symbol) = name == :para ? getfield(para, :para) : getproperty(getfield(para, :para), name)
+
 checksolver!(::Heterogeneous, ::SFCCPreSolver) = error("SFCCPreSolver requires homogeneous soil properties in each layer.")
