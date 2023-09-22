@@ -23,11 +23,11 @@ freezecurve = FreeWater()
 # freezecurve = PainterKarra(swrc=VanGenuchten(α=0.1, n=1.8))
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    0.0u"m" => :topsoil1 => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop; freezecurve)),
-    0.1u"m" => :topsoil2 => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
-    0.4u"m" => :sediment1 => Ground(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
-    3.0u"m" => :sediment2 => Ground(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
-    10.0u"m" => :sediment3 => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
+    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop; freezecurve)),
+    0.1u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
+    0.4u"m" => Ground(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
+    3.0u"m" => Ground(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
+    10.0u"m" => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm

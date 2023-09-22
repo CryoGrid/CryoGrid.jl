@@ -11,7 +11,7 @@ include("../types.jl")
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
         strat = Stratigraphy(
             -1.0u"m" => Top(TestBoundary()),
-            0.0u"m" => :testground => TestGroundLayer(TestGroundProcess()),
+            0.0u"m" => Named(:testground, TestGroundLayer(TestGroundProcess())),
             1000.0u"m" => Bottom(TestBoundary())
         )
         function checkfields(model)
@@ -89,8 +89,8 @@ include("../types.jl")
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
         strat = Stratigraphy(
             -1.0u"m" => Top(TestBoundary()), (
-                0.0u"m" => :testground1 => TestGroundLayer(TestGroundProcess()),
-                100.0u"m" => :testground2 => TestGroundLayer(TestGroundProcess()),
+                0.0u"m" => Named(:testground1, TestGroundLayer(TestGroundProcess())),
+                100.0u"m" => Named(:testground2, TestGroundLayer(TestGroundProcess())),
             ),
             1000.0u"m" => Bottom(TestBoundary())
         )
@@ -115,8 +115,8 @@ include("../types.jl")
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
         strat = Stratigraphy(
             -1.0u"m" => Top(TestBoundary()), (
-                0.0u"m" => :testground1 => TestGroundLayer(TestGroundProcess()),
-                100.0u"m" => :testground2 => TestGroundLayer(TestGroundProcess()),
+                0.0u"m" => Named(:testgroundlayer1, TestGroundLayer(TestGroundProcess())),
+                100.0u"m" => Named(:testgroundlayer2, TestGroundLayer(TestGroundProcess())),
             ),
             1000.0u"m" => Bottom(TestBoundary())
         )

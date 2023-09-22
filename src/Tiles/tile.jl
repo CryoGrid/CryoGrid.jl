@@ -103,11 +103,11 @@ function Tile(
     strat = stripunits(strat)
     events = CryoGrid.events(strat)
     vars = CryoGrid.variables(strat)
-    layers = map(NamedTuple(strat)) do named_layer
-        _addlayerfield(named_layer, nameof(named_layer))
+    layers = map(namedlayers(strat)) do named_layer
+        nameof(named_layer) => _addlayerfield(named_layer, nameof(named_layer))
     end
     # rebuild stratigraphy with updated parameters
-    strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
+    strat = Stratigraphy(boundaries(strat), (;layers...))
     # construct state variables
     states = _initstatevars(strat, grid, vars, cachetype, arraytype; chunk_size)
     if isempty(inits)
@@ -378,8 +378,8 @@ Adds parameter information to all nested types in `tile` by recursively calling 
 """
 function CryoGrid.parameterize(tile::Tile)
     ctor = ConstructionBase.constructorof(typeof(tile))
-    new_layers = map(tile.strat) do named_layer
-        name = layername(named_layer)
+    new_layers = map(namedlayers(tile.strat)) do named_layer
+        name = nameof(named_layer)
         layer = CryoGrid.parameterize(named_layer.val)
         Named(name, _addlayerfield(layer, name))
     end

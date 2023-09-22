@@ -2,51 +2,51 @@ const RESERVED_LAYER_NAMES = (:top, :bottom, :strat, :init, :event)
 
 # NamedLayer type (alias of Named for Layer types)
 const NamedLayer{name,TLayer} = Named{name,TLayer} where {name,TLayer<:Layer}
-layertype(layer::NamedLayer) = layertype(typeof(layer))
-layertype(::Type{<:NamedLayer{name,TLayer}}) where {name,TLayer} = TLayer
-layername(layer::NamedLayer) = layername(typeof(layer))
-layername(::Type{<:NamedLayer{name}}) where {name} = name
 
 """
-    Stratigraphy{N,TLayers,TBoundaries}
+    Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
 
 Defines a 1-dimensional stratigraphy by connecting a top and bottom layer to one or more subsurface layers.
 """
-struct Stratigraphy{N,TLayers,TBoundaries}
+struct Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
     boundaries::TBoundaries
     layers::TLayers
-    Stratigraphy(boundaries::NTuple{N,Any}, layers::NTuple{N,NamedLayer}) where {N} = new{N,typeof(layers),typeof(boundaries)}(boundaries, layers)
+    Stratigraphy(boundaries::NTuple{N,Any}, layers::NamedTuple) where {N} = new{N,typeof(layers),typeof(boundaries)}(boundaries, layers)
     Stratigraphy(
         top::Pair{<:DistQuantity,<:Top},
-        sub::Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}},
+        sub::Pair{<:DistQuantity},
         bot::Pair{<:DistQuantity,<:Bottom}
     ) = Stratigraphy(top,(sub,),bot)
     Stratigraphy(
         top::Pair{<:DistQuantity,<:Top},
-        sub::AbstractVector{<:Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}}},
+        sub::AbstractVector{<:Pair{<:DistQuantity}},
         bot::Pair{<:DistQuantity,<:Bottom}
     ) = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
         @nospecialize(top::Pair{<:DistQuantity,<:Top}),
-        @nospecialize(sub::Tuple{Vararg{Pair{<:DistQuantity,<:Pair{Symbol,<:SubSurface}}}}),
+        @nospecialize(sub::Tuple{Vararg{Pair{<:DistQuantity}}}),
         @nospecialize(bot::Pair{<:DistQuantity,<:Bottom})
     )
+        # check subsurface layers
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         length(sub) > 18 && @warn "Stratigraphies with more than 20 layers will result in very long compile times and are not recommended. Consider creating heterogeneous layer types."
         top = top[1] => Named(:top => top[2])
         bot = bot[1] => Named(:bottom => bot[2])
-        sub = map(x -> x[1] => Named(x[2]), sub)
-        names = map(nameof, map(last, sub))
-        @assert length(unique(names)) == length(names) "All layer names in Stratigraphy must be unique"
+        sub = _withnames(sub)
+        sub_names = map(nameof, map(last, sub))
+        @assert all(map(∉(RESERVED_LAYER_NAMES), sub_names)) "Subsurface layer names may not be one of: $RESERVED_LAYER_NAMES"
         boundaries = Tuple(map(first, (top, sub..., bot)))
+        # check boundary depths
         @assert issorted(boundaries) "Stratigraphy boundary locations must be in strictly increasing order."
         # wrap layers
-        layers = tuple(last(top), map(last, sub)..., last(bot))
+        named_layers = tuple(last(top), map(last, sub)..., last(bot))
+        layers = NamedTuple(named_layers)
         # construct type
         new{length(layers),typeof(layers),typeof(boundaries)}(boundaries, layers)
     end
 end
+
 """
 Convenience macro for defining stratigraphies with multiple subsurface layers.
 """
@@ -58,18 +58,20 @@ macro Stratigraphy(args...)
         :(Stratigraphy($(esc(args[1])), tuple($(esc.(args[2:end-1])...)), $(esc(args[end]))))
     end
 end
+
 layers(strat::Stratigraphy) = getfield(strat, :layers)
 boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
 boundarypairs(strat::Stratigraphy) = boundarypairs(boundaries(strat))
 boundarypairs(bounds::NTuple) = tuple(map(tuple, bounds[1:end-1], bounds[2:end])..., (bounds[end], bounds[end]))
-layernames(strat::Stratigraphy) = map(layername, layers(strat))
+layernames(strat::Stratigraphy) = keys(layers(strat))
 layertypes(::Type{<:Stratigraphy{N,TLayers}}) where {N,TLayers} = map(layertype, TLayers.parameters)
+namedlayers(strat::Stratigraphy) = Tuple(map(Named, layernames(strat), layers(strat)))
+
 Base.keys(strat::Stratigraphy) = layernames(strat)
-Base.values(strat::Stratigraphy) = layers(strat)
+Base.values(strat::Stratigraphy) = values(layers(strat))
 Base.propertynames(strat::Stratigraphy) = Base.keys(strat)
-Base.getproperty(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
-Base.getindex(strat::Stratigraphy, sym::Symbol) = strat[Val{sym}()].val
-@generated Base.getindex(strat::Stratigraphy{N,TC}, ::Val{sym}) where {N,TC,sym} = :(layers(strat)[$(findfirst(T -> layername(T) == sym, TC.parameters))])
+Base.getproperty(strat::Stratigraphy, name::Symbol) = getproperty(layers(strat), name)
+Base.getindex(strat::Stratigraphy, name::Symbol) = getproperty(strat, name)
 # Array and iteration overrides
 Base.size(strat::Stratigraphy) = size(layers(strat))
 Base.length(strat::Stratigraphy) = length(layers(strat))
@@ -79,23 +81,20 @@ Base.lastindex(strat::Stratigraphy) = length(strat)
 Base.iterate(strat::Stratigraphy) = (layers(strat)[1],layers(strat)[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
 Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
-Base.show(io::IO, strat::Stratigraphy) = print(io, "Stratigraphy($(prod("$b => $n" for (n,b) in zip(layers(strat), boundaries(strat))))")
-Base.NamedTuple(strat::Stratigraphy) = (; map(named_layer -> nameof(named_layer) => named_layer, layers(strat))...)
-# ConstructionBase
-ConstructionBase.getproperties(strat::Stratigraphy) = (;map(Pair, Base.keys(strat), Base.values(strat))...)
-function ConstructionBase.setproperties(strat::Stratigraphy, patch::NamedTuple)
-    layers_patched = map(layers(strat)) do layer
-        Named(layername(layer), get(patch, layername(layer), layer.val))
+Base.NamedTuple(strat::Stratigraphy) = layers(strat)
+function Base.show(io::IO, ::MIME"text/plain", strat::Stratigraphy)
+    print(io, "Stratigraphy:\n")
+    for (k,v,b) in zip(keys(strat), values(strat), boundaries(strat))
+        print(repeat(" ", Base.indent_width), "$b: $k :: $(nameof(typeof(v)))\n")
     end
-    return Stratigraphy(boundaries(strat), layers_patched)
 end
 
 function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy)
     strat_grid = nothing
-    for (bounds, named_layer) in zip(boundarypairs(strat)[2:end-1], layers(strat)[2:end-1])
+    for (bounds, named_layer) in zip(boundarypairs(strat)[2:end-1], namedlayers(strat)[2:end-1])
         @assert bounds[2] - bounds[1] > zero(bounds[1]) "Subsurface layers must have thickness greater than zero in the stratigraphy. The initial thickness can be later updated in `initialcondition!`."
-        layer = named_layer.val
-        layer_grid = Numerics.makegrid(layer, strategy, bounds)
+        layer = named_layer
+        layer_grid = Numerics.makegrid(layer.val, strategy, bounds)
         if !isnothing(strat_grid)
             # check that grid edges line up at layer boundary
             @assert strat_grid[end] == layer_grid[1] "Upper boundary of layer $(nameof(named_layer)) does not match the previous layer."
@@ -113,8 +112,8 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     # we can just loop over everything.
     # first invoke initialconditon! with initializers
     for i in 1:length(strat)
-        layerᵢ = strat[i].val
-        stateᵢ = getproperty(state, layername(strat[i]))
+        layerᵢ = strat[i]
+        stateᵢ = getproperty(state, layernames(strat)[i])
         for init in tuplejoin(CryoGrid.initializers(layerᵢ), inits)
             if haskey(stateᵢ.states, varname(init))
                 CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
@@ -123,10 +122,10 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
     end
     # then invoke non-specific layer inits
     for i in 1:length(strat)-1
-        layerᵢ = strat[i].val
-        layerᵢ₊₁ = strat[i+1].val
-        stateᵢ = getproperty(state, layername(strat[i]))
-        stateᵢ₊₁ = getproperty(state, layername(strat[i+1]))
+        layerᵢ = strat[i]
+        layerᵢ₊₁ = strat[i+1]
+        stateᵢ = getproperty(state, layernames(strat)[i])
+        stateᵢ₊₁ = getproperty(state, layernames(strat)[i+1])
         if i == 1
             CryoGrid.initialcondition!(layerᵢ, stateᵢ)
         end
@@ -136,14 +135,14 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
 end
 
 function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
-    fastiterate(layers(strat)) do named_layer
-        CryoGrid.resetfluxes!(named_layer.val, getproperty(state, layername(named_layer)))
+    fastiterate(namedlayers(strat)) do named_layer
+        CryoGrid.resetfluxes!(named_layer, getproperty(state, nameof(named_layer)))
     end
 end
 
 function CryoGrid.updatestate!(strat::Stratigraphy, state)
     fastiterate(layers(strat)) do named_layer
-        CryoGrid.updatestate!(named_layer.val, getproperty(state, layername(named_layer)))
+        CryoGrid.updatestate!(named_layer, getproperty(state, nameof(named_layer)))
     end
 end
 
@@ -152,12 +151,12 @@ end
 
 Special implementation of `interact!` that iterates over each pair of layers in the stratigraphy which are adjacent and
 "active" based on the current `state`. `state` must have properties defined corresponding to the name of each layer such
-that `getproperty(state, layername(strat[i]))` would return the appropriate state object for the i'th layer in the stratigraphy.
+that `getproperty` would return the appropriate state object for the i'th layer in the stratigraphy.
 """
 @generated function CryoGrid.interact!(strat::Stratigraphy{N}, state) where {N}
     expr = Expr(:block)
     # build expressions for checking whether each layer is active
-    is_active_exprs = map(i -> :(CryoGrid.isactive(strat[$i].val, getproperty(state, layername(strat[$i])))), tuple(1:N...))
+    is_active_exprs = map(i -> :(CryoGrid.isactive(strat[$i], getproperty(state, layernames(strat)[$i]))), tuple(1:N...))
     # header code; get layer names and evaluate `isactive` for each layer
     push!(
         expr.args,
@@ -177,8 +176,8 @@ that `getproperty(state, layername(strat[i]))` would return the appropriate stat
                 if j == i + 1
                     # always try to invoke interact! for adjacent layers
                     quote
-                        if caninteract(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
-                            interact!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                        if caninteract(strat[$i], strat[$j], getproperty(state, names[$i]), getproperty(state, names[$j]))
+                            interact!(strat[$i], strat[$j], getproperty(state, names[$i]), getproperty(state, names[$j]))
                         end
                     end
                 else
@@ -192,9 +191,9 @@ that `getproperty(state, layername(strat[i]))` would return the appropriate stat
                         # if layers i and j are both active, and all imbetween layers are inactive, invoke f!;
                         # note the splat syntax here: $(inactive_imbetween_layers...) simply expands the tuple of
                         # expressions 'inactive_imbetween_layers' as arguments to `tuple`.
-                        can_interact = caninteract(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                        can_interact = caninteract(strat[$i], strat[$j], getproperty(state, names[$i]), getproperty(state, names[$j]))
                         if is_active[$i] && is_active[$j] && all(tuple($(inactive_imbetween_layers...))) && can_interact
-                            interact!(strat[$i].val, strat[$j].val, getproperty(state, names[$i]), getproperty(state, names[$j]))
+                            interact!(strat[$i], strat[$j], getproperty(state, names[$i]), getproperty(state, names[$j]))
                         end
                     end
                 end
@@ -206,20 +205,20 @@ that `getproperty(state, layername(strat[i]))` would return the appropriate stat
 end
 
 function CryoGrid.computefluxes!(strat::Stratigraphy, state)
-    fastiterate(layers(strat)) do named_layer
-        CryoGrid.computefluxes!(named_layer.val, getproperty(state, layername(named_layer)))
+    fastiterate(namedlayers(strat)) do named_layer
+        CryoGrid.computefluxes!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
 end
 
 function CryoGrid.timestep(strat::Stratigraphy, state)
-    max_dts = fastmap(layers(strat)) do named_layer
-        CryoGrid.timestep(named_layer.val, getproperty(state, layername(named_layer)))
+    max_dts = fastmap(namedlayers(strat)) do named_layer
+        CryoGrid.timestep(named_layer.val, getproperty(state, nameof(named_layer)))
     end
     return minimum(max_dts)
 end
 
 # collecting/grouping components
-CryoGrid.events(strat::Stratigraphy) = map(named_layer -> _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), NamedTuple(strat))
+CryoGrid.events(strat::Stratigraphy) = (; map(named_layer -> nameof(named_layer) => _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), namedlayers(strat))...)
 
 CryoGrid.variables(::Union{FixedVolume,DiagnosticVolume}) = (
     Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
@@ -233,18 +232,16 @@ CryoGrid.variables(::PrognosticVolume) = (
 )
 # collects all variables in the stratgriphy, returning a NamedTuple of variable sets.
 function CryoGrid.variables(strat::Stratigraphy)
-    strat_nt = NamedTuple(strat)
-    layervars = map(CryoGrid.variables, strat_nt)
-    return map(layervars, strat_nt) do vars, named_layer
+    layervars = map(_collectvars, layers(strat))
+    return map(layervars, layers(strat)) do vars, layer
         (
             vars...,
-            CryoGrid.variables(CryoGrid.Volume(named_layer.val))...,
+            CryoGrid.variables(CryoGrid.Volume(layer))...,
         )
     end
 end
 # collects and validates all variables in a given layer
-function CryoGrid.variables(@nospecialize(named_layer::NamedLayer))
-    layer = named_layer.val
+function _collectvars(@nospecialize(layer::Layer))
     declared_vars = variables(layer)
     nested_vars = Flatten.flatten(layer, Flatten.flattenable, Var)
     all_vars = vcat(collect(declared_vars), collect(nested_vars))
@@ -290,5 +287,33 @@ function _addlayerfield(@nospecialize(obj), name::Symbol)
         return parent(m)
     else
         return obj
+    end
+end
+
+function _withnames(pairs::Tuple{Vararg{Pair}})
+    # case 1: user specified name as :name => layer or Named
+    withname(l::Pair{Symbol,<:Layer}) = Named(l)
+    withname(l::NamedLayer) = l
+    # case 2: no name specified, autogenerate based on type name
+    withname(l::Layer) = Named(Symbol(lowercase(string(nameof(typeof(l))))), l)
+    # extract depths and layers
+    depths = map(first, pairs)
+    layers = map(last, pairs)
+    # get named layers
+    named_layers = map(withname, layers)
+    # group by name
+    grouped_layers = Utils.groupby(nameof, named_layers)
+    # iterate over each name group
+    for name in keys(grouped_layers)
+        if length(grouped_layers[name]) > 1
+            # if there is more than one layer with this name, append an integer to deduplicate them.
+            grouped_layers[name] = map(enumerate(grouped_layers[name])) do (i, named_layer)
+                # rename layer with integer id to deduplicate
+                Named(Symbol(nameof(named_layer), i), named_layer.val)
+            end
+        end
+    end
+    return map(depths, named_layers) do depth, named_layer
+        depth => popfirst!(grouped_layers[nameof(named_layer)])
     end
 end
