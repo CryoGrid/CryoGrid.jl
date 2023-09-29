@@ -51,6 +51,7 @@ Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="
 # CryoGridLite can also be embedded into integrators from OrdinaryDiffEq.jl via the `NLCGLite` nonlinear solver interface.
 # Note that these sovers generally will not be faster (in execution time) but may be more stable in some cases. Adaptive timestepping can be employed by
 # removing the `adaptive=false` argument.
+using OrdinaryDiffEq
 sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)
 ## 3rd order additive scheme from Kennedy and Alan 2001
 sol3 = @time solve(prob, KenCarp3(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)

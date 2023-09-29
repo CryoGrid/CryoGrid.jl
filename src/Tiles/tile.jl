@@ -104,7 +104,7 @@ function Tile(
     events = CryoGrid.events(strat)
     vars = CryoGrid.variables(strat)
     layers = map(namedlayers(strat)) do named_layer
-        nameof(named_layer) => _addlayerfield(named_layer, nameof(named_layer))
+        nameof(named_layer) => _addlayerfield(named_layer.val, nameof(named_layer))
     end
     # rebuild stratigraphy with updated parameters
     strat = Stratigraphy(boundaries(strat), (;layers...))
@@ -289,7 +289,7 @@ end
 
 function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
     bounds = boundarypairs(tile.strat)
-    map(bounds, layers(tile.strat)) do (z1, z2), named_layer
+    map(bounds, namedlayers(tile.strat)) do (z1, z2), named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
         z = retrieve(diag_layer.z, u)
@@ -303,7 +303,7 @@ end
 function update_layer_boundaries(tile::Tile, u)
     # calculate grid boundaries starting from the bottom moving up to the surface
     zbot = tile.state.grid[end]
-    return accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
+    return accumulate(reverse(namedlayers(tile.strat)); init=zbot) do z_acc, named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
         z_state = retrieve(diag_layer.z, u)

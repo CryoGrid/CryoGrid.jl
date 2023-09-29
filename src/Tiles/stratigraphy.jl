@@ -64,8 +64,8 @@ boundaries(strat::Stratigraphy) = getfield(strat, :boundaries)
 boundarypairs(strat::Stratigraphy) = boundarypairs(boundaries(strat))
 boundarypairs(bounds::NTuple) = tuple(map(tuple, bounds[1:end-1], bounds[2:end])..., (bounds[end], bounds[end]))
 layernames(strat::Stratigraphy) = keys(layers(strat))
-layertypes(::Type{<:Stratigraphy{N,TLayers}}) where {N,TLayers} = map(layertype, TLayers.parameters)
-namedlayers(strat::Stratigraphy) = Tuple(map(Named, layernames(strat), layers(strat)))
+layertypes(::Type{<:Stratigraphy{N,NamedTuple{names,TLayers}}}) where {N,TLayers,names} = Tuple(TLayers.parameters)
+namedlayers(strat::Stratigraphy) = map(Named, layernames(strat), values(layers(strat)))
 
 Base.keys(strat::Stratigraphy) = layernames(strat)
 Base.values(strat::Stratigraphy) = values(layers(strat))
@@ -136,13 +136,13 @@ end
 
 function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
     fastiterate(namedlayers(strat)) do named_layer
-        CryoGrid.resetfluxes!(named_layer, getproperty(state, nameof(named_layer)))
+        CryoGrid.resetfluxes!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
 end
 
 function CryoGrid.updatestate!(strat::Stratigraphy, state)
-    fastiterate(layers(strat)) do named_layer
-        CryoGrid.updatestate!(named_layer, getproperty(state, nameof(named_layer)))
+    fastiterate(namedlayers(strat)) do named_layer
+        CryoGrid.updatestate!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
 end
 
