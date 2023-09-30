@@ -19,7 +19,7 @@ initT = initializer(:T, tempprofile);
 # Here we conigure the water retention curve and freeze curve. The van Genuchten parameters coorespond to that
 # which would be reasonable for a silty soil.
 swrc = VanGenuchten(α=0.1, n=1.8)
-sfcc = PainterKarra(ω=0.0, swrc=swrc)
+sfcc = PainterKarra(ω=0.0; swrc)
 waterflow = RichardsEq(swrc=swrc);
 
 # We use the enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
@@ -28,18 +28,23 @@ upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureGradient(forcing
 
 # We will use a simple stratigraphy with three subsurface soil layers.
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers without wrapping them in a tuple.
+heat = HeatBalance(heatop, freezecurve=sfcc, advection=false)
+water = WaterBalance(RichardsEq(; swrc))
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.7,org=0.75), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
-    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.8,org=0.10), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
-    2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(heatop, freezecurve=sfcc), water=WaterBalance(RichardsEq(;swrc))),
+    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.7,org=0.75); heat, water),
+    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.8,org=0.10); heat, water),
+    2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0); heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, grid, initT);
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw));
-integrator = init(prob, CGEuler())
+integrator = init(prob, Euler(), dt=60.0)
+
+using BenchmarkTools
+@btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
 
 # Here we take just one step to check if it's working.
 step!(integrator)

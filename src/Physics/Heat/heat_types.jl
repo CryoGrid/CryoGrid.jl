@@ -34,10 +34,11 @@ Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop}
     op::THeatOp = MOLEnthalpy(default_fcsolver(freezecurve))
     prop::Tprop = HeatBalanceProperties()
     dtlim::Tdt = default_dtlim(op)  # timestep limiter
-    function HeatBalance(freezecurve, op, prop, dtlim)
+    advection::Bool = true # whether or not to include advective fluxes when coupled with WaterBalance
+    function HeatBalance(freezecurve, op, prop, dtlim, advection)
         # check that heat configuration is valid
         _validate_heat_config(freezecurve, op)
-        return new{typeof(freezecurve),typeof(op),typeof(dtlim),typeof(prop)}(freezecurve, op, prop, dtlim)
+        return new{typeof(freezecurve),typeof(op),typeof(dtlim),typeof(prop)}(freezecurve, op, prop, dtlim, advection)
     end
 end
 # convenience constructors for HeatBalance
