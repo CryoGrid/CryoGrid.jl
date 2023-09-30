@@ -76,6 +76,6 @@ heatcapacity(op::HeatOperator) = op.hc
 Retreives the nonlinear solver for the enthalpy/temperature constitutive relation, if defined.
 """
 fcsolver(::HeatOperator) = nothing
-fcsolver(op::Enthalpy) = op.fcsolver
+fcsolver(op::EnthalpyBased) = op.fcsolver
 fcsolver(heat::HeatBalance) = fcsolver(heat.op)
 fcsolver(::Nothing) = nothing

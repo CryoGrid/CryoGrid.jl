@@ -30,7 +30,7 @@ Plots.plot(-2.0u"°C":0.01u"K":0.0u"°C", sfcc)
 # Enthalpy form of the heat transfer operator (i.e. prognostic :H). In this case, this is equivalent to
 # the shorthand `SoilHeatTile(:H, ...)`. However, it's worth demonstrating how the operator can be explicitly
 # specified.
-heatop = Heat.EnthalpyForm(SFCCPreSolver())
+heatop = Heat.MOLEnthalpy(SFCCPreSolver())
 initT = initializer(:T, tempprofile)
 tile = CryoGrid.Presets.SoilHeatTile(
     heatop,

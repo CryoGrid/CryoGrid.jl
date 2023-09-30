@@ -103,11 +103,11 @@ function Tile(
     strat = stripunits(strat)
     events = CryoGrid.events(strat)
     vars = CryoGrid.variables(strat)
-    layers = map(NamedTuple(strat)) do named_layer
-        _addlayerfield(named_layer, nameof(named_layer))
+    layers = map(namedlayers(strat)) do named_layer
+        nameof(named_layer) => _addlayerfield(named_layer.val, nameof(named_layer))
     end
     # rebuild stratigraphy with updated parameters
-    strat = Stratigraphy(boundaries(strat), Tuple(values(layers)))
+    strat = Stratigraphy(boundaries(strat), (;layers...))
     # construct state variables
     states = _initstatevars(strat, grid, vars, cachetype, arraytype; chunk_size)
     if isempty(inits)
@@ -289,7 +289,7 @@ end
 
 function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
     bounds = boundarypairs(tile.strat)
-    map(bounds, layers(tile.strat)) do (z1, z2), named_layer
+    map(bounds, namedlayers(tile.strat)) do (z1, z2), named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
         z = retrieve(diag_layer.z, u)
@@ -303,7 +303,7 @@ end
 function update_layer_boundaries(tile::Tile, u)
     # calculate grid boundaries starting from the bottom moving up to the surface
     zbot = tile.state.grid[end]
-    return accumulate(reverse(layers(tile.strat)); init=zbot) do z_acc, named_layer
+    return accumulate(reverse(namedlayers(tile.strat)); init=zbot) do z_acc, named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
         z_state = retrieve(diag_layer.z, u)
@@ -378,8 +378,8 @@ Adds parameter information to all nested types in `tile` by recursively calling 
 """
 function CryoGrid.parameterize(tile::Tile)
     ctor = ConstructionBase.constructorof(typeof(tile))
-    new_layers = map(tile.strat) do named_layer
-        name = layername(named_layer)
+    new_layers = map(namedlayers(tile.strat)) do named_layer
+        name = nameof(named_layer)
         layer = CryoGrid.parameterize(named_layer.val)
         Named(name, _addlayerfield(layer, name))
     end

@@ -30,12 +30,12 @@ water = WaterBalance(BucketScheme(), DampedET())
 ## build stratigraphy
 strat = @Stratigraphy(
     -z => Top(upperbc), 
-    -z => :snowpack => Snowpack(heat=HeatBalance(), water=water),
-    soilprofile[1].depth => :soil1 => Ground(soilprofile[1].value; heat, water),
-    soilprofile[2].depth => :soil2 => Ground(soilprofile[2].value; heat, water),
-    soilprofile[3].depth => :soil3 => Ground(soilprofile[3].value; heat, water),
-    soilprofile[4].depth => :soil4 => Ground(soilprofile[4].value; heat, water),
-    soilprofile[5].depth => :soil5 => Ground(soilprofile[5].value; heat, water),
+    -z => Snowpack(heat=HeatBalance(), water=water),
+    soilprofile[1].depth => Ground(soilprofile[1].value; heat, water),
+    soilprofile[2].depth => Ground(soilprofile[2].value; heat, water),
+    soilprofile[3].depth => Ground(soilprofile[3].value; heat, water),
+    soilprofile[4].depth => Ground(soilprofile[4].value; heat, water),
+    soilprofile[5].depth => Ground(soilprofile[5].value; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 ## create Tile
@@ -72,8 +72,17 @@ Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]',
 # Saturation:
 Plots.plot(ustrip.(out.sat[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Soil saturation", leg=false, size=(800,500), dpi=150)
 
+# Runoff
+Plots.plot(ustrip.(out.top.runoff), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Total runoff", leg=false, size=(800,500), dpi=150)
+
+# Evapotranspiration
+Plots.plot(ustrip.(out.top.ET), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Total ET", leg=false, size=(800,500), dpi=150)
+
 # Snow depth:
 Plots.plot(ustrip.(out.snowpack.dsn), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Snow depth", leg=false, size=(800,500), dpi=150)
 
 # Integrated ground heat flux:
 Plots.plot(ustrip.(cumsum(out.top.Qg, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)
+
+# Integratoed ground latent heat flux:
+Plots.plot(ustrip.(cumsum(out.top.Qe, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)

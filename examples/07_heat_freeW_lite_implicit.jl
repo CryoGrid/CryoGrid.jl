@@ -23,11 +23,11 @@ freezecurve = FreeWater()
 # freezecurve = PainterKarra(swrc=VanGenuchten(α=0.1, n=1.8))
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    0.0u"m" => :topsoil1 => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop; freezecurve)),
-    0.1u"m" => :topsoil2 => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
-    0.4u"m" => :sediment1 => Ground(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
-    3.0u"m" => :sediment2 => Ground(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
-    10.0u"m" => :sediment3 => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
+    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop; freezecurve)),
+    0.1u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
+    0.4u"m" => Ground(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
+    3.0u"m" => Ground(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
+    10.0u"m" => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm
@@ -35,11 +35,11 @@ tile = Tile(strat, modelgrid, initT);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 5 years.
-tspan = (DateTime(2010,12,30), DateTime(2011,12,30))
+tspan = (DateTime(2010,1,1), DateTime(2015,1,1))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,), step_limiter=nothing)
-sol = @time solve(prob, LiteImplicitEuler(), dt=3*3600.0)
+sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600.0)
 out = CryoGridOutput(sol)
 
 # Plot the results!
@@ -51,6 +51,7 @@ Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="
 # CryoGridLite can also be embedded into integrators from OrdinaryDiffEq.jl via the `NLCGLite` nonlinear solver interface.
 # Note that these sovers generally will not be faster (in execution time) but may be more stable in some cases. Adaptive timestepping can be employed by
 # removing the `adaptive=false` argument.
+using OrdinaryDiffEq
 sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)
 ## 3rd order additive scheme from Kennedy and Alan 2001
 sol3 = @time solve(prob, KenCarp3(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)

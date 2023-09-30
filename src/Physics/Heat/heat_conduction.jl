@@ -9,7 +9,7 @@ function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
 end
 
 # Free water freeze curve
-@propagate_inbounds function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state, i)
+@propagate_inbounds function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state, i)
     θwi = Hydrology.watercontent(sub, state, i)
     H = state.H[i]
     L = heat.prop.L
@@ -35,14 +35,14 @@ end
 end
 
 """
-    freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state)
+    freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state)
 
 Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θwi), and liquid water content (θw).
 """
 freezethaw!(sub, state) = freezethaw!(sub, processes(sub), state)
-function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy}, state)
+function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state)
     @inbounds for i in 1:length(state.H)
         # update T, θw, C
         state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)
@@ -68,7 +68,7 @@ heatvariables(::HeatBalance) = (
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
-CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Enthalpy}) = (
+CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:EnthalpyBased}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     heatvariables(heat)...,
@@ -76,7 +76,7 @@ CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Enthalpy}) = (
 """
 Variable definitions for heat conduction (temperature).
 """
-CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:Temperature}) = (
+CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:TemperatureBased}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
@@ -107,7 +107,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     return nothing
 end
 
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
+function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set;
@@ -118,7 +118,7 @@ function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Ent
     divergence!(state.∂H∂t, state.jH, Δk)
     return nothing
 end
-function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:Temperature}, state)
+function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:TemperatureBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -134,7 +134,7 @@ function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:
 end
 
 # CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:Enthalpy,<:CryoGrid.CFL}, state) = Inf
+CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased,<:CryoGrid.CFL}, state) = Inf
 """
     timestep(::SubSurface, ::HeatBalance{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
 
@@ -143,10 +143,10 @@ defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which h
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
 function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.CFL}, state) where {Tfc,THeatOp}
-    derivative(::Enthalpy, state) = state.∂H∂t
-    derivative(::Temperature, state) = state.∂T∂t
-    prognostic(::Enthalpy, state) = state.H
-    prognostic(::Temperature, state) = state.T
+    derivative(::EnthalpyBased, state) = state.∂H∂t
+    derivative(::TemperatureBased, state) = state.∂T∂t
+    prognostic(::EnthalpyBased, state) = state.H
+    prognostic(::TemperatureBased, state) = state.T
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)

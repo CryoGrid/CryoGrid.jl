@@ -16,8 +16,8 @@ end
 Type alias for Snowpack with `Bulk` parameterization.
 """
 const BulkSnowpack{T} = Snowpack{<:Bulk{T}} where {T}
-# Local alias for Heat Enthalpy type
-const Enthalpy = Heat.Enthalpy
+# Local alias for Heat EnthalpyBased type
+const EnthalpyBased = Heat.EnthalpyBased
 
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
@@ -159,7 +159,7 @@ end
 # computefluxes! for free water, enthalpy based HeatBalance on bulk snow layer
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
-    ps::Coupled(SnowMassBalance, HeatBalance{FreeWater,<:Enthalpy}),
+    ps::Coupled(SnowMassBalance, HeatBalance{FreeWater,<:EnthalpyBased}),
     state
 )
     mass, heat = ps
@@ -175,7 +175,7 @@ function CryoGrid.computefluxes!(
 end
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
-    ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance{FreeWater,<:Enthalpy}),
+    ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance{FreeWater,<:EnthalpyBased}),
     state
 )
     mass, water, heat = ps
@@ -233,7 +233,7 @@ function CryoGrid.updatestate!(
     procs::Coupled(
         DynamicSnowMassBalance{TAcc,<:DegreeDayMelt},
         WaterBalance,
-        HeatBalance{FreeWater,<:Enthalpy}
+        HeatBalance{FreeWater,<:EnthalpyBased}
     ),
     state
 ) where {TAcc}
@@ -304,7 +304,7 @@ function CryoGrid.trigger!(
 end
 function CryoGrid.updatestate!(
     snow::BulkSnowpack,
-    procs::Coupled(PrescribedSnowMassBalance,HeatBalance{FreeWater,<:Enthalpy}),
+    procs::Coupled(PrescribedSnowMassBalance,HeatBalance{FreeWater,<:EnthalpyBased}),
     state
 )
     mass, heat = procs

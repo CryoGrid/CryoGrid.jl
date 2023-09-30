@@ -9,6 +9,17 @@ CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
     Prognostic(:ET, Scalar, u"m^3"),
 )
 
+function ET!(::Top, ::SurfaceWaterBalance, state)
+    @setscalar state.∂ET∂t += state.jw_ET[1]*area(state.grid)
+end
+
+function CryoGrid.computefluxes!(top::Top, bc::SurfaceWaterEnergyBalance, state)
+    swb, seb = bc
+    computefluxes!(top, swb, state)
+    ET!(top, swb, state)
+    computefluxes!(top, seb, state)
+end
+
 function CryoGrid.interact!(top::Top, bc::SurfaceWaterEnergyBalance, sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), stop, ssub)
     swb, seb = bc
     water, heat = ps

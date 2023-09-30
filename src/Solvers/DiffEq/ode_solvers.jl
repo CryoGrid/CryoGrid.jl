@@ -9,5 +9,4 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgor
 end
 
 # custom nonlinear solvers
-export NLCGLite
 include("nlsolve/nlsolve.jl")

@@ -2,7 +2,7 @@ module Salt
 
 using CryoGrid
 using CryoGrid.Heat
-using CryoGrid.Heat: Temperature
+using CryoGrid.Heat: TemperatureBased
 using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Soils

@@ -14,5 +14,6 @@ include("basic_solvers.jl")
 export LiteImplicit
 include("LiteImplicit/LiteImplicit.jl")
 
+export NLCGLite
 include("DiffEq/DiffEq.jl")
 @reexport using .DiffEq

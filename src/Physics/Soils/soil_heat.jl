@@ -35,7 +35,7 @@ function sfccsolver!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TO
     sat = saturation(soil, state)
     θsat = porosity(soil, state)
     hc = sfccheatcap(soil, heat, state, 1)
-    if TOp <: Enthalpy
+    if TOp <: EnthalpyBased
         solver = Heat.fcsolver(heat)
         @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
         FreezeCurves.initialize!(solver, fc, hc; sat, θsat)
@@ -111,14 +111,14 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{FreeWater}, st
 end
 
 """
-    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
-    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
+    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:TemperatureBased}, state)
+    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state)
 
 Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get dHdT, θw, and H.
 """
-function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
+function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:TemperatureBased}, state)
     sfcc = heat.freezecurve
     L = heat.prop.L
     @unpack ch_w, ch_i = Heat.thermalproperties(soil)
@@ -135,7 +135,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
 end
 
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
-function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
+function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state)
     sfcc = heat.freezecurve
     solver = Heat.fcsolver(heat)
     @inbounds for i in 1:length(state.H)
@@ -162,7 +162,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
     end
 end
 
-function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state, i)
+function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state, i)
     sfcc = heat.freezecurve
     solver = Heat.fcsolver(heat)
     @inbounds let H = state.H[i], # enthalpy
