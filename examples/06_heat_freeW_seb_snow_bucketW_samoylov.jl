@@ -72,8 +72,17 @@ Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]',
 # Saturation:
 Plots.plot(ustrip.(out.sat[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Soil saturation", leg=false, size=(800,500), dpi=150)
 
+# Runoff
+Plots.plot(ustrip.(out.top.runoff), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Total runoff", leg=false, size=(800,500), dpi=150)
+
+# Evapotranspiration
+Plots.plot(ustrip.(out.top.ET), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Total ET", leg=false, size=(800,500), dpi=150)
+
 # Snow depth:
 Plots.plot(ustrip.(out.snowpack.dsn), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Snow depth", leg=false, size=(800,500), dpi=150)
 
 # Integrated ground heat flux:
 Plots.plot(ustrip.(cumsum(out.top.Qg, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)
+
+# Integratoed ground latent heat flux:
+Plots.plot(ustrip.(cumsum(out.top.Qe, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)
