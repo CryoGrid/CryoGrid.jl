@@ -27,7 +27,7 @@ const EnthalpyBased = Heat.EnthalpyBased
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
 export Ground, AbstractGround
-include("ground_types.jl")
+include("ground.jl")
 
 export Soil, SoilParameterization, Heterogeneous
 include("soil_types.jl")
