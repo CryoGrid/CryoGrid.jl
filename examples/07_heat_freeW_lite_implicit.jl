@@ -35,11 +35,11 @@ tile = Tile(strat, modelgrid, initT);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 5 years.
-tspan = (DateTime(2010,12,30), DateTime(2011,12,30))
+tspan = (DateTime(2010,1,1), DateTime(2015,1,1))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,), step_limiter=nothing)
-sol = @time solve(prob, LiteImplicitEuler(), dt=3*3600.0)
+sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600.0)
 out = CryoGridOutput(sol)
 
 # Plot the results!

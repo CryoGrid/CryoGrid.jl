@@ -22,8 +22,8 @@ using UnPack
 import ConstructionBase
 
 # aliases for heat formulations in Heat module
-const Temperature = Heat.Temperature
-const Enthalpy = Heat.Enthalpy
+const TemperatureBased = Heat.TemperatureBased
+const EnthalpyBased = Heat.EnthalpyBased
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
 export Ground, AbstractGround

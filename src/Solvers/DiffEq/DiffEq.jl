@@ -45,6 +45,8 @@ function __init__()
         export Euler, Heun, DP5, Tsit5, ROCK2, ROCK4, SSPRK22, SSPRK33, SSPRK43
         # implicit methods
         export ImplicitEuler, ImplicitMidpoint, Trapezoid, SSPSDIRK2
+        # nonlinear solvers
+        export NLNewton, NLCGLite
         include("ode_solvers.jl")
     end
 end

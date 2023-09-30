@@ -4,7 +4,7 @@ function Heat.freezethaw!(
     soil::SalineGround,
     ps::CoupledHeatSalt{THeat},
     state
-) where {THeat<:HeatBalance{<:DallAmicoSalt,<:Temperature}}
+) where {THeat<:HeatBalance{<:DallAmicoSalt,<:TemperatureBased}}
     salt, heat = ps
     sfcc = heat.freezecurve
     thermalprops = Heat.thermalproperties(soil)
@@ -54,7 +54,7 @@ function CryoGrid.updatestate!(
     soil::SalineGround,
     ps::CoupledHeatSalt{THeat},
     state
-) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
+) where {THeat<:HeatBalance{<:SFCC,<:TemperatureBased}}
     # Reset energy flux to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
     salt, heat = ps
@@ -130,7 +130,7 @@ function CryoGrid.computefluxes!(
     ::SalineGround,
     ps::CoupledHeatSalt{THeat},
     state
-) where {THeat<:HeatBalance{<:SFCC,<:Temperature}}
+) where {THeat<:HeatBalance{<:SFCC,<:TemperatureBased}}
     salt, heat = ps
 
     #read current state

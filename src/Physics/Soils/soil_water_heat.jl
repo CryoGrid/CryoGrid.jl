@@ -11,8 +11,8 @@ function Heat.freezethaw!(
     sfcc = heat.freezecurve
     swrc = FreezeCurves.swrc(sfcc)
     # helper function for computing temperature (inverse enthalpy, if necessary)
-    _get_temperature(::Type{<:Temperature}, i) = state.T[i]
-    _get_temperature(::Type{<:Enthalpy}, i) = enthalpyinv(soil, heat, state, i)
+    _get_temperature(::Type{<:TemperatureBased}, i) = state.T[i]
+    _get_temperature(::Type{<:EnthalpyBased}, i) = enthalpyinv(soil, heat, state, i)
     L = heat.prop.L
     @unpack ch_w, ch_i = thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
@@ -31,7 +31,7 @@ function Heat.freezethaw!(
         state.C[i] = C
         state.∂H∂T[i] = ∂H∂T
         state.∂θw∂ψ[i] = ∂θw∂ψ
-        if THeatForm == Temperature
+        if THeatForm == TemperatureBased
             state.H[i] = Heat.enthalpy(T, C, L, θw)
         end
     end

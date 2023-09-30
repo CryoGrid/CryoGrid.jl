@@ -55,7 +55,7 @@ julia> out.T
 Notice that, in the example above, it is types such as `Ground`, `HeatBalance`, `DallAmico`, etc. that specify which components the model should use. These components are defined by adding method dispatches to the [CryoGrid interface](@ref toplevel) methods. State variables are declared via the [`variables`](@ref) method, e.g:
 
 ```julia
-variables(soil::Soil, heat::HeatBalance{<:Enthalpy}) = (
+variables(soil::Soil, heat::HeatBalance{<:EnthalpyBased}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:C, OnGrid(Cells), u"J//K*/m^3"),
@@ -74,7 +74,7 @@ The real work finally happens in [`updatestate!`](@ref) and [`computefluxes!`](@
 We can take as an example the implementation of `computefluxes!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 
 ```julia
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Enthalpy}, state)
+function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

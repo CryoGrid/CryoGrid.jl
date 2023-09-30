@@ -9,7 +9,7 @@ function test_heat_conduction_freeW_periodic_bc()
     soilprofile = SoilProfile(
         0.0u"m" => MineralOrganic(por=0.50),
     );
-    heatop = Heat.EnthalpyForm(SFCCPreSolver())
+    heatop = Heat.MOLEnthalpy(SFCCPreSolver())
     initT = initializer(:T, tempprofile)
     # Define the simulation time span.
     tspan = (0.0,2*24*3600.0)
