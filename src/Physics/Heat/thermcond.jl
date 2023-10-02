@@ -1,7 +1,8 @@
-@inline function thermalconductivities(sub::SubSurface)
+function thermalconductivities(sub::SubSurface)
     @unpack kh_w, kh_i, kh_a = thermalproperties(sub)
     return (kh_w, kh_i, kh_a)
 end
+
 """
     quadratic_parallel_conductivity(ks, θs)
 
@@ -17,6 +18,7 @@ European Journal of Soil Science, 54, 581–588,
 https://doi.org/10.1046/j.1365-2389.2003.00539.x, 2003.
 """
 quadratic_parallel_conductivity(ks, θs) = sum(map(*, map(sqrt, ks), θs))^2
+
 """
     geometric_conductivity(ks::NTuple{N}, θs::NTuple{N}) where {N}
 
@@ -25,22 +27,24 @@ Geometric mean of constituent thermal conductivities according to Woodside and M
 Woodside, W. & Messmer, J.H. 1961. Thermal conductivity of porous media. I. Unconsolidated sands. Journal of Applied Physics, 32, 1688–1699. 
 """
 geometric_conductivity(ks, θs) = prod(map((k,θ) -> k^θ, ks, θs))
+
 """
     thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
 
 Computes the thermal conductivity as a squared weighted sum over constituent conductivities with volumetric fractions `θfracs`.
 """
-@inline function thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
+function thermalconductivity(sub::SubSurface, heat::HeatBalance, θfracs...)
     ks = thermalconductivities(sub)
     f = thermalconductivity(heat.op)
     return f(ks, θfracs)
 end
+
 """
     thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
 
 Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `k`.
 """
-@inline function thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
+function thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
     @inbounds for i in 1:length(state.T)
         θfracs = volumetricfractions(sub, state, i)
         state.kc[i] = thermalconductivity(sub, heat, θfracs...)
@@ -51,7 +55,7 @@ Computes the thermal conductivity for the given layer from the current state and
     @inbounds state.k[end] = state.kc[end]
     # Harmonic mean of inner conductivities
     @inbounds let k = (@view state.k[2:end-1]),
-        Δk = Δ(state.grids.k);
+        Δk = Δ(state.grid);
         Numerics.harmonicmean!(k, state.kc, Δk)
     end
 end

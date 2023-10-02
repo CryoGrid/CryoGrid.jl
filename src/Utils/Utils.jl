@@ -22,7 +22,7 @@ import ConstructionBase
 import FreezeCurves: normalize_temperature
 import ModelParameters: stripunits
 
-export Named, NamedTupleWrapper, DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
+export Optional, Named, NamedTupleWrapper, DistUnit, DistQuantity, TempUnit, TempQuantity, TimeUnit, TimeQuantity
 include("types.jl")
 export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
@@ -88,6 +88,9 @@ _genexpr(f::Symbol, iters, j) = :($f($(map(i -> :(iters[$i][$j]), 1:length(iters
 # special case: make sure temperatures are in °C
 normalize_units(x::Unitful.AbstractQuantity{T,Unitful.𝚯}) where T = uconvert(u"°C", x)
 normalize_units(x::Unitful.AbstractQuantity) = upreferred(x)
+normalize_units(x::Number) = x
+normalize_units(::Missing) = missing
+
 # Add method dispatch for normalize_temperature in FreezeCurves.jl
 normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 
@@ -96,9 +99,10 @@ normalize_temperature(x::Param) = normalize_temperature(stripparams(x))
 
 Concatenates one or more tuples together; should generally be type stable.
 """
-@inline tuplejoin(x) = x
-@inline tuplejoin(x, y) = (x..., y...)
-@inline tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
+tuplejoin() = tuple()
+tuplejoin(x) = x
+tuplejoin(x, y) = (x..., y...)
+tuplejoin(x, y, z...) = (x..., tuplejoin(y, z...)...)
 
 """
     groupby(f, xs)

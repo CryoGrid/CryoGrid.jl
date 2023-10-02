@@ -12,9 +12,6 @@ struct CryoGridEnsembleSetup{TTile<:Tile,Tkwargs}
     CryoGridEnsembleSetup(tile::Tile, tspan::NTuple{2,DateTime}; prob_kwargs...) = new{typeof(tile),typeof(prob_kwargs)}(tile, tspan, prob_kwargs)
 end
 function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMatrix, param_map=identity)
-    p = CryoGrid.parameters(setup.tile)
-    u0, _ = initialcondition!(setup.tile, setup.tspan, p)
-    prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
     function prob_func(prob, i, repeat)
         ϕ = param_map(Θ[:,i])
         u0, _ = initialcondition!(setup.tile, setup.tspan, ϕ)
@@ -22,10 +19,17 @@ function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMa
         return new_prob
     end
 end
+function default_initial_problem(setup::CryoGridEnsembleSetup)
+    p = CryoGrid.parameters(setup.tile)
+    u0, _ = initialcondition!(setup.tile, setup.tspan, p)
+    prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
+    return prob
+end
 """
     CryoGridEnsembleProblem(
         setup::CryoGridEnsembleSetup,
-        Θ::AbstractMatrix;
+        Θ::AbstractMatrix,
+        prob::DiffEqBase.DEProblem=default_initial_problem(setup);
         output_dir=".",
         prob_func=default_ensemble_prob_func(setup, Θ),
         output_func=(sol,i) -> CryoGridOutput(sol),
@@ -57,14 +61,12 @@ See also [`SciMLBase.EnsembleProblem`](@ref), [`CryoGridEnsembleSetup`](@ref), [
 """
 function CryoGridEnsembleProblem(
     setup::CryoGridEnsembleSetup,
-    Θ::AbstractMatrix;
+    Θ::AbstractMatrix,
+    prob::DiffEqBase.DEProblem=default_initial_problem(setup);
     prob_func=default_ensemble_prob_func(setup, Θ),
     output_func=(sol, i) -> CryoGridOutput(sol),
     reduction=(u,data,i) -> (append!(u,data),false),
     ensprob_kwargs...
 )
-    p = CryoGrid.parameters(setup.tile)
-    u0, _ = initialcondition!(setup.tile, setup.tspan, p)
-    prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
     return EnsembleProblem(prob; prob_func, output_func, reduction, ensprob_kwargs...)
 end

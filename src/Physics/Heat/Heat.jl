@@ -1,43 +1,53 @@
 module Heat
 
-import CryoGrid
-import CryoGrid.Hydrology
-
-import ConstructionBase
-
 using CryoGrid
+using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using Base: @propagate_inbounds
-using FreezeCurves
+using Reexport: @reexport
+
+using IfElse
+
+import ConstructionBase
+import Interpolations as Interp
+
+@reexport using FreezeCurves
 
 export FreeWater, FreezeCurve
 
 export HeatBalance, ThermalProperties
-include("types.jl")
+include("heat_types.jl")
 
 export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
-include("methods.jl")
+include("heat_methods.jl")
 
 export thermalconductivity, thermalconductivity!
 include("thermcond.jl")
 
 export heatcapacity, heatcapacity!
-include("heatcap.jl")
+include("heatcapacity.jl")
 
-export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, NFactor
+export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, GroundHeatFlux, NFactor
 include("heat_bc.jl")
+
+export LinearTwoPhaseInitialTempProfile
+include("heat_init.jl")
 
 export heatconduction!
 include("heat_conduction.jl")
 
-include("heat_water.jl")
-
 export HeatBalanceImplicit
 include("heat_implicit.jl")
 
+export WaterHeatBC
+include("heat_water.jl")
+
 export StefanProblem, StefanParameters
 include("analytic/stefan_analytic.jl")
+
+export heat_conduction_linear_periodic_ub
+include("analytic/heat_linear_analytic.jl")
 
 end

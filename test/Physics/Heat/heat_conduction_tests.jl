@@ -34,8 +34,10 @@ include("../../types.jl")
 		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
 		bc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
+		# remember that fluxes are positive *downward*!!!
 		@testset "top: +, bot: -" begin
-			T₀ = Vector(LinRange(-23,27,length(xc)))u"°C"
+			# initial condition: -1°C
+			T₀ = -ones(length(xc))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,jH=jH,grid=x,grids=(T=xc,k=x),t=0.0)
@@ -43,7 +45,8 @@ include("../../types.jl")
 			@test boundaryflux(bc,Bottom(bc),heat,sub,state,state) < 0.0u"W/m^2"
 		end
 		@testset "top: -, bot: +" begin
-			T₀ = Vector(LinRange(27,-23,length(xc)))u"°C"
+			# initial condition: 1°C
+			T₀ = ones(length(xc))u"°C"
 			jH = zeros(length(x))u"W/m^2"
 			∂H∂t = zeros(length(T₀))u"W/m^3"
 			state = (T=T₀,k=k,∂H∂t=∂H∂t,grid=x,grids=(T=xc,k=x),t=0.0)
@@ -79,15 +82,15 @@ end
 @testset "Boundary conditions" begin
 	@testset "n-factors" begin
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
-		forcing = TimeSeriesForcing([1.0,0.5,-0.5,-1.0,0.1]u"°C", ts, :Tair)
+		forcing = InterpolatedForcing(ts, [1.0,0.5,-0.5,-1.0,0.1]u"°C", :Tair)
 		tgrad = TemperatureGradient(forcing, NFactor(nf=0.5, nt=1.0))
 		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
 		zerobc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
-			diagnosticstep!(Top(zerobc), tgrad, state)
-			return boundaryvalue(tgrad,Top(zerobc),heat,sub,state,state)
+			updatestate!(Top(zerobc), tgrad, state)
+			return boundaryvalue(tgrad, state)
 		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
 		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
@@ -116,7 +119,7 @@ end
 		state = (T=T,∂H∂t=∂H∂t,jH=jH,k=k,grid=x,grids=(T=xc,k=x),t=t)
 		interact!(Top(bc), bc, sub, heat, state, state)
 		interact!(sub, heat, Bottom(bc), bc, state, state)
-		prognosticstep!(sub, heat, state)
+		computefluxes!(sub, heat, state)
 		# strip units from ∂H∂t before returning it to the solver;
 		# note that we do not need to divide by diffusivity since we assume it to be unity
 		return ustrip.(∂H∂t)

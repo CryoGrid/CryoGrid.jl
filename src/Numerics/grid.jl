@@ -1,9 +1,14 @@
+abstract type Geometry end
+struct UnitRectangle <: Geometry end
+
 const GridValues{A} = NamedTuple{(:edges,:cells),NTuple{2,A}} where {A<:AbstractVector}
+
+abstract type AbstractDiscretization{Q,N} <: DenseArray{Q,N} end
 
 """
     struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
 
-Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridSpec`,
+Represents the 1D spatial discretization on which time integration is performed. `S` is a `GridOffset`,
 either `Edges` or `Cells` (always edges upon initial construction). The grid representation can be
 converted (allocation free) between grid edges and cells via the `cells` and `edges` methods. `G`
 represents the geometry/volume on which the vertical 1D discretization is applied. `A` is the underlying
@@ -14,8 +19,8 @@ struct Grid{S,G,Q,A} <: AbstractDiscretization{Q,1}
     values::GridValues{A}
     deltas::GridValues{A}
     bounds::UnitRange{Int}
-    Grid(::Type{S}, values::GridValues{A}, deltas::GridValues{A}, geom::G, bounds::UnitRange{Int}=1:length(values)) where {S<:GridSpec,Q,A<:AbstractVector{Q},G<:Geometry} = new{S,G,Q,A}(geom,values,deltas,bounds)
-    function Grid(vals::AbstractVector{Q}, geometry::G=UnitVolume()) where {G<:Geometry,Q<:Number}
+    Grid(::Type{S}, values::GridValues{A}, deltas::GridValues{A}, geom::G, bounds::UnitRange{Int}=1:length(values)) where {S<:GridOffset,Q,A<:AbstractVector{Q},G<:Geometry} = new{S,G,Q,A}(geom,values,deltas,bounds)
+    function Grid(vals::AbstractVector{Q}, geometry::G=UnitRectangle()) where {G<:Geometry,Q<:Number}
         @assert issorted(vals) "grid values should be in ascending order"
         nedges = length(vals)
         ncells = nedges - 1
@@ -45,10 +50,15 @@ end
 function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     @assert interval.left <= interval.right "Invalid interval: $interval"
     # Determine indices which lie in the given interval
-    l_ind = searchsortedfirst(grid, interval.left)
+    l_ind = searchsortedlast(grid, interval.left)
     r_ind = searchsortedlast(grid, interval.right)
+    l_ind = l_ind == r_ind ? l_ind - 1 : l_ind
+    l_ind = max(l_ind, 1)
+    r_ind = min(r_ind, length(grid))
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
+
+@inline arraytype(::Grid{S,G,Q,A}) where {S,G,Q,A} = A
 @inline bounds(grid::Grid{Edges}) = grid.bounds
 @inline bounds(grid::Grid{Cells}) = first(grid.bounds):last(grid.bounds)-1
 @inline Δbounds(grid::Grid{Edges}) = first(grid.bounds):last(grid.bounds)-1
@@ -59,17 +69,17 @@ end
 @inline cells(grid::Grid{Cells}) = grid
 @inline edges(grid::Grid{Edges}) = grid
 @inline edges(grid::Grid{Cells}) = Grid(Edges, grid)
-@inline Base.parent(grid::Grid{Edges}) = Grid(grid, 1..length(grid.values.edges))
-@inline Base.parent(grid::Grid{Cells}) = Grid(grid, 1..length(grid.values.cells))
-@inline Base.collect(grid::Grid) = collect(values(grid))
-@inline Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
-@inline Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
-@inline Base.similar(grid::Grid{Edges}) = Grid(copy(grid.values.edges))
-@inline Base.similar(grid::Grid{Cells}) = similar(edges(grid)) |> cells
-@inline Base.size(grid::Grid) = (length(grid),)
-@inline Base.length(grid::Grid) = last(bounds(grid)) - first(bounds(grid)) + 1
-@inline Base.firstindex(grid::Grid) = 1
-@inline Base.lastindex(grid::Grid) = length(grid)
+Base.parent(grid::Grid{Edges}) = Grid(grid, 1..length(grid.values.edges))
+Base.parent(grid::Grid{Cells}) = Grid(grid, 1..length(grid.values.cells))
+Base.collect(grid::Grid) = collect(values(grid))
+Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
+Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
+Base.similar(grid::Grid{Edges}) = Grid(copy(grid.values.edges))
+Base.similar(grid::Grid{Cells}) = similar(edges(grid)) |> cells
+Base.size(grid::Grid) = (length(grid),)
+Base.length(grid::Grid) = last(bounds(grid)) - first(bounds(grid)) + 1
+Base.firstindex(grid::Grid) = 1
+Base.lastindex(grid::Grid) = length(grid)
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
 @propagate_inbounds Base.getindex(grid::Grid, i::AbstractRange) = grid[grid[first(i)]..grid[last(i)]]
 @propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = grid[subgridinds(grid, interval)]
@@ -94,48 +104,39 @@ function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where 
     return grid
 end
 
-# unit volume
-@inline volume(grid::Grid{Cells,UnitVolume,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
-@inline area(::Grid{Edges,UnitVolume,Q}) where Q = oneunit(Q)^2
-
-# grid discretizations
-"""
-    discretize([::Type{A}], ::T,  ::Var) where {T,N,D<:AbstractDiscretization{T,N},A<:AbstractArray{T,N}}
-
-Produces a discretization of the given variable based on `T` and array type `A`.
-"""
-discretize(::Type{A}, ::D, ::Var) where {Q,T,N,D<:AbstractDiscretization{Q,N},A<:AbstractArray{T,N}} = error("missing discretize implementation for $D")
-discretize(d::AbstractDiscretization{Q,N}, var::Var) where {Q,N} = discretize(Array{vartype(var),N}, d, var)
-discretize(::Type{A}, grid::Grid, var::Var) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, grid)))
+# unit rectangle defaults
+volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
+area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
 
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}
     # get lengths
-    gridvar_ns = map(v -> dimlength(vardims(v), grid), gridvars)
-    layervar_ns = map(vars -> map(v -> dimlength(vardims(v), grid), vars), layervars)
-    Ng = length(gridvar_ns) > 0 ? sum(gridvar_ns) : 0
-    Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_ns))
+    gridvar_sizes = map(v -> dimlength(vardims(v), length(edges(grid))), gridvars)
+    layervar_sizes = map(vars -> map(v -> dimlength(vardims(v), length(edges(grid))), vars), layervars)
+    Ng = length(gridvar_sizes) > 0 ? sum(gridvar_sizes) : 0
+    Nl = sum(map(vars -> length(vars) > 0 ? sum(vars) : 0, layervar_sizes))
     # build axis indices;
     # non-grid prognostic variables get collected at the top of the vector, in the order provided
+    # i is the top-level index in the state vector for all layer diagnostic variables
     i = 1
-    layervar_ax = map(layervars, layervar_ns) do pvars, sizes
-        j = 1
-        coords = map(pvars, sizes) do var, N
-            coord = varname(var) => j:j+N-1
+    layervar_ax = map(layervars, layervar_sizes) do vars, sizes
+        j = 1 # within-layer offset from top level index
+        coords = map(vars, sizes) do var, N
+            coord = varname(var) => (i,j:j+N-1)
             j += N
             return coord
         end
-        i += j
+        i += j-1
         return (; coords...)
     end
-    # pointvar_coords = (varname(p) => i:(i+n-1) for (p,n,i) in zip(pointvars, pointvar_ns, cumsum(vcat([1],collect(pointvar_ns[1:end-1])))))
     # grid variables get interlaced throughout the rest of the vector; i.e. for variable i, its grid points are:
     # i:k:kn where k is the number of grid variables and n is the length of the grid.
     gridvar_ax = (;(varname(p) => st:length(gridvars):(Ng+Nl) for (p,st) in zip(gridvars, (Nl+1):(1+Nl+length(gridvars))))...)
     # select only non-empty layers
     layervar_ax = (;(name => layervar_ax[name] for name in keys(layervar_ax) if length(layervar_ax[name]) > 0)...)
-    # allocate component array; assumes all variables have (and should!) have the same type
+    # allocate component array; assumes all prognostic variables have the same type (and they should!)
     u = zero(similar(A, Ng+Nl))
-    u_ax = map(ax -> ViewAxis(ax[1][1]:ax[end][end], Axis(ax)), layervar_ax)
+    toplevelindices(axes) = first(axes)[1]:first(axes)[1]+last(axes)[2][end]-1
+    u_ax = map(ax -> ViewAxis(toplevelindices(ax), Axis(map(last, ax))), layervar_ax)
     return ComponentVector(u, (Axis(merge(u_ax, gridvar_ax)),))
 end

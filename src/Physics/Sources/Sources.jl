@@ -1,7 +1,7 @@
 module Sources
 
 import CryoGrid: SubSurfaceProcess, SubSurface
-import CryoGrid: diagnosticstep!, initialcondition!, interact!, prognosticstep!, variables
+import CryoGrid: updatestate!, initialcondition!, interact!, computefluxes!, variables
 
 using ..Heat
 using CryoGrid.Numerics
@@ -41,18 +41,18 @@ end
 
 Generic "source" process to provide additive fluxes for one or more prognostic variables in process `P`.
 The behavior is governed by the `SourceTerm`, `T`, and further user specialization can be implemented
-via `sp::S`.
+via `aux::S`.
 """
 struct Source{P,T,S} <: SubSurfaceProcess
     term::T
-    sp::S
-    Source(::Type{P}, term::T, sp::S=nothing) where {P<:SubSurfaceProcess,T<:SourceTerm,S} = new{P,T,S}(term,sp)
+    aux::S
+    Source(::Type{P}, term::T, aux::S=nothing) where {P<:SubSurfaceProcess,T<:SourceTerm,S} = new{P,T,S}(term,aux)
 end
-ConstructionBase.constructorof(::Type{<:Source{P}}) where {P} = (term, sp) -> Source(P, term, sp)
+ConstructionBase.constructorof(::Type{<:Source{P}}) where {P} = (term, aux) -> Source(P, term, aux)
 
 (p::Periodic)(t) = p.amp*sin(2π*p.freq*t - p.shift) + p.level
 # HeatBalance sources
-prognosticstep!(::SubSurface, s::Source{<:HeatBalance,<:Constant}, state) = @inbounds @. state.∂H∂t += s.term.S₀
-prognosticstep!(::SubSurface, src::Source{<:HeatBalance,<:Periodic}, state) = @inbounds @. state.∂H∂t += src.term(state.t)
+computefluxes!(::SubSurface, s::Source{<:HeatBalance,<:Constant}, state) = @inbounds @. state.∂H∂t += s.term.S₀
+computefluxes!(::SubSurface, src::Source{<:HeatBalance,<:Periodic}, state) = @inbounds @. state.∂H∂t += src.term(state.t)
 
 end

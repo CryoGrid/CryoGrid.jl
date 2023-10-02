@@ -24,7 +24,7 @@ CryoGrid.parameterize(et::DampedET) = DampedET(
     evapotranspiration!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `diagnosticstep!`.
+This method should generally be called *before* `interact!` for `WaterBalance`, e.g. in `updatestate!`.
 """
 function evapotranspiration!(::SubSurface, ::WaterBalance, state) end
 function evapotranspiration!(
@@ -39,8 +39,8 @@ function evapotranspiration!(
         state.w_ev[i] = Δz[i]*exp(-z[i] / et.d_ev)
         state.w_tr[i] = Δz[i]*exp(-z[i] / et.d_tr)
         let θwi = state.θwi[i],
-            θfc = minwater(sub, water);
-            state.αᶿ[i] = ifelse(θwi < θfc, 0.25(1-cos(π*θwi/θfc))^2, one(θwi))
+            θfc = minwater(sub, water, state, i);
+            state.αᶿ[i] = ifelse(θwi < θfc, 0.25*(1-cos(π*θwi/θfc))^2, one(θwi))
         end
     end
     @inbounds @. state.f_et = et.f_tr*(state.αᶿ*state.w_tr) + (1-et.f_tr)*(state.αᶿ*state.w_ev)
@@ -60,7 +60,7 @@ end
     evapotranspirative_fluxes!(::SubSurface, ::WaterBalance, state)
 
 Computes diagnostic evapotranspiration quantities for the given layer and water balance configuration, storing the results in `state`.
-This method should generally be called *after* `interact!` for `WaterBalance`, e.g. in `prognosticstep!`.
+This method should generally be called *in or after* the surface interaction for `WaterBalance`.
 """
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance, state) end
 function evapotranspirative_fluxes!(
@@ -69,39 +69,40 @@ function evapotranspirative_fluxes!(
     state
 )
     f_norm = sum(parent(state.f_et))
+    Q_ET = ETflux(sub, water, state)
     # I guess we just ignore the flux at the lower boundary here... it will either be set
     # by the next layer or default to zero if no evapotranspiration occurs in the next layer.
     @inbounds for i in eachindex(cells(state.grid))
         fᵢ = IfElse.ifelse(f_norm > zero(f_norm), state.f_et[i] / f_norm, 0.0)
-        state.jwET[i] += fᵢ * ETflux(sub, water, state)
-        # add ET fluxes to total water flux
-        state.jw[i] += state.jwET[i]
+        state.jw_ET[i] -= fᵢ * Q_ET
     end
 end
 # allow top evaporation-only scheme to apply by default for any water flow scheme
 function evapotranspirative_fluxes!(sub::SubSurface, water::WaterBalance{<:WaterFlow,EvapTop}, state)
-    state.jwET[1] += ETflux(sub, water, state)
-    # add ET fluxes to total water flux
-    state.jw[1] += state.jwET[1]
+    state.jw_ET[1] -= ETflux(sub, water, state)
 end
 # CryoGrid methods
-CryoGrid.basevariables(::Evapotranspiration) = (
-    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by an interaction
+ETvariables(::Evapotranspiration) = (
+    Diagnostic(:Qe, Scalar, u"J/s/m^2", desc="Latent heat flux at the surface."), # must be supplied by a surface interaction
 )
 CryoGrid.variables(et::DampedET) = (
-    CryoGrid.basevariables(et)...,
+    ETvariables(et)...,
     Diagnostic(:f_et, OnGrid(Cells), u"m", domain=0..1, desc="Evapotranspiration reduction factor."),
     Diagnostic(:w_ev, OnGrid(Cells), u"m", desc="Damped grid cell weight for evaporation."),
     Diagnostic(:w_tr, OnGrid(Cells), u"m", desc="Damped grid cell weight for transpiration"),
     Diagnostic(:αᶿ, OnGrid(Cells), domain=0..1, desc="Water availability coefficient."),
 )
-function CryoGrid.interact!(
-    ::SubSurface,
-    ::WaterBalance{<:BucketScheme,<:DampedET},
-    ::SubSurface, ::WaterBalance{<:BucketScheme,<:DampedET},
+
+function interact_ET!(
+    sub1::SubSurface,
+    water1::WaterBalance{<:BucketScheme,<:DampedET},
+    sub2::SubSurface,
+    water2::WaterBalance{<:BucketScheme,<:DampedET},
     state1,
     state2
 )
     # propagate surface latent heat flux to next layer
     state2.Qe .= state1.Qe
+    # compute ET fluxes for next layer
+    evapotranspirative_fluxes!(sub2, water2, state2)
 end

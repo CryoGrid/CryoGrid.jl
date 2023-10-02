@@ -42,7 +42,7 @@ function CryoGrid.initialcondition!(lake::Lake, heat::HeatBalance, state)
     end
 end
 
-function CryoGrid.diagnosticstep!(sub::Lake, heat::HeatBalance, state)
+function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance, state)
     Heat.resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
     Heat.freezethaw!(sub, heat, state)
@@ -58,7 +58,7 @@ function CryoGrid.diagnosticstep!(sub::Lake, heat::HeatBalance, state)
     return nothing
 end
 
-function CryoGrid.diagnosticstep!(
+function CryoGrid.updatestate!(
     sub::Lake,
     heat::HeatBalanceImplicit,
     state
@@ -68,21 +68,11 @@ function CryoGrid.diagnosticstep!(
     Heat.freezethaw!(sub, heat, state)
     # Update thermal conductivity
     Heat.thermalconductivity!(sub, heat, state)
-<<<<<<< HEAD
     isthawed = true
     @inbounds for i in eachindex(state.θw)
         isthawed = isthawed && state.θw[i] ≈ 1.0
     end
     I_f = 1 - Float64(isthawed)
-=======
-    #isthawed = true
-    #@inbounds for i in eachindex(state.θw)
-    #    isthawed = isthawed && state.θw[i] ≈ 1.0
-    #end
-
-    isthawed = state.θw .≈ 1.0
-
->>>>>>> have no idea
     # Compute diffusion coefficients
     an = state.DT_an
     as = state.DT_as
@@ -94,24 +84,16 @@ function CryoGrid.diagnosticstep!(
     dxpn = @view dxp[1:end-1]
     dxps = @view dxp[2:end]
     @. an[2:end] = k_inner / dx / dxpn
-<<<<<<< HEAD
     @. as[1:end-1] = (k_inner / dx / dxps)*I_f
     @. ap[1:end-1] += as[1:end-1]
     @. ap[2:end] += an[2:end]
     @. an[2:end] *= I_f
-=======
-    @. as[1:end-1] = (k_inner / dx / dxps)
-    @. as[isthawed] = 0.
-    @. ap[1:end-1] += as[1:end-1]
-    @. ap[2:end] += an[2:end]
-    @. an[isthawed] *= 0.
->>>>>>> have no idea
     return nothing
 end
 
-CryoGrid.prognosticstep!(::Lake, ::HeatBalanceImplicit, state) = nothing
+CryoGrid.computefluxes!(::Lake, ::HeatBalanceImplicit, state) = nothing
 
-function CryoGrid.prognosticstep!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.Enthalpy}, state)
+function CryoGrid.computefluxes!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.Enthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

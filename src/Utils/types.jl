@@ -5,6 +5,15 @@ const TempUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝚯,A} where {N,A}
 const TempQuantity{T,U} = Quantity{T,Unitful.𝚯,U} where {T,U<:TempUnit}
 const TimeUnit{N,A} = Unitful.FreeUnits{N,Unitful.𝐓,A} where {N,A}
 const TimeQuantity{T,U} = Quantity{T,Unitful.𝐓,U} where {T,U<:TimeUnit}
+
+"""
+    Optional{T}
+
+Option type, alias for `Union{Nothing,T}`. Intended for cases where a property/field
+may be optionally provided and is `nothing` otherwise.
+"""
+const Optional{T} = Union{Nothing,T} where {T}
+
 """
     Named{name,T}
 
@@ -16,6 +25,7 @@ struct Named{name,T}
 end
 Named(values::Pair{Symbol,T}) where T = Named(values[1], values[2])
 Base.nameof(::Named{name}) where name = name
+Base.NamedTuple(ns::Tuple{Vararg{<:Named}}) = (; map(n -> nameof(n) => n.val, ns)...)
 ConstructionBase.constructorof(::Type{<:Named{name}}) where name = val -> Named(name, val)
 """
     NamedTupleWrapper
@@ -37,3 +47,4 @@ function Base.getproperty(wrapper::TC, name::Symbol) where {TC<:NamedTupleWrappe
 end
 Base.getindex(wrapper::NamedTupleWrapper, name::Symbol) = getproperty(values(wrapper), name)
 Base.propertynames(wrapper::NamedTupleWrapper) = propertynames(values(wrapper))
+ConstructionBase.setproperties(wrapper::T, patch::NamedTuple) where {T<:NamedTupleWrapper} = T.name.wrapper(ConstructionBase.setproperties(wrapper.values, patch))

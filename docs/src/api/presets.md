@@ -1,5 +1,7 @@
+# Presets (@)
+
 ```@autodocs
-Modules = [CryoGrid.Models]
+Modules = [CryoGrid.Presets]
 Private = false
 Order = [:type, :function, :macro]
 ```

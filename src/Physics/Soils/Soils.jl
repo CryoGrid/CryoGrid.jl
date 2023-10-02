@@ -1,42 +1,48 @@
 module Soils
 
 using CryoGrid
+using CryoGrid.Heat
+using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using IfElse
 using IntervalSets
 using ForwardDiff
-using FreezeCurves
-using FreezeCurves.Solvers
 using ModelParameters
+using Reexport: @reexport
 using Setfield
 using StaticArrays
 using Unitful
 using UnPack
 
-import CryoGrid
-import CryoGrid.InputOutput
-import CryoGrid.Heat
-import CryoGrid.Hydrology
+# Re-export FreezeCurves package
+@reexport using FreezeCurves
 
-# from FreezeCurves.jl
-export SFCC, PainterKarra, DallAmico, DallAmicoSalt, Westermann, McKenzie
-export VanGenuchten, BrooksCorey
+import ConstructionBase
 
 # aliases for heat formulations in Heat module
-const Temperature = Heat.Temperature
-const Enthalpy = Heat.Enthalpy
+const TemperatureBased = Heat.TemperatureBased
+const EnthalpyBased = Heat.EnthalpyBased
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, HomogeneousSoil, SoilParameterization
-include("types.jl")
+export Ground, AbstractGround
+include("ground.jl")
 
-export SoilProfile, SoilProperties, soilproperties, porosity, mineral, organic
-include("methods.jl")
+export Soil, SoilParameterization, Heterogeneous
+include("soil_types.jl")
 
-export HomogeneousMixture, MineralSediment, soilcomponent
-include("soil_para.jl")
+export SoilProfile, porosity, mineral, organic
+include("soil_methods.jl")
+
+export SoilTexture
+include("soil_texture.jl")
+
+export MineralOrganic, soilcomponent
+include("para/mineral_organic.jl")
+
+export SURFEX
+include("para/surfex.jl")
 
 export RichardsEq
 include("soil_water.jl")
@@ -44,26 +50,7 @@ include("soil_water.jl")
 export SoilThermalProperties
 include("soil_heat.jl")
 
-include("soil_water_heat_coupled.jl")
-
-"""
-    Soil(
-        proc::Process;
-        para::HomogeneousMixture=HomogeneousMixture(),
-        solver=default_sfccsolver(proc),
-        sp=nothing,
-        prop_kwargs...,
-    )
-
-Constructs a `HomogeneousSoil` layer with the given process(es) `proc` and parameterization `para`. Additional
-keyword arguments are passed through to `SoilProperties`.
-"""
-Soil(
-    proc::Process;
-    para::HomogeneousMixture=HomogeneousMixture(),
-    solver=default_sfccsolver(proc),
-    sp=nothing,
-    prop_kwargs...,
-) = HomogeneousSoil(para, soilproperties(para, proc; prop_kwargs...), proc, solver, sp)
+# water/heat coupling methods
+include("soil_water_heat.jl")
 
 end

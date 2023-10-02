@@ -1,54 +1,19 @@
-# Soil thermal properties
-const DefaultThermalProperties = Heat.ThermalProperties()
-SoilThermalProperties(
-    kh_w = DefaultThermalProperties.kh_w,
-    kh_i = DefaultThermalProperties.kh_i,
-    kh_a = DefaultThermalProperties.kh_a,
-    kh_o=0.25u"W/m/K", # organic [Hillel (1982)]
-    kh_m=3.8u"W/m/K", # mineral [Hillel (1982)]
-    ch_w = DefaultThermalProperties.ch_w,
-    ch_i = DefaultThermalProperties.ch_i,
-    ch_a = DefaultThermalProperties.ch_a,
-    ch_o=2.5e6u"J/K/m^3", # heat capacity organic
-    ch_m=2.0e6u"J/K/m^3", # heat capacity mineral,
-    ignored...
-) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o)
-
-# Soil properties constructor for heat transfer processes
-soilproperties(
-    para::SoilParameterization,
-    heat::HeatBalance;
-    props...,
-) = (heat=SoilThermalProperties(; props...),)
-
 """
-Gets the `ThermalProperties` for the given soil layer.
+    sfccheatcap(soil::Soil, heat::HeatBalance, state, i)
+
+Constructs a function `heatcap(θw,θwi,θsat)` that comptues the heat capacity given
+the current state for grid cell `i`.
 """
-Heat.thermalproperties(soil::Soil) = soilproperties(soil).heat
-
-@inline function Heat.thermalconductivities(soil::Soil)
-    @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
-    return kh_w, kh_i, kh_a, kh_m, kh_o
-end
-
-@inline function Heat.heatcapacities(soil::Soil)
-    @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil)
-    return ch_w, ch_i, ch_a, ch_m, ch_o
-end
-
-# Define volumetricfractions for Soil layer
-@inline function CryoGrid.volumetricfractions(soil::Soil, state, i)
-    return let θwi = Hydrology.watercontent(soil, state, i),
-        θw = state.θw[i],
-        θm = mineral(soil, state, i),
-        θo = organic(soil, state, i),
-        θa = 1.0 - θwi - θm - θo,
-        θi = θwi - θw;
-        (θw, θi, θa, θm, θo)
+function sfccheatcap(soil::Soil, heat::HeatBalance, state, i)
+    function heatcap(θw, θwi, θsat)
+        θi = θwi - θw
+        θa = θsat - θwi
+        θm = state.θm[i]
+        θo = state.θo[i]
+        return heatcapacity(soil, heat, θw, θi, θa, θm, θo)
     end
 end
-
-function partial_heatcapacity(soil::Soil{<:HomogeneousMixture}, heat::HeatBalance)
+function sfccheatcap(soil::Soil{<:MineralOrganic}, heat::HeatBalance, state, i)
     function heatcap(θw, θwi, θsat)
         θi = θwi - θw
         θa = θsat - θwi
@@ -58,7 +23,25 @@ function partial_heatcapacity(soil::Soil{<:HomogeneousMixture}, heat::HeatBalanc
     end
 end
 
-default_sfccsolver(::HeatBalance) = SFCCPreSolver(Solvers.SFCCPreSolverCache1D())
+"""
+    sfccsolver!(::Soil, heat::HeatBalance, state)
+
+Retrieves and initializes the SFCC solver for the given layer.
+"""
+sfccsolver!(::Soil, heat::HeatBalance, state) = Heat.fcsolver(heat)
+function sfccsolver!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TOp<:Heat.HeatOperator}
+    fc = heat.freezecurve
+    solver = Heat.fcsolver(heat)
+    sat = saturation(soil, state)
+    θsat = porosity(soil, state)
+    hc = sfccheatcap(soil, heat, state, 1)
+    if TOp <: EnthalpyBased
+        solver = Heat.fcsolver(heat)
+        @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
+        FreezeCurves.initialize!(solver, fc, hc; sat, θsat)
+    end
+    return solver
+end
 
 """
     sfcckwargs(f::SFCC, soil::Soil, heat::HeatBalance, state, i)
@@ -71,20 +54,39 @@ sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 
+function Heat.thermalconductivities(soil::Soil)
+    @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
+    return kh_w, kh_i, kh_a, kh_m, kh_o
+end
+
+function Heat.heatcapacities(soil::Soil)
+    @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil)
+    return ch_w, ch_i, ch_a, ch_m, ch_o
+end
+
+# Define volumetricfractions for Soil layer
+function CryoGrid.volumetricfractions(soil::Soil, state, i)
+    return let θwi = Hydrology.watercontent(soil, state, i),
+        θw = state.θw[i],
+        θm = mineral(soil, state, i),
+        θo = organic(soil, state, i),
+        θa = 1.0 - θwi - θm - θo,
+        θi = θwi - θw;
+        (θw, θi, θa, θm, θo)
+    end
+end
+
 """
 Initial condition for heat conduction (all state configurations) on soil layer w/ SFCC.
 """
 function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
     L = heat.prop.L
     fc = heat.freezecurve
-    solver = sfccsolver(soil)
-    hc = partial_heatcapacity(soil, heat)
     @unpack ch_w, ch_i = thermalproperties(soil)
-    sat = saturation(soil, state)
-    θsat = porosity(soil, state)
-    FreezeCurves.Solvers.initialize!(solver, fc, hc; sat, θsat)
+    sfccsolver!(soil, heat, state)
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
+        sat = saturation(soil, state, i)
         T = state.T[i]
         θw, ∂θw∂T = ∇(T -> fc(T, sat; fc_kwargsᵢ...), T)
         state.θw[i] = θw
@@ -109,22 +111,21 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{FreeWater}, st
 end
 
 """
-    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
-    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
+    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:TemperatureBased}, state)
+    freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state)
 
 Updates state variables according to the specified SFCC function and solver.
 For heat conduction with enthalpy, evaluation of the inverse enthalpy function is performed using the given solver.
 For heat conduction with temperature, we can simply evaluate the freeze curve to get dHdT, θw, and H.
 """
-function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, state)
+function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:TemperatureBased}, state)
     sfcc = heat.freezecurve
-    f = sfcc.f
     L = heat.prop.L
     @unpack ch_w, ch_i = Heat.thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = state.T[i]
-        f_argsᵢ = sfcckwargs(f, soil, heat, state, i)
-        θw, ∂θw∂T = ∇(T -> f(T; f_argsᵢ...), T)
+        f_argsᵢ = sfcckwargs(sfcc, soil, heat, state, i)
+        θw, ∂θw∂T = ∇(T -> sfcc(T; f_argsᵢ...), T)
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
         state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
@@ -134,10 +135,9 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Temperature}, s
 end
 
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
-function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state)
+function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state)
     sfcc = heat.freezecurve
-    solver = sfccsolver(soil)
-    hc = partial_heatcapacity(soil, heat)
+    solver = Heat.fcsolver(heat)
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
             L = heat.prop.L,
@@ -150,28 +150,32 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, stat
             T₀ = i > 1 ? state.T[i-1] : H/ch_w, # initial guess for T
             f = sfcc,
             f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
+            hc = sfccheatcap(soil, heat, state, i),
             obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, sat);
             res = FreezeCurves.sfccsolve(obj, solver, T₀, Val{true}())
             state.T[i] = res.T
             state.θw[i] = res.θw
             state.C[i] = res.C
+            state.∂θw∂T[i] = res.∂θw∂T
             state.∂H∂T[i] = Heat.dHdT(state.T[i], state.C[i], L, res.∂θw∂T, ch_w, ch_i)
         end
     end
 end
 
-function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:Enthalpy}, state, i)
+function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state, i)
     sfcc = heat.freezecurve
-    solver = sfccsolver(soil)
-    hc = partial_heatcapacity(soil, heat)
+    solver = Heat.fcsolver(heat)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
+        props = thermalproperties(soil),
+        ch_w = props.ch_w,
         θwi = Hydrology.watercontent(soil, state, i),
         por = porosity(soil, state, i),
         sat = θwi / por,
-        T₀ = i > 1 ? state.T[i-1] : (H - L*θwi) / hc(θwi),
+        T₀ = i > 1 ? state.T[i-1] : H/ch_w, # initial guess for T
         f = sfcc,
         f_kwargsᵢ = sfcckwargs(f, soil, heat, state, i),
+        hc = sfccheatcap(soil, heat, state, i),
         obj = FreezeCurves.SFCCInverseEnthalpyObjective(f, f_kwargsᵢ, hc, L, H, sat);
         T_sol = FreezeCurves.sfccsolve(obj, solver, T₀, Val{false}())
         return T_sol
@@ -181,10 +185,6 @@ end
 # Freeze curve parameters;
 # Since the freeze curve functions are specified in FreezeCurves.jl, we must (or rather should) provide
 # CryoGrid.parameterize implementations for them here to specify parameter information.
-CryoGrid.parameterize(sfcc::SFCC) = SFCC(
-    CryoGrid.parameterize(sfcc.f),
-    sfcc.solver,
-)
 CryoGrid.parameterize(f::PainterKarra) = PainterKarra(
     f.freezethaw,
     CryoGrid.parameterize(f.β, domain=OpenInterval(0,Inf), desc="Painter-Karra fitting parmaeter which controls the influence of temperature on the matric potential."),

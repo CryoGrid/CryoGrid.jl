@@ -1,6 +1,4 @@
-import Flatten: flattenable
-
-export volumetricfractions
+using Reexport
 
 Constants = (
     ρw = 1000.0u"kg/m^3", # density of water at standard conditions
@@ -21,11 +19,9 @@ i.e. water, ice, and air, followed by any number of additional constituents whic
 by the specific layer. There is no feasible way to verify that client code actually obeys this
 ordering, so be sure to double check your implementation, otherwise this can cause very subtle bugs!
 """
-@inline volumetricfractions(::SubSurface, state) = ()
-@inline volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
+volumetricfractions(::SubSurface, state) = ()
+volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
 
-export ConstantBC, PeriodicBC
-export ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux
 include("simple_bc.jl")
 include("composite_bc.jl")
 include("steplimiters.jl")
@@ -38,8 +34,10 @@ include("Snow/Snow.jl")
 @reexport using .Snow
 include("Soils/Soils.jl")
 @reexport using .Soils
-include("SEB/SEB.jl")
-@reexport using .SEB
+include("Salt/Salt.jl")
+@reexport using .Salt
+include("Surface/Surface.jl")
+@reexport using .Surface
 include("Sources/Sources.jl")
 @reexport using .Sources
 include("Lakes/Lakes.jl")

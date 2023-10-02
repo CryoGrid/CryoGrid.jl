@@ -2,54 +2,58 @@
 const Dirichlet = CryoGrid.Dirichlet
 const Neumann = CryoGrid.Neumann
 const WaterBC = BoundaryProcess{T} where {WaterBalance<:T<:SubSurfaceProcess}
+
 # Constant boundary constructors
 ConstantInfiltration(value::Quantity) = ConstantBC(WaterBalance, Neumann, uconvert(u"m/s", value))
 ConstantInfiltration(value) = ConstantBC(WaterBalance, Neumann, value)
 ImpermeableBoundary() = ConstantBC(WaterBalance, Neumann, 0.0u"m/s")
-"""
-    Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
 
-Basic rainfall boundary condition for `WaterBalance` which simply invokes the given precipitation
-forcing at the current time `t`.
-"""
-struct Rainfall{Train<:Forcing{u"m/s"}} <: BoundaryProcess{WaterBalance}
-    rain::Train
+function balancefluxes!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
+    θw = ssub.θw[1]
+    θwi = ssub.θwi[1]
+    θsat = ssub.θsat[1]
+    sat = ssub.sat[1]
+    Δz = CryoGrid.thickness(sub, ssub, first)
+    jw = ssub.jw_v[1] + ssub.jw_ET[1]
+    ssub.jw[1] = limit_upper_flux(water, jw*stop.dt, θw, θwi, θsat, sat, Δz)/stop.dt
 end
-CryoGrid.BoundaryStyle(::Type{<:Rainfall}) = Neumann()
-function CryoGrid.boundaryvalue(bc::Rainfall, ::Top, ::WaterBalance, ::SubSurface, stop, ssub)
-    rainfall_rate = bc.rain(stop.t)
-    # take the minimum of the current rainfall rate and the hydraulic conductivity at the top of the upper grid cell;
-    # note that this assumes rainfall to be in m/s
-    return min(rainfall_rate, ssub.kw[1])
+
+function balancefluxes!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
+    θw = ssub.θw[end]
+    θwi = ssub.θwi[end]
+    θsat = ssub.θsat[end]
+    sat = ssub.sat[end]
+    Δz = CryoGrid.thickness(sub, ssub, last)
+    jw = ssub.jw_v[end] + ssub.jw_ET[end]
+    ssub.jw[end] = limit_lower_flux(water, jw*sbot.dt, θw, θwi, θsat, sat, Δz)/sbot.dt
 end
-@inline CryoGrid.boundaryflux(::Neumann, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub) = boundaryvalue(bc,top,water,sub,stop,ssub)
-@inline CryoGrid.boundaryflux(::Neumann, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub) = boundaryvalue(bc,bot,water,sub,sbot,ssub)
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
+
+function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, top::Top, water::WaterBalance, sub::SubSurface, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first) # using `thickness` allows for generic layer implementations
-    @inbounds let ψupper=boundaryvalue(bc,top,water,sub,stop,ssub),
+    @inbounds let ψupper=boundaryvalue(bc, stop),
         ψsub=ssub.ψ[1],
         k=ssub.kw[1],
         δ=Δk/2; # distance to boundary
-        -k*(ψsub-ψupper)/δ
+        Numerics.flux(ψupper, ψsub, δ, k)
     end
 end
-@inline function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub)
+function CryoGrid.boundaryflux(::Dirichlet, bc::WaterBC, bot::Bottom, water::WaterBalance, sub::SubSurface, sbot, ssub)
     Δk = CryoGrid.thickness(sub, ssub, last) # using `thickness` allows for generic layer implementations
-    @inbounds let ψlower=boundaryvalue(bc,bot,water,sub,sbot,ssub),
+    @inbounds let ψlower=boundaryvalue(bc, sbot),
         ψsub=ssub.ψ[end],
         k=ssub.kw[end],
         δ=Δk/2; # distance to boundary
-        # note again the inverted sign; positive here means *upward from* the bottom boundary
-        # TODO: maybe change this convention? it seems needlessly confusing and bug-prone.
-        k*(ψlower-ψsub)/δ
+        Numerics.flux(ψsub, ψlower, δ, k)
     end
 end
+
 function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, water::WaterBalance, stop, ssub)
-    ssub.jw[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop,ssub)
+    ssub.jw_v[1] += CryoGrid.boundaryflux(bc, top, water, sub, stop, ssub)*ssub.dt
+    balancefluxes!(top, bc, sub, water, stop, ssub)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, water::WaterBalance, bot::Bottom, bc::WaterBC, ssub, sbot)
-    # sign flipped since positive flux is downward
-    ssub.jw[end] -= CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)
+    ssub.jw_v[end] += CryoGrid.boundaryflux(bc, bot, water, sub, ssub, sbot)*ssub.dt
+    balancefluxes!(sub, water, bot, bc, ssub, sbot)
     return nothing
 end
