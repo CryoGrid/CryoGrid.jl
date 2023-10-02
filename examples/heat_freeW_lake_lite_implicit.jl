@@ -6,11 +6,11 @@ CryoGrid.debug(true)
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-    0.1u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-    0.4u"m" => MineralOrganic(por=0.55,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+    0.0u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.75),
+    0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25),
+    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
+    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
+    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
 )
 tempprofile_linear = TemperatureProfile(
     0.0u"m" => -30.0u"°C",
@@ -27,12 +27,8 @@ initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit()
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    z_sub[1] => Lake(heat=HeatBalance(heatop)),
-    #z_sub[1] => Ground(HeatBalance(heatop), para=soilprofile[1].value),
-    #z_sub[2] => Ground(HeatBalance(heatop), para=soilprofile[2].value),
-    #z_sub[3] => Ground(HeatBalance(heatop), para=soilprofile[3].value),
-    #z_sub[4] => Ground(HeatBalance(heatop), para=soilprofile[4].value),
-    #z_sub[5] => Ground(HeatBalance(heatop), para=soilprofile[5].value),
+    -2.0u"m" => Lake(heat=HeatBalance(heatop)),
+    0.0u"m" => Ground(soilprofile[1].value, heat=HeatBalance(heatop)),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"
@@ -42,17 +38,15 @@ tspan = (DateTime(2010,12,30), DateTime(2015,12,30))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = @time initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
-lake_state = getstate(:lake, tile, u0, du0, prob.tspan[1])
-# debug one step
-CryoGrid.debug(true)
-tile(du0, u0, prob.p, prob.tspan[1])
+# set up integrator
 integrator = init(prob, LiteImplicitEuler(), dt=24*3600)
-step!(integrator)
+# debug one step
+@run step!(integrator)
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)
 
 # Plot the results
-zs = [5,10,15,20,25,30,40,50,100,500,1000,5000]u"cm"
+zs = [-200,-180,-160,-120,-100,-50,-10,-5,-1,1,5,11]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 plot(out.T[Z(Near(zs))] |> ustrip, color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)
