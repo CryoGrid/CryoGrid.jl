@@ -9,12 +9,12 @@
 using CryoGrid
 
 # First we set up the model:
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_1979_2020);
 grid = CryoGrid.Presets.DefaultGrid_5cm
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 sfcc = PainterKarra(swrc=VanGenuchten(α=0.1, n=2.0))
-upperbc = TemperatureGradient(forcings.Tair)
+upperbc = TemperatureGradient(forcings.Tair, NFactor(nf=0.6))
 lowerbc = GeothermalHeatFlux(0.053u"W/m^2")
 tile = CryoGrid.Presets.SoilHeatTile(upperbc, lowerbc, soilprofile, initT; grid=grid, freezecurve=sfcc)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
