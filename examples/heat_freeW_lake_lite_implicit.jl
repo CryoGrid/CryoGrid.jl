@@ -9,11 +9,11 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_t
 tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
 # snowdepth = TimeSeriesForcing(ustrip.(forcings.data.Dsn), forcings.timestamps, :Dsn);
 soilprofile = SoilProfile(
-    0.0u"m" => HomogeneousMixture(por=0.80,sat=0.9,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
-    0.1u"m" => HomogeneousMixture(por=0.80,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
-    0.4u"m" => HomogeneousMixture(por=0.55,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
-    3.0u"m" => HomogeneousMixture(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
-    10.0u"m" => HomogeneousMixture(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
+    0.0u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
+    0.1u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
+    0.4u"m" => MineralOrganic(por=0.55,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.55),
+    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0), #(θwi=0.50,θm=0.50,θo=0.0,ϕ=0.50),
+    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0), #(θwi=0.30,θm=0.70,θo=0.0,ϕ=0.30),
 )
 tempprofile_linear = TemperatureProfile(
     0.0u"m" => -30.0u"°C",
@@ -30,12 +30,12 @@ initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit()
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    z_sub[1] => :lake => Lake(HeatBalance(heatop)),
-    #z_sub[1] => :topsoil1 => Soil(HeatBalance(heatop), para=soilprofile[1].value),
-    #z_sub[2] => :topsoil2 => Soil(HeatBalance(heatop), para=soilprofile[2].value),
-    #z_sub[3] => :sediment1 => Soil(HeatBalance(heatop), para=soilprofile[3].value),
-    #z_sub[4] => :sediment2 => Soil(HeatBalance(heatop), para=soilprofile[4].value),
-    #z_sub[5] => :sediment3 => Soil(HeatBalance(heatop), para=soilprofile[5].value),
+    z_sub[1] => Lake(HeatBalance(heatop)),
+    #z_sub[1] => Ground(HeatBalance(heatop), para=soilprofile[1].value),
+    #z_sub[2] => Ground(HeatBalance(heatop), para=soilprofile[2].value),
+    #z_sub[3] => Ground(HeatBalance(heatop), para=soilprofile[3].value),
+    #z_sub[4] => Ground(HeatBalance(heatop), para=soilprofile[4].value),
+    #z_sub[5] => Ground(HeatBalance(heatop), para=soilprofile[5].value),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"

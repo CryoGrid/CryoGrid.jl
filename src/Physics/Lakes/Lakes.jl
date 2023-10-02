@@ -8,19 +8,20 @@ export Lake
 
 abstract type LakeParameterization <: CryoGrid.Parameterization end
 
-struct SimpleLakeScheme <: LakeParameterization end
+Base.@kwdef struct SimpleLakeScheme{Thp} <: LakeParameterization
+    heat::Thp = ThermalProperties()
+end
 
-Base.@kwdef struct Lake{Tpara<:LakeParameterization,Tsp,Tproc,Tprop} <: CryoGrid.SubSurface{Tproc}
+Base.@kwdef struct Lake{Tpara<:LakeParameterization,Theat<:HeatBalance,Taux} <: CryoGrid.SubSurface
     para::Tpara = SimpleLakeScheme()
-    prop::Tprop = CryoGrid.ThermalProperties()
-    sp::Tsp = nothing
-    proc::Tproc
+    heat::Theat = HeatBalance()
+    aux::Taux = nothing
 end
 
 Lake(proc::Tproc; kwargs...) where {Tproc} = Lake(;proc, kwargs...)
 
 # Material properties
-Heat.thermalproperties(lake::Lake) = lake.prop
+Heat.thermalproperties(lake::Lake) = lake.para.heat
 Hydrology.watercontent(::Lake, state) = 1.0
 CryoGrid.volumetricfractions(::Lake, state, i) = (state.θw[i], 1 - state.θw[i], 0.0)
 
@@ -93,7 +94,7 @@ end
 
 CryoGrid.computefluxes!(::Lake, ::HeatBalanceImplicit, state) = nothing
 
-function CryoGrid.computefluxes!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.Enthalpy}, state)
+function CryoGrid.computefluxes!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.EnthalpyBased}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -118,7 +119,7 @@ function CryoGrid.interact!(
     stop,
     slake
 )
-    @setscalar slake.T_ub = CryoGrid.boundaryvalue(bc, top, heat, lake, stop, slake)
+    @setscalar slake.T_ub = stop.T_ub
     # boundary flux
     slake.jH[1] += CryoGrid.boundaryflux(bc, top, heat, lake, stop, slake)
     return nothing
