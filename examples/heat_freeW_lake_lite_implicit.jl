@@ -2,6 +2,8 @@ using CryoGrid
 using CryoGrid.LiteImplicit
 using Plots
 
+CryoGrid.debug(true)
+
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term, :Tair => u"°C", :Ptot => u"mm");
 # use air temperature as upper boundary forcing 
 tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
@@ -18,7 +20,11 @@ tempprofile_linear = TemperatureProfile(
     10.0u"m" => -10.0u"°C", 
     1000.0u"m" => 10.2u"°C"
 )
+<<<<<<< HEAD
 modelgrid = Grid(vcat(-2.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
+=======
+modelgrid = CryoGrid.Presets.DefaultGrid_2cm
+>>>>>>> have no idea
 z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
@@ -28,12 +34,12 @@ initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit()
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    z_top => :lake => Lake(HeatBalance(heatop)),
-    z_sub[1] => :topsoil1 => Soil(HeatBalance(heatop), para=soilprofile[1].value),
-    z_sub[2] => :topsoil2 => Soil(HeatBalance(heatop), para=soilprofile[2].value),
-    z_sub[3] => :sediment1 => Soil(HeatBalance(heatop), para=soilprofile[3].value),
-    z_sub[4] => :sediment2 => Soil(HeatBalance(heatop), para=soilprofile[4].value),
-    z_sub[5] => :sediment3 => Soil(HeatBalance(heatop), para=soilprofile[5].value),
+    z_sub[1] => :lake => Lake(HeatBalance(heatop)),
+    #z_sub[1] => :topsoil1 => Soil(HeatBalance(heatop), para=soilprofile[1].value),
+    #z_sub[2] => :topsoil2 => Soil(HeatBalance(heatop), para=soilprofile[2].value),
+    #z_sub[3] => :sediment1 => Soil(HeatBalance(heatop), para=soilprofile[3].value),
+    #z_sub[4] => :sediment2 => Soil(HeatBalance(heatop), para=soilprofile[4].value),
+    #z_sub[5] => :sediment3 => Soil(HeatBalance(heatop), para=soilprofile[5].value),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"
@@ -45,10 +51,16 @@ u0, du0 = @time initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 lake_state = getstate(:lake, tile, u0, du0, prob.tspan[1])
 # debug one step
+<<<<<<< HEAD
 CryoGrid.debug(true)
 tile(du0, u0, prob.p, prob.tspan[1])
 integrator = init(prob, LiteImplicitEuler(), dt=24*3600)
 step!(integrator)
+=======
+@run tile(du0, u0, prob.p, prob.tspan[1])
+integrator = @time init(prob, LiteImplicitEuler(), dt=24*3600)
+@run step!(integrator)
+>>>>>>> have no idea
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)
