@@ -20,7 +20,11 @@ end
 
 # Material properties
 Heat.thermalproperties(lake::Lake) = lake.para.heat
+
 Hydrology.watercontent(::Lake, state) = 1.0
+
+CryoGrid.processes(lake::Lake) = lake.heat
+
 CryoGrid.volumetricfractions(::Lake, state, i) = (state.θw[i], 1 - state.θw[i], 0.0)
 
 CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
@@ -105,7 +109,7 @@ function CryoGrid.interact!(top::Top, bc::HeatBC, lake::Lake, heat::HeatBalanceI
     jH_top = boundaryflux(bc, top, heat, lake, stop, slake)
     k = slake.k[1]
     slake.DT_bp[1] += jH_top / Δk
-    slake.DT_ap[1] += Heat._ap(CryoGrid.BoundaryStyle(bc), k, Δk)
+    slake.DT_ap[1] += Heat._ap(CryoGrid.BCKind(bc), k, Δk)
     return nothing
 end
 
