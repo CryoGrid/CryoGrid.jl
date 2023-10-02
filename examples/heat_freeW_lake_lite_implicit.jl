@@ -4,10 +4,7 @@ using Plots
 
 CryoGrid.debug(true)
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term, :Tair => u"°C", :Ptot => u"mm");
-# use air temperature as upper boundary forcing 
-tair = TimeSeriesForcing(forcings.data.Tair, forcings.timestamps, :Tair);
-# snowdepth = TimeSeriesForcing(ustrip.(forcings.data.Dsn), forcings.timestamps, :Dsn);
+forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 soilprofile = SoilProfile(
     0.0u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.75), #(θwi=0.80,θm=0.05,θo=0.15,ϕ=0.80),
     0.1u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.25), #(θwi=0.80,θm=0.15,θo=0.05,ϕ=0.80),
@@ -24,13 +21,13 @@ modelgrid = Grid(vcat(-2.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_
 z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
-upperbc = TemperatureGradient(tair, NFactor())
+upperbc = TemperatureGradient(forcings.Tair, NFactor())
 initT = initializer(:T, tempprofile_linear)
 @info "Building stratigraphy"
 heatop = Heat.EnthalpyImplicit()
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    z_sub[1] => Lake(HeatBalance(heatop)),
+    z_sub[1] => Lake(heat=HeatBalance(heatop)),
     #z_sub[1] => Ground(HeatBalance(heatop), para=soilprofile[1].value),
     #z_sub[2] => Ground(HeatBalance(heatop), para=soilprofile[2].value),
     #z_sub[3] => Ground(HeatBalance(heatop), para=soilprofile[3].value),

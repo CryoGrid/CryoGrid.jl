@@ -18,8 +18,6 @@ Base.@kwdef struct Lake{Tpara<:LakeParameterization,Theat<:HeatBalance,Taux} <: 
     aux::Taux = nothing
 end
 
-Lake(proc::Tproc; kwargs...) where {Tproc} = Lake(;proc, kwargs...)
-
 # Material properties
 Heat.thermalproperties(lake::Lake) = lake.para.heat
 Hydrology.watercontent(::Lake, state) = 1.0
