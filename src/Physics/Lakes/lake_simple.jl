@@ -40,20 +40,20 @@ CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
     Diagnostic(:ubc_idx, Scalar, NoUnits, Int),
 )
 
-function CryoGrid.initialcondition!(lake::Lake, heat::HeatBalance, state)
-    L = heat.prop.L
-    # initialize liquid water content based on temperature
-    @inbounds for i in 1:length(state.T)
-        θwi = Hydrology.watercontent(lake, state, i)
-        state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
-        state.C[i] = heatcapacity(lake, heat, volumetricfractions(lake, state, i)...)
-        state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
-    end
+function CryoGrid.diagnosticstep!(::Lake, state)
+    T_ub = getscalar(state.T_ub)
+    @setscalar state.ubc_idx = get_upper_boundary_index(T_ub, state.θw)
+    return false
+end
+
+function CryoGrid.initialcondition!(lake::Lake, state)
+    initialcondition!(lake, lake.heat, state)
+    diagnosticstep!(lake, state)
 end
 
 function CryoGrid.interact!(top::Top, bc::HeatBC, lake::Lake, heat::HeatBalanceImplicit, stop, slake)
     T_ub = slake.T_ub[1] = getscalar(stop.T_ub)
-    ubc_idx = get_upper_boundary_index(T_ub, slake.θw)
+    ubc_idx = Int(getscalar(slake.ubc_idx))
     # get variables
     an = slake.DT_an
     as = slake.DT_as
@@ -81,6 +81,7 @@ function CryoGrid.interact!(lake::Lake, ::HeatBalanceImplicit, sub::SubSurface, 
     Δk₁ = CryoGrid.thickness(lake, slake, last)
     Δk₂ = CryoGrid.thickness(sub, ssub, first)
     Δz = CryoGrid.midpoint(sub, ssub, first) - CryoGrid.midpoint(lake, slake, last)
+    ubc_idx = Int(getscalar(slake.ubc_idx))
     # thermal conductivity between cells
     k = slake.k[end] = ssub.k[1] =
         @inbounds let k₁ = slake.kc[end],
@@ -89,7 +90,6 @@ function CryoGrid.interact!(lake::Lake, ::HeatBalanceImplicit, sub::SubSurface, 
             Δ₂ = Δk₂[1];
             harmonicmean(k₁, k₂, Δ₁, Δ₂)
         end
-    ubc_idx = get_upper_boundary_index(slake.T_ub[1], slake.θw)
     slake.DT_ap[end] += slake.DT_as[end] = (ubc_idx <= length(slake.θw))*k / Δz / Δk₁
     ssub.DT_ap[1] += ssub.DT_an[1] = k / Δz / Δk₂
     return nothing

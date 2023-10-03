@@ -128,6 +128,14 @@ timestep(layer::Layer, state) = timestep(layer, processes(layer), state)
 timestep(::Layer, ::Process, state) = Inf
 
 """
+    diagnosticstep!(layer::Layer, state)
+
+Optionally performs discontinuous/discrete-time updates to the layer state. Should return `true`
+if the prognostic state was modified and `false` otherwise. Defaults to returning `false`.
+"""
+diagnosticstep!(layer::Layer, state) = false
+
+"""
     parameterize(x::T) where {T}
     parameterize(x::Unitful.AbstractQuantity; props...)
     parameterize(p::Param; ignored...)

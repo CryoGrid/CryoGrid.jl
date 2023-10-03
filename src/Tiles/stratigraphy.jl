@@ -146,6 +146,12 @@ function CryoGrid.updatestate!(strat::Stratigraphy, state)
     end
 end
 
+function CryoGrid.diagnosticstep!(strat::Stratigraphy, state)
+    fastiterate(namedlayers(strat)) do named_layer
+        CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, nameof(named_layer)))
+    end
+end
+
 """
     interact!(strat::Stratigraphy, state)
 

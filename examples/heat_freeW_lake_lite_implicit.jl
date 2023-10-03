@@ -59,7 +59,7 @@ state.top.T_ub
 state.lake.T
 
 @info "Running model"
-sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
+sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600.0)
 out = CryoGridOutput(sol)
 
 # Plot the results

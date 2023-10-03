@@ -12,6 +12,9 @@ function CryoGrid.perform_step!(integrator::CGLiteIntegrator)
     # explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
     implicit_step!(integrator, tile, du, u, p, t)
+    # diagnostic udpate
+    CryoGrid.diagnosticstep!(tile, getstate(integrator))
+    # update t and step number
     integrator.t = t
     integrator.step += 1
     return nothing
