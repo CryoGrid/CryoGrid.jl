@@ -18,6 +18,19 @@ Base.@kwdef struct Lake{Tpara<:LakeParameterization,Theat<:HeatBalance,Taux} <: 
     aux::Taux = nothing
 end
 
+function get_upper_boundary_index(T_ub, θw)
+    ubc_idx = 1
+    if T_ub >= zero(T_ub)
+        @inbounds for i in eachindex(θw)
+            ubc_idx = i
+            if θw[i] < one(eltype(θw))
+                break
+            end
+        end
+    end
+    return ubc_idx
+end
+
 # Material properties
 Heat.thermalproperties(lake::Lake) = lake.para.heat
 
@@ -32,6 +45,7 @@ CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
     # Diagnostic(:I_t, OnGrid(Cells), desc="Indicator variable for is thawed (1 or 0)."),
     Diagnostic(:ρ_w, Scalar, u"kg*m^-3", domain=0..Inf, desc = "density of water with temperature"),
     Diagnostic(:T_ub, Scalar, u"°C"),
+    Diagnostic(:ubc_idx, Scalar, NoUnits, Int),
 )
 
 function CryoGrid.initialcondition!(lake::Lake, heat::HeatBalance, state)
@@ -45,7 +59,50 @@ function CryoGrid.initialcondition!(lake::Lake, heat::HeatBalance, state)
     end
 end
 
-function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance, state)
+function CryoGrid.interact!(top::Top, bc::HeatBC, lake::Lake, heat::HeatBalanceImplicit, stop, slake)
+    jH_top = boundaryflux(bc, top, heat, lake, stop, slake)
+    T_ub = slake.T_ub[1] = getscalar(stop.T_ub)
+    ubc_idx = get_upper_boundary_index(T_ub, slake.θw)
+    # get variables
+    an = slake.DT_an
+    as = slake.DT_as
+    ap = slake.DT_ap
+    bp = slake.DT_bp
+    k = slake.k
+    dx = Δ(cells(slake.grid))
+    dxp = Δ(slake.grid)
+    # first lake cell
+    bp[1] += jH_top / dxp[1]
+    ap[1] += Heat.apbc(CryoGrid.BCKind(bc), k[1], dxp[1])
+    # deeper lake cells
+    @inbounds for i in 2:ubc_idx
+        bp[i] += jH_top / dxp[i]
+        ap[i] -= as[i]
+        as[i] = zero(eltype(as))
+        an[i] = zero(eltype(an))
+        ap[i] += Heat.apbc(CryoGrid.BCKind(bc), k[i], dxp[i], dx[i-1])
+    end
+    return nothing
+end
+function CryoGrid.interact!(lake::Lake, ::HeatBalanceImplicit, sub::SubSurface, ::HeatBalanceImplicit, slake, ssub)
+    Δk₁ = CryoGrid.thickness(lake, slake, last)
+    Δk₂ = CryoGrid.thickness(sub, ssub, first)
+    Δz = CryoGrid.midpoint(sub, ssub, first) - CryoGrid.midpoint(lake, slake, last)
+    # thermal conductivity between cells
+    k = slake.k[end] = ssub.k[1] =
+        @inbounds let k₁ = slake.kc[end],
+            k₂ = ssub.kc[1],
+            Δ₁ = Δk₁[end],
+            Δ₂ = Δk₂[1];
+            harmonicmean(k₁, k₂, Δ₁, Δ₂)
+        end
+    ubc_idx = get_upper_boundary_index(slake.T_ub[1], slake.θw)
+    slake.DT_ap[end] += slake.DT_as[end] = (ubc_idx < length(slake.θw))*k / Δz / Δk₁
+    ssub.DT_ap[1] += ssub.DT_an[1] = k / Δz / Δk₂
+    return nothing
+end
+
+function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance{FreeWater,<:Heat.MOLEnthalpy}, state)
     Heat.resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
     Heat.freezethaw!(sub, heat, state)
@@ -61,42 +118,7 @@ function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance, state)
     return nothing
 end
 
-function CryoGrid.updatestate!(
-    sub::Lake,
-    heat::HeatBalanceImplicit,
-    state
-)
-    Heat.resetfluxes!(sub, heat, state)
-    # Evaluate freeze/thaw processes
-    Heat.freezethaw!(sub, heat, state)
-    # Update thermal conductivity
-    Heat.thermalconductivity!(sub, heat, state)
-    isthawed = true
-    @inbounds for i in eachindex(state.θw)
-        isthawed = isthawed && state.θw[i] ≈ 1.0
-    end
-    I_f = 1 - Float64(isthawed)
-    # Compute diffusion coefficients
-    an = state.DT_an
-    as = state.DT_as
-    ap = state.DT_ap
-    k = state.k
-    dx = Δ(cells(state.grid))
-    dxp = Δ(state.grid)
-    k_inner = @view k[2:end-1]
-    dxpn = @view dxp[1:end-1]
-    dxps = @view dxp[2:end]
-    @. an[2:end] = k_inner / dx / dxpn
-    @. as[1:end-1] = (k_inner / dx / dxps)*I_f
-    @. ap[1:end-1] += as[1:end-1]
-    @. ap[2:end] += an[2:end]
-    @. an[2:end] *= I_f
-    return nothing
-end
-
-CryoGrid.computefluxes!(::Lake, ::HeatBalanceImplicit, state) = nothing
-
-function CryoGrid.computefluxes!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.EnthalpyBased}, state)
+function CryoGrid.computefluxes!(::Lake, ::HeatBalance{FreeWater,<:Heat.MOLEnthalpy}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -104,20 +126,12 @@ function CryoGrid.computefluxes!(::Lake, ::HeatBalance{<:FreezeCurve,<:Heat.Enth
     return nothing
 end
 
-function CryoGrid.interact!(top::Top, bc::HeatBC, lake::Lake, heat::HeatBalanceImplicit, stop, slake)
-    Δk = CryoGrid.thickness(lake, slake, first)
-    jH_top = boundaryflux(bc, top, heat, lake, stop, slake)
-    k = slake.k[1]
-    slake.DT_bp[1] += jH_top / Δk
-    slake.DT_ap[1] += Heat._ap(CryoGrid.BCKind(bc), k, Δk)
-    return nothing
-end
 
 function CryoGrid.interact!(
     top::Top,
     bc::HeatBC,
     lake::Lake,
-    heat::HeatBalance,
+    heat::HeatBalance{FreeWater,<:Heat.MOLEnthalpy},
     stop,
     slake
 )
@@ -126,6 +140,5 @@ function CryoGrid.interact!(
     slake.jH[1] += CryoGrid.boundaryflux(bc, top, heat, lake, stop, slake)
     return nothing
 end
-
 
 end

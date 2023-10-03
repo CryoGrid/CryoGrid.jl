@@ -13,7 +13,8 @@ soilprofile = SoilProfile(
     10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
 )
 tempprofile_linear = TemperatureProfile(
-    0.0u"m" => -30.0u"°C",
+    -2.0u"m" => 0.0u"°C",
+    0.0u"m" => 0.0u"°C",
     10.0u"m" => -10.0u"°C", 
     1000.0u"m" => 10.2u"°C"
 )
@@ -21,7 +22,7 @@ modelgrid = Grid(vcat(-2.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_
 z_top = -2.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
-upperbc = TemperatureGradient(forcings.Tair, NFactor())
+upperbc = TemperatureGradient(forcings.Tair, NFactor(nf=0.5))
 initT = initializer(:T, tempprofile_linear)
 @info "Building stratigraphy"
 heatop = Heat.EnthalpyImplicit()
@@ -34,19 +35,22 @@ strat = @Stratigraphy(
 @info "Building tile"
 tile = @time Tile(strat, modelgrid, initT)
 # define time span, 5 years
-tspan = (DateTime(2010,12,30), DateTime(2015,12,30))
+tspan = (DateTime(2010,12,30), DateTime(2012,12,30))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = @time initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 # set up integrator
 integrator = init(prob, LiteImplicitEuler(), dt=24*3600)
 # debug one step
-@run step!(integrator)
+step!(integrator)
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)
 
 # Plot the results
-zs = [-200,-180,-160,-120,-100,-50,-10,-5,-1,1,5,11]u"cm"
+zs = [-200,-150.0,-100.0,-50.0,-1.0,3.0]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
-plot(out.T[Z(Near(zs))] |> ustrip, color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)
+plot(convert_t.(dims(out.T, Ti)), Array(out.T[Z(Near(zs))])' |> ustrip, color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", dpi=150)
+plot!(convert_t.(dims(out.T, Ti)), t -> forcings.Tair.(t))
+
+Plots.plotly()
