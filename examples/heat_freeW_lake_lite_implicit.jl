@@ -2,6 +2,8 @@ using CryoGrid
 using CryoGrid.LiteImplicit
 using Plots
 
+Plots.plotly()
+
 CryoGrid.debug(true)
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
@@ -18,8 +20,8 @@ tempprofile_linear = TemperatureProfile(
     10.0u"m" => -10.0u"°C", 
     1000.0u"m" => 10.2u"°C"
 )
-modelgrid = Grid(vcat(-2.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
-z_top = -2.0u"m"
+modelgrid = Grid(vcat(-1.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
+z_top = -1.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
 upperbc = TemperatureGradient(forcings.Tair, NFactor(nf=0.5))
@@ -28,7 +30,7 @@ initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit()
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    -2.0u"m" => Lake(heat=HeatBalance(heatop)),
+    -1.0u"m" => Lake(heat=HeatBalance(heatop)),
     0.0u"m" => Ground(soilprofile[1].value, heat=HeatBalance(heatop)),
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
@@ -43,14 +45,25 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:θw,:T,))
 integrator = init(prob, LiteImplicitEuler(), dt=24*3600)
 # debug one step
 step!(integrator)
+
+for i in integrator
+    state = getstate(integrator)
+    if state.top.T_ub[1] > 0.0
+        break
+    end
+end
+
+step!(integrator)
+state = getstate(integrator)
+state.top.T_ub
+state.lake.T
+
 @info "Running model"
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600)
 out = CryoGridOutput(sol)
 
 # Plot the results
-zs = [-200,-150.0,-100.0,-50.0,-1.0,3.0]u"cm"
+zs = [-100,-50.0,-10.0,11.0]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 plot(convert_t.(dims(out.T, Ti)), Array(out.T[Z(Near(zs))])' |> ustrip, color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", dpi=150)
-plot!(convert_t.(dims(out.T, Ti)), t -> forcings.Tair.(t))
-
-Plots.plotly()
+plot!(convert_t.(dims(out.T, Ti)), t -> forcings.Tair.(t), c=:blue, linestyle=:dash)

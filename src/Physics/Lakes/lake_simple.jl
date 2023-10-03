@@ -16,11 +16,11 @@ function get_upper_boundary_index(T_ub, θw)
         @inbounds for i in eachindex(θw)
             ubc_idx = i
             if θw[i] < one(eltype(θw))
-                break
+                return ubc_idx
             end
         end
     end
-    return ubc_idx
+    return ubc_idx+1
 end
 
 # Material properties
@@ -52,7 +52,6 @@ function CryoGrid.initialcondition!(lake::Lake, heat::HeatBalance, state)
 end
 
 function CryoGrid.interact!(top::Top, bc::HeatBC, lake::Lake, heat::HeatBalanceImplicit, stop, slake)
-    jH_top = boundaryflux(bc, top, heat, lake, stop, slake)
     T_ub = slake.T_ub[1] = getscalar(stop.T_ub)
     ubc_idx = get_upper_boundary_index(T_ub, slake.θw)
     # get variables
@@ -63,16 +62,18 @@ function CryoGrid.interact!(top::Top, bc::HeatBC, lake::Lake, heat::HeatBalanceI
     k = slake.k
     dx = Δ(cells(slake.grid))
     dxp = Δ(slake.grid)
-    # first lake cell
-    bp[1] += jH_top / dxp[1]
-    ap[1] += Heat.apbc(CryoGrid.BCKind(bc), k[1], dxp[1])
-    # deeper lake cells
-    @inbounds for i in 2:ubc_idx
-        bp[i] += jH_top / dxp[i]
-        ap[i] -= as[i]
+    # outer lake cell
+    bp[1] = T_ub*k[1] / (dxp[1]/2) / dxp[1]
+    ap[1] = k[1] / (dxp[1]/2) / dxp[1]
+    if ubc_idx > 1
+        as[1] = an[1] = zero(eltype(as))
+    end
+    # inner lake cells
+    @inbounds for i in 2:ubc_idx-1
+        bp[i] = T_ub*k[i] / dx[i-1] / dxp[i]
+        ap[i] = an[i]
         as[i] = zero(eltype(as))
         an[i] = zero(eltype(an))
-        ap[i] += Heat.apbc(CryoGrid.BCKind(bc), k[i], dxp[i], dx[i-1])
     end
     return nothing
 end
@@ -89,7 +90,7 @@ function CryoGrid.interact!(lake::Lake, ::HeatBalanceImplicit, sub::SubSurface, 
             harmonicmean(k₁, k₂, Δ₁, Δ₂)
         end
     ubc_idx = get_upper_boundary_index(slake.T_ub[1], slake.θw)
-    slake.DT_ap[end] += slake.DT_as[end] = (ubc_idx < length(slake.θw))*k / Δz / Δk₁
+    slake.DT_ap[end] += slake.DT_as[end] = (ubc_idx <= length(slake.θw))*k / Δz / Δk₁
     ssub.DT_ap[1] += ssub.DT_an[1] = k / Δz / Δk₂
     return nothing
 end
