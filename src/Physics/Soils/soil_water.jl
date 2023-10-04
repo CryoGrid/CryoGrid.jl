@@ -78,6 +78,7 @@ function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Sa
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = θsat = Hydrology.maxwater(soil, water, state, i)
             state.θwi[i] = θwi = state.sat[i]*θsat
+            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
             # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi, but this is necessary
             # for solving schemes that might attempt to use illegal state values
             state.ψ₀[i] = f⁻¹(max(θres, min(θwi, θsat)); θsat)

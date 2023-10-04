@@ -18,22 +18,22 @@ initT = initializer(:T, tempprofile);
 
 # Here we conigure the water retention curve and freeze curve. The van Genuchten parameters coorespond to that
 # which would be reasonable for a silty soil.
-swrc = VanGenuchten(α=0.1, n=1.8)
+swrc = VanGenuchten(α=1.0, n=1.5)
 sfcc = PainterKarra(ω=0.0; swrc)
-waterflow = RichardsEq(swrc=swrc);
+waterflow = RichardsEq(;swrc);
 
 # We use the enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
-heatop = Heat.MOLEnthalpy(SFCCNewtonSolver())
+heatop = Heat.MOLEnthalpy(SFCCPreSolver())
 upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureGradient(forcings.Tair, NFactor(nf=0.6, nt=0.9)));
 
 # We will use a simple stratigraphy with three subsurface soil layers.
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers without wrapping them in a tuple.
-heat = HeatBalance(heatop, freezecurve=sfcc, advection=false)
-water = WaterBalance(RichardsEq(; swrc))
+heat = HeatBalance(heatop, freezecurve=sfcc)
+water = WaterBalance(waterflow)
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.7,org=0.75); heat, water),
-    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.8,org=0.10); heat, water),
+    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.8,org=0.75); heat, water),
+    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.9,org=0.10); heat, water),
     2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0); heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
@@ -41,7 +41,7 @@ grid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, grid, initT);
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw));
-integrator = init(prob, Euler(), dt=60.0)
+integrator = init(prob, CGEuler())
 
 using BenchmarkTools
 @btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
@@ -62,14 +62,16 @@ state = getstate(integrator);
 @time while integrator.t < prob.tspan[end]
     @assert all(isfinite.(integrator.u))
     @assert all(0 .<= integrator.u.sat .<= 1)
-    ## run the integrator forward in daily increments
+    ## run the integrator forward in 24 hour increments
     step!(integrator, 24*3600.0)
     t = convert_t(integrator.t)
     @info "t=$t, current dt=$(integrator.dt*u"s")"
+    if integrator.dt < 0.01
+        @warn "dt=$(integrator.dt) < 0.01 s; this may indicate a problem!"
+        break
+    end
 end;
 out = CryoGridOutput(integrator.sol)
-
-@run step!(integrator)
 
 # Check mass conservation...
 water_added = values(sum(upreferred.(forcings.rainfall.(tspan[1]:Hour(3):tspan[2]).*u"m/s".*3u"hr")))[1]
@@ -81,5 +83,5 @@ import Plots
 zs = [1,5,10,15,20,30,40,50,100,150,200]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 p1 = Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-p2 = Plots.plot(out.sat[Z(1:10)], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
+p2 = Plots.plot(out.sat[Z(Near([1,5,10,15,30,50,100]u"cm"))], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
 Plots.plot(p1, p2, size=(1200,400))

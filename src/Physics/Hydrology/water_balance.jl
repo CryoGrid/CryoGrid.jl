@@ -9,8 +9,8 @@ function limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (ii): jw > 0 -> inflow -> limit based on available space
     # case (iii): jw = 0 -> no flow, limit has no effect
     jw = min(max(jw, -θw*Δz), (θsat - θwi)*Δz)
-    # influx reduction factor
-    r = reductionfactor(water, sat)*(jw > zero(jw)) + 1.0*(jw <= zero(jw))
+    # influx reduction factors
+    r = reduction_factor_in(water, sat)*(jw > zero(jw)) + reduction_factor_out(water, sat)*(jw <= zero(jw))
     return r*jw
 end
 
@@ -25,8 +25,8 @@ function limit_lower_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
     # case (ii): jw > 0 -> outflow -> limit based on available water
     # case (iii): jw = 0 -> no flow, limit has no effect
     jw = min(max(jw, (θwi - θsat)*Δz), θw*Δz)
-    # influx reduction factor
-    r = reductionfactor(water, sat)*(jw < zero(jw)) + 1.0*(jw >= zero(jw))
+    # influx reduction factors
+    r = reduction_factor_in(water, sat)*(jw < zero(jw)) + reduction_factor_out(water, sat)*(jw >= zero(jw))
     return r*jw
 end
 
@@ -128,16 +128,18 @@ function waterprognostic!(::SubSurface, ::WaterBalance{<:BucketScheme}, state)
 end
 
 # Helper methods
-"""
-    reductionfactor(water::WaterBalance, x)
+function reduction_factor_out(water::WaterBalance, sat)
+    smoothness = water.prop.rf_smoothness
+    rf = 1 - exp(-sat/smoothness)
+    return rf
+end
+function reduction_factor_in(water::WaterBalance, sat)
+    smoothness = water.prop.rf_smoothness
+    rf = 1 - exp((sat-1)/smoothness)
+    return rf
+end
 
-Hydraulic conductivity reduction factor for near-saturated conditions:
-```math
-r(x) = (1-exp(-βx^2))*(1-exp(-β*(1-x)^2))
-```
-where β is a smoothness parameter and c is the "center" or shift parameter.
-"""
-reductionfactor(water::WaterBalance, x) = 1 - exp(-water.prop.r_β*(1-x)^2)
+# reduction_factor(water::WaterBalance, x) = 1 - exp(-water.prop.r_β*(1-x)^2)
 
 """
     resetfluxes!(::SubSurface, water::WaterBalance, state)
@@ -220,7 +222,7 @@ function CryoGrid.timestep(
 ) where {TFlow,TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
-        dt = water.dtlim(state.∂sat∂t[i], state.sat[i], state.t, zero(state.t), one(state.t))
+        dt = water.dtlim(state.∂θwi∂t[i], state.θwi[i], state.t, zero(state.t), state.θsat[i])
         dt = isfinite(dt) && dt > zero(dt) ? dt : Inf # make sure it's +Inf
         dtmax = min(dtmax, dt)
     end

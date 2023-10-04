@@ -3,11 +3,12 @@
 
 Numerical constants shared across water balance implementations.
 """
-Base.@kwdef struct WaterBalanceProperties{Tρw,TLsg,Trb,Trc}
+Base.@kwdef struct WaterBalanceProperties{Tρw,TLsg,Trfs}
     ρw::Tρw = CryoGrid.Constants.ρw
     Lsg::TLsg = CryoGrid.Constants.Lsg
-    r_β::Trb = 1e3 # reduction factor scale parameter
-    r_c::Trc = 0.96325 # reduction factor shift parameter
+    rf_smoothness::Trfs = 0.3
+    # r_β::Trb = 1e3 # reduction factor scale parameter
+    # r_c::Trc = 0.96325 # reduction factor shift parameter
 end
 
 # do not parameterize water balance constants
