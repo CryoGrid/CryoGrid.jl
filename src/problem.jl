@@ -39,14 +39,14 @@ end
         prob_kwargs...
     )
 
-Constructor for `CryoGridProblem` that automatically generates necessary callbacks for saving
-diagnostic state variables
+Constructor for `CryoGridProblem` that automatically generates all necessary callbacks.
 """
 function CryoGridProblem(
     tile::Tile,
     u0::ComponentVector,
     tspan::NTuple{2,Float64},
     p=nothing;
+    diagnostic_step=3600.0,
     saveat=3600.0,
     savevars=(),
     save_everystep=false,
@@ -67,9 +67,12 @@ function CryoGridProblem(
     expandtstep(tstep::AbstractVector) = tstep
     getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
+    invokediagnostic!(integrator) = diagnosticstep!(Tile(integrator), getstate(integrator))
     tile, p = if isnothing(p) && isempty(ModelParameters.params(tile))
+        # case 1: no parameters provided
         tile, nothing
     else
+        # case 2: parameters are provided; use Model interface to reconstruct Tile with new parameter values
         model_tile = Model(tile)
         p = isnothing(p) ? collect(model_tile[:val]) : p
         model_tile[:val] = p
@@ -83,8 +86,12 @@ function CryoGridProblem(
     savevals = SavedValues(Float64, typeof(stateproto))
     saveat = expandtstep(saveat)
     savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
+    diagnostic_callback = PresetTimeCallback(tspan[1]:diagnostic_step:tspan[end], invokediagnostic!)
+    defaultcallbacks = (savingcallback, diagnostic_callback)
     # add step limiter to default callbacks, if defined
-    defaultcallbacks = isnothing(step_limiter) ? (savingcallback,) : (savingcallback, StepsizeLimiter(step_limiter; safety_factor, max_step))
+    if !isnothing(step_limiter)
+        defaultcallbacks = (defaultcallbacks..., StepsizeLimiter(step_limiter; safety_factor, max_step))
+    end
     # build layer callbacks
     layercallbacks = _makecallbacks(tile)
     # add user callbacks
@@ -92,6 +99,7 @@ function CryoGridProblem(
     callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
     tile.data.outputs = savevals
+    # build mass matrix
     mass_matrix = Numerics.build_mass_matrix(tile.state)
 	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
 	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
