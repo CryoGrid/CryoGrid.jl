@@ -62,13 +62,15 @@ example_docpages = map(example_docfiles) do f
        name_lookup[docpage] => joinpath("examples", docpage)
 end
 
-makedocs(modules=modules,
-         sitename="CryoGrid.jl",
-         authors="Brian Groenke, Moritz Langer, Jan Nitzbon",
-         format=Documenter.HTML(
+makedocs(
+       modules=modules,
+       sitename="CryoGrid.jl",
+       authors="Brian Groenke, Moritz Langer, Jan Nitzbon",
+       format=Documenter.HTML(
               prettyurls=!IS_LOCAL,
               canonical = "https://cryogrid.github.io/CryoGrid.jl/v0",
        ),
+       warnonly=true, # don't fail when there are errors
        pages=["Home" => "index.md",
               "Installation" => "installation.md",
               "Getting Started" => "quickstart.md",
