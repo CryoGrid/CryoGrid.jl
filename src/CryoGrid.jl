@@ -53,7 +53,7 @@ include("variables.jl")
 export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
 
-export initialcondition!, updatestate!, interact!, interactmaybe!, computefluxes!, resetfluxes!
+export initialcondition!, updatestate!, interact!, interactmaybe!, computefluxes!, resetfluxes!, diagnosticstep!
 export variables, processes, initializers, timestep, isactive, caninteract
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")

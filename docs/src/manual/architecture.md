@@ -46,7 +46,7 @@ The `Stratigraphy` is simply a `Tuple` of layers in ascending order of depth (i.
 
 Each `SubSurface` layer in the stratigraphy will typically consist of one or more `Process`es as fields on the layer `struct` which should then be explicitly declared via a dispatch of the [`processes`](@ref) method. The [`variables`](@ref) and [`events`](@ref) methods similarly declare state variables and events respectively that should be defined for any given configuration of the layer.
 
-The `Tile` constructor collects all of the relevant state variables declared by `variables` and discretizes them according to the given [`DiscretizationStrategy`](@ref). The resulting state vectors are initialized in the forward-diff compatible [`StateVars`](@ref) cache. On each invocation of the `Tile` (i.e. the [`evaluate!`](@ref) method), the current [`TileState`](@ref) is constructed from the current prognostic state variable `u`, parameter vector `p`, and time step `t`. The `TileState` consists of named [`LayerState`](@ref)s which provide layer-local `view`s of each state variable array, i.e. only grid cells within the layer boundaries are included.
+The `Tile` constructor collects all of the relevant state variables declared by `variables` and discretizes them according to the given [`DiscretizationStrategy`](@ref). The resulting state vectors are initialized in the forward-diff compatible [`StateVars`](@ref) cache. On each invocation of the `Tile` (i.e. the [`prognostic!`](@ref) method), the current [`TileState`](@ref) is constructed from the current prognostic state variable `u`, parameter vector `p`, and time step `t`. The `TileState` consists of named [`LayerState`](@ref)s which provide layer-local `view`s of each state variable array, i.e. only grid cells within the layer boundaries are included.
 
 ## Control flow
 
@@ -56,7 +56,7 @@ The `CryoGrid` module defines three primary methods that can be used to implemen
 2. [`interact!`](@ref) defines interactions between adjacent layers in the stratigraphy, including fluxes over the layer boundary.
 3. [`computefluxes!`](@ref) computes all internal fluxes (and the divergence thereof) within each layer, after boundary fluxes are taken into account by `interact!`.
 
-Layer and/or process specific implementations of each of these methods can generally assume that the previous methods have already been invoked by the caller (it is the responsibility of the calling code to ensure that this is the case). This is, for example, the order in which these methods will be invoked by [`evaluate!(du, u, p t)`](@ref).
+Layer and/or process specific implementations of each of these methods can generally assume that the previous methods have already been invoked by the caller (it is the responsibility of the calling code to ensure that this is the case). This is, for example, the order in which these methods will be invoked by [`prognostic!(du, u, p t)`](@ref).
 
 Note that, due to the nature of multiple dispatch, the execution path (i.e. with respect to the actual source code) of any given model configuration will typically be quite nonlinear and may span multiple source files depending on where the matching method dispatches are defined. Users may find the `which` provided by Julia (and correspondingly the `@which` macro from `InteractiveUtils`) useful in figuring out where executing code is located. For example:
 

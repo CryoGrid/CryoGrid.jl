@@ -15,9 +15,9 @@ abstract type AbstractTile{iip} end
     (tile::AbstractTile{true})(du,u,p,t,dt=1.0)
     (tile::AbstractTile{false})(u,p,t,dt=1.0)
 
-Invokes the corresponding `evaluate!` function to compute the time derivative du/dt.
+Invokes the corresponding `prognostic!` function to compute the time derivative du/dt.
 """
-(tile::AbstractTile{true})(du, u, p, t, dt=1.0) = evaluate!(tile,du,u,p,t,dt)
+(tile::AbstractTile{true})(du, u, p, t, dt=1.0) = prognostic!(tile,du,u,p,t,dt)
 (tile::AbstractTile{false})(u, p, t, dt=1.0) = evaluate(tile,u,p,t,dt)
 
 """
@@ -28,11 +28,11 @@ Returns true if `tile` uses in-place mode, false if out-of-place.
 isinplace(::AbstractTile{iip}) where {iip} = iip
 
 """
-    evaluate!(::T,du,u,p,t) where {T<:AbstractTile}
+    prognostic!(::T,du,u,p,t) where {T<:AbstractTile}
 
 In-place update function for tile `T`. Computes du/dt and stores the result in `du`.
 """
-evaluate!(::T, du, u, p, t, dt=1.0) where {T<:AbstractTile} = error("no implementation of in-place evaluate! for $T")
+prognostic!(::T, du, u, p, t, dt=1.0) where {T<:AbstractTile} = error("no implementation of in-place prognostic! for $T")
 """
     evaluate(::T,u,p,t) where {T<:AbstractTile}
 
@@ -143,7 +143,7 @@ function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
 end
 
 """
-    evaluate!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
+    prognostic!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
 Time derivative step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
@@ -155,7 +155,7 @@ interact!(layer[i], ..., layer[i+1], ...)
 computefluxes!(layer[i], ...)
 ```
 """
-function evaluate!(
+function prognostic!(
     _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
     _du,
     _u,
@@ -180,6 +180,8 @@ function evaluate!(
     checkstate!(tile, state, u, du, :computefluxes!)
     return nothing
 end
+
+CryoGrid.diagnosticstep!(tile::Tile, state) = diagnosticstep!(tile.strat, state)
 
 """
     timestep(_tile::Tile, _du, _u, p, t)
@@ -222,7 +224,7 @@ function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=noth
     state = TileState(tile.state, zs, u, du, t0, 1.0, Val{iip}())
     CryoGrid.initialcondition!(strat, state, tile.inits)
     # evaluate initial time derivative
-    evaluate!(tile, du, u, p, t0)
+    prognostic!(tile, du, u, p, t0)
     return u, du
 end
 

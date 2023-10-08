@@ -3,6 +3,26 @@ Type alias for the implicit enthalpy formulation of HeatBalance.
 """
 const HeatBalanceImplicit{Tfc} = HeatBalance{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
 
+apbc(::Dirichlet, k, Δk) = k / (Δk^2/2)
+apbc(::Dirichlet, k, Δk, Δx) = k / Δx / Δk
+apbc(::Neumann, k, Δk) = 0
+
+function prefactors!(ap, an, as, k, dx, dxp)
+    # loop over grid cells
+    @inbounds for i in eachindex(dxp)
+        if i == 1
+            as[1] = k[2] / dx[1] / dxp[1]
+        elseif i == length(dxp)
+            an[end] = k[end-1] / dx[end] / dxp[end]
+        else
+            an[i] = k[i] / dx[i-1] / dxp[i]
+            as[i] = k[i+1] / dx[i] / dxp[i]
+        end
+        ap[i] = an[i] + as[i]
+    end
+    return nothing
+end
+
 CryoGrid.variables(::HeatBalanceImplicit) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
@@ -12,12 +32,13 @@ CryoGrid.variables(::HeatBalanceImplicit) = (
     Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
     Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
     Diagnostic(:θw, OnGrid(Cells), domain=0..1),
-    # coefficients and cache variables for diffusion operator
+    # coefficients and cache variables for implicit diffusion operator
     Diagnostic(:DT_an, OnGrid(Cells)),
     Diagnostic(:DT_as, OnGrid(Cells)),
     Diagnostic(:DT_ap, OnGrid(Cells)),
     Diagnostic(:DT_bp, OnGrid(Cells)),
 )
+
 function CryoGrid.updatestate!(
     sub::SubSurface,
     heat::HeatBalanceImplicit,
@@ -34,29 +55,10 @@ function CryoGrid.updatestate!(
     k = state.k
     dx = Δ(cells(state.grid))
     dxp = Δ(state.grid)
-    # loop over grid cells
-    @inbounds for i in eachindex(dxp)
-        if i == 1
-            as[1] = k[2] / dx[1] / dxp[1]
-        elseif i == length(dxp)
-            an[end] = k[end-1] / dx[end] / dxp[end]
-        else
-            an[i] = k[i] / dx[i-1] / dxp[i]
-            as[i] = k[i+1] / dx[i] / dxp[i]
-        end
-    end
-    @. ap = an + as
-    # k_inner = @view k[2:end-1]
-    # dxn = @view dx[1:end-1]
-    # dxs = @view dx[2:end]
-    # dxpn = @view dxp[1:end-1]
-    # dxps = @view dxp[2:end]
-    # @. an[2:end] = k_inner / dxn / dxpn
-    # @. as[1:end-1] = k_inner / dxs / dxps
-    # @. ap[1:end-1] += as[1:end-1]
-    # @. ap[2:end] += an[2:end]
+    prefactors!(ap, an, as, k, dx, dxp)
     return nothing
 end
+
 function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, top::Top, heat::HeatBalanceImplicit, sub::SubSurface, stop, ssub)
     T_ub = boundaryvalue(bc, stop)
     k = ssub.k[1]
@@ -69,14 +71,13 @@ function CryoGrid.boundaryflux(::Dirichlet, bc::HeatBC, bot::Bottom, heat::HeatB
     Δk = CryoGrid.thickness(sub, ssub, last)
     return 2*T_lb*k / Δk
 end
-_ap(::Dirichlet, k, Δk) = k / (Δk^2/2)
-_ap(::Neumann, k, Δk) = 0
+
 function CryoGrid.interact!(top::Top, bc::HeatBC, sub::SubSurface, heat::HeatBalanceImplicit, stop, ssub)
     Δk = CryoGrid.thickness(sub, ssub, first)
     jH_top = boundaryflux(bc, top, heat, sub, stop, ssub)
     k = ssub.k[1]
     ssub.DT_bp[1] += jH_top / Δk
-    ssub.DT_ap[1] += _ap(CryoGrid.BCKind(bc), k, Δk)
+    ssub.DT_ap[1] += apbc(CryoGrid.BCKind(bc), k, Δk)
     return nothing
 end
 function CryoGrid.interact!(sub::SubSurface, heat::HeatBalanceImplicit, bot::Bottom, bc::HeatBC, ssub, sbot)
@@ -84,7 +85,7 @@ function CryoGrid.interact!(sub::SubSurface, heat::HeatBalanceImplicit, bot::Bot
     jH_bot = boundaryflux(bc, bot, heat, sub, sbot, ssub)
     k = ssub.k[1]
     ssub.DT_bp[end] += jH_bot / Δk
-    ssub.DT_ap[end] += _ap(CryoGrid.BCKind(bc), k, Δk)
+    ssub.DT_ap[end] += apbc(CryoGrid.BCKind(bc), k, Δk)
     return nothing
 end
 function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSurface, ::HeatBalanceImplicit, s1, s2)
@@ -103,6 +104,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSu
     s2.DT_ap[1] += s2.DT_an[1] = k / Δz / Δk₂
     return nothing
 end
+
 # do nothing in computefluxes!
 CryoGrid.computefluxes!(::SubSurface, ::HeatBalanceImplicit, state) = nothing
 

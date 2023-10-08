@@ -40,3 +40,5 @@ include("Surface/Surface.jl")
 @reexport using .Surface
 include("Sources/Sources.jl")
 @reexport using .Sources
+include("Lakes/Lakes.jl")
+@reexport using .Lakes
