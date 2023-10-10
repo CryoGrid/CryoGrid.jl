@@ -23,7 +23,7 @@ sfcc = PainterKarra(ω=0.0; swrc)
 waterflow = RichardsEq(;swrc);
 
 # We use the enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
-heatop = Heat.MOLEnthalpy(SFCCPreSolver())
+heatop = Heat.Diffusion1D(:H)
 upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureBC(forcings.Tair, NFactor(nf=0.6, nt=0.9)));
 
 # We will use a simple stratigraphy with three subsurface soil layers.

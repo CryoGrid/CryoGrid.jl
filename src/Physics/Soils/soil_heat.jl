@@ -24,19 +24,18 @@ function sfccheatcap(soil::Soil{<:MineralOrganic}, heat::HeatBalance, state, i)
 end
 
 """
-    sfccsolver!(::Soil, heat::HeatBalance, state)
+    initialize_sfccsolver!(::Soil, heat::HeatBalance, state)
 
 Retrieves and initializes the SFCC solver for the given layer.
 """
-sfccsolver!(::Soil, heat::HeatBalance, state) = Heat.fcsolver(heat)
-function sfccsolver!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TOp<:Heat.HeatOperator}
+initialize_sfccsolver!(soil::Soil, heat::HeatBalance, state) = fcsolver(soil)
+function initialize_sfccsolver!(soil::Soil, heat::HeatBalance{<:SFCC,TOp}, state) where {TOp<:Heat.HeatOperator}
     fc = heat.freezecurve
-    solver = Heat.fcsolver(heat)
+    solver = fcsolver(soil)
     sat = saturation(soil, state)
     θsat = porosity(soil, state)
     hc = sfccheatcap(soil, heat, state, 1)
     if TOp <: EnthalpyBased
-        solver = Heat.fcsolver(heat)
         @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
         FreezeCurves.initialize!(solver, fc, hc; sat, θsat)
     end
@@ -83,7 +82,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state
     L = heat.prop.L
     fc = heat.freezecurve
     @unpack ch_w, ch_i = thermalproperties(soil)
-    sfccsolver!(soil, heat, state)
+    initialize_sfccsolver!(soil, heat, state)
     @inbounds for i in 1:length(state.T)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         sat = saturation(soil, state, i)
@@ -137,7 +136,7 @@ end
 # freezethaw! implementation for enthalpy and implicit enthalpy formulations
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state)
     sfcc = heat.freezecurve
-    solver = Heat.fcsolver(heat)
+    solver = fcsolver(soil)
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
             L = heat.prop.L,
@@ -164,7 +163,7 @@ end
 
 function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased}, state, i)
     sfcc = heat.freezecurve
-    solver = Heat.fcsolver(heat)
+    solver = fcsolver(soil)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
         props = thermalproperties(soil),

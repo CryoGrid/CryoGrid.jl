@@ -4,7 +4,7 @@
 # forced using air temperatures from Samoylov Island. We use the
 # SFCC formulation of Painter and Karra (2014). For the purpose
 # of demonstration, we use the apparent heat capacity form of the
-# heat equation in this example (i.e. [`Heat.MOLTemperature`](@ref)).
+# heat equation in this example (i.e. [`Heat.Diffusion1D(:T) `](@ref)).
 
 using CryoGrid
 

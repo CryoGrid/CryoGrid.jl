@@ -18,10 +18,6 @@ default_dtlim(::TemperatureBased) = CryoGrid.CFL(maxdelta=CryoGrid.MaxDelta(Inf)
 default_dtlim(::EnthalpyBased) = CryoGrid.MaxDelta(50u"kJ")
 default_dtlim(::HeatOperator) = nothing
 
-# default freezecurve solvers
-default_fcsolver(::FreeWater) = nothing
-default_fcsolver(::SFCC) = SFCCPreSolver()
-
 # Heat Balance type
 """
     HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
@@ -31,7 +27,7 @@ the `HeatOperator`, `op`.
 """
 Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
     freezecurve::Tfc = FreeWater()
-    op::THeatOp = MOLEnthalpy(default_fcsolver(freezecurve))
+    op::THeatOp = Diffusion1D(:H)
     prop::Tprop = HeatBalanceProperties()
     dtlim::Tdt = default_dtlim(op)  # timestep limiter
     advection::Bool = true # whether or not to include advective fluxes when coupled with WaterBalance
@@ -43,53 +39,39 @@ Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop}
 end
 # convenience constructors for HeatBalance
 HeatBalance(var::Symbol; kwargs...) = HeatBalance(Val{var}(); kwargs...)
-HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater(), fcsolver=default_fcsolver(freezecurve), kwargs...) = HeatBalance(; op=MOLEnthalpy(fcsolver), freezecurve, kwargs...)
-HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=MOLTemperature(), freezecurve, kwargs...)
+HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater(), kwargs...) = HeatBalance(; op=Diffusion1D(:H), freezecurve, kwargs...)
+HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=Diffusion1D(:T), freezecurve, kwargs...)
 HeatBalance(op::HeatOperator; kwargs...) = HeatBalance(; op, kwargs...)
+
 # validation of HeatBalance freezecurve/operator configuration
 _validate_heat_config(::FreezeCurve, ::HeatOperator) = nothing # do nothing when valid
 _validate_heat_config(::FreeWater, ::TemperatureBased) = error("Invalid heat balance configuration; temperature formulations of the heat operator are not compatible with the free water freeze curve.")
+
 # Heat operators
 """
-    MOLTemperature{Tcond,Thc} <: HeatOperator{:T}
+    Diffusion1D{progvar,Tcond,Thc} <: HeatOperator{progvar}
 
-Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with
-temperature `T` as the prognostic variable. The time derivative is scaled by the reciprocal of
-the apparent heat capacity `dH/dT` to account for latent heat effects due to phase change.
+Represents a standard method-of-lines (MOL) forward diffusion operator in 1 dimension.
 """
-struct MOLTemperature{Tcond,Thc} <: HeatOperator{:T}
+struct Diffusion1D{progvar,Tcond,Thc} <: HeatOperator{progvar}
     cond::Tcond
     hc::Thc
-    MOLTemperature(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
+    Diffusion1D(progvar::Symbol=:H, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{progvar,typeof(cond),typeof(hc)}(cond, hc)
 end
-"""
-    MOLEnthalpy{Tsolver,Tcond,Thc} <: HeatOperator{:H}
+ConstructionBase.constructorof(::Type{<:Diffusion1D{progvar}}) where {progvar} = (cond, hc) -> Diffusion1D(progvar, cond, hc)
 
-Represents a standard method-of-lines (MOL) forward diffusion operator for heat conduction with
-enthalpy `H` as the prognostic variable and a nonlinear solver for resolving the inverse
-enthalpy -> temperature mapping when applicable. This formulation should generally be preferred
-over `MOLTemperature` since it is energy-conserving and embeds the latent heat storage directly
-in the prognostic state.
 """
-struct MOLEnthalpy{Tsolver,Tcond,Thc} <: HeatOperator{:H}
-    fcsolver::Tsolver
-    cond::Tcond
-    hc::Thc
-    MOLEnthalpy(fcsolver=nothing, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
-end
-"""
-    EnthalpyImplicit <: HeatOperator{:H}
+    EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
 
 Implicit enthalpy formulation of Swaminathan and Voller (1992) and Langer et al. (2022). Note that this
 heat operator formulation does not compute a divergence `∂H∂t` but only computes the necessary diffusion
 coefficients for use by an appropriate solver. See the `LiteImplicit` module for the appropriate
 solver algorithms.
 """
-struct EnthalpyImplicit{Tsolver,Tcond,Thc} <: HeatOperator{:H}
-    fcsolver::Tsolver
+struct EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
     cond::Tcond
     hc::Thc
-    EnthalpyImplicit(fcsolver=nothing, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(fcsolver),typeof(cond),typeof(hc)}(fcsolver, cond, hc)
+    EnthalpyImplicit(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
 end
 
 """

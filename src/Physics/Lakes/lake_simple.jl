@@ -95,7 +95,7 @@ function CryoGrid.interact!(lake::Lake, ::HeatBalanceImplicit, sub::SubSurface, 
     return nothing
 end
 
-function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance{FreeWater,<:Heat.MOLEnthalpy}, state)
+function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance{FreeWater,<:Heat.Diffusion1D{:H}}, state)
     Heat.resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
     Heat.freezethaw!(sub, heat, state)
@@ -111,7 +111,7 @@ function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance{FreeWater,<:Heat.MOL
     return nothing
 end
 
-function CryoGrid.computefluxes!(::Lake, ::HeatBalance{FreeWater,<:Heat.MOLEnthalpy}, state)
+function CryoGrid.computefluxes!(::Lake, ::HeatBalance{FreeWater,<:Heat.Diffusion1D{:H}}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -124,7 +124,7 @@ function CryoGrid.interact!(
     top::Top,
     bc::HeatBC,
     lake::Lake,
-    heat::HeatBalance{FreeWater,<:Heat.MOLEnthalpy},
+    heat::HeatBalance{FreeWater,<:Heat.Diffusion1D{:H}},
     stop,
     slake
 )

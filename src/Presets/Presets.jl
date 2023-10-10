@@ -25,10 +25,10 @@ include("presetgrids.jl")
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
 but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
 """
-function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), tile_kwargs...) where {F<:FreezeCurve}
+function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, init::VarInitializer; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), fcsolver=SFCCPreSolver(), tile_kwargs...) where {F<:FreezeCurve}
     strat = Stratigraphy(
         grid[1] => Top(upperbc),
-        Tuple(knot.depth => Ground(knot.value, heat=HeatBalance(heatop, freezecurve=freezecurve)) for (i,knot) in enumerate(soilprofile)),
+        Tuple(knot.depth => Ground(knot.value, heat=HeatBalance(heatop, freezecurve=freezecurve), fcsolver=fcsolver) for (i,knot) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, PresetGrid(grid), init; tile_kwargs...)

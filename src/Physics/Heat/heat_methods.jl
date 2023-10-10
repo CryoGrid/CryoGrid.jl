@@ -69,13 +69,3 @@ thermalconductivity(op::HeatOperator) = op.cond
 Retreives the volumetric heat capacity function for this heat operator.
 """
 heatcapacity(op::HeatOperator) = op.hc
-
-"""
-    fcsolver(op::HeatOperator)
-
-Retreives the nonlinear solver for the enthalpy/temperature constitutive relation, if defined.
-"""
-fcsolver(::HeatOperator) = nothing
-fcsolver(op::EnthalpyBased) = op.fcsolver
-fcsolver(heat::HeatBalance) = fcsolver(heat.op)
-fcsolver(::Nothing) = nothing
