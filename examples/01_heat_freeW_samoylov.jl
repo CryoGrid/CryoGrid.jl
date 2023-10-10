@@ -21,7 +21,7 @@ grid = CryoGrid.Presets.DefaultGrid_5cm;
 initT = initializer(:T, tempprofile)
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
-    TemperatureGradient(forcings.Tair, NFactor(nf=0.6)),
+    TemperatureBC(forcings.Tair, NFactor(nf=0.6)),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
     initT;

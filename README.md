@@ -45,7 +45,7 @@ initT = initializer(:T, tempprofile)
 grid = CryoGrid.Presets.DefaultGrid_5cm
 # basic 1-layer heat conduction model (defaults to free water freezing scheme)
 tile = CryoGrid.Presets.SoilHeatTile(
-    TemperatureGradient(forcings.Tair),
+    TemperatureBC(forcings.Tair),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
     initT,

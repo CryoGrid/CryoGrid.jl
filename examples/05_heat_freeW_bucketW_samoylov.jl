@@ -9,7 +9,7 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 _, tempprofile = CryoGrid.Presets.SamoylovDefault;
 initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat);
-upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureGradient(forcings.Tair, NFactor(0.5,0.9)));
+upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureBC(forcings.Tair, NFactor(0.5,0.9)));
 
 # The `@Stratigraphy` macro is just a small convenience that automatically wraps the three subsurface layers in a tuple.
 # It would be equivalent to use the `Stratigraphy` constructor directly and wrap these layers in a tuple or list.

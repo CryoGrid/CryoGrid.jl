@@ -83,7 +83,7 @@ end
 	@testset "n-factors" begin
 		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
 		forcing = InterpolatedForcing(ts, [1.0,0.5,-0.5,-1.0,0.1]u"°C", :Tair)
-		tgrad = TemperatureGradient(forcing, NFactor(nf=0.5, nt=1.0))
+		tgrad = TemperatureBC(forcing, NFactor(nf=0.5, nt=1.0))
 		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
 		zerobc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")

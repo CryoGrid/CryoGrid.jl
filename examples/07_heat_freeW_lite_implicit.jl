@@ -16,7 +16,7 @@ tempprofile_linear = TemperatureProfile(
 )
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
-upperbc = TemperatureGradient(forcings.Tair, NFactor())
+upperbc = TemperatureBC(forcings.Tair, NFactor())
 initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit(SFCCPreSolver())
 freezecurve = FreeWater()

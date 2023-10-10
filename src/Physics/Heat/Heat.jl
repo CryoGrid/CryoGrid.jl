@@ -29,7 +29,7 @@ include("thermcond.jl")
 export heatcapacity, heatcapacity!
 include("heatcapacity.jl")
 
-export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, GroundHeatFlux, NFactor
+export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureBC, GroundHeatFlux, NFactor
 include("heat_bc.jl")
 
 export LinearTwoPhaseInitialTempProfile

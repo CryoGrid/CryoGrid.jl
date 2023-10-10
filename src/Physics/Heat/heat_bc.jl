@@ -35,25 +35,25 @@ function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc:
 end
 
 """
-    TemperatureGradient{E,F} <: BoundaryProcess{HeatBalance}
+    TemperatureBC{E,F} <: BoundaryProcess{HeatBalance}
 
 Represents a simple, forced Dirichlet temperature boundary condition for `HeatBalance` processes.
 """
-struct TemperatureGradient{E,F} <: BoundaryProcess{HeatBalance}
+struct TemperatureBC{E,F} <: BoundaryProcess{HeatBalance}
     T::F # temperature forcing
     effect::E # effect
-    TemperatureGradient(T::F, effect::E=nothing) where {F<:Forcing{u"°C"},E} = new{E,F}(T, effect)
+    TemperatureBC(T::F, effect::E=nothing) where {F<:Forcing{u"°C"},E} = new{E,F}(T, effect)
 end
 
-CryoGrid.BCKind(::Type{<:TemperatureGradient}) = Dirichlet()
+CryoGrid.BCKind(::Type{<:TemperatureBC}) = Dirichlet()
 
-CryoGrid.boundaryvalue(bc::TemperatureGradient, state) = getscalar(state.T_ub)
+CryoGrid.boundaryvalue(bc::TemperatureBC, state) = getscalar(state.T_ub)
 
-CryoGrid.variables(::Union{Top,Bottom}, bc::TemperatureGradient) = (
+CryoGrid.variables(::Union{Top,Bottom}, bc::TemperatureBC) = (
     Diagnostic(:T_ub, Scalar, u"K"),
 )
 
-function CryoGrid.updatestate!(::Union{Top,Bottom}, bc::TemperatureGradient, state)
+function CryoGrid.updatestate!(::Union{Top,Bottom}, bc::TemperatureBC, state)
     @setscalar state.T_ub = bc.T(state.t)
 end
 
@@ -67,14 +67,14 @@ CryoGrid.parameterize(nf::NFactor) = NFactor(
     nt = CryoGrid.parameterize(nf.nt, domain=0..1),
 )
 
-CryoGrid.variables(::Top, bc::TemperatureGradient{<:NFactor}) = (
+CryoGrid.variables(::Top, bc::TemperatureBC{<:NFactor}) = (
     Diagnostic(:T_ub, Scalar, u"K"),
     Diagnostic(:nfactor, Scalar),
 )
 
 nfactor(Tair, nfw, nfs) = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs
 
-function CryoGrid.updatestate!(::Top, bc::TemperatureGradient{<:NFactor}, state)
+function CryoGrid.updatestate!(::Top, bc::TemperatureBC{<:NFactor}, state)
     nfw = bc.effect.nf
     nfs = bc.effect.nt
     Tair = bc.T(state.t)
