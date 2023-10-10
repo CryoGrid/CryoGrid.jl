@@ -60,6 +60,7 @@ function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::N
     withdims(var::Var{name}, arr, zs, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Dim{name}(1:size(arr,1)),Ti(ts)))
     save_interval = ClosedInterval(tspan...)
     tile = Tile(sol.prob.f) # Tile
+    grid = Grid(tile.grid.*u"m")
     ts = tile.data.outputs.t # use save callback time points
     # check if last value is duplicated
     ts = ts[end] == ts[end-1] ? ts[1:end-1] : ts
@@ -78,7 +79,7 @@ function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::N
     # add all on-grid prognostic variables
     for var in filter(isongrid, progvars)
         name = varname(var)
-        outputs[name] = withdims(var, u_mat[pax[name],:], tile.grid, ts_datetime)
+        outputs[name] = withdims(var, u_mat[pax[name],:], grid, ts_datetime)
     end
     # add all on-grid diagnostic variables
     for var in filter(isongrid, tuplejoin(diagvars, fluxvars))
@@ -86,7 +87,7 @@ function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::N
         states = collect(skipmissing([name ∈ keys(state) ? state[name] : missing for state in savedstates]))
         if length(states) == length(ts_datetime)
             arr = reduce(hcat, states)
-            outputs[name] = withdims(var, arr, tile.grid, ts_datetime)
+            outputs[name] = withdims(var, arr, grid, ts_datetime)
         end
     end
     # handle per-layer variables

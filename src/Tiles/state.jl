@@ -1,102 +1,141 @@
-using CryoGrid: DVar
-
 """
-    LayerState{iip,TGrid,TStates,Tt,Tdt,Tz}
-
-Represents the state of a single layer in the stratigraphy.
-"""
-struct LayerState{iip,TGrid,TStates,TBounds,Tt,Tdt}
-    grid::TGrid
-    states::TStates
-    bounds::TBounds
-    t::Tt
-    dt::Tdt
-    LayerState(grid::TG, states::TStates, bounds::TB, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
-        {TG,TB,TStates<:NamedTuple,Tt,Tdt,iip} = new{iip,TG,TStates,TB,Tt,Tdt}(grid, states, bounds, t, dt)
-end
-Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
-Base.propertynames(state::LayerState) = (propertynames(state.states)..., :grid, :states, :bounds, :t, :dt)
-function Base.getproperty(state::LayerState, sym::Symbol)
-    return if sym ∈ (:grid, :states, :bounds, :t, :dt)
-        getfield(state, sym)
-    else
-        getproperty(getfield(state, :states), sym)
-    end
-end
-
-function LayerState(sv::StateVars, zs, u, du, t, dt, ::Val{layername}, ::Val{iip}=Val{true}()) where {layername,iip}
-    z_inds = subgridinds(edges(sv.grid), zs[1]..zs[2])
-    return LayerState(
-        sv.grid[z_inds],
-        _makestates(Val{layername}(), getproperty(sv.vars, layername), sv, z_inds, u, du, t),
-        zs,
-        t,
-        dt,
-        Val{iip}(),
-    )
-end
-
-"""
-    TileState{iip,TGrid,TStates,Tt,Tdt}
+    TileState{sublayer,TStrat,TGrid,TStates,Tu,Tt,Tdt}
 
 Represents the state of a CryoGrid `Tile`.
 """
-struct TileState{iip,TGrid,TStates,Tt,Tdt}
-    grid::TGrid
-    states::TStates
+struct TileState{sublayer,TStrat,TGrid,TStates,Tu,Tt,Tdt}
+    strat::TStrat # stratigraphy of the Tile
+    grid::TGrid # grid (from current state)
+    states::TStates # named tuple of state variables
+    du::Tu
+    u::Tu
     t::Tt
     dt::Tdt
-    TileState(grid::TGrid, states::TStates, t::Tt, dt::Tdt=1.0, ::Val{iip}=Val{true}()) where
-        {TGrid<:Numerics.AbstractDiscretization,TStates<:NamedTuple,Tt,Tdt,iip} =
-            new{iip,TGrid,TStates,Tt,Tdt}(grid, states, t, dt)
+    function TileState(
+        strat::Stratigraphy{N,<:NamedTuple{layernames}},
+        grid::Numerics.AbstractDiscretization,
+        states::NamedTuple,
+        du::Tu,
+        u::Tu,
+        t,
+        dt,
+        ::Val{sublayer}=Val{nothing}()
+    ) where {layernames,sublayer,N,Tu}
+        @assert isnothing(sublayer) || sublayer ∈ layernames "$sublayer is not a valid layer identifier"
+        return new{sublayer,typeof(strat),typeof(grid),typeof(states),Tu,typeof(t),typeof(dt)}(strat, grid, states, du, u, t, dt)
+    end
 end
 
-Base.getindex(state::TileState, sym::Symbol) = Base.getproperty(state, sym)
-Base.getindex(state::TileState, i::Int) = state.states[i]
-Base.propertynames(state::TileState) = (propertynames(state.states)...,:grid,:states,:t,:dt)
-function Base.getproperty(state::TileState, sym::Symbol)
-    return if sym ∈ (:grid,:states,:t,:dt)
-        getfield(state, sym)
+function TileState(
+    strat::Stratigraphy{N,<:NamedTuple{layernames}},
+    grid::Grid,
+    sv::StateVars,
+    zs::NTuple{N},
+    du,
+    u,
+    t,
+    dt=1.0,
+    ::Val{sublayer}=Val{nothing}()
+) where {N,layernames,sublayer}
+    z_bounds = (map(tuple, zs[1:end-1], zs[2:end])..., (zs[end], ustrip(grid[end])))
+    # extract state variables for each layer from cache
+    states = getstatevars(Val{layernames}(), sv, grid, z_bounds, du, u, t)
+    return TileState(strat, grid, states, du, u, t, dt, Val{sublayer}())
+end
+
+Base.parent(state::TileState{nothing}) = state
+Base.parent(state::TileState{sublayer}) where {sublayer} = TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt)
+Base.getindex(state::TileState, sym::Symbol) = getproperty(state, sym)
+Base.propertynames(state::TileState{nothing}) = (propertynames(getfield(state, :states))..., fieldnames(typeof(state))...)
+Base.propertynames(state::TileState{sublayer}) where {sublayer} = (propertynames(getproperty(getfield(state, :states), sublayer))..., fieldnames(typeof(state))...)
+function Base.getproperty(state::TileState{nothing}, sym::Symbol)
+    states = getfield(state, :states)
+    return if sym ∈ propertynames(states)
+        selectlayer(state, Val{sym}())
     else
-        getproperty(getfield(state, :states), sym)
+        getfield(state, sym)
+    end
+end
+function Base.getproperty(state::TileState{sublayer}, sym::Symbol) where {sublayer}
+    layerstate = getproperty(getfield(state, :states), sublayer)
+    return if sym ∈ propertynames(layerstate)
+        getproperty(layerstate, sym)
+    else
+        getfield(state, sym)
     end
 end
 
-@generated function TileState(sv::StateVars{names}, zs, u=copy(sv.uproto), du=similar(sv.uproto), t=0.0, dt=1.0, ::Val{iip}=Val{true}()) where {names,iip}
-    layerstates = (
-        quote
-            bounds_i = (bounds[$i][1], bounds[$i][2])
-            LayerState(sv, bounds_i, u, du, t, dt, Val{$(QuoteNode(names[i]))}(), Val{iip}())
-        end
-        for i in 1:length(names)
-    )
-    quote
-        bounds = boundarypairs(map(ustrip, zs))
-        return TileState(
-            sv.grid,
-            NamedTuple{tuple($(map(QuoteNode,names)...))}(tuple($(layerstates...))),
-            t,
-            dt,
-            Val{iip}(),
-        )
+@inline selectlayer(state::TileState, layername::Symbol) = selectlayer(state, Val{layername}())
+@inline function selectlayer(state::TileState, ::Val{layername}) where {layername}
+    return TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt, Val{layername}())
+end
+
+@generated function nextlayer(state::TileState{sublayer,TStrat}) where {sublayer,layernames,N,TStrat<:Stratigraphy{N,<:NamedTuple{layernames}}}
+    i = findfirst(==(sublayer), layernames)
+    if i == N
+        :(nothing)
+    else
+        :(state.strat[$i+1], TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt, Val{layernames[$i+1]}()))
     end
+end
+
+@generated function prevlayer(state::TileState{sublayer,TStrat}) where {sublayer,layernames,N,TStrat<:Stratigraphy{N,<:NamedTuple{layernames}}}
+    i = findfirst(==(sublayer), layernames)
+    if i == 1
+        :(nothing)
+    else
+        :(state.strat[$i-1], TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt, Val{layernames[$i-1]}()))
+    end
+end
+
+function currentgrid(sv::StateVars, initialgrid::Grid, u, t)
+    # retrieve grid data from StateVars
+    midpoints = retrieve(sv.griddiag.midpoints, u, t)
+    edges = retrieve(sv.griddiag.edges, u, t)
+    cellthick = retrieve(sv.griddiag.cellthick, u, t)
+    celldist = retrieve(sv.griddiag.celldist, u, t)
+    return Grid(Edges, (cells=midpoints, edges=edges), (cells=celldist, edges=cellthick), initialgrid.geometry)
 end
 
 # internal method dispatches for type stable construction of state types
-@inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Prognostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = error("prognostic variables on grid edges not supported")
-@inline _makestate(::Val{layername}, ::Prognostic{name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {name,layername} = view(view(u, Val{layername}()), Val{name}())
-@inline _makestate(::Val, ::Algebraic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val, ::Algebraic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = error("prognostic variables on grid edges not supported")
-@inline _makestate(::Val{layername}, ::Algebraic{name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {name,layername} = view(view(u, Val{layername}()), Val{name}())
-@inline _makestate(::Val, ::DVar{dname,name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
-@inline _makestate(::Val{layername}, ::DVar{dname,name,<:Shape}, sv::StateVars, z_inds, u, du, t) where {dname,name,layername} = view(view(du, Val{layername}()), Val{name}())
-@inline _makestate(::Val, var::Diagnostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, u, du, t) where {name} = view(retrieve(sv.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1+var.dim.offset)
-@inline _makestate(::Val, var::Diagnostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, u, du, t) where {name} = view(retrieve(sv.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)+var.dim.offset)
-@inline _makestate(::Val{layername}, ::Diagnostic{name}, sv::StateVars, z_inds, u, du, t) where {name,layername} = retrieve(sv.diag[layername][name], u, t)
-# these need to be @generated functions in order for the compiler to infer all of the types correctly
-@inline @generated function _makestates(::Val{layername}, vars::NamedTuple{varnames}, sv::StateVars, z_inds::ClosedInterval, u, du, t) where {layername,varnames}
+@inline getstatevar(::Val, ::Prognostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, du, u, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline getstatevar(::Val, ::Prognostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, du, u, t) where {name} = error("prognostic variables on grid edges not supported")
+@inline getstatevar(::Val{layername}, ::Prognostic{name,<:Shape}, sv::StateVars, z_inds, du, u, t) where {name,layername} = view(view(u, Val{layername}()), Val{name}())
+@inline getstatevar(::Val, ::Algebraic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, du, u, t) where {name} = view(view(u, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline getstatevar(::Val, ::Algebraic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, du, u, t) where {name} = error("prognostic variables on grid edges not supported")
+@inline getstatevar(::Val{layername}, ::Algebraic{name,<:Shape}, sv::StateVars, z_inds, du, u, t) where {name,layername} = view(view(u, Val{layername}()), Val{name}())
+@inline getstatevar(::Val, ::DVar{dname,name,<:OnGrid{Cells}}, sv::StateVars, z_inds, du, u, t) where {dname,name} = view(view(du, Val{name}()), infimum(z_inds):supremum(z_inds)-1)
+@inline getstatevar(::Val{layername}, ::DVar{dname,name,<:Shape}, sv::StateVars, z_inds, du, u, t) where {dname,name,layername} = view(view(du, Val{layername}()), Val{name}())
+@inline getstatevar(::Val, var::Diagnostic{name,<:OnGrid{Cells}}, sv::StateVars, z_inds, du, u, t) where {name} = view(retrieve(sv.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)-1+var.dim.offset)
+@inline getstatevar(::Val, var::Diagnostic{name,<:OnGrid{Edges}}, sv::StateVars, z_inds, du, u, t) where {name} = view(retrieve(sv.griddiag[name], u, t), infimum(z_inds):supremum(z_inds)+var.dim.offset)
+@inline getstatevar(::Val{layername}, ::Diagnostic{name}, sv::StateVars, z_inds, du, u, t) where {name,layername} = retrieve(sv.diag[layername][name], u, t)
+
+# these need to be a @generated functions in order for the compiler to infer all of the types correctly
+@inline @generated function getstatevars(::Val{layername}, sv::StateVars, vars::NamedTuple{varnames}, z_inds::ClosedInterval, du, u, t) where {layername,varnames}
     quote
-        NamedTuple{tuple($(map(QuoteNode, varnames)...))}(tuple($(map(n -> :(_makestate(Val{$(QuoteNode(layername))}(), sv.vars.$layername.$n, sv, z_inds, u, du, t)), varnames)...)))
+        # QuoteNode forces the name symbols to be interpolated in as symbol literals rather than variable names!
+        NamedTuple{tuple($(map(QuoteNode, varnames)...))}(tuple($(map(n -> :(getstatevar(Val{$(QuoteNode(layername))}(), sv.vars.$layername.$n, sv, z_inds, du, u, t)), varnames)...)))
     end
+end
+@inline @generated function getstatevars(::Val{layernames}, sv::StateVars, grid::Grid, zs::NTuple{N}, du, u, t) where {layernames,N}
+    # construct expressions that call getstatevars for each layer
+    exprs = map(1:N, layernames) do i, layername
+        quote
+            z1, z2 = zs[$i]
+            z_inds = subgridinds(grid, z1..z2)
+            # QuoteNode forces the name symbol to be interpolated in as symbol literals rather than variable names!
+            statevars = getstatevars(
+                Val{$(QuoteNode(layername))}(),
+                sv,
+                getproperty(sv.vars, $(QuoteNode(layername))),
+                z_inds,
+                du,
+                u,
+                t
+            )
+            merge((grid=grid[z_inds],), statevars)
+        end
+    end
+    # interpolate these expressions into a NamedTuple constructor
+    return :(NamedTuple{$layernames}(tuple($(exprs...))))
 end

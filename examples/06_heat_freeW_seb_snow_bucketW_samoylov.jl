@@ -58,7 +58,7 @@ integrator = init(prob, Euler(), dt=60.0)
 @assert all(isfinite.(integrator.u))
 ## iterate over remaining timespan at fixed points using `TimeChoiceIterator`
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
-    @assert isfinite(getstate(:top, integrator).Qg[1])
+    @assert isfinite(getstate(integrator).top.Qg[1])
     @info "Current t=$(Date(convert_t(t))), dt=$(integrator.dt)"
 end
 out = CryoGridOutput(integrator.sol)

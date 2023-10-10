@@ -79,7 +79,7 @@ include("../types.jl")
             @test hasproperty(model.state.diag.testground, :a)
             model.state.diag.testground.a.cache.du[1] = 2.0
             @test model.state.diag.testground.a.cache.du[1] == 2.0
-            state = getstate(:testground, model, model.state.uproto, model.state.uproto, 0.0)
+            state = getproperty(getstate(model, model.state.uproto, model.state.uproto, 0.0), :testground)
         finally
             # clean-up method definitions (necessary for re-running test set)
             Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))

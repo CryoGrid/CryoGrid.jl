@@ -40,10 +40,10 @@ end
 ConstructionBase.constructorof(::Type{Grid{S,G,Q,A}}) where {S,G,Q,A} = (geom,values,deltas,bounds) -> Grid(S,values,deltas,geom,bounds)
 Base.show(io::IO, ::MIME"text/plain", grid::Grid) = show(io, grid)
 function Base.show(io::IO, grid::Grid{S,G}) where {S,G}
-    if length(grid) == length(grid.values.edges)
+    if length(grid) == length(parent(grid))
         print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
     else
-        print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) (child of Grid{$S}$(parent(grid)[1])..$(parent(grid)[end]) of length $(length(parent(grid)))) with geometry $G")
+        print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) (child of Grid{$S}($(parent(grid)[1])..$(parent(grid)[end])) of length $(length(parent(grid)))) with geometry $G")
     end
 end
 
@@ -69,8 +69,7 @@ end
 @inline cells(grid::Grid{Cells}) = grid
 @inline edges(grid::Grid{Edges}) = grid
 @inline edges(grid::Grid{Cells}) = Grid(Edges, grid)
-Base.parent(grid::Grid{Edges}) = Grid(grid, 1..length(grid.values.edges))
-Base.parent(grid::Grid{Cells}) = Grid(grid, 1..length(grid.values.cells))
+Base.parent(grid::Grid) = Grid(grid, 1..length(grid.values.edges))
 Base.collect(grid::Grid) = collect(values(grid))
 Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
 Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
@@ -86,19 +85,34 @@ Base.lastindex(grid::Grid) = length(grid)
 @propagate_inbounds Base.getindex(grid::Grid, interval::Interval{L,R,Int}) where {L,R} = Grid(grid, first(grid.bounds)+interval.left-1..first(grid.bounds)+interval.right-1)
 Base.setindex!(grid::Grid{Edges}, val, i...) = setindex!(values(grid), val, i...)
 Base.setindex!(::Grid{Cells}, args...) = error("setindex! is permitted only for edge grids; use `edges(grid)` and call `updategrid!` directly after.")
-"""
-    updategrid!(grid::Grid{Edges,G,Q}, vals::Q=grid) where {G,Q}
 
-Overwrites `grid` edges with `vals`, and recomputes grid centers/deltas to be consistent with the new grid.
 """
-function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where {G,Q}
+    updategrid!(grid::Grid{Edges,G,Q}, edges::Q) where {G,Q}
+    updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) where {G,Q}
+
+Updates all `grid` values based on new grid `edges` or an initial `z0` + cell `thick`.
+"""
+function updategrid!(grid::Grid{Edges,G,Q}, edges::AbstractVector{Q}) where {G,Q}
     z_edges = values(grid)
     z_cells = values(cells(grid))
     Δz_edges = Δ(grid)
     Δz_cells = Δ(cells(grid))
-    z_edges .= vals
+    z_edges .= edges
     z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
     Δz_edges .= z_edges[2:end] .- z_edges[1:end-1]
+    Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
+    @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
+    return grid
+end
+function updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) where {G,Q}
+    z_edges = values(grid)
+    z_cells = values(cells(grid))
+    Δz_edges = Δ(grid)
+    Δz_cells = Δ(cells(grid))
+    Δz_edges .= thick
+    z_edges[1] = z0
+    z_edges[2:end] .= z0 .+ thick
+    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
     Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
     @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
     return grid
@@ -139,4 +153,16 @@ function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars:
     toplevelindices(axes) = first(axes)[1]:first(axes)[1]+last(axes)[2][end]-1
     u_ax = map(ax -> ViewAxis(toplevelindices(ax), Axis(map(last, ax))), layervar_ax)
     return ComponentVector(u, (Axis(merge(u_ax, gridvar_ax)),))
+end
+
+# CryoGrid methods
+CryoGrid.variables(::Grid) = (
+    Diagnostic(:cellthick, CryoGrid.OnGrid(Cells)),
+    Diagnostic(:edges, CryoGrid.OnGrid(Edges)),
+    Diagnostic(:midpoints, CryoGrid.OnGrid(Cells)),
+    Diagnostic(:celldist, CryoGrid.OnGrid(Edges, -2)),
+)
+
+function CryoGrid.initialcondition!(grid::Grid, state)
+    updategrid!(state.grid, edges(grid))
 end

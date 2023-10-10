@@ -104,7 +104,7 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
             strat_grid = layer_grid
         end
     end
-    return strat_grid
+    return Grid(ustrip.(strat_grid))
 end
 
 function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
@@ -115,7 +115,7 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
         layerᵢ = strat[i]
         stateᵢ = getproperty(state, layernames(strat)[i])
         for init in tuplejoin(CryoGrid.initializers(layerᵢ), inits)
-            if haskey(stateᵢ.states, varname(init))
+            if hasproperty(stateᵢ, varname(init))
                 CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
             end
         end
@@ -217,9 +217,10 @@ function CryoGrid.computefluxes!(strat::Stratigraphy, state)
 end
 
 function CryoGrid.timestep(strat::Stratigraphy, state)
-    max_dts = fastmap(namedlayers(strat)) do named_layer
-        CryoGrid.timestep(named_layer.val, getproperty(state, nameof(named_layer)))
+    @inline function timestep(named_layer::NamedLayer)
+        return CryoGrid.timestep(named_layer.val, getproperty(state, nameof(named_layer)))
     end
+    max_dts = fastmap(timestep, namedlayers(strat))
     return minimum(max_dts)
 end
 

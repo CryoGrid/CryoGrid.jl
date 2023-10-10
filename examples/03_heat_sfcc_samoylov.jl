@@ -19,10 +19,10 @@ lowerbc = GeothermalHeatFlux(0.053u"W/m^2")
 tile = CryoGrid.Presets.SoilHeatTile(upperbc, lowerbc, soilprofile, initT; grid=grid, freezecurve=sfcc)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,), step_limiter=nothing);
+prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,));
 
 # ... then solve it with the built-in forward Euler integrator.
-sol = @time solve(prob, CGEuler());
+sol = @time solve(prob);
 out = CryoGridOutput(sol)
 
 # Finally, plot the resulting temperatures.

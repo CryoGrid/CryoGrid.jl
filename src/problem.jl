@@ -29,7 +29,7 @@ end
         save_everystep=false,
         save_start=true,
         save_end=true,
-        step_limiter=CryoGrid.timestep,
+        step_limiter=nothing,
         safety_factor=1,
         max_step=true,
         callback=nothing,
@@ -52,7 +52,7 @@ function CryoGridProblem(
     save_everystep=false,
     save_start=true,
     save_end=true,
-    step_limiter=CryoGrid.timestep,
+    step_limiter=nothing,
     safety_factor=1,
     max_step=true,
     callback=nothing,
@@ -174,7 +174,7 @@ function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layerna
             u = Tiles.withaxes(u, tile),
             du = Tiles.withaxes(get_du(integrator), tile),
             t = t,
-            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+            state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername);
             return criterion(ev, layer, state)
         end
     end
@@ -186,7 +186,7 @@ function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
             let u = Tiles.withaxes(u, tile),
                 du = Tiles.withaxes(get_du(integrator), tile),
                 t = t,
-                state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+                state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername);
                 criterion!(view(out, Numerics.bounds(state.grid)), ev, layer, process, state)
             end
         end
@@ -201,7 +201,7 @@ function _triggerfunc(::Val{layername}, ev::Event, trig::Union{Nothing,T}, i_lay
             u = Tiles.withaxes(integrator.u, tile),
             du = Tiles.withaxes(get_du(integrator), tile),
             t = integrator.t,
-            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
+            state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername);
             _invoke_trigger!(ev, trig, layer, state)
         end
     end
@@ -215,7 +215,7 @@ function _gridtriggerfunc(::Val{layername}, ev::GridContinuousEvent, grid::Grid,
             u = Tiles.withaxes(integrator.u, tile)
             du = Tiles.withaxes(get_du(integrator), tile)
             t = integrator.t
-            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt)
+            state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername)
             if event_idx ∈ Numerics.bounds(state.grid)
                 _invoke_trigger!(ev, T(nothing), layer, state)
                 break
