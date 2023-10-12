@@ -1,3 +1,5 @@
+# Note that here "soil_types" refers to programming types, not geological soil types!
+
 """
     SoilParameterization
 
@@ -8,7 +10,7 @@ abstract type SoilParameterization <: GroundParameterization end
 """
     Soil{Tpara,Theat,Twater}
 
-Type alias for any `AbstractGround` layer with a `SoilParameterization`.
+Type alias for any `AbstractGround` layer with parameterization of type `SoilParameterization`.
 """
 const Soil{Tpara,Theat,Twater} = AbstractGround{Tpara,Theat,Twater} where {Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}}
 
@@ -29,5 +31,3 @@ end
 # forward getproperty to nested parameterization
 Base.propertynames(para::Heterogeneous) = (:para, Base.propertynames(getfield(para, :para))...)
 Base.getproperty(para::Heterogeneous, name::Symbol) = name == :para ? getfield(para, :para) : getproperty(getfield(para, :para), name)
-
-checksolver!(::Heterogeneous, ::SFCCPreSolver) = error("SFCCPreSolver requires homogeneous soil properties in each layer.")

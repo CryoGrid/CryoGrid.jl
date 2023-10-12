@@ -4,7 +4,8 @@
 
 Returns the thermal properties for the given subsurface layer.
 """
-function thermalproperties end
+thermalproperties(::SubSurface) = error("not implemented")
+
 """
     freezethaw!(sub::SubSurface, heat::HeatBalance, state)
 
@@ -13,21 +14,21 @@ In general, this function should compute at least the liquid/frozen water conten
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
 may also need to be computed depending on the thermal scheme being implemented.
 """
-function freezethaw! end
+freezethaw!(::SubSurface, ::HeatBalance, state) = error("not implemented")
 
 """
     thermalconductivities(::SubSurface)
 
 Get thermal conductivities for generic `SubSurface` layer.
 """
-function thermalconductivities end
+thermalconductivities(::SubSurface) = error("not implemented")
 
 """
     heatcapacities(::SubSurface)
 
 Get heat capacities for generic `SubSurface` layer.
 """
-function heatcapacities end
+heatcapacities(::SubSurface) = error("not implemented")
 
 # Helper methods
 """

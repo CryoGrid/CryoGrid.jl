@@ -167,7 +167,6 @@ function prognostic!(
     tile = resolve(_tile, u, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
-    # zs = boundaries(strat)
     state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t, dt)
     CryoGrid.resetfluxes!(strat, state)
     CryoGrid.updatestate!(strat, state)
@@ -369,7 +368,7 @@ function CryoGrid.parameterize(tile::Tile)
     new_layers = map(namedlayers(tile.strat)) do named_layer
         name = nameof(named_layer)
         layer = CryoGrid.parameterize(named_layer.val)
-        Named(name, _addlayerfield(layer, name))
+        name => _addlayerfield(layer, name)
     end
     new_inits = map(tile.inits) do init
         _addlayerfield(CryoGrid.parameterize(init), :init)
@@ -378,7 +377,7 @@ function CryoGrid.parameterize(tile::Tile)
         evs = map(CryoGrid.parameterize, getproperty(tile.events, name))
         name => _addlayerfield(evs, name)
     end
-    new_strat = Stratigraphy(boundaries(tile.strat), Tuple(new_layers))
+    new_strat = Stratigraphy(boundaries(tile.strat), (;new_layers...))
     return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data, tile.metadata)
 end
 

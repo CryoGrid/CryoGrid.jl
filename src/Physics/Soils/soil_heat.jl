@@ -198,30 +198,31 @@ CryoGrid.parameterize(f::DallAmico) = DallAmico(
 )
 CryoGrid.parameterize(f::DallAmicoSalt) = DallAmicoSalt(
     f.freezethaw,
-    CryoGrid.parameterize(f.saltconc, domain=Interval{:closed,:open}(0,Inf)), # salt concentration
+    CryoGrid.parameterize(f.saltconc, domain=Interval{:closed,:open}(0,Inf), desc="Assumed salt concentration when not defined as a state variable."), # salt concentration
     f.R,
     f.g,
     CryoGrid.parameterize(f.swrc),
 )
 CryoGrid.parameterize(f::McKenzie) = McKenzie(
     f.freezethaw,
-    f.water,
+    f.vol,
     CryoGrid.parameterize(f.γ, domain=OpenInterval(0,Inf)),
 )
 CryoGrid.parameterize(f::Westermann) = McKenzie(
     f.freezethaw,
-    f.water,
+    f.vol,
     CryoGrid.parameterize(f.δ, domain=OpenInterval(0,Inf)),
 )
 CryoGrid.parameterize(f::VanGenuchten) = VanGenuchten(
-    f.water,
-    CryoGrid.parameterize(f.α, domain=OpenInterval(0,Inf)),
-    CryoGrid.parameterize(f.n, domain=OpenInterval(1,Inf)),
+    f.vol,
+    CryoGrid.parameterize(f.α, units=u"1/m", domain=OpenInterval(0,Inf), desc="van Genuchten α parameter which corresponds to the inverse of air entry suction."),
+    CryoGrid.parameterize(f.n, domain=OpenInterval(1,Inf), desc="van Genuchten n parameter which controls the shape of the curve. Smaller values generally produce longer tailed curves."),
 )
 CryoGrid.parameterize(f::BrooksCorey) = BrooksCorey(
-    f.water,
-    CryoGrid.parameterize(f.ψₛ, domain=OpenInterval(0,Inf)),
-    CryoGrid.parameterize(f.λ, domain=OpenInterval(0,Inf)),
+    f.vol,
+    CryoGrid.parameterize(f.ψₛ, domain=OpenInterval(0,Inf), desc="Brooks-Corey suction parameter."),
+    CryoGrid.parameterize(f.λ, domain=OpenInterval(0,Inf), desc="Brooks-Corey shape parameter."),
 )
-# do not parameterize default freeze curve properties
+# do not parameterize default freeze curve properties or SFCC solvers
 CryoGrid.parameterize(prop::FreezeCurves.SoilFreezeThawProperties) = prop
+CryoGrid.parameterize(solver::FreezeCurves.SFCCSolver) = solver

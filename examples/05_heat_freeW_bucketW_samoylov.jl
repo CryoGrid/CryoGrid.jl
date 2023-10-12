@@ -16,7 +16,7 @@ upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureBC(forcings.Tair
 strat = @Stratigraphy(
     0.0u"m" => Top(upperbc),
     0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.5,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    0.2u"m" => :middle => Ground(MineralOrganic(por=0.40,sat=0.75,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.75,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2")),
 );
