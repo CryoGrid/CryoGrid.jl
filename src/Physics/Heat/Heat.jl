@@ -17,17 +17,14 @@ import Interpolations as Interp
 
 export FreeWater, FreezeCurve
 
-export HeatBalance, ThermalProperties
+export HeatBalance
 include("heat_types.jl")
 
 export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
 include("heat_methods.jl")
 
-export thermalconductivity, thermalconductivity!
-include("thermcond.jl")
-
-export heatcapacity, heatcapacity!
-include("heatcapacity.jl")
+export ThermalProperties, thermalconductivity, thermalconductivity!, heatcapacity, heatcapacity!
+include("thermal_properties.jl")
 
 export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureBC, GroundHeatFlux, NFactor
 include("heat_bc.jl")

@@ -24,7 +24,7 @@ function Heat.freezethaw!(
         ∂θw∂T = ∂θw∂ψ*∂ψ∂T
         state.θw[i] = θw
         state.ψ[i] = ψ
-        C = Heat.heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        C = Heat.heatcapacity(soil, heat, state, i)
         ∂H∂T = Heat.dHdT(T, C, L, ∂θw∂T, ch_w, ch_i)
         state.∂θw∂T[i] = ∂θw∂T
         # compute dependent quantities
@@ -58,7 +58,7 @@ function CryoGrid.initialcondition!(
         T = state.T[i]
         θw, ∂θw∂T = ∇(T -> fc(T, state.sat[i]; fc_kwargsᵢ...), T)
         state.θw[i] = θw
-        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        state.C[i] = heatcapacity(soil, heat, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
         state.∂H∂T[i] = Heat.dHdT(T, state.C[i], L, ∂θw∂T, ch_w, ch_i)
     end

@@ -84,17 +84,3 @@ Utils.@properties HeatBalanceProperties(
 )
 # do not parameterize heat properties
 CryoGrid.parameterize(prop::HeatBalanceProperties) = prop
-
-"""
-    ThermalProperties
-
-Basic material thermal properties.
-"""
-Utils.@properties ThermalProperties(
-    kh_w = 0.57u"J/s/m/K", # thermal conductivity of water [Hillel (1982)]
-    kh_i = 2.2u"J/s/m/K", # thermal conductivity of ice [Hillel (1982)]
-    kh_a = 0.025u"J/s/m/K", # thermal conductivity of air [Hillel (1982)]
-    ch_w = 4.2e6u"J/K/m^3", # heat capacity of water
-    ch_i = 1.9e6u"J/K/m^3", # heat capacity of ice
-    ch_a = 0.00125e6u"J/K/m^3", # heat capacity of air
-)

@@ -138,16 +138,16 @@ diagnosticstep!(layer::Layer, state) = false
 """
     parameterize(x::T) where {T}
     parameterize(x::Unitful.AbstractQuantity; props...)
-    parameterize(p::Param; ignored...)
+    parameterize(p::AbstractParam; ignored...)
 
 Recursively wraps `x` or nested numeric quantities in `x` with `Param` to mark them as parameters.
 If `x` is already a `Param` type, `x` will be returned as-is.
 If `x` is a numeric type, `x` will be wrapped in `Param` with associated properties `props`.
 If `x` is a struct type, `x` will be recursively unpacked and `parameterize` called on each field.
 """
-parameterize(x::Number; props...) = Param(x; props...)
-parameterize(x::Unitful.AbstractQuantity; props...) = Param(ustrip(x); untis=unit(x), props...)
-parameterize(p::Param; ignored...) = p
+parameterize(x::Number; type=Param, props...) = type(x; props...)
+parameterize(x::Unitful.AbstractQuantity; type=Param, props...) = type(ustrip(x); untis=unit(x), props...)
+parameterize(p::AbstractParam; ignored...) = p
 parameterize(f::Function; ignored...) = f
 function parameterize(x::T; props...) where {T}
     # get field names of T, if available

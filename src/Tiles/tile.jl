@@ -424,7 +424,7 @@ function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require deconstruction/reconstruction of layers in order to
     # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
-    dynamic_values = map(d -> d(u, t), dynamic_ps)
+    dynamic_values = map(d -> d(t), dynamic_ps)
     reconstructed_tile = Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, IgnoreTypes, 1)[1]
     return reconstructed_tile
 end

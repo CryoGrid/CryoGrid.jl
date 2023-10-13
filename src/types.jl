@@ -171,7 +171,9 @@ abstract type Parameterization end
 """
     DynamicParameterization
 
-Base type for dynamic parameterizations whose values may be time or state dependent.
+Base type for dynamic parameterizations whose values may be time dependent.
+Implementations of `DynamicParameterization` should be callable `struct`s that accept
+a single parameter `t` which corresponds to the current timestamp in seconds.
 """
 abstract type DynamicParameterization <: Parameterization end
 

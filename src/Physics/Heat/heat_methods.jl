@@ -5,6 +5,10 @@
 Returns the thermal properties for the given subsurface layer.
 """
 thermalproperties(::SubSurface) = error("not implemented")
+thermalproperties(sub::SubSurface, state) = thermalproperties(sub)
+thermalproperties(sub::SubSurface, state, i) = thermalproperties(sub, state, 1)
+
+heatcapacity(::SubSurface, state, i) = error("not implemented")
 
 """
     freezethaw!(sub::SubSurface, heat::HeatBalance, state)
@@ -16,20 +20,6 @@ may also need to be computed depending on the thermal scheme being implemented.
 """
 freezethaw!(::SubSurface, ::HeatBalance, state) = error("not implemented")
 
-"""
-    thermalconductivities(::SubSurface)
-
-Get thermal conductivities for generic `SubSurface` layer.
-"""
-thermalconductivities(::SubSurface) = error("not implemented")
-
-"""
-    heatcapacities(::SubSurface)
-
-Get heat capacities for generic `SubSurface` layer.
-"""
-heatcapacities(::SubSurface) = error("not implemented")
-
 # Helper methods
 """
     enthalpy(T, C, L, θ) = T*C + L*θ
@@ -37,12 +27,14 @@ heatcapacities(::SubSurface) = error("not implemented")
 Discrete enthalpy function on temperature, heat capacity, specific latent heat of fusion, and liquid water content.
 """
 enthalpy(T, C, L, θ) = T*C + L*θ
+
 """
     enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 
 Discrete inverse enthalpy function given H, C, L, and θ.
 """
 enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+
 """
     dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 
@@ -50,6 +42,7 @@ Computes the apparent or "effective" heat capacity `∂H∂T` as a function of t
 latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
 """
 dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
+
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
 
@@ -58,15 +51,15 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    thermalconductivity(op::HeatOperator)
+    thermal_conductivity_function(op::HeatOperator)
 
 Retreives the thermal conductivity function for this heat operator.
 """
-thermalconductivity(op::HeatOperator) = op.cond
+thermal_conductivity_function(op::HeatOperator) = op.cond
 
 """
-    heatcapacity(op::HeatOperator)
+    heat_capacity_function(op::HeatOperator)
 
 Retreives the volumetric heat capacity function for this heat operator.
 """
-heatcapacity(op::HeatOperator) = op.hc
+heat_capacity_function(op::HeatOperator) = op.hc

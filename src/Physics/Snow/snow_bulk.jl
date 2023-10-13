@@ -146,9 +146,7 @@ function CryoGrid.trigger!(
 )
     # Case 2: Increasing snow depth; initialize temperature and enthalpy state
     # using current upper boundary temperature.
-    heat = snow.heat
-    θfracs = volumetricfractions(snow, state, 1)
-    state.C .= C = Heat.heatcapacity(snow, heat, θfracs...)
+    heatcapacity!(snow, snow.heat, state)
     state.T .= state.T_ub
     state.H .= state.T.*C
     state.por .= 1 - getscalar(state.ρsn) / waterdensity(snow)
@@ -296,10 +294,9 @@ function CryoGrid.trigger!(
     state
 )
     _, heat = procs
-    θfracs = volumetricfractions(snow, state, 1)
-    C = Heat.heatcapacity(snow, heat, θfracs...)
+    c_snow = heatcapacity(snow, snow.heat, state, 1)
     state.T .= state.T_ub
-    state.H .= state.T.*C
+    state.H .= state.T.*c_snow
     return nothing
 end
 function CryoGrid.updatestate!(

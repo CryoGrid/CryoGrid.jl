@@ -5,21 +5,25 @@ Constructs a function `heatcap(θw,θwi,θsat)` that comptues the heat capacity 
 the current state for grid cell `i`.
 """
 function sfccheatcap(soil::Soil, heat::HeatBalance, state, i)
+    f = Heat.heat_capacity_function(heat.op)
+    cs = Heat.heatcapacities(soil, state, i)
     function heatcap(θw, θwi, θsat)
         θi = θwi - θw
         θa = θsat - θwi
         θm = state.θm[i]
         θo = state.θo[i]
-        return heatcapacity(soil, heat, θw, θi, θa, θm, θo)
+        return f(cs, (θw, θi, θa, θm, θo))
     end
 end
 function sfccheatcap(soil::Soil{<:MineralOrganic}, heat::HeatBalance, state, i)
+    f = Heat.heat_capacity_function(heat.op)
+    cs = Heat.heatcapacities(soil, state, i)
     function heatcap(θw, θwi, θsat)
         θi = θwi - θw
         θa = θsat - θwi
         θm = (1-soil.para.org)*(1-θsat)
         θo = soil.para.org*(1-θsat)
-        return heatcapacity(soil, heat, θw, θi, θa, θm, θo)
+        return f(cs, (θw, θi, θa, θm, θo))
     end
 end
 
@@ -89,7 +93,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state
         T = state.T[i]
         θw, ∂θw∂T = ∇(T -> fc(T, sat; fc_kwargsᵢ...), T)
         state.θw[i] = θw
-        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        state.C[i] = heatcapacity(soil, heat, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
         state.∂H∂T[i] = Heat.dHdT(T, state.C[i], L, ∂θw∂T, ch_w, ch_i)
     end
@@ -104,7 +108,7 @@ function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{FreeWater}, st
     @inbounds for i in 1:length(state.T)
         θwi = Hydrology.watercontent(soil, state, i)
         state.θw[i] = ifelse(state.T[i] > 0.0, θwi, 0.0)
-        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        state.C[i] = heatcapacity(soil, heat, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
     end
 end
@@ -127,7 +131,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:TemperatureBase
         θw, ∂θw∂T = ∇(T -> sfcc(T; f_argsᵢ...), T)
         state.θw[i] = θw
         state.∂θw∂T[i] = ∂θw∂T
-        state.C[i] = C = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        state.C[i] = C = heatcapacity(soil, heat, state, i)
         state.∂H∂T[i] = Heat.dHdT(T, C, L, ∂θw∂T, ch_w, ch_i)
         state.H[i] = enthalpy(T, C, L, θw)
     end

@@ -62,14 +62,14 @@ Base.@kwdef struct NFactor{W,S} <: CryoGrid.BoundaryEffect
     nt::S = 1.0 # applied when Tair > 0
 end
 
-CryoGrid.parameterize(nf::NFactor) = NFactor(
-    nf = CryoGrid.parameterize(nf.nf, domain=0..1),
-    nt = CryoGrid.parameterize(nf.nt, domain=0..1),
-)
-
 CryoGrid.variables(::Top, bc::TemperatureBC{<:NFactor}) = (
     Diagnostic(:T_ub, Scalar, u"K"),
     Diagnostic(:nfactor, Scalar),
+)
+
+CryoGrid.parameterize(nf::NFactor) = NFactor(
+    nf = CryoGrid.parameterize(nf.nf, domain=0..1),
+    nt = CryoGrid.parameterize(nf.nt, domain=0..1),
 )
 
 nfactor(Tair, nfw, nfs) = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs

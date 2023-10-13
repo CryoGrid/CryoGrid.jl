@@ -14,8 +14,7 @@ end
     H = state.H[i]
     L = heat.prop.L
     θw, Lθ = FreezeCurves.freewater(H, θwi, L)
-    θfracs = volumetricfractions(sub, state, i)
-    C = heatcapacity(sub, heat, θfracs...)
+    C = heatcapacity(sub, heat, state, i)
     T_f = H / C
     T_t = (H - Lθ) / C
     T = IfElse.ifelse(

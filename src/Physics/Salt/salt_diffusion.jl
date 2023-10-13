@@ -11,7 +11,6 @@ function Heat.freezethaw!(
     @unpack ch_w, ch_i = thermalprops
     let L = heat.prop.L;
         @inbounds @fastmath for i in eachindex(state.T)
-            θfracs = volumetricfractions(soil, state, i)
             T = state.T[i]
             c = state.c[i]
             θsat = Soils.porosity(soil, state, i)
@@ -22,7 +21,7 @@ function Heat.freezethaw!(
             state.θw[i] = θw = ForwardDiff.value(res_dual.θw)
             state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(res_dual.θw)[1]
             state.∂θw∂c[i] = ForwardDiff.partials(res_dual.θw)[2]
-            state.C[i] = C = heatcapacity(soil, heat, θfracs...)
+            state.C[i] = C = heatcapacity(soil, heat, state, i)
             state.∂H∂T[i] =  C + L*∂θw∂T
             state.H[i] = enthalpy(T, C, L, θw)
             state.dₛ_mid[i] = salt.prop.dₛ₀ * θw / salt.prop.τ
