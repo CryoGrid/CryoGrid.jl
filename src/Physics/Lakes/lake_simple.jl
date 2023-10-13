@@ -95,7 +95,7 @@ function CryoGrid.interact!(lake::Lake, ::HeatBalanceImplicit, sub::SubSurface, 
     return nothing
 end
 
-function CryoGrid.updatestate!(sub::Lake, heat::HeatBalance{FreeWater,<:Heat.Diffusion1D{:H}}, state)
+function CryoGrid.computediagnostic!(sub::Lake, heat::HeatBalance{FreeWater,<:Heat.Diffusion1D{:H}}, state)
     Heat.resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
     Heat.freezethaw!(sub, heat, state)

@@ -15,7 +15,7 @@ end
 
 CryoGrid.initialcondition!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(initialcondition!, layer, ps, state)
 
-CryoGrid.updatestate!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(updatestate!, layer, ps, state)
+CryoGrid.computediagnostic!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(computediagnostic!, layer, ps, state)
 
 CryoGrid.computefluxes!(layer::Layer, ps::CoupledProcesses, state) = _invoke_sequential(computefluxes!, layer, ps, state)
 

@@ -89,7 +89,7 @@ end
 		zerobc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
-			updatestate!(Top(zerobc), tgrad, state)
+			computediagnostic!(Top(zerobc), tgrad, state)
 			return boundaryvalue(tgrad, state)
 		end
 		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)

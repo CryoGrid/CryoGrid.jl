@@ -226,7 +226,7 @@ CryoGrid.variables(snow::BulkSnowpack, ::DynamicSnowMassBalance) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
     snowvariables(snow)...,
 )
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     snow::BulkSnowpack{<:ConstantDensity},
     procs::Coupled(
         DynamicSnowMassBalance{TAcc,<:DegreeDayMelt},
@@ -241,7 +241,7 @@ function CryoGrid.updatestate!(
     # update snow depth
     snowdepth!(snow, mass, state)
     # update water content
-    updatestate!(snow, water, state)
+    computediagnostic!(snow, water, state)
     # evaluate freezing/thawing processes for snow layer
     Heat.freezethaw!(snow, heat, state)
     # compute thermal conductivity
@@ -299,7 +299,7 @@ function CryoGrid.trigger!(
     state.H .= state.T.*c_snow
     return nothing
 end
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     snow::BulkSnowpack,
     procs::Coupled(PrescribedSnowMassBalance,HeatBalance{FreeWater,<:EnthalpyBased}),
     state

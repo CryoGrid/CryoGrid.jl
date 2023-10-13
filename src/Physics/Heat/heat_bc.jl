@@ -53,7 +53,7 @@ CryoGrid.variables(::Union{Top,Bottom}, bc::TemperatureBC) = (
     Diagnostic(:T_ub, Scalar, u"K"),
 )
 
-function CryoGrid.updatestate!(::Union{Top,Bottom}, bc::TemperatureBC, state)
+function CryoGrid.computediagnostic!(::Union{Top,Bottom}, bc::TemperatureBC, state)
     @setscalar state.T_ub = bc.T(state.t)
 end
 
@@ -74,7 +74,7 @@ CryoGrid.parameterize(nf::NFactor) = NFactor(
 
 nfactor(Tair, nfw, nfs) = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs
 
-function CryoGrid.updatestate!(::Top, bc::TemperatureBC{<:NFactor}, state)
+function CryoGrid.computediagnostic!(::Top, bc::TemperatureBC{<:NFactor}, state)
     nfw = bc.effect.nf
     nfs = bc.effect.nt
     Tair = bc.T(state.t)

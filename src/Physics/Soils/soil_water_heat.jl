@@ -46,7 +46,7 @@ function CryoGrid.initialcondition!(
 )
     water, heat = ps
     # initialize water
-    CryoGrid.updatestate!(soil, water, state)
+    CryoGrid.computediagnostic!(soil, water, state)
     # initialize heat
     fc = heat.freezecurve
     solver = initialize_sfccsolver!(soil, heat, state)
@@ -65,7 +65,7 @@ function CryoGrid.initialcondition!(
 end
 
 # Diagnostic step
-function CryoGrid.updatestate!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+function CryoGrid.computediagnostic!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     # Compute water contents from current state
     Hydrology.watercontent!(sub, water, state)

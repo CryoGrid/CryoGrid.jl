@@ -39,7 +39,7 @@ CryoGrid.variables(::HeatBalanceImplicit) = (
     Diagnostic(:DT_bp, OnGrid(Cells)),
 )
 
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     sub::SubSurface,
     heat::HeatBalanceImplicit,
     state

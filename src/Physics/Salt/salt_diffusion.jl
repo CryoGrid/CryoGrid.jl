@@ -46,10 +46,10 @@ CryoGrid.variables(::SaltMassBalance) = (
 )
 
 function CryoGrid.initialcondition!(soil::SalineGround, ps::CoupledHeatSalt, state)
-    CryoGrid.updatestate!(soil, ps, state)
+    CryoGrid.computediagnostic!(soil, ps, state)
 end
 
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     soil::SalineGround,
     ps::CoupledHeatSalt{THeat},
     state

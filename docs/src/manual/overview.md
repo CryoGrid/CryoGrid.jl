@@ -69,7 +69,7 @@ When the `HeatBalance` process is assigned to a `Soil` layer, `Tile` will invoke
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 
-The real work finally happens in [`updatestate!`](@ref) and [`computefluxes!`](@ref), the latter of which should be used to compute the time derivatives (here `∂H∂t`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
+The real work finally happens in [`computediagnostic!`](@ref) and [`computefluxes!`](@ref), the latter of which should be used to compute the time derivatives (here `∂H∂t`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
 
 We can take as an example the implementation of `computefluxes!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 

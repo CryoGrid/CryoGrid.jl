@@ -39,7 +39,7 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
     Diagnostic(:jw_ET, Scalar, u"m/s", domain=0..Inf),
 )
 
-function CryoGrid.updatestate!(::Top, swb::SurfaceWaterBalance, stop)
+function CryoGrid.computediagnostic!(::Top, swb::SurfaceWaterBalance, stop)
     @setscalar stop.jw_snow = swb.snowfall(stop.t)
     @setscalar stop.jw_rain = swb.rainfall(stop.t)
 end

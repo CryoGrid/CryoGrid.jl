@@ -45,13 +45,13 @@ initialcondition!(initializer::VarInitializer, layer1::Layer, layer2::Layer, sta
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 
 """
-    updatestate!(l::Layer, state)
-    updatestate!(l::Layer, p::Process, state)
+    computediagnostic!(l::Layer, state)
+    computediagnostic!(l::Layer, p::Process, state)
 
 Updates all diagnostic/non-flux state variables for the given `Layer` based on the current prognostic state.
 """
-updatestate!(layer::Layer, state) = updatestate!(layer, processes(layer), state)
-updatestate!(::Layer, ::Process, state) = nothing
+computediagnostic!(layer::Layer, state) = computediagnostic!(layer, processes(layer), state)
+computediagnostic!(::Layer, ::Process, state) = nothing
 
 """
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
@@ -112,7 +112,7 @@ resetfluxes!(layer::Layer, proc::Process, state) = nothing
     isactive(::Layer, state)
 
 Returns a boolean whether or not this layer is currently active in the stratigraphy and should interact with other layers.
-Note that `updatestate!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
+Note that `computediagnostic!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
 The default implementation of `isactive` always returns `true`.
 """
 isactive(::Layer, state) = true

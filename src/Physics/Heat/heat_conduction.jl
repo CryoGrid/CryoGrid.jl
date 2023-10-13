@@ -85,7 +85,7 @@ CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:TemperatureBased}) = (
 """
 Diagnostic state update for heat conduction (all state configurations) on any subsurface layer.
 """
-function CryoGrid.updatestate!(sub::SubSurface, heat::HeatBalance, state)
+function CryoGrid.computediagnostic!(sub::SubSurface, heat::HeatBalance, state)
     # Evaluate freeze/thaw processes
     freezethaw!(sub, state)
     # Update thermal conductivity
