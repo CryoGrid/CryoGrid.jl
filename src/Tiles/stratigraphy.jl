@@ -147,9 +147,10 @@ function CryoGrid.computediagnostic!(strat::Stratigraphy, state)
 end
 
 function CryoGrid.diagnosticstep!(strat::Stratigraphy, state)
-    fastiterate(namedlayers(strat)) do named_layer
+    prognostic_state_updated = fastmap(namedlayers(strat)) do named_layer
         CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
+    return any(prognostic_state_updated)
 end
 
 """
