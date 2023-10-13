@@ -1,45 +1,3 @@
-mutable struct TileData
-    outputs::Any
-    TileData() = new(missing)
-end
-
-"""
-    AbstractTile{iip}
-
-Base type for 1D tiles. `iip` is a boolean value that indicates, if true,
-whether the model operates on state variables in-place (overwriting arrays) or
-if false, out-of-place (copying arrays). Current only in-place is supported.
-"""
-abstract type AbstractTile{iip} end
-"""
-    (tile::AbstractTile{true})(du,u,p,t,dt=1.0)
-    (tile::AbstractTile{false})(u,p,t,dt=1.0)
-
-Invokes the corresponding `prognostic!` function to compute the time derivative du/dt.
-"""
-(tile::AbstractTile{true})(du, u, p, t, dt=1.0) = prognostic!(tile,du,u,p,t,dt)
-(tile::AbstractTile{false})(u, p, t, dt=1.0) = evaluate(tile,u,p,t,dt)
-
-"""
-    isinplace(tile::AbstractTile{iip}) where {iip}
-
-Returns true if `tile` uses in-place mode, false if out-of-place.
-"""
-isinplace(::AbstractTile{iip}) where {iip} = iip
-
-"""
-    prognostic!(::T,du,u,p,t) where {T<:AbstractTile}
-
-In-place update function for tile `T`. Computes du/dt and stores the result in `du`.
-"""
-prognostic!(::T, du, u, p, t, dt=1.0) where {T<:AbstractTile} = error("no implementation of in-place prognostic! for $T")
-"""
-    evaluate(::T,u,p,t) where {T<:AbstractTile}
-
-Out-of-place update function for tile `T`. Computes and returns du/dt as vector with same size as `u`.
-"""
-evaluate(::T, u, p, t, dt=1.0) where {T<:AbstractTile} = error("no implementation of out-of-place evaluate for $T")
-
 """
     Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
 
@@ -141,9 +99,9 @@ function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
 end
 
 """
-    prognostic!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
+    computefluxes!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
-Time derivative step function (i.e. du/dt) for any arbitrary Tile. Specialized code is generated and compiled
+Time derivative step function (i.e. du/dt) for any arbitrary `Tile`. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
 in sequence, i.e for each layer 1 <= i <= N:
 
@@ -153,7 +111,7 @@ interact!(layer[i], ..., layer[i+1], ...)
 computefluxes!(layer[i], ...)
 ```
 """
-function prognostic!(
+function computefluxes!(
     _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
     _du,
     _u,
@@ -222,7 +180,7 @@ function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=noth
     CryoGrid.initialcondition!(tile.grid, state)
     CryoGrid.initialcondition!(strat, state, tile.inits)
     # evaluate initial time derivative
-    prognostic!(tile, du, u, p, t0)
+    computefluxes!(tile, du, u, p, t0)
     return u, du
 end
 

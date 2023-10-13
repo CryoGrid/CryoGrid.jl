@@ -32,6 +32,8 @@ include("stratigraphy.jl")
 export TileState
 include("state.jl")
 
+include("tile_base.jl")
+
 export Tile, withaxes, getstate
 include("tile.jl")
 
