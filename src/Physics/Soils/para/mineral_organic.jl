@@ -53,9 +53,9 @@ SoilThermalProperties(
 
 # CryoGrid methods
 CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
-    por = CryoGrid.parameterize(para.por, domain=0..1),
-    sat = CryoGrid.parameterize(para.sat, domain=0..1),
-    org = CryoGrid.parameterize(para.org, domain=0..1),
+    por = CryoGrid.parameterize(para.por, domain=0..1, desc="Natural porosity of the soil volume."),
+    sat = CryoGrid.parameterize(para.sat, domain=0..1, desc="Initial water+ice saturation level of the soil volume."),
+    org = CryoGrid.parameterize(para.org, domain=0..1, desc="Organic solid fraction of the soil volume."),
     heat = CryoGrid.parameterize(para.heat, domain=0..Inf),
     water = CryoGrid.parameterize(para.water, domain=0..Inf),
 )
@@ -95,13 +95,11 @@ end
 Gets the `ThermalProperties` for the given soil layer.
 """
 Heat.thermalproperties(soil::Soil{<:MineralOrganic}) = soil.para.heat
-Heat.thermalproperties(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = soil.para.para.heat
 
 """
 Gets the `HydraulicProperties` for the given soil layer.
 """
 Hydrology.hydraulicproperties(soil::Soil{<:MineralOrganic}) = soil.para.water
-Hydrology.hydraulicproperties(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = soil.para.para.water
 
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)

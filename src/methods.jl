@@ -45,13 +45,13 @@ initialcondition!(initializer::VarInitializer, layer1::Layer, layer2::Layer, sta
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 
 """
-    updatestate!(l::Layer, state)
-    updatestate!(l::Layer, p::Process, state)
+    computediagnostic!(l::Layer, state)
+    computediagnostic!(l::Layer, p::Process, state)
 
 Updates all diagnostic/non-flux state variables for the given `Layer` based on the current prognostic state.
 """
-updatestate!(layer::Layer, state) = updatestate!(layer, processes(layer), state)
-updatestate!(::Layer, ::Process, state) = nothing
+computediagnostic!(layer::Layer, state) = computediagnostic!(layer, processes(layer), state)
+computediagnostic!(::Layer, ::Process, state) = nothing
 
 """
     interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2)
@@ -112,7 +112,7 @@ resetfluxes!(layer::Layer, proc::Process, state) = nothing
     isactive(::Layer, state)
 
 Returns a boolean whether or not this layer is currently active in the stratigraphy and should interact with other layers.
-Note that `updatestate!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
+Note that `computediagnostic!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
 The default implementation of `isactive` always returns `true`.
 """
 isactive(::Layer, state) = true
@@ -138,16 +138,16 @@ diagnosticstep!(layer::Layer, state) = false
 """
     parameterize(x::T) where {T}
     parameterize(x::Unitful.AbstractQuantity; props...)
-    parameterize(p::Param; ignored...)
+    parameterize(p::AbstractParam; ignored...)
 
 Recursively wraps `x` or nested numeric quantities in `x` with `Param` to mark them as parameters.
 If `x` is already a `Param` type, `x` will be returned as-is.
 If `x` is a numeric type, `x` will be wrapped in `Param` with associated properties `props`.
 If `x` is a struct type, `x` will be recursively unpacked and `parameterize` called on each field.
 """
-parameterize(x::Number; props...) = Param(x; props...)
-parameterize(x::Unitful.AbstractQuantity; props...) = Param(ustrip(x); untis=unit(x), props...)
-parameterize(p::Param; ignored...) = p
+parameterize(x::Number; type=Param, props...) = type(x; props...)
+parameterize(x::Unitful.AbstractQuantity; type=Param, props...) = type(ustrip(x); untis=unit(x), props...)
+parameterize(p::AbstractParam; ignored...) = p
 parameterize(f::Function; ignored...) = f
 function parameterize(x::T; props...) where {T}
     # get field names of T, if available

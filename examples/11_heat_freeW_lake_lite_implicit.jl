@@ -24,7 +24,7 @@ modelgrid = Grid(vcat(-1.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_
 z_top = -1.0u"m"
 z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = modelgrid[end]
-upperbc = TemperatureGradient(forcings.Tair, NFactor(nf=0.5))
+upperbc = TemperatureBC(forcings.Tair, NFactor(nf=0.5))
 initT = initializer(:T, tempprofile_linear)
 @info "Building stratigraphy"
 heatop = Heat.EnthalpyImplicit()

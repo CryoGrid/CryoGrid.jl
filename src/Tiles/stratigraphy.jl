@@ -104,7 +104,7 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
             strat_grid = layer_grid
         end
     end
-    return strat_grid
+    return Grid(ustrip.(strat_grid))
 end
 
 function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
@@ -115,7 +115,7 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
         layerᵢ = strat[i]
         stateᵢ = getproperty(state, layernames(strat)[i])
         for init in tuplejoin(CryoGrid.initializers(layerᵢ), inits)
-            if haskey(stateᵢ.states, varname(init))
+            if hasproperty(stateᵢ, varname(init))
                 CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
             end
         end
@@ -140,16 +140,17 @@ function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
     end
 end
 
-function CryoGrid.updatestate!(strat::Stratigraphy, state)
+function CryoGrid.computediagnostic!(strat::Stratigraphy, state)
     fastiterate(namedlayers(strat)) do named_layer
-        CryoGrid.updatestate!(named_layer.val, getproperty(state, nameof(named_layer)))
+        CryoGrid.computediagnostic!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
 end
 
 function CryoGrid.diagnosticstep!(strat::Stratigraphy, state)
-    fastiterate(namedlayers(strat)) do named_layer
+    prognostic_state_updated = fastmap(namedlayers(strat)) do named_layer
         CryoGrid.diagnosticstep!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
+    return any(prognostic_state_updated)
 end
 
 """
@@ -217,9 +218,10 @@ function CryoGrid.computefluxes!(strat::Stratigraphy, state)
 end
 
 function CryoGrid.timestep(strat::Stratigraphy, state)
-    max_dts = fastmap(namedlayers(strat)) do named_layer
-        CryoGrid.timestep(named_layer.val, getproperty(state, nameof(named_layer)))
+    @inline function timestep(named_layer::NamedLayer)
+        return CryoGrid.timestep(named_layer.val, getproperty(state, nameof(named_layer)))
     end
+    max_dts = fastmap(timestep, namedlayers(strat))
     return minimum(max_dts)
 end
 

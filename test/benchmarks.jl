@@ -53,7 +53,7 @@ end
 filename = "./input/FORCING_JSONfiles/samoylov_ERA_obs_fitted_1979_2014_spinup_extended2044.json"
 forcings = loadforcings(filename);
 # use air temperature as upper boundary forcing
-tair = TemperatureGradient(forcings.Tair)
+tair = TemperatureBC(forcings.Tair)
 solvers = [Euler, DP5, ROCK2, ROCK4, Trapezoid, ROS3P]
 grids = [Presets.DefaultGrid_2cm, Presets.DefaultGrid_5cm, Presets.DefaultGrid_10cm, Presets.DefaultGrid_20cm]
 dts = [2*60.0, 10*60.0, 30*60.0, 3600.0]

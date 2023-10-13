@@ -14,8 +14,7 @@ end
     H = state.H[i]
     L = heat.prop.L
     θw, Lθ = FreezeCurves.freewater(H, θwi, L)
-    θfracs = volumetricfractions(sub, state, i)
-    C = heatcapacity(sub, heat, θfracs...)
+    C = heatcapacity(sub, heat, state, i)
     T_f = H / C
     T_t = (H - Lθ) / C
     T = IfElse.ifelse(
@@ -86,7 +85,7 @@ CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:TemperatureBased}) = (
 """
 Diagnostic state update for heat conduction (all state configurations) on any subsurface layer.
 """
-function CryoGrid.updatestate!(sub::SubSurface, heat::HeatBalance, state)
+function CryoGrid.computediagnostic!(sub::SubSurface, heat::HeatBalance, state)
     # Evaluate freeze/thaw processes
     freezethaw!(sub, state)
     # Update thermal conductivity

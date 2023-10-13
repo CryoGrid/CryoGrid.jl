@@ -15,7 +15,7 @@ z_sub = map(knot -> knot.depth, soilprofile)
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
     SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall),
-    TemperatureGradient(forcings.Tair)
+    TemperatureBC(forcings.Tair)
 )
 snowmass = DynamicSnowMassBalance(
     ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")

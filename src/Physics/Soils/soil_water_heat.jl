@@ -24,7 +24,7 @@ function Heat.freezethaw!(
         ∂θw∂T = ∂θw∂ψ*∂ψ∂T
         state.θw[i] = θw
         state.ψ[i] = ψ
-        C = Heat.heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        C = Heat.heatcapacity(soil, heat, state, i)
         ∂H∂T = Heat.dHdT(T, C, L, ∂θw∂T, ch_w, ch_i)
         state.∂θw∂T[i] = ∂θw∂T
         # compute dependent quantities
@@ -46,10 +46,10 @@ function CryoGrid.initialcondition!(
 )
     water, heat = ps
     # initialize water
-    CryoGrid.updatestate!(soil, water, state)
+    CryoGrid.computediagnostic!(soil, water, state)
     # initialize heat
     fc = heat.freezecurve
-    solver = sfccsolver!(soil, heat, state)
+    solver = initialize_sfccsolver!(soil, heat, state)
     @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
     L = heat.prop.L
     @unpack ch_w, ch_i = thermalproperties(soil)
@@ -58,14 +58,14 @@ function CryoGrid.initialcondition!(
         T = state.T[i]
         θw, ∂θw∂T = ∇(T -> fc(T, state.sat[i]; fc_kwargsᵢ...), T)
         state.θw[i] = θw
-        state.C[i] = heatcapacity(soil, heat, volumetricfractions(soil, state, i)...)
+        state.C[i] = heatcapacity(soil, heat, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])
         state.∂H∂T[i] = Heat.dHdT(T, state.C[i], L, ∂θw∂T, ch_w, ch_i)
     end
 end
 
 # Diagnostic step
-function CryoGrid.updatestate!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+function CryoGrid.computediagnostic!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
     # Compute water contents from current state
     Hydrology.watercontent!(sub, water, state)

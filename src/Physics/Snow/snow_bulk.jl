@@ -146,9 +146,7 @@ function CryoGrid.trigger!(
 )
     # Case 2: Increasing snow depth; initialize temperature and enthalpy state
     # using current upper boundary temperature.
-    heat = snow.heat
-    θfracs = volumetricfractions(snow, state, 1)
-    state.C .= C = Heat.heatcapacity(snow, heat, θfracs...)
+    heatcapacity!(snow, snow.heat, state)
     state.T .= state.T_ub
     state.H .= state.T.*C
     state.por .= 1 - getscalar(state.ρsn) / waterdensity(snow)
@@ -228,7 +226,7 @@ CryoGrid.variables(snow::BulkSnowpack, ::DynamicSnowMassBalance) = (
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
     snowvariables(snow)...,
 )
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     snow::BulkSnowpack{<:ConstantDensity},
     procs::Coupled(
         DynamicSnowMassBalance{TAcc,<:DegreeDayMelt},
@@ -243,7 +241,7 @@ function CryoGrid.updatestate!(
     # update snow depth
     snowdepth!(snow, mass, state)
     # update water content
-    updatestate!(snow, water, state)
+    computediagnostic!(snow, water, state)
     # evaluate freezing/thawing processes for snow layer
     Heat.freezethaw!(snow, heat, state)
     # compute thermal conductivity
@@ -296,13 +294,12 @@ function CryoGrid.trigger!(
     state
 )
     _, heat = procs
-    θfracs = volumetricfractions(snow, state, 1)
-    C = Heat.heatcapacity(snow, heat, θfracs...)
+    c_snow = heatcapacity(snow, snow.heat, state, 1)
     state.T .= state.T_ub
-    state.H .= state.T.*C
+    state.H .= state.T.*c_snow
     return nothing
 end
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     snow::BulkSnowpack,
     procs::Coupled(PrescribedSnowMassBalance,HeatBalance{FreeWater,<:EnthalpyBased}),
     state

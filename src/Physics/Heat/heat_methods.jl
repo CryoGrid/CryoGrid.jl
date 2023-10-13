@@ -4,7 +4,12 @@
 
 Returns the thermal properties for the given subsurface layer.
 """
-function thermalproperties end
+thermalproperties(::SubSurface) = error("not implemented")
+thermalproperties(sub::SubSurface, state) = thermalproperties(sub)
+thermalproperties(sub::SubSurface, state, i) = thermalproperties(sub, state, 1)
+
+heatcapacity(::SubSurface, state, i) = error("not implemented")
+
 """
     freezethaw!(sub::SubSurface, heat::HeatBalance, state)
 
@@ -13,21 +18,7 @@ In general, this function should compute at least the liquid/frozen water conten
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
 may also need to be computed depending on the thermal scheme being implemented.
 """
-function freezethaw! end
-
-"""
-    thermalconductivities(::SubSurface)
-
-Get thermal conductivities for generic `SubSurface` layer.
-"""
-function thermalconductivities end
-
-"""
-    heatcapacities(::SubSurface)
-
-Get heat capacities for generic `SubSurface` layer.
-"""
-function heatcapacities end
+freezethaw!(::SubSurface, ::HeatBalance, state) = error("not implemented")
 
 # Helper methods
 """
@@ -36,12 +27,14 @@ function heatcapacities end
 Discrete enthalpy function on temperature, heat capacity, specific latent heat of fusion, and liquid water content.
 """
 enthalpy(T, C, L, θ) = T*C + L*θ
+
 """
     enthalpyinv(H, C, L, θ) = (H - L*θ) / C
 
 Discrete inverse enthalpy function given H, C, L, and θ.
 """
 enthalpyinv(H, C, L, θ) = (H - L*θ) / C
+
 """
     dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 
@@ -49,6 +42,7 @@ Computes the apparent or "effective" heat capacity `∂H∂T` as a function of t
 latent heat of fusion, derivative of the freeze curve `∂θw∂T`, and the constituent heat capacities of water and ice.
 """
 dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
+
 """
     TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...)
 
@@ -57,25 +51,15 @@ Convenience constructor for `Numerics.Profile` which automatically converts temp
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
 
 """
-    thermalconductivity(op::HeatOperator)
+    thermal_conductivity_function(op::HeatOperator)
 
 Retreives the thermal conductivity function for this heat operator.
 """
-thermalconductivity(op::HeatOperator) = op.cond
+thermal_conductivity_function(op::HeatOperator) = op.cond
 
 """
-    heatcapacity(op::HeatOperator)
+    heat_capacity_function(op::HeatOperator)
 
 Retreives the volumetric heat capacity function for this heat operator.
 """
-heatcapacity(op::HeatOperator) = op.hc
-
-"""
-    fcsolver(op::HeatOperator)
-
-Retreives the nonlinear solver for the enthalpy/temperature constitutive relation, if defined.
-"""
-fcsolver(::HeatOperator) = nothing
-fcsolver(op::EnthalpyBased) = op.fcsolver
-fcsolver(heat::HeatBalance) = fcsolver(heat.op)
-fcsolver(::Nothing) = nothing
+heat_capacity_function(op::HeatOperator) = op.hc

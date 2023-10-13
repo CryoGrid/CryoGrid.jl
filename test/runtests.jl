@@ -26,7 +26,7 @@ include("Diagnostics/runtests.jl")
         "01_heat_freeW_samoylov.jl",
         "02_heat_sfcc_constantbc.jl",
         "03_heat_sfcc_samoylov.jl",
-        "07_heat_freeW_lite_implicit.jl",
+        "10_heat_freeW_lite_implicit.jl",
     ]
     for file in test_example_scripts
         @info "Running example script: $file"

@@ -1,7 +1,7 @@
 module Sources
 
 import CryoGrid: SubSurfaceProcess, SubSurface
-import CryoGrid: updatestate!, initialcondition!, interact!, computefluxes!, variables
+import CryoGrid: computediagnostic!, initialcondition!, interact!, computefluxes!, variables
 
 using ..Heat
 using CryoGrid.Numerics
