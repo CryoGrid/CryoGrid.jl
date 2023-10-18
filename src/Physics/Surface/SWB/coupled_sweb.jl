@@ -10,7 +10,7 @@ CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
 )
 
 function ET!(::Top, ::SurfaceWaterBalance, state)
-    @setscalar state.∂ET∂t += state.jw_ET[1]*area(state.grid)
+    @setscalar state.dET += state.jw_ET[1]*area(state.grid)
 end
 
 function CryoGrid.computefluxes!(top::Top, bc::SurfaceWaterEnergyBalance, state)

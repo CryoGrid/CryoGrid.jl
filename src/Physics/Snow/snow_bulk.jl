@@ -55,12 +55,12 @@ function ablation!(
         dmelt = calculate_degree_day_snow_melt(mass.ablation, T_ub)
         dmelt = min(dmelt, getscalar(ssnow.swe))
         # swe flux
-        @. ssnow.∂swe∂t -= dmelt
+        @. ssnow.dswe -= dmelt
         # thickness flux
         por = getscalar(ssnow.por)
         θis = 1 - por # solid ice
         Δdsn = -dmelt / θis
-        @. ssnow.∂Δz∂t += Δdsn
+        @. ssnow.dΔz += Δdsn
         # add water flux due to melt
         sat = getscalar(ssnow.sat)
         ssnow.jw[1] += dmelt - Δdsn*por*sat
@@ -79,11 +79,11 @@ function accumulate!(
     rate_scale = mass.accumulation.rate_scale
     jw_snow = snowfall(snowbc, stop)
     Δswe = rate_scale*jw_snow
-    @. ssnow.∂swe∂t += Δswe
+    @. ssnow.dswe += Δswe
     por = getscalar(ssnow.por)
     θis = 1 - por # solid ice
     Δdsn = Δswe/ θis
-    @. ssnow.∂Δz∂t += Δdsn
+    @. ssnow.dΔz += Δdsn
 end
 
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
@@ -165,7 +165,7 @@ function CryoGrid.computefluxes!(
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set divergence to zero if there is no snow
-        @. state.∂H∂t = zero(eltype(state.H))
+        @. state.dH = zero(eltype(state.H))
     else
         computefluxes!(snow, heat, state)
     end
@@ -181,7 +181,7 @@ function CryoGrid.computefluxes!(
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set divergence to zero if there is no snow
-        @. state.∂H∂t = zero(eltype(state.H))
+        @. state.dH = zero(eltype(state.H))
     else
         # otherwise call computefluxes! for other processes
         computefluxes!(snow, Coupled(water, heat), state)
@@ -197,7 +197,7 @@ function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp
     dtmax = Inf
     if getscalar(state.dsn) > snow.para.thresh
         @inbounds for i in eachindex(Δx)
-            dtmax = min(dtmax, heat.dtlim(state.∂H∂t[i], state.H[i], state.t))
+            dtmax = min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
         end
         dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
     end
@@ -205,14 +205,14 @@ function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp
 end
 # Snow mass
 function CryoGrid.timestep(snow::BulkSnowpack, mass::SnowMassBalance, state)
-    ∂Δz∂t = getscalar(state.∂Δz∂t)
+    dΔz = getscalar(state.dΔz)
     dsn = getscalar(state.dsn)
     thresh = snow.para.thresh
     dtmax = Inf
-    if dsn > thresh && ∂Δz∂t < zero(∂Δz∂t)
-        dtmax = (dsn - thresh) / abs(∂Δz∂t)
-    elseif dsn < thresh && ∂Δz∂t > zero(∂Δz∂t)
-        dtmax = (thresh - dsn) / ∂Δz∂t
+    if dsn > thresh && dΔz < zero(dΔz)
+        dtmax = (dsn - thresh) / abs(dΔz)
+    elseif dsn < thresh && dΔz > zero(dΔz)
+        dtmax = (thresh - dsn) / dΔz
     end
     return dtmax
 end

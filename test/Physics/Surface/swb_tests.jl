@@ -19,7 +19,7 @@
         CryoGrid.interact!(top, sub, stop, ssub)
         CryoGrid.computefluxes!(top, stop)
         @test iszero(ssub.jw[1])
-        @test stop.∂runoff∂t[1] > zero(eltype(stop.∂runoff∂t))
+        @test stop.drunoff[1] > zero(eltype(stop.drunoff))
         ssub.sat .= 0.5
         swb = CryoGrid.processes(top)
         water = CryoGrid.processes(sub)
@@ -28,6 +28,6 @@
         CryoGrid.interact!(top, sub, stop, ssub)
         CryoGrid.computefluxes!(top, stop)
         @test ssub.jw[1] > zero(eltype(ssub.jw))
-        @test iszero(stop.∂runoff∂t[1])
+        @test iszero(stop.drunoff[1])
     end
 end

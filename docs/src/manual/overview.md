@@ -65,11 +65,11 @@ variables(soil::Soil, heat::HeatBalance{<:EnthalpyBased}) = (
 )
 ```
 
-When the `HeatBalance` process is assigned to a `Soil` layer, `Tile` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `∂H∂t`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for derived/intermediary state variables.
+When the `HeatBalance` process is assigned to a `Soil` layer, `Tile` will invoke this method and create state variables corresponding to each [`Var`](@ref). [`Prognostic`](@ref) variables are assigned derivatives (in this case, `dH`, since `H` is the prognostic state variable) and integrated over time. `Diagnostic` variables provide in-place caches for derived/intermediary state variables.
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 
-The real work finally happens in [`computediagnostic!`](@ref) and [`computefluxes!`](@ref), the latter of which should be used to compute the time derivatives (here `∂H∂t`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
+The real work finally happens in [`computediagnostic!`](@ref) and [`computefluxes!`](@ref), the latter of which should be used to compute the time derivatives (here `dH`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
 
 We can take as an example the implementation of `computefluxes!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 
@@ -78,7 +78,7 @@ function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Ent
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    nonlineardiffusion!(state.dH, state.jH, state.T, ΔT, state.k, Δk)
     return nothing
 end
 ```
@@ -87,4 +87,4 @@ end
 
     Prognostic state variables like `H` in the example above **should not be directly modified** in the model code. They should only be modified by the calling solver/integrator. This is especially important when using higher order or implicit integrators as unexpected changes to prognostic state may destroy the accuracy of their internal interpolant. For modeling discontinuities, use [`Events`](@ref) instead.
 
-Note that `state` is (typically) of type [`LayerState`](@ref) with properties corresponding to the state variables declared by the `variables` function for `Soil` and `HeatBalance`. Additionally, output arrays for the time derivatives are provided (here `∂H∂t`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grid` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.
+Note that `state` is (typically) of type [`LayerState`](@ref) with properties corresponding to the state variables declared by the `variables` function for `Soil` and `HeatBalance`. Additionally, output arrays for the time derivatives are provided (here `dH`), as well as the current timestep, layer boundary depths, and variable grids (accessible via `state.t`, `state.bounds`, and `state.grid` respectively). Note that `state` will also contain other variables declared on this `Soil` layer by other `SubSurfaceProcess`es, allowing for implicit coupling between processes where appropriate.

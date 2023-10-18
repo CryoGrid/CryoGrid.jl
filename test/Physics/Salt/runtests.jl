@@ -76,7 +76,7 @@ include("../../testutils.jl")
         CryoGrid.computediagnostic!(soil, procs, state)
         CryoGrid.computefluxes!(soil, procs, state)
         # check that all divergences are nonzero for both temperature and salt
-        @test all(.!iszero.(state.∂c∂t))
-        @test all(.!iszero.(state.∂T∂t))
+        @test all(.!iszero.(state.dc))
+        @test all(.!iszero.(state.dT))
     end
 end

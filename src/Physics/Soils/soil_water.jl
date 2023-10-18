@@ -88,11 +88,11 @@ function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Sa
 end
 
 function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Saturation}}, state)
-    @inbounds @. state.∂sat∂t = state.∂θwi∂t / state.θsat
+    @inbounds @. state.dsat = state.dθwi / state.θsat
     return nothing
 end
 function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure}}, state)
-    @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.∂θw∂ψ
+    @inbounds @. state.dψ₀ = state.dθwi / state.∂θw∂ψ
     return nothing
 end
 
@@ -150,7 +150,7 @@ end
 function CryoGrid.timestep(::Soil, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
-        dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
+        dt = water.dtlim(state.dψ₀[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
         dt = isfinite(dt) ? dt : Inf # make sure it's +Inf
         dtmax = min(dtmax, dt)
     end

@@ -64,7 +64,7 @@ ConstructionBase.constructorof(::Type{<:Diffusion1D{progvar}}) where {progvar} =
     EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
 
 Implicit enthalpy formulation of Swaminathan and Voller (1992) and Langer et al. (2022). Note that this
-heat operator formulation does not compute a divergence `∂H∂t` but only computes the necessary diffusion
+heat operator formulation does not compute a divergence `dH` but only computes the necessary diffusion
 coefficients for use by an appropriate solver. See the `LiteImplicit` module for the appropriate
 solver algorithms.
 """

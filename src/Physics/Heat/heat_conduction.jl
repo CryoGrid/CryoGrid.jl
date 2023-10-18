@@ -78,7 +78,7 @@ Variable definitions for heat conduction (temperature).
 CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:TemperatureBased}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
-    Diagnostic(:∂H∂t, OnGrid(Cells), u"W/m^3"),
+    Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
     heatvariables(heat)...,
 )
 
@@ -112,9 +112,9 @@ function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Ent
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set;
     # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
     # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
-    # nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    # nonlineardiffusion!(state.dH, state.jH, state.T, ΔT, state.k, Δk)
     flux!(state.jH, state.T, ΔT, state.k)
-    divergence!(state.∂H∂t, state.jH, Δk)
+    divergence!(state.dH, state.jH, Δk)
     return nothing
 end
 function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:TemperatureBased}, state)
@@ -123,12 +123,12 @@ function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
     # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
     # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
-    # nonlineardiffusion!(state.∂H∂t, state.jH, state.T, ΔT, state.k, Δk)
+    # nonlineardiffusion!(state.dH, state.jH, state.T, ΔT, state.k, Δk)
     flux!(state.jH, state.T, ΔT, state.k)
-    divergence!(state.∂H∂t, state.jH, Δk)
+    divergence!(state.dH, state.jH, Δk)
     # Compute temperature flux by dividing by ∂H∂T;
     # ∂H∂T should be computed by the freeze curve.
-    @inbounds @. state.∂T∂t = state.∂H∂t / state.∂H∂T
+    @inbounds @. state.dT = state.dH / state.∂H∂T
     return nothing
 end
 
@@ -142,8 +142,8 @@ defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which h
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
 function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.CFL}, state) where {Tfc,THeatOp}
-    derivative(::EnthalpyBased, state) = state.∂H∂t
-    derivative(::TemperatureBased, state) = state.∂T∂t
+    derivative(::EnthalpyBased, state) = state.dH
+    derivative(::TemperatureBased, state) = state.dT
     prognostic(::EnthalpyBased, state) = state.H
     prognostic(::TemperatureBased, state) = state.T
     Δx = Δ(state.grid)
@@ -166,7 +166,7 @@ function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGri
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
-        dtmax = min(dtmax, heat.dtlim(state.∂H∂t[i], state.H[i], state.t))
+        dtmax = min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
     end
     dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
     return dtmax
@@ -175,6 +175,6 @@ end
 function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
     # Reset energy fluxes to zero; this is redundant when H is the prognostic variable
     # but necessary when it is not.
-    @. state.∂H∂t = zero(eltype(state.∂H∂t))
+    @. state.dH = zero(eltype(state.dH))
     @. state.jH = zero(eltype(state.jH))
 end
