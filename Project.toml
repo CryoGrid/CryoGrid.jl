@@ -1,7 +1,7 @@
 name = "CryoGrid"
 uuid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
 authors = ["Brian Groenke <brian.groenke@awi.de>", "Jan Nitzbon <jan.nitzbon@awi.de>", "Moritz Langer <moritz.langer@awi.de>"]
-version = "0.20.0"
+version = "0.20.1"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
