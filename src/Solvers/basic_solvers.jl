@@ -28,7 +28,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     u_storage = [copy(u0)]
     t_storage = [prob.tspan[1]*one(eltype(u0))]
     # evaluate tile at initial condition
-    tile = Tiles.resolve(Tile(prob.f), u0, prob.p, t0)
+    tile = Tiles.resolve(Tile(prob.f), prob.p, t0)
     tile(du0, u0, prob.p, t0, dt)
     # reset SavedValues on tile.data
     initialsave = prob.savefunc(tile, u0, similar(u0))
@@ -53,7 +53,7 @@ function perform_step!(integrator::CryoGridIntegrator{CGEuler})
     t₀ = integrator.t
     p = integrator.p
     initial_tile = Tile(integrator.sol.prob.f)
-    tile = Tiles.resolve(initial_tile, u, p, t₀)
+    tile = Tiles.resolve(initial_tile, p, t₀)
     # compute time derivative du
     tile(du, u, p, t₀)
     dt = integrator.dt

@@ -1,9 +1,9 @@
 """
-    TileState{sublayer,TStrat,TGrid,TStates,Tu,Tt,Tdt}
+    TileState{TGrid,TStates,Tu,Tt,Tdt}
 
 Represents the state of a CryoGrid `Tile`.
 """
-struct TileState{sublayer,TStrat,TGrid,TStates,Tu,Tt,Tdt}
+struct TileState{TStrat,TGrid,TStates,Tu,Tt,Tdt}
     strat::TStrat # stratigraphy of the Tile
     grid::TGrid # grid (from current state)
     states::TStates # named tuple of state variables
@@ -12,17 +12,15 @@ struct TileState{sublayer,TStrat,TGrid,TStates,Tu,Tt,Tdt}
     t::Tt
     dt::Tdt
     function TileState(
-        strat::Stratigraphy{N,<:NamedTuple{layernames}},
+        strat::Stratigraphy,
         grid::Numerics.AbstractDiscretization,
         states::NamedTuple,
         du::Tu,
         u::Tu,
         t,
         dt,
-        ::Val{sublayer}=Val{nothing}()
-    ) where {layernames,sublayer,N,Tu}
-        @assert isnothing(sublayer) || sublayer ∈ layernames "$sublayer is not a valid layer identifier"
-        return new{sublayer,typeof(strat),typeof(grid),typeof(states),Tu,typeof(t),typeof(dt)}(strat, grid, states, du, u, t, dt)
+    ) where {Tu}
+        return new{typeof(strat),typeof(grid),typeof(states),Tu,typeof(t),typeof(dt)}(strat, grid, states, du, u, t, dt)
     end
 end
 
@@ -38,17 +36,15 @@ function TileState(
     ::Val{sublayer}=Val{nothing}()
 ) where {N,layernames,sublayer}
     z_bounds = (map(tuple, zs[1:end-1], zs[2:end])..., (zs[end], ustrip(grid[end])))
+    newgrid = currentgrid(sv.griddiag, grid, u, t)
     # extract state variables for each layer from cache
     states = getstatevars(Val{layernames}(), sv, grid, z_bounds, du, u, t)
-    return TileState(strat, grid, states, du, u, t, dt, Val{sublayer}())
+    return TileState(strat, newgrid, states, du, u, t, dt)
 end
 
-Base.parent(state::TileState{nothing}) = state
-Base.parent(state::TileState{sublayer}) where {sublayer} = TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt)
 Base.getindex(state::TileState, sym::Symbol) = getproperty(state, sym)
-Base.propertynames(state::TileState{nothing}) = (propertynames(getfield(state, :states))..., fieldnames(typeof(state))...)
-Base.propertynames(state::TileState{sublayer}) where {sublayer} = (propertynames(getproperty(getfield(state, :states), sublayer))..., fieldnames(typeof(state))...)
-function Base.getproperty(state::TileState{nothing}, sym::Symbol)
+Base.propertynames(state::TileState) = (propertynames(getfield(state, :states))..., fieldnames(typeof(state))...)
+function Base.getproperty(state::TileState, sym::Symbol)
     states = getfield(state, :states)
     return if sym ∈ propertynames(states)
         selectlayer(state, Val{sym}())
@@ -56,45 +52,79 @@ function Base.getproperty(state::TileState{nothing}, sym::Symbol)
         getfield(state, sym)
     end
 end
-function Base.getproperty(state::TileState{sublayer}, sym::Symbol) where {sublayer}
-    layerstate = getproperty(getfield(state, :states), sublayer)
-    return if sym ∈ propertynames(layerstate)
-        getproperty(layerstate, sym)
+
+@inline selectlayer(state::TileState, layername::Symbol) = selectlayer(state, Val{layername}())
+@inline function selectlayer(state::TileState, ::Val{layername}) where {layername}
+    return LayerState(Val{layername}(), state)
+end
+
+"""
+    LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt}
+
+State for a single layer, typically constructed from a parent `TileState`.
+"""
+struct LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt}
+    name::Symbol
+    parent::TileState
+    grid::TGrid
+    states::TStates
+    t::Tt
+    dt::Tt
+end
+
+LayerState(layername::Symbol, parent::TileState) = LayerState(Val{layername}(), parent)
+function LayerState(::Val{layername}, parent::TileState) where {layername}
+    states = getproperty(parent.states, layername)
+    z₁ = states.z[1]
+    z₂ = max(z₁, z₁ + states.Δz[1])
+    subgrid = parent.grid[z₁..z₂]
+    return LayerState(layername, parent, subgrid, states, parent.t, parent.dt)
+end
+
+Base.parent(state::LayerState) = state.parent
+Base.getindex(state::LayerState, sym::Symbol) = getproperty(state, sym)
+Base.propertynames(state::LayerState) = (propertynames(getfield(state, :states))..., fieldnames(typeof(state))...)
+function Base.getproperty(state::LayerState, sym::Symbol)
+    states = getfield(state, :states)
+    return if sym ∈ propertynames(states)
+        getproperty(states, sym)
     else
         getfield(state, sym)
     end
 end
 
-@inline selectlayer(state::TileState, layername::Symbol) = selectlayer(state, Val{layername}())
-@inline function selectlayer(state::TileState, ::Val{layername}) where {layername}
-    return TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt, Val{layername}())
-end
+"""
+    nextlayer(state::LayerState)
 
-@generated function nextlayer(state::TileState{sublayer,TStrat}) where {sublayer,layernames,N,TStrat<:Stratigraphy{N,<:NamedTuple{layernames}}}
-    i = findfirst(==(sublayer), layernames)
-    if i == N
-        :(nothing)
-    else
-        :(state.strat[$i+1], TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt, Val{layernames[$i+1]}()))
+Retrieves the next stratigraphy layer and its corresponding `LayerState`. If the current
+layer is already `Bottom`, `nothing` is returned. Note that this function is **not type stable**
+and will incur a runtime dispatch. Thus, it should be used sparingly to avoid degrading performance.
+"""
+function nextlayer(state::LayerState)
+    if state.name == :bottom
+        return nothing
     end
+    tilestate = parent(state)
+    names = layernames(tilestate.strat)
+    i = findfirst(==(state.name), names)
+    return tilestate.strat[i+1], selectlayer(tilestate, names[i+1])
 end
 
-@generated function prevlayer(state::TileState{sublayer,TStrat}) where {sublayer,layernames,N,TStrat<:Stratigraphy{N,<:NamedTuple{layernames}}}
-    i = findfirst(==(sublayer), layernames)
-    if i == 1
-        :(nothing)
-    else
-        :(state.strat[$i-1], TileState(state.strat, state.grid, state.states, state.du, state.u, state.t, state.dt, Val{layernames[$i-1]}()))
+"""
+    prevlayer(state::LayerState)
+
+Retrieves the next stratigraphy layer and its corresponding view of `TileState`. If the current
+layer is already `Bottom`, `nothing` is returned. Note that this function is **not type stable**
+and will incur a runtime dispatch. Thus, it should be used sparingly to avoid degrading performance.
+"""
+function prevlayer(state::LayerState)
+    if state.name == :top
+        return nothing
     end
-end
-
-function currentgrid(sv::StateVars, initialgrid::Grid, u, t)
-    # retrieve grid data from StateVars
-    midpoints = retrieve(sv.griddiag.midpoints, u, t)
-    edges = retrieve(sv.griddiag.edges, u, t)
-    cellthick = retrieve(sv.griddiag.cellthick, u, t)
-    celldist = retrieve(sv.griddiag.celldist, u, t)
-    return Grid(Edges, (cells=midpoints, edges=edges), (cells=celldist, edges=cellthick), initialgrid.geometry)
+    tilestate = parent(state)
+    names = layernames(tilestate.strat)
+    i = findfirst(==(state.name), names)
+    return tilestate.strat[i-1], selectlayer(tilestate, names[i-1])
 end
 
 # internal method dispatches for type stable construction of state types

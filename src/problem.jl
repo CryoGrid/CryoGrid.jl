@@ -33,7 +33,7 @@ CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args
         save_everystep=false,
         save_start=true,
         save_end=true,
-        step_limiter=nothing,
+        step_limiter=timestep,
         safety_factor=1,
         max_step=true,
         callback=nothing,
@@ -50,13 +50,13 @@ function CryoGridProblem(
     u0::ComponentVector,
     tspan::NTuple{2,Float64},
     p=nothing;
-    diagnostic_step=3600.0,
+    diagnostic_stepsize=3600.0,
     saveat=3600.0,
     savevars=(),
     save_everystep=false,
     save_start=true,
     save_end=true,
-    step_limiter=nothing,
+    step_limiter=timestep,
     safety_factor=1,
     max_step=true,
     callback=nothing,
@@ -89,7 +89,7 @@ function CryoGridProblem(
     savevals = SavedValues(Float64, typeof(stateproto))
     saveat = expandtstep(saveat)
     savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
-    diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_step:tspan[end], diagnosticstep!)
+    diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_stepsize:tspan[end], diagnosticstep!)
     defaultcallbacks = (savingcallback, diagnostic_step_callback)
     # add step limiter to default callbacks, if defined
     if !isnothing(step_limiter)

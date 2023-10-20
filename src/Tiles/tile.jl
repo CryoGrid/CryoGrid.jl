@@ -3,12 +3,13 @@
 
 Defines the full specification of a single CryoGrid tile; i.e. stratigraphy, grid, and state variables.
 """
-struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
+struct Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip} <: AbstractTile{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
     inits::TInits # initializers
     events::TEvents # events
+    params::TParams # parameters
     data::TileData # output data
     metadata::Dict # metadata
     function Tile(
@@ -17,15 +18,16 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
         state::TStates,
         inits::TInits,
         events::TEvents,
+        params::TParams,
         data::TileData=TileData(),
         metadata::Dict=Dict(),
         iip::Bool=true) where
-        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
-        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,data,metadata)
+        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple,TParams}
+        new{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip}(strat,grid,state,inits,events,params,data,metadata)
     end
 end
-ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
-    (strat, grid, state, inits, events, data, metadata) -> Tile(strat, grid, state, inits, events, data, metadata, iip)
+ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,TParams,iip} =
+    (strat, grid, state, inits, events, params, data, metadata) -> Tile(strat, grid, state, inits, events, params, data, metadata, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -56,9 +58,13 @@ function Tile(
     arraytype::Type{A}=Vector{Float64},
     iip::Bool=true,
     chunk_size=nothing,
+    strip_units=true,
 ) where {T<:Numerics.StateVarCache,A<:AbstractArray}
     grid = Numerics.makegrid(strat, discretization_strategy)
-    strat = stripunits(strat)
+    if strip_units
+        strat = stripunits(strat)
+        grid = Grid(ustrip.(grid))
+    end
     events = CryoGrid.events(strat)
     layers = map(namedlayers(strat)) do named_layer
         nameof(named_layer) => _addlayerfield(named_layer.val, nameof(named_layer))
@@ -73,7 +79,8 @@ function Tile(
     inits = map(inits) do init
         _addlayerfield(init, Symbol(:init_, varname(init)))
     end
-    return Tile(strat, grid, states, inits, (;events...), TileData(), metadata, iip)
+    params = ModelParameters.params((; strat, inits, events))
+    return Tile(strat, grid, states, inits, (;events...), params, TileData(), metadata, iip)
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
@@ -95,7 +102,7 @@ Constructs a `Tile` from a `SciMLBase` DEIntegrator.
 function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
     tile = Tiles.Tile(integrator.sol.prob.f)
     u = integrator.u
-    return Tiles.resolve(tile, Tiles.withaxes(u, tile), integrator.p, integrator.t)
+    return Tiles.resolve(tile, integrator.p, integrator.t)
 end
 
 """
@@ -112,17 +119,17 @@ computefluxes!(layer[i], ...)
 ```
 """
 function computefluxes!(
-    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
+    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,true},
     _du,
     _u,
     p,
     t,
     dt=1.0,
-) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
+) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,TParams}
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
-    tile = resolve(_tile, u, p, t)
+    tile = resolve(_tile, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
     state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t, dt)
@@ -147,7 +154,7 @@ function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
     iip = isinplace(_tile)
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
-    tile = resolve(_tile, u, p, t)
+    tile = resolve(_tile, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
     state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t, 1.0)
@@ -161,18 +168,17 @@ end
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
 CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
+function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::pType=nothing) where {pType<:Union{Nothing,AbstractVector}}
     t0 = tspan[1]
-    iip = isinplace(tile)
-    # if there are parameters defined on `tile` but the user did not supply a parameter vector,
-    # automatically extract the parameters from the Tile.
-    tile_params = isempty(ModelParameters.params(tile)) ? [] : parameters(tile)
-    p = isnothing(p) && !isempty(tile_params) ? tile_params : p
+    tile_params = tile.params
+    if pType != Nothing && !isempty(tile_params)
+        p = collect(tile_params)
+    end
     # choose type for state vectors
     u_type = isnothing(p) ? eltype(tile.state.uproto) : eltype(p)
     du = zero(similar(tile.state.uproto, u_type))
     u = zero(similar(tile.state.uproto, u_type))
-    tile = resolve(tile, u, p, t0)
+    tile = resolve(tile, p, t0)
     strat = tile.strat
     # get stratigraphy boundaries
     zs = initboundaries!(tile, u)
@@ -260,7 +266,7 @@ end
 
 function update_layer_boundaries!(tile::Tile, u)
     # calculate grid boundaries starting from the bottom moving up to the surface
-    zbot = tile.state.grid[end]
+    zbot = tile.grid[end]
     return accumulate(reverse(namedlayers(tile.strat)); init=zbot) do z_acc, named_layer
         name = nameof(named_layer)
         diag_layer = getproperty(tile.state.diag, name)
@@ -351,7 +357,7 @@ CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, F
 
 Extracts all parameters from `tile`.
 """
-parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
+parameters(tile::Tile; kwargs...) = CryoGridParams(tile.params; kwargs...)
 
 """
     withaxes(u::AbstractArray, ::Tile)
@@ -363,7 +369,7 @@ withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.up
 withaxes(u::ComponentArray, ::Tile) = u
 
 """
-    resolve(tile::Tile, u, p, t)
+    resolve(tile::Tile, p, t)
 
 Resolves/updates the given `tile` by:
 (1) Replacing all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
@@ -372,7 +378,7 @@ Resolves/updates the given `tile` by:
 
 Returns the reconstructed `Tile` instance.
 """
-function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,TStates}
+function resolve(tile::Tile{TStrat,TGrid,TStates}, p::AbstractVector, t::Number) where {TStrat,TGrid,TStates}
     IgnoreTypes = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
     # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct method directly...
@@ -386,7 +392,7 @@ function resolve(tile::Tile{TStrat,TGrid,TStates}, u, p, t) where {TStrat,TGrid,
     reconstructed_tile = Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, IgnoreTypes, 1)[1]
     return reconstructed_tile
 end
-resolve(tile::Tile, u, p::Nothing, t) = tile
+resolve(tile::Tile, p::Nothing, t::Number) = tile
 
 function checkstate!(tile::Tile, state::TileState, u, du, label::Symbol)
     if CryoGrid.CRYOGRID_DEBUG

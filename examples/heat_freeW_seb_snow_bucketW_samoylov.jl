@@ -44,7 +44,8 @@ tile = Tile(strat, modelgrid, initT);
 # Set up the problem and solve it!
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
 ## generate initial condition and set up CryoGridProblem
-u0, du0 = initialcondition!(tile, tspan)
+@time u0, du0 = initialcondition!(tile, tspan)
+
 prob = CryoGridProblem(
     tile,
     u0,
@@ -60,6 +61,9 @@ integrator = init(prob, Euler(), dt=60.0)
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
     @assert isfinite(getstate(integrator).top.Qg[1])
     @info "Current t=$(Date(convert_t(t))), dt=$(integrator.dt)"
+    if integrator.sol.retcode != ReturnCode.Default
+        break
+    end
 end
 out = CryoGridOutput(integrator.sol)
 

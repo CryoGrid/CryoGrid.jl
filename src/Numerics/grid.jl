@@ -118,6 +118,15 @@ function updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) whe
     return grid
 end
 
+function currentgrid(statevars::NamedTuple, initialgrid::Grid, u, t)
+    # retrieve grid data from StateVars
+    midpoints = retrieve(statevars.midpoints, u, t)
+    edges = retrieve(statevars.edges, u, t)
+    cellthick = retrieve(statevars.cellthick, u, t)
+    celldist = retrieve(statevars.celldist, u, t)
+    return Grid(Edges, (edges=edges, cells=midpoints), (edges=cellthick, cells=celldist), initialgrid.geometry, initialgrid.bounds)
+end
+
 # unit rectangle defaults
 volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
 area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
