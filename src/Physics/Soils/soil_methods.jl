@@ -50,14 +50,6 @@ saturation(soil::Soil, state) = saturation(soil)
 saturation(::Soil{<:Any,<:Any,<:WaterBalance}, state) = state.sat
 saturation(::Soil) = error("not implemented for $(typeof(soil))")
 
-# Constructors
-"""
-    SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...)
-
-Alias for `Profile(pairs...)` assigning soil parameterizations to specific depths.
-"""
-SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)
-
 # CryoGrid core methods
 CryoGrid.processes(soil::Soil{<:SoilParameterization,<:HeatBalance,Nothing}) = soil.heat
 CryoGrid.processes(soil::Soil{<:SoilParameterization,Nothing,<:WaterBalance}) = soil.water

@@ -7,8 +7,6 @@ Base.@kwdef struct WaterBalanceProperties{Tρw,TLsg,Trfs}
     ρw::Tρw = CryoGrid.Constants.ρw
     Lsg::TLsg = CryoGrid.Constants.Lsg
     rf_smoothness::Trfs = 0.3
-    # r_β::Trb = 1e3 # reduction factor scale parameter
-    # r_c::Trc = 0.96325 # reduction factor shift parameter
 end
 
 # do not parameterize water balance constants
@@ -21,7 +19,6 @@ Default material hydraulic properties.
 """
 Utils.@properties HydraulicProperties(
     kw_sat = 1e-5u"m/s",
-    fieldcapacity = 0.05,
 )
 
 function CryoGrid.parameterize(prop::HydraulicProperties)

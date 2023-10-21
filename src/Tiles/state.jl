@@ -59,17 +59,17 @@ end
 end
 
 """
-    LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt}
+    LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt,Tdt}
 
 State for a single layer, typically constructed from a parent `TileState`.
 """
-struct LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt}
+struct LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt,Tdt}
     name::Symbol
     parent::TileState
     grid::TGrid
     states::TStates
     t::Tt
-    dt::Tt
+    dt::Tdt
 end
 
 LayerState(layername::Symbol, parent::TileState) = LayerState(Val{layername}(), parent)

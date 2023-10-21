@@ -1,11 +1,4 @@
 """
-    hydraulicproperties(::SubSurface)
-
-Retrieves the hydraulic properties from the given subsurface layer.
-"""
-hydraulicproperties(::SubSurface) = error("not implemented")
-
-"""
     waterdensity(sub::SubSurface)
 
 Retrieves the density of water `ρw` from the given `SubSurface` layer. Default implementation assumes that
@@ -14,11 +7,22 @@ Retrieves the density of water `ρw` from the given `SubSurface` layer. Default 
 waterdensity(sub::SubSurface) = sub.water.prop.ρw
 
 """
-    kwsat(::SubSurface, ::WaterBalance)
+    hydraulicproperties(::SubSurface)
+
+Retrieves the hydraulic properties from the given subsurface layer.
+"""
+hydraulicproperties(::SubSurface) = error("not implemented")
+hydraulicproperties(sub::SubSurface, state) = hydraulicproperties(sub)
+hydraulicproperties(sub::SubSurface, state, i) = hydraulicproperties(sub, state)
+
+"""
+    kwsat(::SubSurface, state, i)
 
 Hydraulic conductivity at saturation.
 """
-kwsat(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).kw_sat
+kwsat(sub::SubSurface) = hydraulicproperties(sub).kw_sat
+kwsat(sub::SubSurface, state) = hydraulicproperties(sub, state).kw_sat
+kwsat(sub::SubSurface, state, i) = hydraulicproperties(sub, state, i).kw_sat
 
 """
     interact_ET!(::Top, ::WaterBC, ::SubSurface, ::WaterBalance, state1, state2)
@@ -49,7 +53,7 @@ maxwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(maxwa
 
 Returns the minimum volumetric water content (typically field capacity for simplified schemes) for grid cell `i`. Defaults to zero.
 """
-minwater(sub::SubSurface, ::WaterBalance) = hydraulicproperties(sub).fieldcapacity
+minwater(sub::SubSurface, ::WaterBalance) = sqrt(eps())
 minwater(sub::SubSurface, water::WaterBalance, state) = minwater(sub, water)
 minwater(sub::SubSurface, water::WaterBalance, state, i) = Utils.getscalar(minwater(sub, water, state), i)
 
@@ -63,45 +67,9 @@ watercontent(sub::SubSurface, state) = state.θwi
 watercontent(sub::SubSurface, state, i) = Utils.getscalar(watercontent(sub, state), i)
 
 """
-    watercontent!(::SubSurface, ::WaterBalance, state)
+    hydraulicconductivity(water::WaterBalance, kw_sat, θw, θwi, θsat)
 
-Computes the volumetric water content from current saturation or pressure state.
-"""
-function watercontent!(sub::SubSurface, water::WaterBalance, state)
-    @inbounds for i in eachindex(state.sat)
-        state.θsat[i] = maxwater(sub, water, state, i)
-        state.θwi[i] = state.sat[i]*state.θsat[i]
-        # initially set unfrozen water = water+ice;
-        # when heat conduction is included, it should update this based on temperature.
-        state.θw[i] = state.θwi[i]
-    end
-end
-
-"""
-    hydraulicconductivity(sub::SubSurface, water::WaterBalance, θw, θwi, θsat)
-
-Computes the hydraulic conductivity for the given layer and water balance configuration, current unfrozen
+Computes the hydraulic conductivity for the given water balance configuration, current unfrozen
 water content `θw`, total water/ice content `θwi`, and saturated (maximum) water content `θsat`.
 """
-hydraulicconductivity(sub::SubSurface, water::WaterBalance, θw, θwi, θsat) = kwsat(sub, water)*θw / θsat
-
-"""
-    hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
-
-Computes hydraulic conductivities for the given subsurface layer and water balance scheme.
-"""
-function hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
-    @inbounds for i in eachindex(state.kwc)
-        let θsat = Hydrology.maxwater(sub, water, state, i),
-            θw = state.θw[i],
-            θwi = state.θwi[i];
-            state.kwc[i] = hydraulicconductivity(sub, water, θw, θwi, θsat)
-            if i > 1
-                state.kw[i] = min(state.kwc[i-1], state.kwc[i])
-            end
-        end
-    end
-    # set hydraulic conductivity at boundaries equal to cell conductivities
-    state.kw[1] = state.kwc[1]
-    state.kw[end] = state.kwc[end]
-end
+hydraulicconductivity(::WaterBalance, kw_sat, θw, θwi, θsat) = kw_sat*θw / θsat

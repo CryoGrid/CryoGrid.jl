@@ -1,4 +1,41 @@
 """
+    watercontent!(::SubSurface, ::WaterBalance, state)
+
+Computes the volumetric water content from current saturation or pressure state.
+"""
+function watercontent!(sub::SubSurface, water::WaterBalance, state)
+    @inbounds for i in eachindex(state.sat)
+        state.θsat[i] = maxwater(sub, water, state, i)
+        state.θwi[i] = state.sat[i]*state.θsat[i]
+        # initially set unfrozen water = water+ice;
+        # when heat conduction is included, it should update this based on temperature.
+        state.θw[i] = state.θwi[i]
+    end
+end
+
+"""
+    hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
+
+Computes hydraulic conductivities for the given subsurface layer and water balance scheme.
+"""
+function hydraulicconductivity!(sub::SubSurface, water::WaterBalance, state)
+    @inbounds for i in eachindex(state.kwc)
+        let θsat = Hydrology.maxwater(sub, water, state, i),
+            θw = state.θw[i],
+            θwi = state.θwi[i],
+            kw_sat = kwsat(sub, state, i);
+            state.kwc[i] = hydraulicconductivity(water, kw_sat, θw, θwi, θsat)
+            if i > 1
+                state.kw[i] = min(state.kwc[i-1], state.kwc[i])
+            end
+        end
+    end
+    # set hydraulic conductivity at boundaries equal to cell conductivities
+    state.kw[1] = state.kwc[1]
+    state.kw[end] = state.kwc[end]
+end
+
+"""
     limit_upper_flux(water::WaterBalance, jw, θw, θwi, θsat, sat, Δz)
 
 Flux limiter for fluxes coming from "above"; limits `jw` based on the

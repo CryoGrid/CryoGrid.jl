@@ -7,10 +7,9 @@ function Heat.freezethaw!(
 ) where {THeat<:HeatBalance{<:DallAmicoSalt,<:TemperatureBased}}
     salt, heat = ps
     sfcc = heat.freezecurve
-    thermalprops = Heat.thermalproperties(soil)
-    @unpack ch_w, ch_i = thermalprops
     let L = heat.prop.L;
         @inbounds @fastmath for i in eachindex(state.T)
+            @unpack ch_w, ch_i = Heat.thermalproperties(soil, state, i)
             T = state.T[i]
             c = state.c[i]
             θsat = Soils.porosity(soil, state, i)

@@ -14,8 +14,8 @@ function Heat.freezethaw!(
     _get_temperature(::Type{<:TemperatureBased}, i) = state.T[i]
     _get_temperature(::Type{<:EnthalpyBased}, i) = enthalpyinv(soil, heat, state, i)
     L = heat.prop.L
-    @unpack ch_w, ch_i = thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
+        @unpack ch_w, ch_i = thermalproperties(soil, state, i)
         T = state.T[i] = _get_temperature(THeatForm, i)
         sat = state.sat[i]
         θsat = state.θsat[i]
@@ -52,8 +52,8 @@ function CryoGrid.initialcondition!(
     solver = initialize_sfccsolver!(soil, heat, state)
     @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
     L = heat.prop.L
-    @unpack ch_w, ch_i = thermalproperties(soil)
     @inbounds for i in 1:length(state.T)
+        @unpack ch_w, ch_i = thermalproperties(soil, state, i)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         T = state.T[i]
         θw, ∂θw∂T = ∇(T -> fc(T, state.sat[i]; fc_kwargsᵢ...), T)

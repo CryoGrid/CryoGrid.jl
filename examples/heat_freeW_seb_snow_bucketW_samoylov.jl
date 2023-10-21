@@ -31,11 +31,7 @@ water = WaterBalance(BucketScheme(), DampedET())
 strat = @Stratigraphy(
     -z => Top(upperbc), 
     -z => Snowpack(heat=HeatBalance(), water=water),
-    soilprofile[1].depth => Ground(soilprofile[1].value; heat, water),
-    soilprofile[2].depth => Ground(soilprofile[2].value; heat, water),
-    soilprofile[3].depth => Ground(soilprofile[3].value; heat, water),
-    soilprofile[4].depth => Ground(soilprofile[4].value; heat, water),
-    soilprofile[5].depth => Ground(soilprofile[5].value; heat, water),
+    0.0u"m" => Ground(soilprofile; heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 ## create Tile
@@ -44,7 +40,7 @@ tile = Tile(strat, modelgrid, initT);
 # Set up the problem and solve it!
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
 ## generate initial condition and set up CryoGridProblem
-@time u0, du0 = initialcondition!(tile, tspan)
+u0, du0 = @time initialcondition!(tile, tspan)
 
 prob = CryoGridProblem(
     tile,
@@ -55,7 +51,7 @@ prob = CryoGridProblem(
 )
 integrator = init(prob, Euler(), dt=60.0)
 ## step forwards 24 hours and check for NaN/Inf values
-@time step!(integrator, 24*3600)
+@time step!(integrator); integrator.dt
 @assert all(isfinite.(integrator.u))
 ## iterate over remaining timespan at fixed points using `TimeChoiceIterator`
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))

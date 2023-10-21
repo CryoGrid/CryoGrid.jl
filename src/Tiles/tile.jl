@@ -308,7 +308,7 @@ time step `t`.
 function getstate(tile::Tile, _u, _du, t, dt=1.0)
     du = ComponentArray(_du, getaxes(tile.state.uproto))
     u = ComponentArray(_u, getaxes(tile.state.uproto))
-    return TileState(tile.strat, tile.grid, tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), u, du, t, dt)
+    return TileState(tile.strat, tile.grid, tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), du, u, t, dt)
 end
 """
     getstate(integrator::SciMLBase.DEIntegrator)

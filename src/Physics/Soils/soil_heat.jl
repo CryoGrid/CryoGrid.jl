@@ -57,16 +57,6 @@ sfcckwargs(::SFCC, soil::Soil, heat::HeatBalance, state, i) = (
     θsat = porosity(soil, state, i), # θ saturated = porosity
 )
 
-function Heat.thermalconductivities(soil::Soil)
-    @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
-    return kh_w, kh_i, kh_a, kh_m, kh_o
-end
-
-function Heat.heatcapacities(soil::Soil)
-    @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil)
-    return ch_w, ch_i, ch_a, ch_m, ch_o
-end
-
 # Define volumetricfractions for Soil layer
 function CryoGrid.volumetricfractions(soil::Soil, state, i)
     return let θwi = Hydrology.watercontent(soil, state, i),
@@ -85,9 +75,9 @@ Initial condition for heat conduction (all state configurations) on soil layer w
 function CryoGrid.initialcondition!(soil::Soil, heat::HeatBalance{<:SFCC}, state)
     L = heat.prop.L
     fc = heat.freezecurve
-    @unpack ch_w, ch_i = thermalproperties(soil)
     initialize_sfccsolver!(soil, heat, state)
     @inbounds for i in 1:length(state.T)
+        @unpack ch_w, ch_i = thermalproperties(soil, state, i)
         fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
         sat = saturation(soil, state, i)
         T = state.T[i]
@@ -124,9 +114,9 @@ For heat conduction with temperature, we can simply evaluate the freeze curve to
 function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:TemperatureBased}, state)
     sfcc = heat.freezecurve
     L = heat.prop.L
-    @unpack ch_w, ch_i = Heat.thermalproperties(soil)
     @inbounds @fastmath for i in 1:length(state.T)
         T = state.T[i]
+        @unpack ch_w, ch_i = Heat.thermalproperties(soil, state, i)
         f_argsᵢ = sfcckwargs(sfcc, soil, heat, state, i)
         θw, ∂θw∂T = ∇(T -> sfcc(T; f_argsᵢ...), T)
         state.θw[i] = θw
@@ -144,7 +134,7 @@ function Heat.freezethaw!(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased},
     @inbounds for i in 1:length(state.H)
         let H = state.H[i], # enthalpy
             L = heat.prop.L,
-            props = thermalproperties(soil),
+            props = thermalproperties(soil, state, i),
             ch_w = props.ch_w,
             ch_i = props.ch_i,
             θwi = Hydrology.watercontent(soil, state, i),
@@ -170,7 +160,7 @@ function Heat.enthalpyinv(soil::Soil, heat::HeatBalance{<:SFCC,<:EnthalpyBased},
     solver = fcsolver(soil)
     @inbounds let H = state.H[i], # enthalpy
         L = heat.prop.L, # latent heat of fusion of water
-        props = thermalproperties(soil),
+        props = thermalproperties(soil, state, i),
         ch_w = props.ch_w,
         θwi = Hydrology.watercontent(soil, state, i),
         por = porosity(soil, state, i),

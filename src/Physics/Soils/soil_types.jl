@@ -15,19 +15,16 @@ Type alias for any `AbstractGround` layer with parameterization of type `SoilPar
 const Soil{Tpara,Theat,Twater} = AbstractGround{Tpara,Theat,Twater} where {Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}}
 
 """
-    Heterogeneous{Tpara,Taux} <: SoilParameterization
+    SoilProfile{N,V,D} = Profile{N,V,D} where {N,V<:SoilParameterization,D<:DistQuantity}
 
-Special `SoilParameterization` which wraps another soil parameterization type
-to indicate that it should be heterogeneous with over depth. Parameterizations
-that support such configurations should provide dispatches for `Heterogeneous{...}`
-that instantiate the relevant soil properties as on-grid state variables.
+Alias for depthwise `Profile` where the values are `SoilParameterization` types.
 """
-Base.@kwdef struct Heterogeneous{Tpara,Taux} <: SoilParameterization
-    para::Tpara
-    aux::Taux = nothing
-    Heterogeneous(para::SoilParameterization, aux=nothing) = new{typeof(para),typeof(aux)}(para, aux)
-end
+const SoilProfile{N,V,D} = Profile{N,V,D} where {N,V<:SoilParameterization,D<:DistQuantity}
 
-# forward getproperty to nested parameterization
-Base.propertynames(para::Heterogeneous) = (:para, Base.propertynames(getfield(para, :para))...)
-Base.getproperty(para::Heterogeneous, name::Symbol) = name == :para ? getfield(para, :para) : getproperty(getfield(para, :para), name)
+# Constructors
+"""
+    SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...)
+
+Alias for `Profile(pairs...)` specific for `SoilProfile`s.
+"""
+SoilProfile(pairs::Pair{<:DistQuantity,<:SoilParameterization}...) = Profile(pairs...)

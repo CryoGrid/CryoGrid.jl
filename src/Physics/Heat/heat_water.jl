@@ -19,7 +19,7 @@ Adds advective energy fluxes for all internal grid cell faces.
 """
 function water_energy_advection!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
-    cw = heatcapacity_water(sub)
+    cw = heatcapacitywater(sub, state)
     @inbounds for i in 2:length(state.jw)-1
         let jw = state.jw[i],
             T₁ = state.T[i-1],
@@ -42,7 +42,7 @@ function CryoGrid.interact!(top::Top, bc::WaterBC, sub::SubSurface, heat::HeatBa
     if heat.advection
         T_ub = getscalar(stop.T_ub)
         Ts = ssub.T[1]
-        cw = heatcapacity_water(sub)
+        cw = heatcapacitywater(sub, ssub)
         L = heat.prop.L
         jw = ssub.jw[1]
         jH_w = advectiveflux(jw, T_ub, Ts, cw, L)
@@ -54,7 +54,7 @@ function CryoGrid.interact!(sub::SubSurface, heat::HeatBalance, bot::Bottom, bc:
     if heat.advection
         Ts = ssub.T[end]
         T_lb = getscalar(sbot.T_ub)
-        cw = heatcapacity_water(sub)
+        cw = heatcapacitywater(sub, ssub)
         L = heat.prop.L
         jw = ssub.jw[end]
         jH_w = advectiveflux(jw, Ts, T_lb, cw, L)
@@ -80,8 +80,8 @@ function CryoGrid.interact!(
         T₂ = state2.T[1]
         jw = state1.jw[end]
         L = p1[2].prop.L
-        cw1 = heatcapacity_water(sub1)
-        cw2 = heatcapacity_water(sub2)
+        cw1 = heatcapacitywater(sub1, state1)
+        cw2 = heatcapacitywater(sub2, state2)
         cw = (jw >= zero(jw))*cw1 + (jw < zero(jw))*cw2
         jH_w = advectiveflux(jw, T₁, T₂, cw, L)
         state1.jH[end] = state2.jH[1] += jH_w
@@ -98,7 +98,15 @@ function CryoGrid.computefluxes!(sub::SubSurface, ps::Coupled(WaterBalance, Heat
     CryoGrid.computefluxes!(sub, heat, state)
 end
 
-function heatcapacity_water(sub::SubSurface)
-    @unpack ch_w = thermalproperties(sub)
-    return ch_w
+function heatcapacitywater(sub::SubSurface, state)
+    if hasproperty(state, :ch_w)
+        # TODO: this is a temporary solution that works so long as the
+        # heat capacity of water is constant throughout the layer.
+        # This should generally be the case, but it's not a very elegant
+        # solution and it would be better to treat such constants more properly.
+        return state.ch_w[1]
+    else
+        @unpack ch_w = thermalproperties(sub)
+        return ch_w
+    end
 end

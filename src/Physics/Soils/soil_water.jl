@@ -42,11 +42,21 @@ Impedence factor which represents the blockage of water-filled pores by ice (see
 """
 impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi) = 10^(-water.flow.Ω*(1 - θw/θwi))
 
+"""
+    SoilHydraulicProperties{::Type{SoilParameterization}; kw_sat, fieldcapacity}
+
+Material hydraulic properties for the given `SoilParameterization` type.
+"""
+SoilHydraulicProperties(
+    ::Type{<:SoilParameterization};
+    kw_sat = HydraulicProperties().kw_sat,
+    fieldcapacity = 0.05,
+) = HydraulicProperties(; kw_sat, fieldcapacity)
+
 # Methods for Hydrology module
 
-function Hydrology.hydraulicconductivity(soil::Soil, water::WaterBalance{<:RichardsEq{<:RREqForm,<:VanGenuchten}}, θw, θwi, θsat)
-    let kw_sat = Hydrology.kwsat(soil, water),
-        n = swrc(water).n,
+function Hydrology.hydraulicconductivity(water::WaterBalance{<:RichardsEq{RF,<:VanGenuchten}}, kw_sat, θw, θwi, θsat) where {RF}
+    let n = swrc(water).n,
         I_ice = impedencefactor(water, θw, θwi);
         # van Genuchten formulation of hydraulic conductivity; see van Genuchten (1980) and Westermann et al. (2022).
         # we use `complex` types here to permit illegal state values which may occur for adaptive solving schemes

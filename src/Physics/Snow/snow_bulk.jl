@@ -21,26 +21,6 @@ const EnthalpyBased = Heat.EnthalpyBased
 
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
-function snowdensity!(
-    snow::BulkSnowpack{<:ConstantDensity},
-    mass::DynamicSnowMassBalance,
-    state
-)
-    ρsn = snow.para.density.ρsn
-    ρw = waterdensity(snow)
-    state.ρsn .= ρsn
-    state.por .= 1 - ρsn / ρw
-    return nothing
-end
-
-function snowdepth!(
-    ::BulkSnowpack,
-    ::DynamicSnowMassBalance,
-    state
-)
-    @setscalar state.dsn = getscalar(state.Δz)
-end
-
 # implement ablation! for DegreeDayMelt
 function ablation!(
     ::Top,
@@ -148,7 +128,7 @@ function CryoGrid.trigger!(
     # using current upper boundary temperature.
     heatcapacity!(snow, snow.heat, state)
     state.T .= state.T_ub
-    state.H .= state.T.*C
+    state.H .= state.T.*state.C
     state.por .= 1 - getscalar(state.ρsn) / waterdensity(snow)
     state.sat .= zero(eltype(state.sat))
     return nothing

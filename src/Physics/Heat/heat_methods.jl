@@ -6,8 +6,20 @@ Returns the thermal properties for the given subsurface layer.
 """
 thermalproperties(::SubSurface) = error("not implemented")
 thermalproperties(sub::SubSurface, state) = thermalproperties(sub)
-thermalproperties(sub::SubSurface, state, i) = thermalproperties(sub, state, 1)
+thermalproperties(sub::SubSurface, state, i) = thermalproperties(sub, state)
 
+"""
+    thermalconductivity(::SubSurface, state, i)
+
+Computes the thermal conductivity for the given `SubSurface` layer at grid cell `i`.
+"""
+thermalconductivity(::SubSurface, state, i) = error("not implemented")
+
+"""
+    heatcapacity(::SubSurface, state, i)
+
+Computes the heat capacity for the given `SubSurface` layer at grid cell `i`.
+"""
 heatcapacity(::SubSurface, state, i) = error("not implemented")
 
 """
