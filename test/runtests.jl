@@ -23,10 +23,10 @@ include("Diagnostics/runtests.jl")
     # but this is annoyingly slow, so let's just pick a few
     # test_example_scripts = []
     test_example_scripts = [
-        "01_heat_freeW_samoylov.jl",
-        "02_heat_sfcc_constantbc.jl",
-        "03_heat_sfcc_samoylov.jl",
-        "07_heat_freeW_lite_implicit.jl",
+        "heat_freeW_samoylov.jl",
+        "heat_sfcc_constantbc.jl",
+        "heat_sfcc_samoylov.jl",
+        "heat_freeW_lite_implicit.jl",
     ]
     for file in test_example_scripts
         @info "Running example script: $file"

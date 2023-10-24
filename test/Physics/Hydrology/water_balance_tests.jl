@@ -15,13 +15,13 @@
         proc = CryoGrid.processes(sub)
         @test isa(proc, WaterBalance)
     end
-    @testset "updatestate!" begin
+    @testset "computediagnostic!" begin
         sub = TestGroundLayer(WaterBalance(BucketScheme()))
         state = Diagnostics.build_dummy_state(testgrid, sub, with_units=true)
         # initialize fully saturated
         state.sat .= 1.0
         procs = CryoGrid.processes(sub)
-        CryoGrid.updatestate!(sub, procs, state)
+        CryoGrid.computediagnostic!(sub, procs, state)
         @test allfinite(state.kw)
         @test allfinite(state.θw)
     end
@@ -31,7 +31,7 @@
         # initialize fully saturated
         state.sat .= 1.0
         procs = CryoGrid.processes(sub)
-        CryoGrid.updatestate!(sub, procs, state)
+        CryoGrid.computediagnostic!(sub, procs, state)
         CryoGrid.computefluxes!(sub, procs, state)
         @test allfinite(state.kw)
         @test allfinite(state.θw)
@@ -39,7 +39,7 @@
         # initialize at half saturation
         state.sat .= 0.5
         procs = CryoGrid.processes(sub)
-        CryoGrid.updatestate!(sub, procs, state)
+        CryoGrid.computediagnostic!(sub, procs, state)
         CryoGrid.computefluxes!(sub, procs, state)
         @test allfinite(state.kw)
         @test allfinite(state.θw)
@@ -54,8 +54,8 @@
         state1.sat .= 1.0
         state2.sat .= 1.0
         procs = CryoGrid.processes(sub1)
-        CryoGrid.updatestate!(sub1, procs, state1)
-        CryoGrid.updatestate!(sub2, procs, state2)
+        CryoGrid.computediagnostic!(sub1, procs, state1)
+        CryoGrid.computediagnostic!(sub2, procs, state2)
         CryoGrid.interact!(sub1, sub2, state1, state2)
         # check that layer boundary flux is zero due to full saturation
         @test iszero(state1.jw[end])
@@ -64,8 +64,8 @@
         state1.sat .= 1.0
         state2.sat .= 0.5
         water = CryoGrid.processes(sub1)
-        CryoGrid.updatestate!(sub1, water, state1)
-        CryoGrid.updatestate!(sub2, water, state2)
+        CryoGrid.computediagnostic!(sub1, water, state1)
+        CryoGrid.computediagnostic!(sub2, water, state2)
         CryoGrid.interact!(sub1, sub2, state1, state2)
         # check that layer boundary flux is zero due to full saturation
         @test state1.jw[end] > zero(eltype(state1.jw))
@@ -74,8 +74,8 @@
         state1.sat .= 0.5
         state2.sat .= 1.0
         procs = CryoGrid.processes(sub1)
-        CryoGrid.updatestate!(sub1, water, state1)
-        CryoGrid.updatestate!(sub2, water, state2)
+        CryoGrid.computediagnostic!(sub1, water, state1)
+        CryoGrid.computediagnostic!(sub2, water, state2)
         CryoGrid.interact!(sub1, sub2, state1, state2)
         # check that layer boundary flux is zero due to full saturation
         @test iszero(state1.jw[end])
@@ -84,8 +84,8 @@
         state1.sat .= minwater(sub1, water)
         state2.sat .= 0.5
         water = CryoGrid.processes(sub1)
-        CryoGrid.updatestate!(sub1, water, state1)
-        CryoGrid.updatestate!(sub2, water, state2)
+        CryoGrid.computediagnostic!(sub1, water, state1)
+        CryoGrid.computediagnostic!(sub2, water, state2)
         CryoGrid.interact!(sub1, sub2, state1, state2)
         # check that layer boundary flux is zero due to full saturation
         @test iszero(state1.jw[end])

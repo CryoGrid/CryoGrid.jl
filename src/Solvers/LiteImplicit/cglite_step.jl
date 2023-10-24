@@ -7,9 +7,9 @@ function CryoGrid.perform_step!(integrator::CGLiteIntegrator)
     p = integrator.p
     dt = integrator.dt
     t = t₀ + dt
-    tile = Tiles.resolve(Tile(integrator.sol.prob.f), u, p, t)
+    tile = Tiles.resolve(Tile(integrator.sol.prob.f), p, t)
     # explicit update, if necessary
-    # explicit_step!(integrator, tile, du, u, p, t)
+    explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
     implicit_step!(integrator, tile, du, u, p, t)
     # diagnostic udpate

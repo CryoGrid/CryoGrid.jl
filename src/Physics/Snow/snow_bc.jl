@@ -1,7 +1,10 @@
 const SnowBC = BoundaryProcess{T} where {SnowMassBalance<:T<:SubSurfaceProcess}
 
-# always allow Top interactions with Snowpack
+# always allow Top interactions with Snowpack mass balance
 CryoGrid.caninteract(::Top, ::WaterBC, ::Snowpack, ::SnowMassBalance, s1, s2) = true
+# also for subsurface water balance interaction
+CryoGrid.caninteract(::Snowpack, ::WaterBalance, ::SubSurface, ::WaterBalance, s1, s2) = true
+# only apply heat bc when active
 CryoGrid.caninteract(::Top, ::HeatBC, snow::Snowpack, ::HeatBalance, s1, s2) = isactive(snow, s2)
 
 # default top interact! for snow mass balance

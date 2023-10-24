@@ -23,7 +23,7 @@ include("../../testutils.jl")
         @test isa(procs[1], WaterBalance)
         @test isa(procs[2], Salt.CoupledHeatSalt)
     end
-    @testset "updatestate!" begin
+    @testset "computediagnostic!" begin
         soil = pstrip(SalineGround())
         state = Diagnostics.build_dummy_state(testgrid, soil, with_units=false)
         # initialize variables
@@ -31,7 +31,7 @@ include("../../testutils.jl")
         state.c .= 800.0
         state.por .= porosity(soil)
         procs = CryoGrid.processes(soil)
-        CryoGrid.updatestate!(soil, procs, state)
+        CryoGrid.computediagnostic!(soil, procs, state)
         # check that 
         @test allfinite(state.k)
         @test allfinite(state.θw)
@@ -53,8 +53,8 @@ include("../../testutils.jl")
         state1.por .= porosity(soil1)
         state2.por .= porosity(soil2)
         procs = CryoGrid.processes(soil1)
-        CryoGrid.updatestate!(soil1, procs, state1)
-        CryoGrid.updatestate!(soil2, procs, state2)
+        CryoGrid.computediagnostic!(soil1, procs, state1)
+        CryoGrid.computediagnostic!(soil2, procs, state2)
         CryoGrid.interact!(soil1, soil2, state1, state2)
         # check that 
         @test allfinite(state1.k) && allfinite(state2.k)
@@ -73,10 +73,10 @@ include("../../testutils.jl")
         state.c .= LinRange(900.0, 500.0, length(cells(testgrid)))
         state.por .= porosity(soil)
         procs = CryoGrid.processes(soil)
-        CryoGrid.updatestate!(soil, procs, state)
+        CryoGrid.computediagnostic!(soil, procs, state)
         CryoGrid.computefluxes!(soil, procs, state)
         # check that all divergences are nonzero for both temperature and salt
-        @test all(.!iszero.(state.∂c∂t))
-        @test all(.!iszero.(state.∂T∂t))
+        @test all(.!iszero.(state.dc))
+        @test all(.!iszero.(state.dT))
     end
 end

@@ -70,6 +70,14 @@ snowvariables(::Snowpack) = (
     Diagnostic(:T_ub, Scalar, u"°C"),
 )
 
+function snowdepth!(
+    ::Snowpack,
+    ::DynamicSnowMassBalance,
+    state
+)
+    @setscalar state.dsn = getscalar(state.Δz)
+end
+
 ### Default implmentations of CryoGrid methods for Snowpack ###
 
 # implement CryoGrid.Volume for prescribed vs. dynamic snow mass balance

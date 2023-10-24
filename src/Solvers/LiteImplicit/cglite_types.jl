@@ -32,7 +32,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     u_storage = [copy(u0)]
     t_storage = [prob.tspan[1]]
     # evaluate tile at initial condition
-    tile = Tiles.resolve(Tile(prob.f), u0, prob.p, t0)
+    tile = Tiles.resolve(Tile(prob.f), prob.p, t0)
     tile(zero(u0), u0, prob.p, t0, dt)
     # reset SavedValues on tile.data
     initialsave = prob.savefunc(tile, u0, similar(u0))

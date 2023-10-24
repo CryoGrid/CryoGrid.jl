@@ -33,7 +33,7 @@ include("profile.jl")
 export ∇, flux!, divergence!, nonlineardiffusion!, harmonicmean!, harmonicmean
 include("math.jl")
 
-export Grid, UnitRectangle, cells, edges, subgridinds, Δ, volume, area, updategrid!
+export Grid, UnitRectangle, cells, edges, subgridinds, Δ, volume, area, updategrid!, currentgrid
 include("grid.jl")
 
 export DiscretizationStrategy, PresetGrid, AutoGrid, LinearSpacing, makegrid, discretize

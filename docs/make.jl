@@ -39,7 +39,7 @@ mkpath(examples_output_dir)
 ignored_files = [
        "Manifest.toml",
        "Project.toml",
-       "08_heat_sfcc_richardseq_samoylov.jl",
+       "heat_sfcc_richardseq_samoylov.jl",
        "heat_freeW_lake_lite_implicit.jl",
 ]
 example_docfiles = map(filter(∉(ignored_files), readdir(examples_dir))) do f
@@ -50,16 +50,16 @@ example_docfiles = map(filter(∉(ignored_files), readdir(examples_dir))) do f
 end
 
 name_lookup = Dict(
-       "01_heat_freeW_samoylov.md" => "Soil heat with free water freeze curve",
-       "02_heat_sfcc_constantbc.md" => "Soil heat with SFCC and constant BCs",
-       "03_heat_sfcc_samoylov.md" => "Soil heat with SFCC",
-       "04_heat_freeW_snow_samoylov.md" => "Soil heat with bulk snow scheme",
-       "05_heat_freeW_bucketW_samoylov.md" => "Soil heat with bucket water scheme",
-       "06_heat_freeW_seb_snow_bucketW_samoylov.md" => "Soil heat w/ SEB, snow cover, and bucket water scheme",
-       "07_heat_freeW_lite_implicit.md" => "Fast heat conduction with CryoGridLite",
-       "08_heat_sfcc_richardseq_samoylov.md" => "Coupled soil heat and water transport",
-       "09_heat_sfcc_salt_constantbc.md" => "Coupled heat and salt diffusion on salty soil column",
-       "10_heat_simple_autodiff_grad.md" => "Computing parameter sensitivities with autodiff",
+       "heat_freeW_samoylov.md" => "Soil heat with free water freeze curve",
+       "heat_sfcc_constantbc.md" => "Soil heat with SFCC and constant BCs",
+       "heat_sfcc_samoylov.md" => "Soil heat with SFCC",
+       "heat_freeW_snow_samoylov.md" => "Soil heat with bulk snow scheme",
+       "heat_freeW_bucketW_samoylov.md" => "Soil heat with bucket water scheme",
+       "heat_freeW_seb_snow_bucketW_samoylov.md" => "Soil heat w/ SEB, snow cover, and bucket water scheme",
+       "heat_freeW_lite_implicit.md" => "Fast heat conduction with CryoGridLite",
+       "heat_sfcc_richardseq_samoylov.md" => "Coupled soil heat and water transport",
+       "heat_sfcc_salt_constantbc.md" => "Coupled heat and salt diffusion on salty soil column",
+       "heat_simple_autodiff_grad.md" => "Computing parameter sensitivities with autodiff",
 )
 
 example_docpages = map(example_docfiles) do f

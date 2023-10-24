@@ -60,7 +60,7 @@ struct DVar{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     DVar(var::Prognostic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{dname(name),name,typeof(dims),T,upreferred(units)/u"s",domain}(dims) end
     DVar(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{dname(name),name,typeof(dims),T,units,domain}(dims) end
 end
-dname(sym::Symbol) = Symbol(:∂,sym,:∂t)
+dname(sym::Symbol) = Symbol(:d,sym)
 """
     Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 

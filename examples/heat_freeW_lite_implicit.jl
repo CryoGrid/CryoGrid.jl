@@ -16,11 +16,10 @@ tempprofile_linear = TemperatureProfile(
 )
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
-upperbc = TemperatureGradient(forcings.Tair, NFactor())
+upperbc = TemperatureBC(forcings.Tair, NFactor())
 initT = initializer(:T, tempprofile_linear)
-heatop = Heat.EnthalpyImplicit(SFCCPreSolver())
+heatop = Heat.EnthalpyImplicit()
 freezecurve = FreeWater()
-# freezecurve = PainterKarra(swrc=VanGenuchten(α=0.1, n=1.8))
 strat = @Stratigraphy(
     z_top => Top(upperbc),
     0.0u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop; freezecurve)),
@@ -38,7 +37,7 @@ tile = Tile(strat, modelgrid, initT);
 tspan = (DateTime(2010,1,1), DateTime(2015,1,1))
 tspan_sol = convert_tspan(tspan)
 u0, du0 = initialcondition!(tile, tspan);
-prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,), step_limiter=nothing)
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,))
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600.0)
 out = CryoGridOutput(sol)
 
@@ -52,9 +51,8 @@ Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="
 # Note that these sovers generally will not be faster (in execution time) but may be more stable in some cases. Adaptive timestepping can be employed by
 # removing the `adaptive=false` argument.
 using OrdinaryDiffEq
-sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)
+sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0, saveat=24*3600);
 ## 3rd order additive scheme from Kennedy and Alan 2001
-sol3 = @time solve(prob, KenCarp3(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)
+sol3 = @time solve(prob, KenCarp3(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0);
 ## Fixed leading coefficient backwards-eifferentiation scheme, similar to Sundials CVODE_BDF
-sol4 = @time solve(prob, FBDF(nlsolve=NLCGLite(max_iter=1000)), adaptive=false, dt=24*3600.0)
-nothing
+sol4 = @time solve(prob, FBDF(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0);

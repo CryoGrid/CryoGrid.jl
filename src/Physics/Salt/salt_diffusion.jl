@@ -7,11 +7,9 @@ function Heat.freezethaw!(
 ) where {THeat<:HeatBalance{<:DallAmicoSalt,<:TemperatureBased}}
     salt, heat = ps
     sfcc = heat.freezecurve
-    thermalprops = Heat.thermalproperties(soil)
-    @unpack ch_w, ch_i = thermalprops
     let L = heat.prop.L;
         @inbounds @fastmath for i in eachindex(state.T)
-            θfracs = volumetricfractions(soil, state, i)
+            @unpack ch_w, ch_i = Heat.thermalproperties(soil, state, i)
             T = state.T[i]
             c = state.c[i]
             θsat = Soils.porosity(soil, state, i)
@@ -22,7 +20,7 @@ function Heat.freezethaw!(
             state.θw[i] = θw = ForwardDiff.value(res_dual.θw)
             state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(res_dual.θw)[1]
             state.∂θw∂c[i] = ForwardDiff.partials(res_dual.θw)[2]
-            state.C[i] = C = heatcapacity(soil, heat, θfracs...)
+            state.C[i] = C = heatcapacity(soil, heat, state, i)
             state.∂H∂T[i] =  C + L*∂θw∂T
             state.H[i] = enthalpy(T, C, L, θw)
             state.dₛ_mid[i] = salt.prop.dₛ₀ * θw / salt.prop.τ
@@ -47,10 +45,10 @@ CryoGrid.variables(::SaltMassBalance) = (
 )
 
 function CryoGrid.initialcondition!(soil::SalineGround, ps::CoupledHeatSalt, state)
-    CryoGrid.updatestate!(soil, ps, state)
+    CryoGrid.computediagnostic!(soil, ps, state)
 end
 
-function CryoGrid.updatestate!(
+function CryoGrid.computediagnostic!(
     soil::SalineGround,
     ps::CoupledHeatSalt{THeat},
     state
@@ -120,7 +118,7 @@ function CryoGrid.timestep(::SalineGround, salt::SaltMassBalance{T,<:CryoGrid.CF
             courant_number = dtlim.courant_number,
             Δt = courant_number*v*Δx^2;
             # minimum of CFL and maxium saltConc change per timestep
-            min(min(dtmax, Δt), Δc_max / abs(state.∂c∂t[i]))
+            min(min(dtmax, Δt), Δc_max / abs(state.dc[i]))
         end
     end
     return dtmax
@@ -146,7 +144,7 @@ function CryoGrid.computefluxes!(
     midptThick = Δ(cells(state.grid))
 
     #heat flux divergence: dT_F = dH
-    Numerics.nonlineardiffusion!(state.∂H∂t, state.jH, T, midptThick, k, layerThick)
+    Numerics.nonlineardiffusion!(state.dH, state.jH, T, midptThick, k, layerThick)
 
     #ion flux divergence: dc_F
     Numerics.nonlineardiffusion!(state.dc_F, state.jc, c, midptThick, dₛ, layerThick)
@@ -159,18 +157,18 @@ function CryoGrid.computefluxes!(
     #put everything together
     A = state.∂H∂T
     B = state.ctmp_B .= L * ∂θw∂c
-    D = state.∂H∂t
+    D = state.dH
     E = state.ctmp_E .= (θw .+ c .* ∂θw∂c)
     F = state.ctmp_F .= c .* ∂θw∂T
     G = state.dc_F
 
-    @. state.∂T∂t = (-B * G + D * E) / (A * E - B * F)
-    @. state.∂c∂t = (-F * D + A * G) / (A * E - B * F)
+    @. state.dT = (-B * G + D * E) / (A * E - B * F)
+    @. state.dc = (-F * D + A * G) / (A * E - B * F)
     return nothing
 end
 
 function CryoGrid.resetfluxes!(::SalineGround, salt::SaltMassBalance, state)
-    state.dc_F .= zero(eltype(state.∂c∂t))
-    state.jc .= zero(eltype(state.∂c∂t))
+    state.dc_F .= zero(eltype(state.dc))
+    state.jc .= zero(eltype(state.dc))
     return nothing
 end
