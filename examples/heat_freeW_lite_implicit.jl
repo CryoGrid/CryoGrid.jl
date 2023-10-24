@@ -52,7 +52,3 @@ Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="
 # removing the `adaptive=false` argument.
 using OrdinaryDiffEq
 sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0, saveat=24*3600);
-## 3rd order additive scheme from Kennedy and Alan 2001
-sol3 = @time solve(prob, KenCarp3(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0);
-## Fixed leading coefficient backwards-eifferentiation scheme, similar to Sundials CVODE_BDF
-sol4 = @time solve(prob, FBDF(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0);
