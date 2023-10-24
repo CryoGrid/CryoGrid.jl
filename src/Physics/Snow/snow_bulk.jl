@@ -66,6 +66,18 @@ function accumulate!(
     @. ssnow.dΔz += Δdsn
 end
 
+function snowdensity!(
+    snow::BulkSnowpack{<:ConstantDensity},
+    mass::DynamicSnowMassBalance,
+    state
+)
+    ρsn = snow.para.density.ρsn
+    ρw = waterdensity(snow)
+    state.ρsn .= ρsn
+    state.por .= 1 - ρsn / ρw
+    return nothing
+end
+
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     ρw = waterdensity(snow)
     ρsn = snowdensity(snow, state)
