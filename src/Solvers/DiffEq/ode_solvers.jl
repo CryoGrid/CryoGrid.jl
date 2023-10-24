@@ -1,5 +1,3 @@
-@reexport using SimulationLogs
-
 # solve/init interface
 function DiffEqBase.__solve(prob::CryoGridProblem, alg::Union{OrdinaryDiffEqAlgorithm, OrdinaryDiffEq.DAEAlgorithm}, args...; saveat=prob.saveat, kwargs...)
     ode_prob = ODEProblem(prob)
