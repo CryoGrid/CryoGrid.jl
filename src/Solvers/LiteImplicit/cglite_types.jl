@@ -29,17 +29,17 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
     t0 = prob.tspan[1]
     nsteps = Int(ceil((prob.tspan[2] - t0) / dt)) + 1
     # initialize storage
-    u_storage = [u0]
+    u_storage = [copy(u0)]
     t_storage = [prob.tspan[1]]
     # evaluate tile at initial condition
-    tile = Tiles.resolve(Tile(prob.f), u0, prob.p, t0)
+    tile = Tiles.resolve(Tile(prob.f), prob.p, t0)
     tile(zero(u0), u0, prob.p, t0, dt)
-    # reset SavedValues on tile.hist
+    # reset SavedValues on tile.data
     initialsave = prob.savefunc(tile, u0, similar(u0))
     savevals = SavedValues(Float64, typeof(initialsave))
     push!(savevals.saveval, initialsave)
     push!(savevals.t, t0)
-    tile.hist.vals = savevals
+    tile.data.outputs = savevals
     sol = CryoGridSolution(prob, u_storage, t_storage, alg, ReturnCode.Default)
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
@@ -54,5 +54,6 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::LiteImplicitEuler, args..
         similar(u0, eltype(u0), length(prob.u0.H)),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    return CryoGridIntegrator(alg, cache, sol, u0, p, t0, convert(eltype(prob.tspan), dt), 1, 1)
+    opts = CryoGridIntegratorOptions(dtmax=dt)
+    return CryoGridIntegrator(alg, cache, opts, sol, SortedSet{typeof(t0)}(), copy(u0), p, t0, convert(eltype(prob.tspan), dt), 1, 1)
 end

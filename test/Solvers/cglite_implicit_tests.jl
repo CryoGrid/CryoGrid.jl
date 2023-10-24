@@ -18,8 +18,7 @@ end
         z_top = 0.0u"m"
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
-        # heatop = Heat.EnthalpyForm()
-        soil = SimpleSoil(MineralOrganic(por=0.0, org=0.0), heat=HeatBalance(heatop))
+        soil = Ground(MineralOrganic(por=0.0, org=0.0), heat=HeatBalance(heatop))
         strat = @Stratigraphy(
             z_top => Top(PeriodicBC(HeatBalance, CryoGrid.Dirichlet, P, 1.0, 0.0, T₀)),
             z_top => :soil => soil,
@@ -51,8 +50,8 @@ end
         z_top = 0.0u"m"
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
-        # heatop = Heat.EnthalpyForm(SFCCPreSolver())
-        soil = SimpleSoil(MineralOrganic(por=0.3, sat=1.0, org=0.0), heat=HeatBalance(heatop))
+        # heatop = Heat.Diffusion1D(:H)
+        soil = Ground(MineralOrganic(por=0.3, sat=1.0, org=0.0), heat=HeatBalance(heatop))
         strat = @Stratigraphy(
             z_top => Top(ConstantTemperature(1.0u"°C")),
             z_top => :soil => soil,
@@ -74,10 +73,14 @@ end
         θo = organic(strat.soil)
         θ_s = (θw=0.0, θi=porosity(strat.soil), θa=0.0, θm=θm, θo=θo)
         θ_l = (θw=porosity(strat.soil), θi=0.0, θa=0.0, θm=θm, θo=θo)
-        k_s = Heat.thermalconductivity(strat.soil, strat.soil.heat, θ_s...)
-        k_l = Heat.thermalconductivity(strat.soil, strat.soil.heat, θ_l...)
-        c_s = Heat.heatcapacity(strat.soil, strat.soil.heat, θ_s...)
-        c_l = Heat.heatcapacity(strat.soil, strat.soil.heat, θ_l...)
+        k_vals = Heat.thermalconductivities(strat.soil)
+        c_vals = Heat.heatcapacities(strat.soil)
+        thermcond = Heat.thermal_conductivity_function(strat.soil.heat.op)
+        heatcap = Heat.heat_capacity_function(strat.soil.heat.op)
+        k_s = thermcond(k_vals, θ_s)
+        k_l = thermcond(k_vals, θ_l)
+        c_s = heatcap(c_vals, θ_s)
+        c_l = heatcap(c_vals, θ_l)
         stefan_prob = StefanProblem(p=StefanParameters(T_s=-1.0u"°C", T_l=1.0u"°C"; k_s, k_l, c_s, c_l, θwi=0.3))
         stefan_sol = solve(stefan_prob)
         ts = ustrip.(u"d", (tspan[1]:24*3600:tspan[end])*u"s")

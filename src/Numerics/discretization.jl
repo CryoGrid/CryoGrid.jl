@@ -36,6 +36,9 @@ for specific `Layer` types when layers have specific discretization requirements
 function makegrid(strategy::PresetGrid, bounds::NTuple{2,<:DistQuantity})
     return strategy.grid[bounds[1]..bounds[2]]
 end
+function makegrid(strategy::PresetGrid, bounds::NTuple{2,Real})
+    return strategy.grid[bounds[1]*u"m"..bounds[2]*u"m"]
+end
 function makegrid(strategy::AutoGrid{LinearSpacing}, bounds::NTuple{2,T}) where {T<:DistQuantity}
     @unpack spacing, z0 = strategy
     @unpack min_thick, max_cells_per_layer = spacing
@@ -54,4 +57,4 @@ makegrid(::Layer, strategy, bounds) = makegrid(strategy, bounds)
 Produces a discretization of the given variable based on `T` and array type `A`.
 """
 instantiate(var::Var, d::AbstractDiscretization{Q,N}) where {Q,N} = instantiate(var, d, Array{vartype(var),N})
-instantiate(var::Var, grid::Grid, ::Type{A}) where {A<:AbstractVector} = zero(similar(A{vartype(var)}, dimlength(var.dim, length(edges(grid)))))
+instantiate(var::Var, grid::Grid, ::Type{A}) where {A<:AbstractVector} = adapt(A, zeros(dimlength(var.dim, length(edges(grid)))))

@@ -9,6 +9,7 @@ function debug(debug::Bool)
     return CRYOGRID_DEBUG
 end
 
+using Adapt
 using Base: @propagate_inbounds
 using ComponentArrays
 using ConstructionBase
@@ -52,7 +53,7 @@ include("variables.jl")
 export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
 include("traits.jl")
 
-export initialcondition!, updatestate!, interact!, interactmaybe!, computefluxes!, resetfluxes!
+export initialcondition!, computediagnostic!, interact!, interactmaybe!, computefluxes!, resetfluxes!, diagnosticstep!
 export variables, processes, initializers, timestep, isactive, caninteract
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
@@ -87,13 +88,14 @@ include("Diagnostics/Diagnostics.jl")
 # Coupling
 include("coupling.jl")
 
-# Problem interface
+# SciML problem interface
 export CryoGridProblem
 include("problem.jl")
 
 # Solvers
 export CGEuler, CryoGridIntegrator, CryoGridSolution
 include("Solvers/Solvers.jl")
+
 # Presets
 include("Presets/Presets.jl")
 

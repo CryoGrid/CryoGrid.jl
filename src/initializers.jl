@@ -43,7 +43,7 @@ function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state
     depths = collect(map(knot -> ustrip(knot.depth), profile.knots))
     u = getproperty(state, var)
     z = cells(state.grid)
-    @assert length(z) == length(u)
+    @assert length(z) == length(u) "$(length(z)) != $(length(u))"
     if length(depths) > 1
         f = Interpolations.extrapolate(
             Interpolations.interpolate(
@@ -53,7 +53,8 @@ function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state
             ),
             extrap
         )
-        @. u = f(z)
+        f_adapt = adapt(Numerics.arraytype(state.grid), f)
+        @. u = f_adapt(z)
         return u
     else
         # if only one knot is defined, set to this value over all z;

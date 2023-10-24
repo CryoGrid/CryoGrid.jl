@@ -8,6 +8,8 @@ using CryoGrid.Utils
 using Base: @propagate_inbounds
 using Reexport: @reexport
 
+using IfElse
+
 import ConstructionBase
 import Interpolations as Interp
 
@@ -15,19 +17,16 @@ import Interpolations as Interp
 
 export FreeWater, FreezeCurve
 
-export HeatBalance, ThermalProperties
+export HeatBalance
 include("heat_types.jl")
 
 export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
 include("heat_methods.jl")
 
-export thermalconductivity, thermalconductivity!
-include("thermcond.jl")
+export ThermalProperties, thermalconductivity, thermalconductivity!, heatcapacity, heatcapacity!
+include("thermal_properties.jl")
 
-export heatcapacity, heatcapacity!
-include("heatcapacity.jl")
-
-export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureGradient, GroundHeatFlux, NFactor
+export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureBC, GroundHeatFlux, NFactor
 include("heat_bc.jl")
 
 export LinearTwoPhaseInitialTempProfile

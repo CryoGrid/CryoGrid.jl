@@ -1,7 +1,7 @@
 """
     RREqForm
 
-Base type for different formulations of Richard's equation.
+Base type for different formulations of Richardson-Richard's equation.
 """
 abstract type RREqForm end
 """
@@ -42,11 +42,21 @@ Impedence factor which represents the blockage of water-filled pores by ice (see
 """
 impedencefactor(water::WaterBalance{<:RichardsEq}, θw, θwi) = 10^(-water.flow.Ω*(1 - θw/θwi))
 
+"""
+    SoilHydraulicProperties{::Type{SoilParameterization}; kw_sat, fieldcapacity}
+
+Material hydraulic properties for the given `SoilParameterization` type.
+"""
+SoilHydraulicProperties(
+    ::Type{<:SoilParameterization};
+    kw_sat = HydraulicProperties().kw_sat,
+    fieldcapacity = 0.05,
+) = HydraulicProperties(; kw_sat, fieldcapacity)
+
 # Methods for Hydrology module
 
-function Hydrology.hydraulicconductivity(soil::Soil, water::WaterBalance{<:RichardsEq{<:RREqForm,<:VanGenuchten}}, θw, θwi, θsat)
-    let kw_sat = Hydrology.kwsat(soil, water),
-        n = swrc(water).n,
+function Hydrology.hydraulicconductivity(water::WaterBalance{<:RichardsEq{RF,<:VanGenuchten}}, kw_sat, θw, θwi, θsat) where {RF}
+    let n = swrc(water).n,
         I_ice = impedencefactor(water, θw, θwi);
         # van Genuchten formulation of hydraulic conductivity; see van Genuchten (1980) and Westermann et al. (2022).
         # we use `complex` types here to permit illegal state values which may occur for adaptive solving schemes
@@ -60,7 +70,7 @@ Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.005)
 
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 
-@inline function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}, state)
+function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}, state)
     let swrc = swrc(water);
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = Hydrology.maxwater(soil, water, state, i)
@@ -71,13 +81,14 @@ Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state,
         end
     end
 end
-@inline function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}, state)
+function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}, state)
     let f = swrc(water),
         f⁻¹ = inv(f),
         θres = f.vol.θres;
         @inbounds for i in 1:length(state.ψ₀)
             state.θsat[i] = θsat = Hydrology.maxwater(soil, water, state, i)
             state.θwi[i] = θwi = state.sat[i]*θsat
+            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
             # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi, but this is necessary
             # for solving schemes that might attempt to use illegal state values
             state.ψ₀[i] = f⁻¹(max(θres, min(θwi, θsat)); θsat)
@@ -87,17 +98,17 @@ end
 end
 
 function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Saturation}}, state)
-    @inbounds @. state.∂sat∂t = state.∂θwi∂t / state.θsat
+    @inbounds @. state.dsat = state.dθwi / state.θsat
     return nothing
 end
 function Hydrology.waterprognostic!(::Soil, ::WaterBalance{<:RichardsEq{Pressure}}, state)
-    @inbounds @. state.∂ψ₀∂t = state.∂θwi∂t / state.∂θw∂ψ
+    @inbounds @. state.dψ₀ = state.dθwi / state.∂θw∂ψ
     return nothing
 end
 
 function Hydrology.waterdiffusion!(::Soil, water::WaterBalance{<:RichardsEq}, state)
     # compute diffusive fluxes from pressure, if enabled
-    Numerics.flux!(state.jw, state.ψ, Δ(cells(state.grid)), state.kw)
+    Numerics.flux!(state.jw_v, state.ψ, Δ(cells(state.grid)), state.kw)
     return nothing
 end
 
@@ -149,7 +160,7 @@ end
 function CryoGrid.timestep(::Soil, water::WaterBalance{<:RichardsEq{Pressure},TET,<:CryoGrid.MaxDelta}, state) where {TET}
     dtmax = Inf
     @inbounds for i in 1:length(state.sat)
-        dt = water.dtlim(state.∂ψ₀∂t[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
+        dt = water.dtlim(state.dψ₀[i], state.ψ[i], state.t, -Inf, zero(eltype(state.ψ)))
         dt = isfinite(dt) ? dt : Inf # make sure it's +Inf
         dtmax = min(dtmax, dt)
     end

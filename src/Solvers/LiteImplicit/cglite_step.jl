@@ -1,4 +1,4 @@
-function DiffEqBase.step!(integrator::CGLiteIntegrator)
+function CryoGrid.perform_step!(integrator::CGLiteIntegrator)
     cache = integrator.cache
     copyto!(cache.uprev, integrator.u)
     u = integrator.u
@@ -7,19 +7,16 @@ function DiffEqBase.step!(integrator::CGLiteIntegrator)
     p = integrator.p
     dt = integrator.dt
     t = t₀ + dt
-    tile = Tiles.resolve(Tile(integrator.sol.prob.f), u, p, t)
+    tile = Tiles.resolve(Tile(integrator.sol.prob.f), p, t)
     # explicit update, if necessary
     explicit_step!(integrator, tile, du, u, p, t)
     # implicit update for energy state
     implicit_step!(integrator, tile, du, u, p, t)
+    # diagnostic udpate
+    CryoGrid.diagnosticstep!(tile, getstate(integrator))
+    # update t and step number
     integrator.t = t
     integrator.step += 1
-    # invoke auxiliary state saving function in CryoGridProblem
-    push!(tile.hist.vals.saveval, integrator.sol.prob.savefunc(tile, integrator.u, du))
-    push!(tile.hist.vals.t, integrator.t)
-    # save state in solution
-    push!(integrator.sol.t, integrator.t)
-    push!(integrator.sol.u, integrator.u)
     return nothing
 end
 

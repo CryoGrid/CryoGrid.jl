@@ -1,21 +1,27 @@
 """
-    CryoGridProblem{iip,Tu,Tt,Tp,TT,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
+    CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
 
 Represents a CryoGrid discretized PDE forward model configuration using the `SciMLBase`/`DiffEqBase` problem interface.
 """
-struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
+struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
     f::TT
     u0::Tu
     tspan::NTuple{2,Tt}
     p::Tp
     callbacks::Tcb
+    saveat::Tsv
     savefunc::Tsf
     isoutofdomain::Tdf
     kwargs::Tkw
-    CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsf,Tcb,Tdf,Tkw} = new{iip,Tu,Tt,Tp,TF,Tsf,Tcb,Tdf,Tkw}(f,u0,tspan,p,cbs,savefunc,iood,kwargs)
+    CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, saveat::Tsv, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tcb,Tdf,Tkw} =
+        new{iip,Tu,Tt,Tp,TF,Tsv,Tsf,Tcb,Tdf,Tkw}(f, u0, tspan, p, cbs, saveat, savefunc, iood, kwargs)
 end
-(prob::Type{<:CryoGridProblem{iip}})(; f=prob.f, u0=prob.u0, tspan=prob.tspan, p=prob.p, callbacks=prob.callbacks, savefunc=prob.savefunc, isoutofdomain=prob.isoutofdomain, kwargs...) where {iip} =
-    CryoGridProblem{iip}(f, u0, tspan, p, callbacks, savefunc, isoutofdomain, kwargs)
+(prob::Type{<:CryoGridProblem{iip}})(; f=prob.f, u0=prob.u0, tspan=prob.tspan, p=prob.p, callbacks=prob.callbacks, saveat=prob.saveat, savefunc=prob.savefunc, isoutofdomain=prob.isoutofdomain, kwargs...) where {iip} =
+    CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
+"""
+    CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)
+"""
+CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(tile, u0, convert_tspan(tspan), args...;kwargs...)
 """
     CryoGridProblem(
         tile::Tile,
@@ -27,7 +33,7 @@ end
         save_everystep=false,
         save_start=true,
         save_end=true,
-        step_limiter=CryoGrid.timestep,
+        step_limiter=timestep,
         safety_factor=1,
         max_step=true,
         callback=nothing,
@@ -37,20 +43,20 @@ end
         prob_kwargs...
     )
 
-Constructor for `CryoGridProblem` that automatically generates necessary callbacks for saving
-diagnostic state variables
+Constructor for `CryoGridProblem` that automatically generates all necessary callbacks.
 """
 function CryoGridProblem(
     tile::Tile,
     u0::ComponentVector,
     tspan::NTuple{2,Float64},
     p=nothing;
+    diagnostic_stepsize=3600.0,
     saveat=3600.0,
     savevars=(),
     save_everystep=false,
     save_start=true,
     save_end=true,
-    step_limiter=CryoGrid.timestep,
+    step_limiter=timestep,
     safety_factor=1,
     max_step=true,
     callback=nothing,
@@ -66,8 +72,10 @@ function CryoGridProblem(
     getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
     tile, p = if isnothing(p) && isempty(ModelParameters.params(tile))
+        # case 1: no parameters provided
         tile, nothing
     else
+        # case 2: parameters are provided; use Model interface to reconstruct Tile with new parameter values
         model_tile = Model(tile)
         p = isnothing(p) ? collect(model_tile[:val]) : p
         model_tile[:val] = p
@@ -79,24 +87,30 @@ function CryoGridProblem(
     # set up saving callback
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
-    savingcallback = SavingCallback(savefunc, savevals; saveat=expandtstep(saveat), save_start=save_start, save_end=save_end, save_everystep=save_everystep)
+    saveat = expandtstep(saveat)
+    savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
+    diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_stepsize:tspan[end], diagnosticstep!)
+    defaultcallbacks = (savingcallback, diagnostic_step_callback)
     # add step limiter to default callbacks, if defined
-    defaultcallbacks = isnothing(step_limiter) ? (savingcallback,) : (savingcallback, StepsizeLimiter(step_limiter; safety_factor, max_step))
+    if !isnothing(step_limiter)
+        defaultcallbacks = (
+            defaultcallbacks...,
+            StepsizeLimiter(step_limiter; safety_factor, max_step)
+        )
+    end
     # build layer callbacks
     layercallbacks = _makecallbacks(tile)
     # add user callbacks
     usercallbacks = isnothing(callback) ? () : callback
     callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
     # note that this implicitly discards any existing saved values in the model setup's state history
-    tile.hist.vals = savevals
-    M = Numerics.build_mass_matrix(tile.state)
-	func = odefunction(tile, u0, p, tspan; mass_matrix=M, specialization, function_kwargs...)
-	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, getsavestate, isoutofdomain, prob_kwargs)
+    tile.data.outputs = savevals
+    # build mass matrix
+    mass_matrix = Numerics.build_mass_matrix(tile.state)
+	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
+	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
 end
-"""
-    CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)
-"""
-CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(tile, u0, convert_tspan(tspan), args...;kwargs...)
+
 """
     odefunction(setup::Tile, u0, p, tspan; kwargs...)
 
@@ -131,18 +145,30 @@ function odefunction(::TridiagJac, tile::Tile, u0, p, tspan; mass_matrix=I, spec
         ODEFunction{true,specialization}(tile; jac_prototype=J, mass_matrix, kwargs...)
     end
 end
+
+# Diagnostic step callback
+function diagnosticstep!(integrator::SciMLBase.DEIntegrator)
+    tile = Tile(integrator)
+    state = getstate(integrator)
+    u_modified = diagnosticstep!(tile, state)
+    # set whether or not the prognostic state u was modified
+    DiffEqBase.u_modified!(integrator, u_modified)
+end
+
 # overrides to make SciML problem interface work
 SciMLBase.ODEProblem(prob::CryoGridProblem) = ODEProblem(prob.f, prob.u0, prob.tspan, prob.p; callback=prob.callbacks, isoutofdomain=prob.isoutofdomain, prob.kwargs...)
+
 DiffEqBase.get_concrete_problem(prob::CryoGridProblem, isadapt; kwargs...) = prob
+
 # callback building functions
 function _makecallbacks(tile::Tile)
     eventname(::Event{name}) where name = name
     isgridevent(::GridContinuousEvent) = true
     isgridevent(::Event) = false
     callbacks = []
-    for (i,named_layer) in enumerate(tile.strat)
+    for (i,named_layer) in enumerate(namedlayers(tile.strat))
         events = CryoGrid.events(named_layer.val)
-        layer_name = CryoGrid.layername(named_layer)
+        layer_name = nameof(named_layer)
         for ev in events
             # if ev is a GridContinuousEvent, and was already added in a different layer, skip it.
             # GridContinuousEvents are defined on the whole grid/domain and so do not need to be duplicated
@@ -156,6 +182,7 @@ function _makecallbacks(tile::Tile)
     end
     return map(last, callbacks)
 end
+
 function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layername
     function _condition(u,t,integrator)
         let tile = Tile(integrator),
@@ -163,11 +190,12 @@ function _criterionfunc(::Val{layername}, ev::Event, i_layer::Int) where layerna
             u = Tiles.withaxes(u, tile),
             du = Tiles.withaxes(get_du(integrator), tile),
             t = t,
-            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            return criterion(ev, layer.val, state)
+            state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername);
+            return criterion(ev, layer, state)
         end
     end
 end
+
 function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
     function _condition(out,u,t,integrator)
         tile = Tile(integrator)
@@ -175,12 +203,13 @@ function _gridcriterionfunc(::Val{layername}, ev::Event) where layername
             let u = Tiles.withaxes(u, tile),
                 du = Tiles.withaxes(get_du(integrator), tile),
                 t = t,
-                state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-                criterion!(view(out, Numerics.bounds(state.grid)), ev, layer.val, process, state)
+                state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername);
+                criterion!(view(out, Numerics.bounds(state.grid)), ev, layer, process, state)
             end
         end
     end
 end
+
 function _triggerfunc(::Val{layername}, ev::Event, trig::Union{Nothing,T}, i_layer::Int) where {layername,T<:ContinuousTrigger}
     _invoke_trigger!(ev, ::Nothing, layer, state) = trigger!(ev, layer, state)
     _invoke_trigger!(ev, trig::ContinuousTrigger, layer, state) = trigger!(ev, trig, layer, state)
@@ -190,11 +219,12 @@ function _triggerfunc(::Val{layername}, ev::Event, trig::Union{Nothing,T}, i_lay
             u = Tiles.withaxes(integrator.u, tile),
             du = Tiles.withaxes(get_du(integrator), tile),
             t = integrator.t,
-            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt);
-            _invoke_trigger!(ev, trig, layer.val, state)
+            state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername);
+            _invoke_trigger!(ev, trig, layer, state)
         end
     end
 end
+
 function _gridtriggerfunc(::Val{layername}, ev::GridContinuousEvent, grid::Grid, ::Type{T}) where {layername,T<:ContinuousTrigger}
     _invoke_trigger!(ev, ::Nothing, layer, state) = trigger!(ev, layer, state)
     _invoke_trigger!(ev, trig::ContinuousTrigger, layer, state) = trigger!(ev, trig, layer, state)
@@ -204,14 +234,15 @@ function _gridtriggerfunc(::Val{layername}, ev::GridContinuousEvent, grid::Grid,
             u = Tiles.withaxes(integrator.u, tile)
             du = Tiles.withaxes(get_du(integrator), tile)
             t = integrator.t
-            state = Tiles.getstate(Val{layername}(), tile, u, du, t, integrator.dt)
+            state = getproperty(Tiles.getstate(tile, u, du, t, integrator.dt), layername)
             if event_idx ∈ Numerics.bounds(state.grid)
-                _invoke_trigger!(ev, T(nothing), layer.val, state)
+                _invoke_trigger!(ev, T(nothing), layer, state)
                 break
             end
         end
     end
 end
+
 _diffeqcallback(ev::DiscreteEvent, ::Tile, ::Val{layername}, i_layer::Int) where {layername} = DiffEqCallbacks.DiscreteCallback(
     _criterionfunc(Val{layername}(), ev, i_layer),
     _triggerfunc(Val{layername}(), ev, nothing, i_layer),

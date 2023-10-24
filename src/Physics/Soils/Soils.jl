@@ -22,11 +22,14 @@ using UnPack
 import ConstructionBase
 
 # aliases for heat formulations in Heat module
-const Temperature = Heat.Temperature
-const Enthalpy = Heat.Enthalpy
+const TemperatureBased = Heat.TemperatureBased
+const EnthalpyBased = Heat.EnthalpyBased
 const EnthalpyImplicit = Heat.EnthalpyImplicit
 
-export Soil, SoilParameterization, SimpleSoil, Heterogeneous
+export Ground, AbstractGround
+include("ground.jl")
+
+export Soil, SoilParameterization, Heterogeneous
 include("soil_types.jl")
 
 export SoilProfile, porosity, mineral, organic
@@ -35,11 +38,11 @@ include("soil_methods.jl")
 export SoilTexture
 include("soil_texture.jl")
 
-export MineralOrganic, soilcomponent
-include("para/mineral_organic.jl")
+export Heterogeneous, MineralOrganic, soilcomponent
+include("soil_para.jl")
 
 export SURFEX
-include("para/surfex.jl")
+include("soil_surfex.jl")
 
 export RichardsEq
 include("soil_water.jl")

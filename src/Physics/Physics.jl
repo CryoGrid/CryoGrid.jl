@@ -19,8 +19,8 @@ i.e. water, ice, and air, followed by any number of additional constituents whic
 by the specific layer. There is no feasible way to verify that client code actually obeys this
 ordering, so be sure to double check your implementation, otherwise this can cause very subtle bugs!
 """
-@inline volumetricfractions(::SubSurface, state) = ()
-@inline volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
+volumetricfractions(::SubSurface, state) = ()
+volumetricfractions(sub::SubSurface, state, i) = volumetricfractions(sub, state)
 
 include("simple_bc.jl")
 include("composite_bc.jl")
@@ -40,3 +40,5 @@ include("Surface/Surface.jl")
 @reexport using .Surface
 include("Sources/Sources.jl")
 @reexport using .Sources
+include("Lakes/Lakes.jl")
+@reexport using .Lakes

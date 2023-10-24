@@ -6,9 +6,8 @@ Abstract type representing a generic external forcing term.
 abstract type Forcing{unit,T} end
 Base.nameof(f::Forcing) = f.name
 CryoGrid.parameterize(f::Forcing; ignored...) = f
-Flatten.flattenable(::Type{<:Forcing}, ::Type) = false
-@inline @propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
-@inline @propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
+@propagate_inbounds (forcing::Forcing)(x::Number) = error("$(typeof(forcing)) not implemented")
+@propagate_inbounds (forcing::Forcing)(t::DateTime) = forcing(convert_t(t))
 
 """
 Represents an externally specified format for forcing inputs. IO functions should dispatch on
@@ -17,16 +16,16 @@ specific types `T<:ForcingFormat` that they implement.
 abstract type ForcingFormat end
 
 # Aliases for forcing types
-const TemperatureForcing = Forcing{u"°C",T} where {T}
-const VelocityForcing = Forcing{u"m/s",T} where {T}
-const HumidityForcing = Forcing{u"kg/kg",T} where {T}
-const PressureForcing = Forcing{upreferred(u"Pa"),T} where {T}
-const EnergyFluxForcing = Forcing{upreferred(u"W/m^2"),T} where {T}
+const TemperatureForcing{T} = Forcing{u"°C",T} where {T}
+const VelocityForcing{T} = Forcing{u"m/s",T} where {T}
+const HumidityForcing{T} = Forcing{u"kg/kg",T} where {T}
+const PressureForcing{T} = Forcing{upreferred(u"Pa"),T} where {T}
+const EnergyFluxForcing{T} = Forcing{upreferred(u"W/m^2"),T} where {T}
 
 struct ConstantForcing{unit,T} <: Forcing{unit,T}
       value::T
       name::Symbol
-      ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(ustrip(qty))}(ustrip(qty), name)
+      ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(qty)}(qty, name)
       ConstantForcing(qty::Number, name::Symbol) = new{Unitful.NoUnits,typeof(qty)}(qty, name)
 end
 (f::ConstantForcing)(::Number) = f.value
@@ -48,15 +47,18 @@ function InterpolatedForcing(timestamps::AbstractArray{DateTime,1}, values::A, n
       return InterpolatedForcing(unit(eltype(values_converted)), interp, name)
 end
 ConstructionBase.constructorof(::Type{<:InterpolatedForcing{unit}}) where {unit} = (interp, name) -> InterpolatedForcing(unit, interp, name)
+Flatten.flattenable(::Type{<:InterpolatedForcing}, ::Type) = false
 Base.getindex(f::InterpolatedForcing, i::Integer) = f.interpolant.coefs[i]
 Base.getindex(f::InterpolatedForcing, t) = f(t)
 Base.length(f::InterpolatedForcing) = length(f.interpolant)
 Base.show(io::IO, forcing::InterpolatedForcing{u}) where u = print(io, "InterpolatedForcing $(forcing.name) [$u] of length $(length(forcing)) with time span $(convert_tspan(extrema(forcing.interpolant.knots[1])))")
-Base.show(io::IO, ::Type{<:InterpolatedForcing{unit,T}}) where {unit,T} = print(io, "InterpolatedForcing{$unit, $T, ...}") # type piracy to truncate type name in stacktraces
+# Base.show(io::IO, ::Type{<:InterpolatedForcing}) = print(io, "InterpolatedForcing") 
+# Base.show(io::IO, ::Type{<:InterpolatedForcing{unit}}) where {unit} = print(io, "InterpolatedForcing{$unit}") 
+# Base.show(io::IO, ::Type{<:InterpolatedForcing{unit,T}}) where {unit,T} = print(io, "InterpolatedForcing{$unit, $T, ...}") # type piracy to truncate type name in stacktraces
 """
 Get interpolated forcing value at t seconds from t0.
 """
-@inline @propagate_inbounds (forcing::InterpolatedForcing)(t::Number) = forcing.interpolant(t)
+@propagate_inbounds (forcing::InterpolatedForcing)(t::Number) = forcing.interpolant(t)
 
 """
       Forcings{names,TF,TMeta}

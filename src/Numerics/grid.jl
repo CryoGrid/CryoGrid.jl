@@ -40,10 +40,10 @@ end
 ConstructionBase.constructorof(::Type{Grid{S,G,Q,A}}) where {S,G,Q,A} = (geom,values,deltas,bounds) -> Grid(S,values,deltas,geom,bounds)
 Base.show(io::IO, ::MIME"text/plain", grid::Grid) = show(io, grid)
 function Base.show(io::IO, grid::Grid{S,G}) where {S,G}
-    if length(grid) == length(grid.values.edges)
+    if length(grid) == length(parent(grid))
         print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) with geometry $G")
     else
-        print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) (child of Grid{$S}$(parent(grid)[1])..$(parent(grid)[end]) of length $(length(parent(grid)))) with geometry $G")
+        print(io, "Grid{$S}($(grid[1])..$(grid[end])) of length $(length(grid)) (child of Grid{$S}($(parent(grid)[1])..$(parent(grid)[end])) of length $(length(parent(grid)))) with geometry $G")
     end
 end
 
@@ -57,6 +57,8 @@ function subgridinds(grid::Grid, interval::Interval{L,R}) where {L,R}
     r_ind = min(r_ind, length(grid))
     return (L == :closed ? l_ind : l_ind + 1)..(R == :closed ? r_ind : r_ind - 1)
 end
+
+@inline arraytype(::Grid{S,G,Q,A}) where {S,G,Q,A} = A
 @inline bounds(grid::Grid{Edges}) = grid.bounds
 @inline bounds(grid::Grid{Cells}) = first(grid.bounds):last(grid.bounds)-1
 @inline Δbounds(grid::Grid{Edges}) = first(grid.bounds):last(grid.bounds)-1
@@ -67,44 +69,67 @@ end
 @inline cells(grid::Grid{Cells}) = grid
 @inline edges(grid::Grid{Edges}) = grid
 @inline edges(grid::Grid{Cells}) = Grid(Edges, grid)
-@inline Base.parent(grid::Grid{Edges}) = Grid(grid, 1..length(grid.values.edges))
-@inline Base.parent(grid::Grid{Cells}) = Grid(grid, 1..length(grid.values.cells))
-@inline Base.collect(grid::Grid) = collect(values(grid))
-@inline Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
-@inline Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
-@inline Base.similar(grid::Grid{Edges}) = Grid(copy(grid.values.edges))
-@inline Base.similar(grid::Grid{Cells}) = similar(edges(grid)) |> cells
-@inline Base.size(grid::Grid) = (length(grid),)
-@inline Base.length(grid::Grid) = last(bounds(grid)) - first(bounds(grid)) + 1
-@inline Base.firstindex(grid::Grid) = 1
-@inline Base.lastindex(grid::Grid) = length(grid)
+Base.parent(grid::Grid) = Grid(grid, 1..length(grid.values.edges))
+Base.collect(grid::Grid) = collect(values(grid))
+Base.values(grid::Grid{Edges}) = view(grid.values.edges, bounds(grid))
+Base.values(grid::Grid{Cells}) = view(grid.values.cells, bounds(grid))
+Base.similar(grid::Grid{Edges}) = Grid(copy(grid.values.edges))
+Base.similar(grid::Grid{Cells}) = similar(edges(grid)) |> cells
+Base.size(grid::Grid) = (length(grid),)
+Base.length(grid::Grid) = last(bounds(grid)) - first(bounds(grid)) + 1
+Base.firstindex(grid::Grid) = 1
+Base.lastindex(grid::Grid) = length(grid)
 @propagate_inbounds Base.getindex(grid::Grid, i::Int) = values(grid)[i]
 @propagate_inbounds Base.getindex(grid::Grid, i::AbstractRange) = grid[grid[first(i)]..grid[last(i)]]
 @propagate_inbounds Base.getindex(grid::Grid{S,G,Q,A}, interval::Interval{L,R,Q}) where {S,G,Q,A,L,R} = grid[subgridinds(grid, interval)]
 @propagate_inbounds Base.getindex(grid::Grid, interval::Interval{L,R,Int}) where {L,R} = Grid(grid, first(grid.bounds)+interval.left-1..first(grid.bounds)+interval.right-1)
 Base.setindex!(grid::Grid{Edges}, val, i...) = setindex!(values(grid), val, i...)
 Base.setindex!(::Grid{Cells}, args...) = error("setindex! is permitted only for edge grids; use `edges(grid)` and call `updategrid!` directly after.")
-"""
-    updategrid!(grid::Grid{Edges,G,Q}, vals::Q=grid) where {G,Q}
 
-Overwrites `grid` edges with `vals`, and recomputes grid centers/deltas to be consistent with the new grid.
 """
-function updategrid!(grid::Grid{Edges,G,Q}, vals::AbstractVector{Q}=grid) where {G,Q}
+    updategrid!(grid::Grid{Edges,G,Q}, edges::Q) where {G,Q}
+    updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) where {G,Q}
+
+Updates all `grid` values based on new grid `edges` or an initial `z0` + cell `thick`.
+"""
+function updategrid!(grid::Grid{Edges,G,Q}, edges::AbstractVector{Q}) where {G,Q}
     z_edges = values(grid)
     z_cells = values(cells(grid))
     Δz_edges = Δ(grid)
     Δz_cells = Δ(cells(grid))
-    z_edges .= vals
+    z_edges .= edges
     z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
     Δz_edges .= z_edges[2:end] .- z_edges[1:end-1]
     Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
     @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
     return grid
 end
+function updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) where {G,Q}
+    z_edges = values(grid)
+    z_cells = values(cells(grid))
+    Δz_edges = Δ(grid)
+    Δz_cells = Δ(cells(grid))
+    Δz_edges .= thick
+    z_edges[1] = z0
+    z_edges[2:end] .= z0 .+ thick
+    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
+    Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
+    @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
+    return grid
+end
+
+function currentgrid(statevars::NamedTuple, initialgrid::Grid, u, t)
+    # retrieve grid data from StateVars
+    midpoints = retrieve(statevars.midpoints, u, t)
+    edges = retrieve(statevars.edges, u, t)
+    cellthick = retrieve(statevars.cellthick, u, t)
+    celldist = retrieve(statevars.celldist, u, t)
+    return Grid(Edges, (edges=edges, cells=midpoints), (edges=cellthick, cells=celldist), initialgrid.geometry, initialgrid.bounds)
+end
 
 # unit rectangle defaults
-@inline volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
-@inline area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
+volume(grid::Grid{Cells,UnitRectangle,Q}) where Q = Δ(edges(grid)).*oneunit(Q)^2
+area(::Grid{Edges,UnitRectangle,Q}) where Q = oneunit(Q)^2
 
 # prognostic state vector constructor
 function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars::Tuple) where {T,A<:AbstractArray{T}}
@@ -137,4 +162,16 @@ function prognosticstate(::Type{A}, grid::Grid, layervars::NamedTuple, gridvars:
     toplevelindices(axes) = first(axes)[1]:first(axes)[1]+last(axes)[2][end]-1
     u_ax = map(ax -> ViewAxis(toplevelindices(ax), Axis(map(last, ax))), layervar_ax)
     return ComponentVector(u, (Axis(merge(u_ax, gridvar_ax)),))
+end
+
+# CryoGrid methods
+CryoGrid.variables(::Grid) = (
+    Diagnostic(:cellthick, CryoGrid.OnGrid(Cells)),
+    Diagnostic(:edges, CryoGrid.OnGrid(Edges)),
+    Diagnostic(:midpoints, CryoGrid.OnGrid(Cells)),
+    Diagnostic(:celldist, CryoGrid.OnGrid(Edges, -2)),
+)
+
+function CryoGrid.initialcondition!(grid::Grid, state)
+    updategrid!(state.grid, edges(grid))
 end

@@ -2,7 +2,7 @@ module Salt
 
 using CryoGrid
 using CryoGrid.Heat
-using CryoGrid.Heat: Temperature
+using CryoGrid.Heat: TemperatureBased
 using CryoGrid.Hydrology
 using CryoGrid.Numerics
 using CryoGrid.Soils
@@ -12,7 +12,7 @@ using ForwardDiff
 using FreezeCurves
 using StaticArrays
 
-export SaltySoil, SaltMassBalance, SaltProperties
+export SalineGround, SaltMassBalance, SaltProperties
 include("salt_types.jl")
 
 include("salt_diffusion.jl")

@@ -1,4 +1,5 @@
 import CryoGrid
+import CryoGrid.Hydrology
 
 struct DummyInitializer{varname} <: CryoGrid.VarInitializer{varname} end
 
@@ -13,5 +14,9 @@ mutable struct TestGroundLayer{TProc} <: CryoGrid.SubSurface
 end
 
 CryoGrid.processes(layer::TestGroundLayer) = layer.proc
-
 CryoGrid.isactive(layer::TestGroundLayer) = layer.isactive
+
+Hydrology.maxwater(::TestGroundLayer, ::WaterBalance) = 1.0
+Hydrology.minwater(::TestGroundLayer, ::WaterBalance) = 0.01
+Hydrology.hydraulicproperties(::TestGroundLayer) = HydraulicProperties()
+

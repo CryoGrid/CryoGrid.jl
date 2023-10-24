@@ -25,6 +25,7 @@ struct Named{name,T}
 end
 Named(values::Pair{Symbol,T}) where T = Named(values[1], values[2])
 Base.nameof(::Named{name}) where name = name
+Base.NamedTuple(ns::Tuple{Vararg{<:Named}}) = (; map(n -> nameof(n) => n.val, ns)...)
 ConstructionBase.constructorof(::Type{<:Named{name}}) where name = val -> Named(name, val)
 """
     NamedTupleWrapper
@@ -46,3 +47,4 @@ function Base.getproperty(wrapper::TC, name::Symbol) where {TC<:NamedTupleWrappe
 end
 Base.getindex(wrapper::NamedTupleWrapper, name::Symbol) = getproperty(values(wrapper), name)
 Base.propertynames(wrapper::NamedTupleWrapper) = propertynames(values(wrapper))
+ConstructionBase.setproperties(wrapper::T, patch::NamedTuple) where {T<:NamedTupleWrapper} = T.name.wrapper(ConstructionBase.setproperties(wrapper.values, patch))
