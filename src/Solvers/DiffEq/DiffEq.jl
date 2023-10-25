@@ -31,7 +31,7 @@ using DiffEqBase
 export TDMASolver
 include("linsolve.jl")
 
-export CryoGridEnsembleSetup, CryoGridEnsembleProblem
+export CryoGridParameterEnsemble
 include("ensemble.jl")
 
 function __init__()

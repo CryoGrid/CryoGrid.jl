@@ -16,8 +16,7 @@ struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.Abstrac
     CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, saveat::Tsv, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tcb,Tdf,Tkw} =
         new{iip,Tu,Tt,Tp,TF,Tsv,Tsf,Tcb,Tdf,Tkw}(f, u0, tspan, p, cbs, saveat, savefunc, iood, kwargs)
 end
-(prob::Type{<:CryoGridProblem{iip}})(; f=prob.f, u0=prob.u0, tspan=prob.tspan, p=prob.p, callbacks=prob.callbacks, saveat=prob.saveat, savefunc=prob.savefunc, isoutofdomain=prob.isoutofdomain, kwargs...) where {iip} =
-    CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
+
 """
     CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
@@ -109,6 +108,31 @@ function CryoGridProblem(
     mass_matrix = Numerics.build_mass_matrix(tile.state)
 	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
 	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
+end
+
+function SciMLBase.remaker_of(prob::CryoGridProblem{iip}) where {iip}
+    function remake_cryogrid_problem(;
+        f=deepcopy(prob.f),
+        u0=nothing,
+        tspan=prob.tspan,
+        p=prob.p,
+        callbacks=prob.callbacks,
+        saveat=prob.saveat,
+        savefunc=prob.savefunc,
+        isoutofdomain=prob.isoutofdomain,
+        kwargs=prob.kwargs,
+    )
+        # always re-run initialcondition! with the given tspan and parameters
+        _u0, du0 = initialcondition!(Tile(f), tspan, p)
+        # if u0 was explicitly given, use it instead of the computed value
+        if !isnothing(u0)
+            # evaluate Tile on new initial state
+            f(du0, u0, p, tspan[1])
+        else
+            u0 = _u0
+        end
+        return CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
+    end
 end
 
 """

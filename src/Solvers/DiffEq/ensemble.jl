@@ -1,47 +1,18 @@
 """
-    CryoGridEnsembleSetup{TTile<:Tile,Tkwargs}
-
-Stores the basic model configuration for a CryoGrid single-tile ensemble.
-
-See also [`CryoGridEnsembleProblem`](@ref), [`fitekp!`](@ref)
-"""
-struct CryoGridEnsembleSetup{TTile<:Tile,Tkwargs}
-    tile::TTile
-    tspan::NTuple{2,DateTime}
-    prob_kwargs::Tkwargs
-    CryoGridEnsembleSetup(tile::Tile, tspan::NTuple{2,DateTime}; prob_kwargs...) = new{typeof(tile),typeof(prob_kwargs)}(tile, tspan, prob_kwargs)
-end
-function default_ensemble_prob_func(setup::CryoGridEnsembleSetup, Θ::AbstractMatrix, param_map=identity)
-    function prob_func(prob, i, repeat)
-        ϕ = param_map(Θ[:,i])
-        u0, _ = initialcondition!(setup.tile, setup.tspan, ϕ)
-        new_prob = remake(prob, p=ϕ, u0=u0)
-        return new_prob
-    end
-end
-function default_initial_problem(setup::CryoGridEnsembleSetup)
-    p = CryoGrid.parameters(setup.tile)
-    u0, _ = initialcondition!(setup.tile, setup.tspan, p)
-    prob = CryoGridProblem(setup.tile, u0, setup.tspan, p; setup.prob_kwargs...)
-    return prob
-end
-"""
-    CryoGridEnsembleProblem(
-        setup::CryoGridEnsembleSetup,
-        Θ::AbstractMatrix,
-        prob::DiffEqBase.DEProblem=default_initial_problem(setup);
-        output_dir=".",
-        prob_func=default_ensemble_prob_func(setup, Θ),
-        output_func=(sol,i) -> CryoGridOutput(sol),
+    CryoGridParameterEnsemble(
+        prob::CryoGridProblem,
+        Θ::AbstractMatrix;
+        transform=identity,
+        output_func=(sol, i) -> CryoGridOutput(sol),
         reduction=(u,data,i) -> (append!(u,data),false),
         ensprob_kwargs...
     )
 
-Constructs an `EnsembleProblem` from the given ensemble `setup` for a `m x N` parameter matrix `Θ`, where `N` is the size of
-the ensemble and `m` is the dimensionality of the ensmeble state space (e.g. the number of parameters). `param_map` must be a
-`ParameterMapping` with a transform function that accepts an `m`-dimensional vector and produces a parameter vector (or `CryoGridParams` instance)
-which matches the output of `CryoGrid.parameters`. By default, `param_map` is the identity function; however, it may be customized to permit the
-construction of reduced-rank or reparameterized ensembles for which the parameter space differs from the full CryoGrid model parameter space.
+Constructs an `EnsembleProblem` for a `m x N` parameter matrix `Θ`, where `N` is the size of the ensemble and `m` is the dimensionality of the
+ensmeble parameter space (e.g. the number of parameters). `transform` should be a transform function that accepts an `m`-dimensional vector and
+produces a parameter vector (or `CryoGridParams` instance) which matches the output of `CryoGrid.parameters`. By default, `param_map` is the
+identity function; however, it may be customized to permit the construction of reduced-rank or reparameterized ensembles for which the parameter
+space differs from the full CryoGrid model parameter space.
 
 Keyword arguments:
 
@@ -57,16 +28,18 @@ is provided, this arugment is ignored.
 
 All additional keyword arguments will be passed to `EnsembleProblem`.
 
-See also [`SciMLBase.EnsembleProblem`](@ref), [`CryoGridEnsembleSetup`](@ref), [`fitekp!`](@ref)
+See also [`SciMLBase.EnsembleProblem`](@ref)
 """
-function CryoGridEnsembleProblem(
-    setup::CryoGridEnsembleSetup,
-    Θ::AbstractMatrix,
-    prob::DiffEqBase.DEProblem=default_initial_problem(setup);
-    prob_func=default_ensemble_prob_func(setup, Θ),
+function CryoGridParameterEnsemble(
+    prob::CryoGridProblem,
+    Θ::AbstractMatrix;
+    transform=identity,
     output_func=(sol, i) -> CryoGridOutput(sol),
     reduction=(u,data,i) -> (append!(u,data),false),
     ensprob_kwargs...
 )
+    prob_func(prob::CryoGridProblem, i, repeat) = remake(prob, p=transform(Θ[:,i]))
+    p = CryoGrid.parameters(prob.f)
+    @assert length(p) == size(Θ,1) "The number of rows in θ ($(size(Θ,1))) does not match the number of model parameters $(length(p))."
     return EnsembleProblem(prob; prob_func, output_func, reduction, ensprob_kwargs...)
 end

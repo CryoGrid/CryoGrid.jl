@@ -55,7 +55,7 @@ Base.@kwdef mutable struct CryoGridIntegratorOptions
     dtmax = 24*3600.0
 end
 
-mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.DEIntegrator{Talg,true,Tu,Tt}
+mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.AbstractODEIntegrator{Talg,true,Tu,Tt}
     alg::Talg
     cache::Tcache
     opts::Topts
