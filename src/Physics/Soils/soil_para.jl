@@ -91,12 +91,16 @@ Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}, state)
 Special `SoilParameterization` which wraps a `Profile` of another soil parameterization type
 to indicate that it should be heterogeneous with over depth.
 """
-Base.@kwdef struct Heterogeneous{V,N,D,Taux} <: SoilParameterization
-    profile::SoilProfile{N,V,D}
+Base.@kwdef struct Heterogeneous{V,N,IT,VT,Taux} <: SoilParameterization
+    profile::SoilProfile{N,IT,VT}
     aux::Taux = nothing
-    Heterogeneous(profile::SoilProfile{N,V,D}, aux::Taux=nothing) where {V,N,D,Taux} = new{V,N,D,Taux}(profile, aux)
+    Heterogeneous(::SoilProfile) = error("SoilProfile for heterogeneous layer must have uniform parameterization types (but the parameters may vary).")
+    Heterogeneous(profile::SoilProfile{N,IT,VT}, aux=nothing) where {N,V<:SoilParameterization,IT<:NTuple{N,DistQuantity},VT<:NTuple{N,V}} = new{V,N,IT,VT,typeof(aux)}(profile, aux)
 end
 
+"""
+    Ground(soilprofile::SoilProfile; kwargs...)
+"""
 Ground(soilprofile::SoilProfile; kwargs...) = Ground(Heterogeneous(soilprofile); kwargs...)
 
 saturation(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.sat

@@ -11,7 +11,7 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, 1.0)
 z_top = -2.0u"m"
-z_sub = map(knot -> knot.depth, soilprofile)
+z_sub = keys(soilprofile)
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
     SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall),

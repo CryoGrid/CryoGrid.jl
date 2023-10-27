@@ -21,7 +21,6 @@ Base.@kwdef struct Ground{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{Wa
 end
 # Convenience constructors
 Ground(para::GroundParameterization; kwargs...) = Ground(; para, kwargs...)
-Ground(knot::ProfileKnot{T,<:GroundParameterization}; kwargs...) where {T} = Ground(; para=knot.value, kwargs...)
 
 default_fcsolver(::Any, ::Any) = nothing
 default_fcsolver(::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCache1D())

@@ -27,7 +27,7 @@ function turbo(value::Bool)
     global USE_TURBO = value
 end
 
-export Profile, ProfileKnot
+export Profile
 include("profile.jl")
 
 export ∇, flux!, divergence!, nonlineardiffusion!, harmonicmean!, harmonicmean

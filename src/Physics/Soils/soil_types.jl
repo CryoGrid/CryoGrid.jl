@@ -15,11 +15,11 @@ Type alias for any `AbstractGround` layer with parameterization of type `SoilPar
 const Soil{Tpara,Theat,Twater} = AbstractGround{Tpara,Theat,Twater} where {Tpara<:SoilParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}}
 
 """
-    SoilProfile{N,V,D} = Profile{N,V,D} where {N,V<:SoilParameterization,D<:DistQuantity}
+    SoilProfile{N,IT,VT} = Profile{N,IT,VT} where {N,IT<:NTuple{N,DistQuantity},VT<:NTuple{N,SoilParameterization}}
 
 Alias for depthwise `Profile` where the values are `SoilParameterization` types.
 """
-const SoilProfile{N,V,D} = Profile{N,V,D} where {N,V<:SoilParameterization,D<:DistQuantity}
+const SoilProfile{N,IT,VT} = Profile{N,IT,VT} where {N,IT<:NTuple{N,DistQuantity},VT<:NTuple{N,SoilParameterization}}
 
 # Constructors
 """

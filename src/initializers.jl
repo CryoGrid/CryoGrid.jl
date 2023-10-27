@@ -40,7 +40,7 @@ ConstructionBase.constructorof(::Type{T}) where {varname,T<:InterpInitializer{va
 
 function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state) where var
     profile, interp, extrap = init.profile, init.interp, init.extrap
-    depths = collect(map(knot -> ustrip(knot.depth), profile.knots))
+    depths = collect(ustrip.(keys(profile)))
     u = getproperty(state, var)
     z = cells(state.grid)
     @assert length(z) == length(u) "$(length(z)) != $(length(u))"
@@ -48,7 +48,7 @@ function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state
         f = Interpolations.extrapolate(
             Interpolations.interpolate(
                 (depths,),
-                collect(map(knot -> ustrip(knot.value), profile.knots)),
+                collect(ustrip.(values(profile))),
                 Interpolations.Gridded(interp)
             ),
             extrap
@@ -59,7 +59,7 @@ function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state
     else
         # if only one knot is defined, set to this value over all z;
         # this is necessary because interpolate does not support interpolation grids of length 1
-        y = ustrip(profile.knots[1].value)
+        y = ustrip(first(values(profile)))
         @. u = y
         return u
     end
