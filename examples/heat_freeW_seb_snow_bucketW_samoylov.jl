@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 # First, load the forcings and construct the Tile.
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=0.80,sat=0.8,org=0.75),
+    0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75),
     0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25),
     0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
     3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
@@ -25,7 +25,7 @@ z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind,
 seb = SurfaceEnergyBalance(forcings, z)
 swb = SurfaceWaterBalance(forcings)
 upperbc = WaterHeatBC(swb, seb)
-heat = HeatBalance(:H)
+heat = HeatBalance()
 water = WaterBalance(BucketScheme(), DampedET())
 ## build stratigraphy
 strat = @Stratigraphy(
@@ -55,8 +55,9 @@ integrator = init(prob, Euler(), dt=60.0)
 @assert all(isfinite.(integrator.u))
 ## iterate over remaining timespan at fixed points using `TimeChoiceIterator`
 @time for (u,t) in TimeChoiceIterator(integrator, convert_t.(tspan[1]:Day(1):tspan[end]))
-    @assert isfinite(getstate(integrator).top.Qg[1])
-    @info "Current t=$(Date(convert_t(t))), dt=$(integrator.dt)"
+    state = getstate(integrator)
+    @assert isfinite(state.top.Qg[1])
+    @info "Current t=$(Date(convert_t(t))), dt=$(integrator.dt), Tsurf=$(state.ground.T[1]), infil=$(state.top.jw_infil[1])"
     if integrator.sol.retcode != ReturnCode.Default
         break
     end
@@ -65,7 +66,7 @@ out = CryoGridOutput(integrator.sol)
 
 # Plot it!
 import Plots
-zs = [1,5,10,15,20,25,30,40,50,100,150,200,500,1000]u"cm"
+zs = [1,3,5,7,10,15,20,25,30,40,50,100,150,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(ustrip.(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
 

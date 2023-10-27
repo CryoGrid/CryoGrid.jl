@@ -70,30 +70,36 @@ Hydrology.default_dtlim(::RichardsEq{Saturation}) = CryoGrid.MaxDelta(0.005)
 
 Hydrology.maxwater(soil::Soil, ::WaterBalance, state, i) = porosity(soil, state, i)
 
+function Hydrology.maxinfiltration(soil::Soil, ::WaterBalance{<:RichardsEq}, state)
+    let ψ = state.ψ[1],
+        kw = state.kw[1],
+        Δz = CryoGrid.thickness(soil, state, 1);
+        kw*(-2ψ/Δz + 1)
+    end
+end
+
 function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Pressure}}, state)
-    let swrc = swrc(water);
-        @inbounds for i in 1:length(state.ψ₀)
-            state.θsat[i] = Hydrology.maxwater(soil, water, state, i)
-            state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
-            state.θwi[i], state.dθwidψ[i] = ∇(ψ -> swrc(ψ; θsat=state.θsat[i]), state.ψ[i])
-            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
-            state.sat[i] = state.θwi[i] / state.θsat[i]
-        end
+    swrc = swrc(water)
+    @inbounds for i in 1:length(state.ψ₀)
+        state.θsat[i] = Hydrology.maxwater(soil, water, state, i)
+        state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
+        state.θwi[i], state.dθwidψ[i] = ∇(ψ -> swrc(ψ; θsat=state.θsat[i]), state.ψ[i])
+        state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
+        state.sat[i] = state.θwi[i] / state.θsat[i]
     end
 end
 function Hydrology.watercontent!(soil::Soil, water::WaterBalance{<:RichardsEq{Saturation}}, state)
-    let f = swrc(water),
-        f⁻¹ = inv(f),
-        θres = f.vol.θres;
-        @inbounds for i in 1:length(state.ψ₀)
-            state.θsat[i] = θsat = Hydrology.maxwater(soil, water, state, i)
-            state.θwi[i] = θwi = state.sat[i]*θsat
-            state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
-            # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi, but this is necessary
-            # for solving schemes that might attempt to use illegal state values
-            state.ψ₀[i] = f⁻¹(max(θres, min(θwi, θsat)); θsat)
-            state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
-        end
+    f = swrc(water)
+    f⁻¹ = inv(f)
+    θres = f.vol.θres
+    @inbounds for i in 1:length(state.ψ₀)
+        state.θsat[i] = θsat = Hydrology.maxwater(soil, water, state, i)
+        state.θwi[i] = θwi = state.sat[i]*θsat
+        state.θw[i] = state.θwi[i] # initially set liquid water content to total water content (coupling with HeatBalance will overwrite this)
+        # this is a bit shady because we're allowing for incorrect/out-of-bounds values of θwi, but this is necessary
+        # for solving schemes that might attempt to use illegal state values
+        state.ψ₀[i] = f⁻¹(max(θres, min(θwi, θsat)); θsat)
+        state.ψ[i] = state.ψ₀[i] # initially set liquid pressure head to total water pressure head
     end
 end
 

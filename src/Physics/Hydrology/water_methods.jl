@@ -37,6 +37,14 @@ interact_ET!(::SubSurface, ::WaterBalance, ::Bottom, ::WaterBC, state1, state2) 
 interact_ET!(::SubSurface, ::WaterBalance, ::SubSurface, ::WaterBalance, state1, state2) = nothing
 
 """
+    maxinfiltration(::SubSurface, ::WaterBalance, state)
+
+Returns the current maximum infiltration rate for the given `SubSurface` layer and water balance scheme.
+Defaults to the hydraulic conductivity at the upper boundary.
+"""
+maxinfiltration(::SubSurface, ::WaterBalance, state) = state.kw[1]
+
+"""
     maxwater(sub::SubSurface, ::WaterBalance) 
     maxwater(sub::SubSurface, water::WaterBalance, state)
     maxwater(::SubSurface, ::WaterBalance, state, i)

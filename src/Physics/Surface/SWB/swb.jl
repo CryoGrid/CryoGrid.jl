@@ -16,11 +16,12 @@ end
 SurfaceWaterBalance(forcings::Forcings) = SurfaceWaterBalance(forcings.rainfall, forcings.snowfall)
 
 function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water::WaterBalance, stop, ssub)
-    jw_in = min(stop.jw_rain[1], ssub.kw[1])
+    max_infil = Hydrology.maxinfiltration(sub, water, ssub)
+    jw_in = min(stop.jw_rain[1], max_infil)
     ssub.jw_v[1] += jw_in
     Hydrology.balancefluxes!(top, swb, sub, water, stop, ssub)
     # set infiltration flux after balancing
-    @setscalar stop.jw_infil = ssub.jw[1]
+    @setscalar stop.jw_infil = ssub.jw[1] - ssub.jw_ET[1]
 end
 
 function runoff!(::Top, ::SurfaceWaterBalance, state)

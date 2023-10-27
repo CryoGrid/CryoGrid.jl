@@ -95,7 +95,7 @@ Base.@kwdef struct Heterogeneous{V,N,IT,VT,Taux} <: SoilParameterization
     profile::SoilProfile{N,IT,VT}
     aux::Taux = nothing
     Heterogeneous(::SoilProfile) = error("SoilProfile for heterogeneous layer must have uniform parameterization types (but the parameters may vary).")
-    Heterogeneous(profile::SoilProfile{N,IT,VT}, aux=nothing) where {N,V<:SoilParameterization,IT<:NTuple{N,DistQuantity},VT<:NTuple{N,V}} = new{V,N,IT,VT,typeof(aux)}(profile, aux)
+    Heterogeneous(profile::SoilProfile{N,IT,VT}, aux=nothing) where {N,V<:SoilParameterization,IT<:NTuple{N},VT<:NTuple{N,V}} = new{V,N,IT,VT,typeof(aux)}(profile, aux)
 end
 
 """
