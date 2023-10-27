@@ -159,20 +159,18 @@ function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
 end
 
 """
-    initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p=nothing)
-    initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing)
+    initialcondition!(tile::Tile, tspan::NTuple{2,Float64}[, p])
+    initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}[, p])
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing, args...) = initialcondition!(tile, convert_tspan(tspan), p)
-function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::pType=nothing) where {pType<:Union{Nothing,AbstractVector}}
+CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2}) = initialcondition!(tile, tspan, collect(params(tile)))
+CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector) = initialcondition!(tile, convert_tspan(tspan), p)
+function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::AbstractVector)
     t0 = tspan[1]
-    tile_params = parameters(tile)
-    p = pType == Nothing && !isempty(tile_params) ? collect(tile_params) : p
-    # choose type for state vectors
-    u_type = isnothing(p) ? eltype(tile.state.uproto) : eltype(p)
-    du = zero(similar(tile.state.uproto, u_type))
-    u = zero(similar(tile.state.uproto, u_type))
+    utype = isempty(p) ? eltype(tile.state.uproto) : eltype(p)
+    du = zero(similar(tile.state.uproto, utype))
+    u = zero(similar(tile.state.uproto, utype))
     tile = resolve(tile, p, t0)
     strat = tile.strat
     # get stratigraphy boundaries
