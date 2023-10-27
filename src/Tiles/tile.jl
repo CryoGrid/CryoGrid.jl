@@ -3,13 +3,12 @@
 
 Defines the full specification of a single CryoGrid tile; i.e. stratigraphy, grid, and state variables.
 """
-struct Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip} <: AbstractTile{iip}
+struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
     inits::TInits # initializers
     events::TEvents # events
-    params::TParams # parameters
     data::TileData # output data
     metadata::Dict # metadata
     function Tile(
@@ -18,16 +17,15 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip} <: AbstractTile{iip
         state::TStates,
         inits::TInits,
         events::TEvents,
-        params::TParams,
         data::TileData=TileData(),
         metadata::Dict=Dict(),
         iip::Bool=true) where
-        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple,TParams}
-        new{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip}(strat,grid,state,inits,events,params,data,metadata)
+        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
+        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,data,metadata)
     end
 end
-ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,TParams,iip} =
-    (strat, grid, state, inits, events, params, data, metadata) -> Tile(strat, grid, state, inits, events, params, data, metadata, iip)
+ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
+    (strat, grid, state, inits, events, data, metadata) -> Tile(strat, grid, state, inits, events, data, metadata, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -79,8 +77,7 @@ function Tile(
     inits = map(inits) do init
         _addlayerfield(init, Symbol(:init_, varname(init)))
     end
-    params = ModelParameters.params((; strat, inits, events))
-    return Tile(strat, grid, states, inits, (;events...), params, TileData(), metadata, iip)
+    return Tile(strat, grid, states, inits, (;events...), TileData(), metadata, iip)
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
@@ -119,13 +116,13 @@ computefluxes!(layer[i], ...)
 ```
 """
 function computefluxes!(
-    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,TParams,true},
+    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
     _du,
     _u,
     p,
     t,
     dt=1.0,
-) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,TParams}
+) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
     _du .= zero(eltype(_du))
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
@@ -170,10 +167,8 @@ Calls `initialcondition!` on all layers/processes and returns the fully construc
 CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p=nothing, args...) = initialcondition!(tile, convert_tspan(tspan), p)
 function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::pType=nothing) where {pType<:Union{Nothing,AbstractVector}}
     t0 = tspan[1]
-    tile_params = tile.params
-    if pType != Nothing && !isempty(tile_params)
-        p = collect(tile_params)
-    end
+    tile_params = parameters(tile)
+    p = pType == Nothing && !isempty(tile_params) ? collect(tile_params) : p
     # choose type for state vectors
     u_type = isnothing(p) ? eltype(tile.state.uproto) : eltype(p)
     du = zero(similar(tile.state.uproto, u_type))
@@ -357,7 +352,7 @@ CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, F
 
 Extracts all parameters from `tile`.
 """
-parameters(tile::Tile; kwargs...) = CryoGridParams(tile.params; kwargs...)
+parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
 
 """
     withaxes(u::AbstractArray, ::Tile)

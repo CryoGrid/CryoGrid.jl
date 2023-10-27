@@ -20,13 +20,17 @@ tile = CryoGrid.Presets.SoilHeatTile(
     grid=grid
 )
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-u0, du0 = initialcondition!(tile, tspan);
+u0, du0 = @time initialcondition!(tile, tspan);
 
 # Collect model parameters
 p = CryoGrid.parameters(tile)
 
 # Create the `CryoGridProblem`.
 prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0);
+
+# Solve the forward problem with default parameter settings:
+sol = @time solve(prob)
+out = CryoGridOutput(sol)
 
 # Define a "loss" function; here we'll just take the mean over the final temperature field.
 using Statistics
@@ -43,4 +47,4 @@ using ForwardDiff
 pvec = vec(p)
 
 # Compute gradient with forward diff:
-grad = ForwardDiff.gradient(loss, pvec)
+grad = @time ForwardDiff.gradient(loss, pvec)

@@ -66,7 +66,7 @@ function Base.show(io::IO, ::MIME"text/plain", ps::CryoGridParams{T}) where T
     ModelParameters.printparams(io, ps.obj)
 end
 
-paramname(p::Param, component::Type{T}, fieldname::Symbol) where {T} = fieldname
+paramname(p::Param, component::Type{T}, fieldname) where {T} = fieldname
 
 Tables.columns(ps::CryoGridParams) = Tables.columns(ps.obj)
 Tables.rows(ps::CryoGridParams) = Tables.rows(ps.obj)

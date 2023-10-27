@@ -87,24 +87,24 @@ Base.setindex!(grid::Grid{Edges}, val, i...) = setindex!(values(grid), val, i...
 Base.setindex!(::Grid{Cells}, args...) = error("setindex! is permitted only for edge grids; use `edges(grid)` and call `updategrid!` directly after.")
 
 """
-    updategrid!(grid::Grid{Edges,G,Q}, edges::Q) where {G,Q}
-    updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) where {G,Q}
+    updategrid!(grid::Grid{Edges}, edges)
+    updategrid!(grid::Grid{Edges}, z0, thick::AbstractVector)
 
 Updates all `grid` values based on new grid `edges` or an initial `z0` + cell `thick`.
 """
-function updategrid!(grid::Grid{Edges,G,Q}, edges::AbstractVector{Q}) where {G,Q}
+function updategrid!(grid::Grid{Edges}, edges::AbstractVector)
     z_edges = values(grid)
     z_cells = values(cells(grid))
     Δz_edges = Δ(grid)
     Δz_cells = Δ(cells(grid))
     z_edges .= edges
-    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
+    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(eltype(grid)))
     Δz_edges .= z_edges[2:end] .- z_edges[1:end-1]
     Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
     @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
     return grid
 end
-function updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) where {G,Q}
+function updategrid!(grid::Grid{Edges}, z0, thick::AbstractVector)
     z_edges = values(grid)
     z_cells = values(cells(grid))
     Δz_edges = Δ(grid)
@@ -112,7 +112,7 @@ function updategrid!(grid::Grid{Edges,G,Q}, z0::Q, thick::AbstractVector{Q}) whe
     Δz_edges .= thick
     z_edges[1] = z0
     z_edges[2:end] .= z0 .+ thick
-    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(Q))
+    z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(eltype(grid)))
     Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
     @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
     return grid

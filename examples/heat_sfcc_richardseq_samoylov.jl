@@ -9,10 +9,10 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2
 tspan = (DateTime(2011,1,1),DateTime(2011,12,31))
 T0 = values(forcings.Tair(tspan[1]))[1]
 tempprofile = TemperatureProfile(
-    0.0u"m" => T0*u"°C",
+    0.0u"m" => 0.0*u"°C",
     1.0u"m" => -8.0u"°C",
-    20.0u"m" => -10u"°C",
-    1000.0u"m" => 1.0u"°C"
+    20.0u"m" => -10.0u"°C",
+    1000.0u"m" => 1.0u"°C",
 )
 initT = initializer(:T, tempprofile);
 

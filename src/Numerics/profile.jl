@@ -8,7 +8,7 @@ Base.show(io::IO, knot::ProfileKnot) = print(io, "$(knot.depth): $(knot.value)")
 struct Profile{N,V,D}
     knots::NTuple{N,ProfileKnot{D,V}}
     Profile(::Tuple{}) = new{0,Nothing,Nothing}(())
-    Profile(knots::NTuple{N,ProfileKnot{D,V}}) where {N,D,V} = new{N,V,D}(knots)
+    Profile(knots::Tuple{Vararg{ProfileKnot{D,V},N}}) where {N,D,V} = new{N,V,D}(knots)
     Profile(pairs::Tuple{Vararg{Pair}}) = Profile(map(Base.splat(ProfileKnot), pairs))
     Profile(pairs::Pair...) = Profile(pairs)
 end
