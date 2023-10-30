@@ -51,8 +51,12 @@ function DiffEqBase.sensitivity_solution(sol::CryoGridSolution, u, t)
                       nothing, sol.retcode)
 end
 
-Base.@kwdef mutable struct CryoGridIntegratorOptions
-    dtmax = 24*3600.0
+Base.@kwdef mutable struct CryoGridIntegratorOptions{Tt}
+    dtmin::Tt = 1.0
+    dtmax::Tt = 24*3600.0
+    tstops::SortedSet{Tt} = SortedSet{Tt}()
+    just_hit_tstop::Boolean = false
+    stop_at_next_tstop::Bolean = true
 end
 
 mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.AbstractODEIntegrator{Talg,true,Tu,Tt}
@@ -60,7 +64,6 @@ mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.
     cache::Tcache
     opts::Topts
     sol::Tsol
-    tstops::SortedSet{Tt}
     u::Tu
     p::Tp
     t::Tt
@@ -70,7 +73,7 @@ mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.
 end
 SciMLBase.done(integrator::CryoGridIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
 SciMLBase.get_du(integrator::CryoGridIntegrator) = integrator.cache.du
-SciMLBase.add_tstop!(integrator::CryoGridIntegrator, t) = push!(integrator.tstops, t)
+SciMLBase.add_tstop!(integrator::CryoGridIntegrator, t) = push!(integrator.opts.tstops, t)
 
 # add tstop by default because we don't support fancy interpolation
 DiffEqBase.step!(integrator::CryoGridIntegrator, dt) = step!(integrator, dt, true)
@@ -127,13 +130,13 @@ function saveat!(integrator::CryoGridIntegrator)
 end
 
 function handle_tstops!(integrator::CryoGridIntegrator)
-    if !isempty(integrator.tstops)
-        next_tstop = first(integrator.tstops)
+    if !isempty(integrator.opts.tstops)
+        next_tstop = first(integrator.opts.tstops)
         dt_to_stop = next_tstop - integrator.t
         if dt_to_stop > zero(dt_to_stop)
             integrator.dt = min(integrator.dt, dt_to_stop)
         else
-            pop!(integrator.tstops)
+            pop!(integrator.opts.tstops)
         end
     end
 end
