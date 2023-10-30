@@ -55,8 +55,8 @@ Base.@kwdef mutable struct CryoGridIntegratorOptions{Tt}
     dtmin::Tt = 1.0
     dtmax::Tt = 24*3600.0
     tstops::SortedSet{Tt} = SortedSet{Tt}()
-    just_hit_tstop::Boolean = false
-    stop_at_next_tstop::Bolean = true
+    just_hit_tstop::Bool = false
+    stop_at_next_tstop::Bool = true
 end
 
 mutable struct CryoGridIntegrator{Talg,Tu,Tt,Tp,Topts,Tsol,Tcache} <: SciMLBase.AbstractODEIntegrator{Talg,true,Tu,Tt}
