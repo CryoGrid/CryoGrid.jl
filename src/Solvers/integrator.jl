@@ -54,6 +54,7 @@ end
 Base.@kwdef mutable struct CryoGridIntegratorOptions{Tt}
     dtmax::Tt = 24*3600.0
     dtmin::Tt = one(typeof(dtmax))
+    saveat::Vector{Tt} = typeof(dtmax)[]
     tstops::SortedSet{Tt} = SortedSet{typeof(dtmin)}()
     just_hit_tstop::Bool = false
     stop_at_next_tstop::Bool = true
