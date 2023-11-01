@@ -9,6 +9,13 @@ using CryoGrid.LiteImplicit
 
 # Load forcings and build stratigraphy like before.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
+soilprofile = SoilProfile(
+    0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75),
+    0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25),
+    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
+    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
+    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
+)
 tempprofile_linear = TemperatureProfile(
     0.0u"m" => -30.0u"°C",
     10.0u"m" => -10.0u"°C", 
@@ -20,22 +27,19 @@ upperbc = TemperatureBC(forcings.Tair, NFactor())
 initT = initializer(:T, tempprofile_linear)
 heatop = Heat.EnthalpyImplicit()
 freezecurve = FreeWater()
-strat = @Stratigraphy(
+heat = HeatBalance(heatop; freezecurve)
+soil_layers = map(para -> Ground(para; heat), soilprofile)
+strat = Stratigraphy(
     z_top => Top(upperbc),
-    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.75), heat=HeatBalance(heatop; freezecurve)),
-    0.1u"m" => Ground(MineralOrganic(por=0.80,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
-    0.4u"m" => Ground(MineralOrganic(por=0.55,sat=1.0,org=0.25), heat=HeatBalance(heatop; freezecurve)),
-    3.0u"m" => Ground(MineralOrganic(por=0.50,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
-    10.0u"m" => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0), heat=HeatBalance(heatop; freezecurve)),
+    soil_layers,
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, modelgrid, initT);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
-# Here we specify a time span of 5 years.
-tspan = (DateTime(2010,1,1), DateTime(2015,1,1))
-tspan_sol = convert_tspan(tspan)
+# Here we specify a time span of 20 years.
+tspan = (DateTime(2000,1,1), DateTime(2020,1,1))
 u0, du0 = initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,))
 sol = @time solve(prob, LiteImplicitEuler(), dt=24*3600.0)

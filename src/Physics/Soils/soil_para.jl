@@ -103,6 +103,9 @@ end
 """
 Ground(soilprofile::SoilProfile; kwargs...) = Ground(Heterogeneous(soilprofile); kwargs...)
 
+# add dispatch for default_fcsolver that selects the ND presolver
+default_fcsolver(::Heterogeneous, ::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
+
 saturation(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.sat
 porosity(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.por
 mineral(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.θm
@@ -138,6 +141,7 @@ CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
     initializer(:por, map(para -> para.por, soil.para.profile)),
     initializer(:sat, map(para -> para.sat, soil.para.profile)),
     initializer(:org, map(para -> para.org, soil.para.profile)),
+    initializer(:θwi, map(para -> para.por*para.sat, soil.para.profile)),
     initializer(:kh_m, map(para -> para.heat.kh_m, soil.para.profile)),
     initializer(:kh_o, map(para -> para.heat.kh_o, soil.para.profile)),
     initializer(:kh_w, map(para -> para.heat.kh_w, soil.para.profile)),

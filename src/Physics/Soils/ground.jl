@@ -16,14 +16,14 @@ Base.@kwdef struct Ground{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{Wa
     para::Tpara = MineralOrganic() # ground parameterization
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = nothing # water balance
-    fcsolver::Tsolver = default_fcsolver(heat, water)
+    fcsolver::Tsolver = default_fcsolver(para, heat, water)
     aux::Taux = nothing # user-defined specialization
 end
 # Convenience constructors
 Ground(para::GroundParameterization; kwargs...) = Ground(; para, kwargs...)
 
-default_fcsolver(::Any, ::Any) = nothing
-default_fcsolver(::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCache1D())
-default_fcsolver(::HeatBalance{<:SFCC}, ::WaterBalance) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
+default_fcsolver(::Any, ::Any, ::Any) = nothing
+default_fcsolver(::GroundParameterization, ::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCache1D())
+default_fcsolver(::GroundParameterization, ::HeatBalance{<:SFCC}, ::WaterBalance) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
 
 fcsolver(ground::Ground) = ground.fcsolver

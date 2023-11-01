@@ -22,6 +22,11 @@ struct Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
         sub::AbstractVector{<:Pair{<:DistQuantity}},
         bot::Pair{<:DistQuantity,<:Bottom}
     ) = Stratigraphy(top, Tuple(sub), bot)
+    Stratigraphy(
+        top::Pair{<:DistQuantity,<:Top},
+        sub::Numerics.Profile{N,<:Tuple{Vararg{DistQuantity}},<:Tuple{Vararg{SubSurface}}},
+        bot::Pair{<:DistQuantity,<:Bottom}
+    ) where N = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
         @nospecialize(top::Pair{<:DistQuantity,<:Top}),
