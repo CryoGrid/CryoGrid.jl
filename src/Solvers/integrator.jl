@@ -75,6 +75,7 @@ end
 SciMLBase.done(integrator::CryoGridIntegrator) = integrator.t >= integrator.sol.prob.tspan[end]
 SciMLBase.get_du(integrator::CryoGridIntegrator) = integrator.cache.du
 SciMLBase.add_tstop!(integrator::CryoGridIntegrator, t) = push!(integrator.opts.tstops, t)
+SciMLBase.postamble!(integrator::CryoGridIntegrator) = nothing
 
 # add tstop by default because we don't support fancy interpolation
 DiffEqBase.step!(integrator::CryoGridIntegrator, dt) = step!(integrator, dt, true)
