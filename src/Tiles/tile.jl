@@ -164,7 +164,7 @@ end
 
 Calls `initialcondition!` on all layers/processes and returns the fully constructed u0 and du0 states.
 """
-CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2}) = initialcondition!(tile, tspan, collect(params(tile)))
+CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2}) = initialcondition!(tile, tspan, collect(map(p -> p.val, params(tile))))
 CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,DateTime}, p::AbstractVector) = initialcondition!(tile, convert_tspan(tspan), p)
 function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::AbstractVector)
     t0 = tspan[1]
