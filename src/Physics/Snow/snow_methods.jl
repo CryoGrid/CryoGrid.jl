@@ -12,14 +12,14 @@ snowdensity!(::Snowpack, ::SnowMassBalance, state) = error("not implemented")
 
 Computes snow mass balance fluxes due to ablation (e.g. snow melt).
 """
-ablation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error("not implemented")
+ablation!(::Top, ::SnowBC, ::Snowpack, ::DynamicSnowMassBalance, stop, ssnow) = error("not implemented")
 
 """
-    accumulate!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) 
+    accumulation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) 
 
 Computes snow mass balance fluxes due to accumulation (e.g. snowfall).
 """
-accumulate!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error("not implemented")
+accumulation!(::Top, ::SnowBC, ::Snowpack, ::DynamicSnowMassBalance, stop, ssnow) = error("not implemented")
 
 # Optional (w/ default implementations)
 
@@ -29,15 +29,13 @@ accumulate!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error
 Retrieves the snow cover threshold for this `Snowpack` layer to become active.
 """
 threshold(::Snowpack) = 0.01 # meters
+
 """
-    swe(::Snowpack, ::SnowMassBalance, state)
+    snowwater(::Snowpack, ::SnowMassBalance, state)
 
 Retrieve the current snow water equivalent of the snowpack.
 """
-swe(::Snowpack, ::SnowMassBalance, state) = state.swe
-# special implementation of swe for prescribed snow mass balance
-swe(::Snowpack, smb::PrescribedSnowMassBalance, state) = smb.para.swe
-swe(::Snowpack, smb::PrescribedSnowMassBalance{<:Forcing{u"m"}}, state) = smb.para.swe(state.t)
+snowwater(::Snowpack, ::SnowMassBalance, state) = state.swe
 
 """
     snowdensity(::Snowpack, state)
@@ -70,19 +68,7 @@ snowvariables(::Snowpack) = (
     Diagnostic(:T_ub, Scalar, u"°C"),
 )
 
-function snowdepth!(
-    ::Snowpack,
-    ::DynamicSnowMassBalance,
-    state
-)
-    @setscalar state.dsn = getscalar(state.Δz)
-end
-
-### Default implmentations of CryoGrid methods for Snowpack ###
-
-# implement CryoGrid.Volume for prescribed vs. dynamic snow mass balance
-CryoGrid.Volume(::Type{<:Snowpack{T,<:PrescribedSnowMassBalance}}) where {T} = CryoGrid.DiagnosticVolume()
-CryoGrid.Volume(::Type{<:Snowpack{T,<:DynamicSnowMassBalance}}) where {T} = CryoGrid.PrognosticVolume()
+### Default implmentations of CryoGrid methods for all Snowpack types ###
 
 # for prescribed snow depth/density, the mass balance is given so we can skip computefluxes!
 CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance, ssnow) = nothing
@@ -117,4 +103,42 @@ function CryoGrid.volumetricfractions(::Snowpack, state, i)
         θi = θwi - θw;
         return (θw, θi, θa)
     end
+end
+
+function CryoGrid.computediagnostic!(
+    snow::Snowpack,
+    procs::CoupledSnowWaterHeat,
+    state,
+)
+    mass, water, heat = procs
+    computediagnostic!(snow, mass, state)
+    computediagnostic!(snow, water, state)
+    computediagnostic!(snow, heat, state)
+end
+
+function CryoGrid.computediagnostic!(
+    snow::Snowpack,
+    mass::SnowMassBalance,
+    state,
+)
+    # update snow density
+    snowdensity!(snow, mass, state)
+    # update snow depth;
+    # by default, we just use the current layer thickness
+    @setscalar state.dsn = getscalar(state.Δz)
+end
+
+# Special overrides for heat timestep control on snow layer
+
+CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
+function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
+    Δx = Δ(state.grid)
+    dtmax = Inf
+    if getscalar(state.dsn) > snow.para.thresh
+        @inbounds for i in eachindex(Δx)
+            dtmax = min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
+        end
+        dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
+    end
+    return dtmax
 end

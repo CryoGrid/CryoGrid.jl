@@ -27,25 +27,6 @@ Base type for different snow accumulation schemes.
 abstract type SnowAccumulationScheme end
 
 """
-    PrescribedSnowMassBalance{Tswe} <: SnowMassBalance
-
-"Prescribed" snow mass balance, i.e. where the snow water equivalent is given as a constant or forcing.
-"""
-Base.@kwdef struct PrescribedSnowMassBalance{Tswe} <: SnowMassBalance
-    swe::Tswe = 0.0u"m" # depth snow water equivalent [m]
-end
-
-"""
-    DynamicSnowMassBalance{TAcc,TAbl} <: SnowMassBalance
-
-Dynamic snow mass balance, i.e. where snow is accumulated and ablated according to dynamic physical processes.
-"""
-Base.@kwdef struct DynamicSnowMassBalance{TAcc,TAbl} <: SnowMassBalance
-    accumulation::TAcc = LinearAccumulation()
-    ablation::TAbl = DegreeDayMelt()
-end
-
-"""
     Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
 
 Generic representation of a snowpack "subsurface" layer.
@@ -60,3 +41,29 @@ end
 
 # Processes type aliases
 const CoupledSnowWaterHeat{Tmass,Twater,Theat} = Coupled(SnowMassBalance, WaterBalance, HeatBalance)
+
+"""
+    Snowpack(para::SnowpackParameterization; kwargs...)
+
+Convenience constructor that accepts the parameterization as a positional argument.
+"""
+Snowpack(para::SnowpackParameterization; kwargs...) = Snowpack(; para, kwargs...)
+
+"""
+    Bulk{Tden,Tthresh,Theat,Twater} <: SnowpackParameterization
+
+Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
+"""
+Base.@kwdef struct Bulk{Tden<:SnowDensityScheme,Tthresh,Theat,Twater} <: SnowpackParameterization
+    thresh::Tthresh = 0.02u"m" # snow threshold
+    density::Tden = ConstantDensity() # snow density
+    heat::Theat = ThermalProperties() # thermal properties
+    water::Twater = HydraulicProperties(kw_sat=1e-4) # hydraulic properties
+end
+
+"""
+    BulkSnowpack = Snowpack{<:Bulk}
+
+Type alias for Snowpack with `Bulk` parameterization.
+"""
+const BulkSnowpack{TD} = Snowpack{<:Bulk{TD}} where {TD}

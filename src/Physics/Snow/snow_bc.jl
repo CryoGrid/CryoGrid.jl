@@ -16,7 +16,7 @@ function CryoGrid.interact!(
     stop,
     ssnow
 )
-    Snow.accumulate!(top, sbc, snow, mass, stop, ssnow)
+    Snow.accumulation!(top, sbc, snow, mass, stop, ssnow)
     Snow.ablation!(top, sbc, snow, mass, stop, ssnow)
     return nothing
 end
