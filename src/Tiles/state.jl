@@ -48,12 +48,12 @@ function Base.getproperty(state::TState, sym::Symbol) where {TState<:TileState}
     return if sym ∈ fieldnames(TState)
         getfield(state, sym)
     else
-        selectlayer(state, sym)
+        selectlayer(state, Val{sym}())
     end
 end
 
-@inline selectlayer(state::TileState, ::Val{layername}) where {layername} = selectlayer(state, layername)
-@inline function selectlayer(state::TileState, layername::Symbol)
+@inline selectlayer(state::TileState, layername::Symbol) = selectlayer(state, Val{layername}())
+@inline function selectlayer(state::TileState, ::Val{layername}) where {layername}
     states = getproperty(state.states, layername)
     z₁ = states.z[1]
     z₂ = max(z₁, z₁ + states.Δz[1])
