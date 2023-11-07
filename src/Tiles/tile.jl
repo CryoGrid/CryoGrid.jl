@@ -117,10 +117,10 @@ computefluxes!(layer[i], ...)
 """
 function computefluxes!(
     _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
-    _du,
-    _u,
-    p,
-    t,
+    _du::AbstractVector,
+    _u::AbstractVector,
+    p::Union{Nothing,AbstractVector},
+    t::Number,
     dt=1.0,
 ) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
     _du .= zero(eltype(_du))

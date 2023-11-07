@@ -44,18 +44,21 @@ end
 
 Base.getindex(state::TileState, sym::Symbol) = getproperty(state, sym)
 Base.propertynames(state::TileState) = (propertynames(getfield(state, :states))..., fieldnames(typeof(state))...)
-function Base.getproperty(state::TileState, sym::Symbol)
-    states = getfield(state, :states)
-    return if sym ∈ propertynames(states)
-        selectlayer(state, Val{sym}())
-    else
+function Base.getproperty(state::TState, sym::Symbol) where {TState<:TileState}
+    return if sym ∈ fieldnames(TState)
         getfield(state, sym)
+    else
+        selectlayer(state, sym)
     end
 end
 
-@inline selectlayer(state::TileState, layername::Symbol) = selectlayer(state, Val{layername}())
-@inline function selectlayer(state::TileState, ::Val{layername}) where {layername}
-    return LayerState(Val{layername}(), state)
+@inline selectlayer(state::TileState, ::Val{layername}) where {layername} = selectlayer(state, layername)
+@inline function selectlayer(state::TileState, layername::Symbol)
+    states = getproperty(state.states, layername)
+    z₁ = states.z[1]
+    z₂ = max(z₁, z₁ + states.Δz[1])
+    subgrid = state.grid[z₁..z₂]
+    return LayerState(layername, subgrid, states, state.t, state.dt)
 end
 
 """
@@ -63,22 +66,12 @@ end
 
 State for a single layer, typically constructed from a parent `TileState`.
 """
-struct LayerState{TStates<:NamedTuple,TGrid<:Grid,Tt,Tdt}
+struct LayerState{TStates,TGrid,Tt,Tdt}
     name::Symbol
-    parent::TileState
     grid::TGrid
     states::TStates
     t::Tt
     dt::Tdt
-end
-
-LayerState(layername::Symbol, parent::TileState) = LayerState(Val{layername}(), parent)
-function LayerState(::Val{layername}, parent::TileState) where {layername}
-    states = getproperty(parent.states, layername)
-    z₁ = states.z[1]
-    z₂ = max(z₁, z₁ + states.Δz[1])
-    subgrid = parent.grid[z₁..z₂]
-    return LayerState(layername, parent, subgrid, states, parent.t, parent.dt)
 end
 
 Base.parent(state::LayerState) = state.parent
@@ -91,40 +84,6 @@ function Base.getproperty(state::LayerState, sym::Symbol)
     else
         getfield(state, sym)
     end
-end
-
-"""
-    nextlayer(state::LayerState)
-
-Retrieves the next stratigraphy layer and its corresponding `LayerState`. If the current
-layer is already `Bottom`, `nothing` is returned. Note that this function is **not type stable**
-and will incur a runtime dispatch. Thus, it should be used sparingly to avoid degrading performance.
-"""
-function nextlayer(state::LayerState)
-    if state.name == :bottom
-        return nothing
-    end
-    tilestate = parent(state)
-    names = layernames(tilestate.strat)
-    i = findfirst(==(state.name), names)
-    return tilestate.strat[i+1], selectlayer(tilestate, names[i+1])
-end
-
-"""
-    prevlayer(state::LayerState)
-
-Retrieves the next stratigraphy layer and its corresponding view of `TileState`. If the current
-layer is already `Bottom`, `nothing` is returned. Note that this function is **not type stable**
-and will incur a runtime dispatch. Thus, it should be used sparingly to avoid degrading performance.
-"""
-function prevlayer(state::LayerState)
-    if state.name == :top
-        return nothing
-    end
-    tilestate = parent(state)
-    names = layernames(tilestate.strat)
-    i = findfirst(==(state.name), names)
-    return tilestate.strat[i-1], selectlayer(tilestate, names[i-1])
 end
 
 # internal method dispatches for type stable construction of state types
