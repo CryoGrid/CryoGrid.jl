@@ -12,14 +12,14 @@ snowdensity!(::Snowpack, ::SnowMassBalance, state) = error("not implemented")
 
 Computes snow mass balance fluxes due to ablation (e.g. snow melt).
 """
-ablation!(::Top, ::SnowBC, ::Snowpack, ::DynamicSnowMassBalance, stop, ssnow) = error("not implemented")
+ablation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error("not implemented")
 
 """
     accumulation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) 
 
 Computes snow mass balance fluxes due to accumulation (e.g. snowfall).
 """
-accumulation!(::Top, ::SnowBC, ::Snowpack, ::DynamicSnowMassBalance, stop, ssnow) = error("not implemented")
+accumulation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error("not implemented")
 
 # Optional (w/ default implementations)
 
@@ -142,3 +142,4 @@ function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp
     end
     return dtmax
 end
+

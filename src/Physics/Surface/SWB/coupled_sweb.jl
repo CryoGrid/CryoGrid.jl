@@ -3,15 +3,15 @@ Type alias for `WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:Su
 """
 const SurfaceWaterEnergyBalance{TSWB,TSEB} = WaterHeatBC{TSWB,TSEB} where {TSWB<:SurfaceWaterBalance,TSEB<:SurfaceEnergyBalance}
 
+function ET!(::Top, ::SurfaceWaterBalance, state)
+    @setscalar state.dET += state.jw_ET[1]*area(state.grid)
+end
+
 CryoGrid.variables(top::Top, bc::SurfaceWaterEnergyBalance) = (
     CryoGrid.variables(top, bc[1])...,
     CryoGrid.variables(top, bc[2])...,
     Prognostic(:ET, Scalar, u"m^3"),
 )
-
-function ET!(::Top, ::SurfaceWaterBalance, state)
-    @setscalar state.dET += state.jw_ET[1]*area(state.grid)
-end
 
 function CryoGrid.computefluxes!(top::Top, bc::SurfaceWaterEnergyBalance, state)
     swb, seb = bc

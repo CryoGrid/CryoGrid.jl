@@ -245,17 +245,18 @@ hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.variables(::NoFlow) = (
     Diagnostic(:sat, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θsat, OnGrid(Cells), domain=0..1),
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
 )
 
 function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}, state)
     @inbounds for i in eachindex(state.sat)
-        state.θwi[i] = state.sat[i]*maxwater(sub, water, state, i)
+        state.θsat[i] = maxwater(sub, water, state, i)
+        state.θwi[i] = state.sat[i]*state.θsat[i]
     end
 end
 
 CryoGrid.computefluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
-
-CryoGrid.computediagnostic!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 

@@ -4,6 +4,7 @@
 # from the ERA-Interim reanalysis product.
 
 using CryoGrid
+using OrdinaryDiffEq
 
 # First we set up the model:
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
@@ -14,43 +15,43 @@ z_top = -2.0u"m"
 z_sub = keys(soilprofile)
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
-    SurfaceWaterBalance(rainfall=forcings.rainfall, snowfall=forcings.snowfall),
+    SurfaceWaterBalance(forcings),
     TemperatureBC(forcings.Tair)
 )
-snowmass = DynamicSnowMassBalance(
+snowmass = SnowMassBalance(
     ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
 )
 snowpack = Snowpack(
     para=Snow.Bulk(thresh=2.0u"cm"),
     mass=snowmass,
-    heat=HeatBalance(),
-    water=WaterBalance(BucketScheme())
 )
+ground_layers = map(soilprofile) do para
+    Ground(para, heat=HeatBalance(), water=WaterBalance())
+end
 strat = @Stratigraphy(
     z_top => Top(upperbc),
-    z_top => :snowpack => snowpack,
-    z_sub[1] => Ground(soilprofile[1].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[2] => Ground(soilprofile[2].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[3] => Ground(soilprofile[3].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[4] => Ground(soilprofile[4].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    z_sub[5] => Ground(soilprofile[5].value, heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    z_top => snowpack,
+    ground_layers...,
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_5cm
 tile = Tile(strat, modelgrid, initT, initsat)
 # define time span, 2 years + 3 months
 tspan = (DateTime(2010,9,30), DateTime(2012,9,30))
-u0, du0 = initialcondition!(tile, tspan)
+u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
 
 # set up integrator
-integrator = init(prob, CGEuler(), dt=300.0)
+integrator = init(prob, Euler(), dt=300.0)
 # advance 24 hours for testing
 @time step!(integrator, 24*3600.0)
 
+state = getstate(integrator)
+state.snowpack.θwi
+
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 @info "Running model ..."
-sol = @time solve(prob, CGEuler(), dt=300.0, saveat=3*3600.0, progress=true);
+sol = @time solve(prob, Euler(), dt=300.0, saveat=3*3600.0);
 out = CryoGridOutput(sol)
 
 # Plot it!
