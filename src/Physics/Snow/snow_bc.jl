@@ -1,9 +1,7 @@
-# always allow Top interactions with Snowpack mass balance
+# unconditionally apply top interactions
 CryoGrid.caninteract(::Top, ::WaterBC, ::Snowpack, ::SnowMassBalance, s1, s2) = true
-# also for subsurface water balance interaction
 CryoGrid.caninteract(::Snowpack, ::WaterBalance, ::SubSurface, ::WaterBalance, s1, s2) = true
-# only apply heat bc when active
-CryoGrid.caninteract(::Top, ::HeatBC, snow::Snowpack, ::HeatBalance, s1, s2) = isactive(snow, s2)
+CryoGrid.caninteract(::Top, ::HeatBC, snow::Snowpack, ::HeatBalance, s1, s2) = true
 
 # default top interact! for dynamic snow mass balance
 function CryoGrid.interact!(
@@ -28,8 +26,10 @@ function CryoGrid.interact!(
     ssnow
 )
     @setscalar ssnow.T_ub = getscalar(stop.T_ub)
-    # boundary flux
-    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    if isactive(snow, ssnow)
+        # boundary flux
+        ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    end
     return nothing
 end
 # default interact! for coupled snow mass, water, and heat

@@ -33,13 +33,13 @@ function ablation!(
         # swe flux
         @. ssnow.dswe -= dmelt
         # thickness flux
-        por = getscalar(ssnow.por)
-        θis = 1 - por # solid ice
+        θsat = getscalar(ssnow.θsat)
+        θis = 1 - θsat # solid ice
         Δdsn = -dmelt / θis
         @. ssnow.dΔz += Δdsn
         # add water flux due to melt
         sat = getscalar(ssnow.sat)
-        ssnow.jw[1] += dmelt - Δdsn*por*sat
+        ssnow.jw[1] += dmelt - Δdsn*θsat*sat
     end
 end
 
@@ -57,9 +57,9 @@ function accumulation!(
     jw_snow = snowfall(snowbc, stop)[1]
     Δswe = rate_scale*jw_snow
     @. ssnow.dswe += Δswe
-    por = getscalar(ssnow.por)
-    θis = 1 - por # solid ice
-    Δdsn = Δswe/ θis
+    θsat = getscalar(ssnow.θsat)
+    θis = 1 - θsat # solid ice
+    Δdsn = Δswe / θis
     @. ssnow.dΔz += Δdsn
 end
 
@@ -74,7 +74,6 @@ end
 CryoGrid.variables(snow::BulkSnowpack, ::SnowMassBalance) = (
     Prognostic(:swe, Scalar, u"m", domain=0..Inf),
     Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
-    Diagnostic(:por, OnGrid(Cells), domain=0..1),
     Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
     snowvariables(snow)...,
 )
@@ -138,17 +137,6 @@ function CryoGrid.trigger!(
     return nothing
 end
 
-# diagnostics
-
-function CryoGrid.computediagnostic!(snow::BulkSnowpack, heat::HeatBalance, state)
-    Heat.freezethaw!(snow, heat, state)
-    # compute thermal conductivity
-    Heat.thermalconductivity!(snow, heat, state)
-    if CryoGrid.isactive(snow, state)
-        state.k .= state.kc[1]
-    end
-end
-
 # computefluxes! for free water, enthalpy based HeatBalance on bulk snow layer
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
@@ -167,6 +155,26 @@ function CryoGrid.computefluxes!(
         computefluxes!(snow, Coupled(water, heat), state)
     end
     return nothing
+end
+
+# diagnostic
+function CryoGrid.computediagnostic!(snow::BulkSnowpack, heat::HeatBalance, state)
+    Heat.freezethaw!(snow, heat, state)
+    # compute thermal conductivity
+    Heat.thermalconductivity!(snow, heat, state)
+    if CryoGrid.isactive(snow, state)
+        state.k .= state.kc[1]
+    end
+end
+
+function CryoGrid.diagnosticstep!(snow::BulkSnowpack, state)
+    if !isactive(snow, state) && state.swe[1] > 0.0
+        state.swe .= 0.0
+        state.dsn .= 0.0
+        state.Δz .= 0.0
+        state.H .= 0.0
+        state.T .= state.T_ub
+    end
 end
 
 # ==== Timestep control ==== #

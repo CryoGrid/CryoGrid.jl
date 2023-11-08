@@ -76,12 +76,12 @@ time series and returns a new forcing with units `[unit].s⁻¹`
 function time_derivative_forcing(
     f::InterpolatedForcing{unit},
     new_name::Symbol;
-    interp=Numerics.Linear()
+    interpolation_mode=Numerics.Linear()
 ) where {unit}
-    ts = f.interpolant.knots
-    ∂f∂t = map(t -> Numerics.gradient(f, t)*unit/1.0u"s", ts)
+    ts = f.interpolant.knots[1]
     ts_mid = (ts[1:end-1] .+ ts[2:end])./2
-    return InterpolatedForcing(convert_t.(ts_mid), ∂f∂t, new_name; interp)
+    ∂f∂t = map(t -> Numerics.gradient(f.interpolant, t)[1]*unit/1.0u"s", ts_mid)
+    return InterpolatedForcing(convert_t.(ts_mid), ∂f∂t, new_name; interpolation_mode)
 end
 
 """

@@ -22,7 +22,7 @@ snowmass = SnowMassBalance(
     ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
 )
 snowpack = Snowpack(
-    para=Snow.Bulk(thresh=2.0u"cm"),
+    para=Snow.Bulk(),
     mass=snowmass,
 )
 ground_layers = map(soilprofile) do para
@@ -41,17 +41,9 @@ tspan = (DateTime(2010,9,30), DateTime(2012,9,30))
 u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
 
-# set up integrator
-integrator = init(prob, Euler(), dt=300.0)
-# advance 24 hours for testing
-@time step!(integrator, 24*3600.0)
-
-state = getstate(integrator)
-state.snowpack.θwi
-
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 @info "Running model ..."
-sol = @time solve(prob, Euler(), dt=300.0, saveat=3*3600.0);
+sol = @time solve(prob, CGEuler(), dt=300.0);
 out = CryoGridOutput(sol)
 
 # Plot it!
