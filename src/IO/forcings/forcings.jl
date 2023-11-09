@@ -47,7 +47,8 @@ end
 function InterpolatedForcing(timestamps::AbstractArray{DateTime,1}, values::A, name::Symbol; interpolation_mode=Interpolations.Linear()) where {T,A<:AbstractArray{T,1}}
       ts = convert_t.(timestamps)
       values_converted = Utils.normalize_units.(values)
-      interp = Interpolations.interpolate((ts,), ustrip.(values_converted), Interpolations.Gridded(interpolation_mode))
+      interp_values = Numerics.fpzero.(ustrip.(values_converted))
+      interp = Interpolations.interpolate((ts,), interp_values, Interpolations.Gridded(interpolation_mode))
       return InterpolatedForcing(unit(eltype(values_converted)), interp, name)
 end
 Flatten.flattenable(::Type{<:InterpolatedForcing}, ::Type) = false
@@ -61,7 +62,7 @@ Base.show(io::IO, forcing::InterpolatedForcing{u}) where u = print(io, "Interpol
 """
 Get interpolated forcing value at t seconds from t0.
 """
-@propagate_inbounds (forcing::InterpolatedForcing)(t::Number) = forcing.interpolant(t)
+@propagate_inbounds (forcing::InterpolatedForcing)(t::Number) = Numerics.fpzero(forcing.interpolant(t))
 
 """
     time_derivative_forcing(
@@ -79,9 +80,8 @@ function time_derivative_forcing(
     interpolation_mode=Numerics.Linear()
 ) where {unit}
     ts = f.interpolant.knots[1]
-    ts_mid = (ts[1:end-1] .+ ts[2:end])./2
     ∂f∂t = map(t -> Numerics.gradient(f.interpolant, t)[1]*unit/1.0u"s", ts_mid)
-    return InterpolatedForcing(convert_t.(ts_mid), ∂f∂t, new_name; interpolation_mode)
+    return InterpolatedForcing(convert_t.(ts[1:end-1]), ∂f∂t, new_name; interpolation_mode)
 end
 
 """

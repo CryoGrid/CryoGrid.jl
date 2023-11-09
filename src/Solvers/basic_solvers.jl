@@ -64,6 +64,9 @@ function perform_step!(integrator::CryoGridIntegrator{CGEuler})
     integrator.t = t₀ + dt
     integrator.dt = dt
     integrator.step += 1
+    # diagnostic step
+    # TODO: use tstops to step at fixed interval?
+    CryoGrid.diagnosticstep!(tile, getstate(integrator))
     # set next dt
     # compute maximum timestep
     dtmax = CryoGrid.timestep(tile, du, u, p, t₀)

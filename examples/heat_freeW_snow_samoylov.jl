@@ -24,6 +24,8 @@ snowmass = SnowMassBalance(
 snowpack = Snowpack(
     para=Snow.Bulk(),
     mass=snowmass,
+    heat=HeatBalance(),
+    water=WaterBalance(),
 )
 ground_layers = map(soilprofile) do para
     Ground(para, heat=HeatBalance(), water=WaterBalance())
@@ -39,7 +41,19 @@ tile = Tile(strat, modelgrid, initT, initsat)
 # define time span, 2 years + 3 months
 tspan = (DateTime(2010,9,30), DateTime(2012,9,30))
 u0, du0 = @time initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:snowpack => (:dsn,:T_ub)))
+prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T, :top => (:T_ub), :snowpack => (:dsn,)))
+
+integrator = init(prob, CGEuler())
+step!(integrator, 30*24*3600);
+step!(integrator)
+getstate(integrator).top.T_ub
+@run step!(integrator)
+for i in integrator
+    if integrator.dt < 0.01
+        @warn "very small dt ($(integrator.dt)) detected at $(convert_t(integrator.t))"
+        break
+    end
+end
 
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 @info "Running model ..."
@@ -48,14 +62,14 @@ out = CryoGridOutput(sol)
 
 # Plot it!
 using Plots: plot, plot!, heatmap, cgrad, Measures
-zs = [1,10,20,30,50,100,200,500]u"cm"
+zs = [-1.0,1,10,20,30,50,100,200,500]u"cm"
 cg = cgrad(:copper,rev=true);
 plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature (°C)", leg=false, dpi=150)
-plt1 = plot!(ustrip.(out.snowpack.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
+plt1 = plot!(ustrip.(out.top.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
 
 # Plot snow water equivalent and depth:
 plot(ustrip(out.snowpack.swe), ylabel="Depth (m)", label="Snow water equivalent", dpi=150)
-plt2 = plot!(ustrip.(out.snowpack.dsn), label="Snow depth", legend=nothing, legendtitle=nothing, dpi=150)
+plt2 = plot!(ustrip.(out.snowpack.dsn), label="Snow depth", ylabel="Depth (m)", legendtitle=nothing, dpi=150)
 plot(plt1, plt2, size=(1600,700), margins=5*Measures.mm)
 
 # Temperature heatmap:
@@ -63,9 +77,5 @@ T_sub = out.T[Z(Between(0.0u"m",10.0u"m"))]
 heatmap(T_sub, yflip=true, size=(1200,600), dpi=150)
 
 # Thaw depth:
-td = Diagnostics.thawdepth(out.T)
+td = Diagnostics.thawdepth(out.T[Z(Where(>=(0.0u"m")))])
 plot(td, yflip=true, ylabel="Thaw depth (m)", size=(1200,600))
-
-# ...and finally active layer thickness
-alt = Diagnostics.active_layer_thickness(out.T)
-plot(ustrip.(alt), ylabel="Active layer thickness (m)", xlabel="Number of years", label="ALT", size=(1200,600))

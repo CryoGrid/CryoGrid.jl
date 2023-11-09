@@ -10,9 +10,10 @@ abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 Subsurface process for snow layers governing how snow is accumulated and ablated.
 """
-Base.@kwdef struct SnowMassBalance{TAcc,TAbl,TAux} <: CryoGrid.SubSurfaceProcess
+Base.@kwdef struct SnowMassBalance{TAcc,TAbl,TAux,TDt} <: CryoGrid.SubSurfaceProcess
     accumulation::TAcc = LinearAccumulation()
     ablation::TAbl = DegreeDayMelt()
+    dtlim::TDt = CryoGrid.MaxDelta(0.01)
     aux::TAux = nothing
 end
 
@@ -50,7 +51,7 @@ abstract type SnowDensityScheme end
 Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
 """
 Base.@kwdef struct Bulk{Tden<:SnowDensityScheme,Tthresh,Theat,Twater} <: SnowpackParameterization
-    thresh::Tthresh = 0.005u"m" # snow threshold
+    thresh::Tthresh = 0.001u"m" # snow threshold
     density::Tden = ConstantDensity() # snow density
     heat::Theat = ThermalProperties() # thermal properties
     water::Twater = HydraulicProperties(kw_sat=1e-4) # hydraulic properties
@@ -65,7 +66,7 @@ Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalan
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
     heat::Theat = HeatBalance()
-    water::Twater = WaterBalance(BucketScheme())
+    water::Twater = WaterBalance()
     aux::Taux = nothing
 end
 

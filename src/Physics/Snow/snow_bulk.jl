@@ -26,21 +26,22 @@ function ablation!(
     stop,
     ssnow,
 ) where {TAcc}
-    if isactive(snow, ssnow)
-        T_ub = getscalar(ssnow.T_ub) # upper boundary temperature
-        dmelt = calculate_degree_day_snow_melt(mass.ablation, T_ub)
-        dmelt = min(dmelt, getscalar(ssnow.swe))
-        # swe flux
-        @. ssnow.dswe -= dmelt
-        # thickness flux
-        θsat = getscalar(ssnow.θsat)
-        θis = 1 - θsat # solid ice
-        Δdsn = -dmelt / θis
-        @. ssnow.dΔz += Δdsn
-        # add water flux due to melt
-        sat = getscalar(ssnow.sat)
-        ssnow.jw[1] += dmelt - Δdsn*θsat*sat
-    end
+    swe = getscalar(ssnow.swe)
+    T_ub = getscalar(stop.T_ub) # upper boundary temperature
+    dd_melt = calculate_degree_day_snow_melt(mass.ablation, T_ub)
+    dmelt = min(dd_melt, max(swe, zero(swe)))
+    # swe flux
+    @. ssnow.dswe -= dmelt
+    θsat = getscalar(ssnow.θsat)
+    θis = 1 - θsat # solid ice
+    Δdsn = -dmelt / θis
+    # add corresponding layer thickness flux if dmelt > 0
+    @. ssnow.dΔz += Δdsn
+    # add water flux due to melt if and only if snowpack is "active"
+    sat = getscalar(ssnow.sat)
+    water_flux_in = (dmelt + Δdsn*θsat*sat)*isactive(snow, ssnow)
+    ssnow.jw[1] += water_flux_in
+    return nothing
 end
 
 # simple linear accumulation scheme for bulk snow
@@ -168,27 +169,31 @@ function CryoGrid.computediagnostic!(snow::BulkSnowpack, heat::HeatBalance, stat
 end
 
 function CryoGrid.diagnosticstep!(snow::BulkSnowpack, state)
-    if !isactive(snow, state) && state.swe[1] > 0.0
-        state.swe .= 0.0
-        state.dsn .= 0.0
-        state.Δz .= 0.0
-        state.H .= 0.0
-        state.T .= state.T_ub
+    # force swe to be >= 0
+    swe = getscalar(state.swe)
+    dsn = getscalar(state.dsn)
+    if swe < zero(swe)
+        state.swe .= zero(swe)
+        state.Δz .= state.dsn .= zero(dsn)
+        return true
     end
+    return false
 end
 
 # ==== Timestep control ==== #
 
 # Snow mass
-function CryoGrid.timestep(snow::BulkSnowpack, ::SnowMassBalance, state)
+function CryoGrid.timestep(snow::BulkSnowpack, mass::SnowMassBalance, state)
     dΔz = getscalar(state.dΔz)
     dsn = getscalar(state.dsn)
     thresh = snow.para.thresh
     dtmax = Inf
     if dsn > thresh && dΔz < zero(dΔz)
         dtmax = (dsn - thresh) / abs(dΔz)
-    elseif dsn < thresh && dΔz > zero(dΔz)
+    elseif 0 < dsn < thresh && dΔz > zero(dΔz)
         dtmax = (thresh - dsn) / dΔz
     end
+    # take min of threshold dtmax and dt limiter
+    # dtmax = mass.dtlim(dΔz, dsn, state.t, 0.0, Inf)
     return dtmax
 end

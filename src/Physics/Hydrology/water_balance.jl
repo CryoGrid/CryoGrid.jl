@@ -244,9 +244,7 @@ end
 hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.variables(::NoFlow) = (
-    Diagnostic(:sat, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θsat, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
+    Prognostic(:sat, OnGrid(Cells), domain=0..1),
 )
 
 function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}, state)
