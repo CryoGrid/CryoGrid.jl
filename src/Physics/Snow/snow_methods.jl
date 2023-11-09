@@ -68,14 +68,7 @@ snowvariables(::Snowpack) = (
     Diagnostic(:T_ub, Scalar, u"°C"),
 )
 
-### Default implmentations of CryoGrid methods for all Snowpack types ###
-
-# for prescribed snow depth/density, the mass balance is given so we can skip computefluxes!
-CryoGrid.computefluxes!(::Snowpack, ::SnowMassBalance, ssnow) = nothing
-
-# Heat methods;
-# thermal properties of snowpack
-Heat.thermalproperties(snow::Snowpack) = snow.para.heat
+### Default implmentations of other module methods common to all Snowpack types ###
 
 # Hydrology methods;
 Hydrology.hydraulicproperties(snow::Snowpack) = snow.para.water

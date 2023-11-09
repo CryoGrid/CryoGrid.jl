@@ -45,16 +45,22 @@ Base type for different snow density schemes.
 """
 abstract type SnowDensityScheme end
 
-"""
-    Bulk{Tden,Tthresh,Theat,Twater} <: SnowpackParameterization
 
-Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
 """
-Base.@kwdef struct Bulk{Tden<:SnowDensityScheme,Tthresh,Theat,Twater} <: SnowpackParameterization
-    thresh::Tthresh = 0.001u"m" # snow threshold
-    density::Tden = ConstantDensity() # snow density
-    heat::Theat = ThermalProperties() # thermal properties
-    water::Twater = HydraulicProperties(kw_sat=1e-4) # hydraulic properties
+    SnowThermalConductivity
+
+Base type for snow thermal conductivity parameterizations.
+"""
+abstract type SnowThermalConductivity end
+
+"""
+    SnowThermalProperties{Tcond<:SnowThermalConductivity,Tprop}
+
+Specifies the thermal properties of the snowpack.
+"""
+Base.@kwdef struct SnowThermalProperties{Tcond<:SnowThermalConductivity,Tprop}
+    cond::Tcond = SturmQuadratic()
+    prop::Tprop = ThermalProperties()
 end
 
 """
@@ -79,10 +85,3 @@ const CoupledSnowWaterHeat{Tmass,Twater,Theat} = Coupled(SnowMassBalance, WaterB
 Convenience constructor that accepts the parameterization as a positional argument.
 """
 Snowpack(para::SnowpackParameterization; kwargs...) = Snowpack(; para, kwargs...)
-
-"""
-    BulkSnowpack = Snowpack{<:Bulk}
-
-Type alias for Snowpack with `Bulk` parameterization.
-"""
-const BulkSnowpack{TD} = Snowpack{<:Bulk{TD}} where {TD}

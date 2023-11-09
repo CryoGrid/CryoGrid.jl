@@ -22,6 +22,8 @@ include("snow_types.jl")
 # dynamic snow mass
 include("snow_mass.jl")
 
+include("snow_heat.jl")
+
 # single-layer "bulk" snow scheme
 include("snow_bulk.jl")
 

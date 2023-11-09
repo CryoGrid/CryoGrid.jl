@@ -44,16 +44,7 @@ u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T, :top => (:T_ub), :snowpack => (:dsn,)))
 
 integrator = init(prob, CGEuler())
-step!(integrator, 30*24*3600);
-step!(integrator)
-getstate(integrator).top.T_ub
-@run step!(integrator)
-for i in integrator
-    if integrator.dt < 0.01
-        @warn "very small dt ($(integrator.dt)) detected at $(convert_t(integrator.t))"
-        break
-    end
-end
+step!(integrator, 2*30*24*3600);
 
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 @info "Running model ..."

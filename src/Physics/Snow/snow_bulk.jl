@@ -1,4 +1,23 @@
 """
+    Bulk{Tden,Tthresh,Theat,Twater} <: SnowpackParameterization
+
+Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
+"""
+Base.@kwdef struct Bulk{Tden<:SnowDensityScheme,Tthresh,Theat,Twater} <: SnowpackParameterization
+    thresh::Tthresh = 0.001u"m" # snow threshold
+    density::Tden = ConstantDensity() # snow density
+    heat::Theat = SnowThermalProperties() # thermal properties
+    water::Twater = HydraulicProperties(kw_sat=1e-4) # hydraulic properties
+end
+
+"""
+    BulkSnowpack = Snowpack{<:Bulk}
+
+Type alias for Snowpack with `Bulk` parameterization.
+"""
+const BulkSnowpack{TD} = Snowpack{<:Bulk{TD}} where {TD}
+
+"""
     threshold(snow::BulkSnowpack)
 
 Retrieves the minimum snow threshold for the bulk snow scheme.
@@ -63,6 +82,8 @@ function accumulation!(
     Δdsn = Δswe / θis
     @. ssnow.dΔz += Δdsn
 end
+
+Heat.thermalproperties(snow::BulkSnowpack) = snow.para.heat.prop
 
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     ρw = waterdensity(snow)
@@ -137,6 +158,9 @@ function CryoGrid.trigger!(
     state.sat .= zero(eltype(state.sat))
     return nothing
 end
+
+# mass balance fluxes are handled in interact! for bulk snowpack
+CryoGrid.computefluxes!(snow::BulkSnowpack, mass::SnowMassBalance, state) = nothing
 
 # computefluxes! for free water, enthalpy based HeatBalance on bulk snow layer
 function CryoGrid.computefluxes!(
