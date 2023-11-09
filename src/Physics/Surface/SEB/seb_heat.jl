@@ -11,12 +11,7 @@ CryoGrid.variables(::Top, ::SurfaceEnergyBalance) = (
 )
 
 function CryoGrid.initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
-    state.Sout .= zero(state.Sout);
-    state.Lout .= zero(state.Lout);
-    state.Qnet .= zero(state.Qnet);
-    state.Qh .= zero(state.Qh);
-    state.Qe .= zero(state.Qe);
-    state.Qg .= zero(state.Qg);
+    resetfluxes!(top, seb, state)
     state.Lstar .= -1e5*oneunit(eltype(state.Lstar));
     state.ustar .= 10.0*oneunit(eltype(state.ustar));
     state.T_ub .= seb.forcings.Tair(state.t)
@@ -26,6 +21,16 @@ CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
 
 CryoGrid.boundaryvalue(::SurfaceEnergyBalance, state) = getscalar(state.Qg)
 
+function CryoGrid.resetfluxes!(::Top, seb::SurfaceEnergyBalance, state)
+    state.Sout .= zero(state.Sout);
+    state.Lout .= zero(state.Lout);
+    state.Qnet .= zero(state.Qnet);
+    state.Qg .= zero(eltype(state.Qg))
+    state.Qh .= zero(eltype(state.Qh))
+    state.Qe .= zero(eltype(state.Qe))
+    state.Qnet .= zero(eltype(state.Qe))
+end
+
 # interact! with soil layer
 function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, soil::Soil, ::HeatBalance, stop, ssoil)
     seb_output = updateseb!(seb, soil, stop, ssoil)
@@ -34,9 +39,12 @@ function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, soil::Soil, ::Heat
 end
 # interact! with snowpack
 function CryoGrid.interact!(::Top, seb::SurfaceEnergyBalance, snow::Snowpack, ::HeatBalance, stop, ssnow)
-    seb_output = updateseb!(seb, snow, stop, ssnow)
-    ssnow.jH[1] += seb_output.Qg
     @setscalar ssnow.T_ub = getscalar(stop.T_ub)
+    # only apply heat flux if snowpack is active
+    if isactive(snow, ssnow)
+        seb_output = updateseb!(seb, snow, stop, ssnow)
+        ssnow.jH[1] += seb_output.Qg
+    end
     return nothing
 end
 

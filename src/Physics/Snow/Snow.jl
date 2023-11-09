@@ -19,7 +19,6 @@ const EnthalpyBased = Heat.EnthalpyBased
 export Snowpack, SnowMassBalance, SnowBC
 include("snow_types.jl")
 
-# dynamic snow mass
 include("snow_mass.jl")
 
 include("snow_heat.jl")
@@ -27,7 +26,8 @@ include("snow_heat.jl")
 # single-layer "bulk" snow scheme
 include("snow_bulk.jl")
 
-export swe, snowdensity, snowdepth
+export swe, snowdensity, snowdepth, snowfall
+export accumulation!, ablation!
 include("snow_methods.jl")
 
 include("snow_bc.jl")
