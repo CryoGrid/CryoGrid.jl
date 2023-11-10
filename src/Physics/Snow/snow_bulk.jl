@@ -4,9 +4,9 @@
 Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
 """
 Base.@kwdef struct Bulk{Tden<:SnowDensityScheme,Tthresh,Theat,Twater} <: SnowpackParameterization
-    thresh::Tthresh = 0.02u"m" # snow threshold
+    thresh::Tthresh = 0.001u"m" # snow threshold
     density::Tden = ConstantDensity() # snow density
-    heat::Theat = ThermalProperties() # thermal properties
+    heat::Theat = SnowThermalProperties() # thermal properties
     water::Twater = HydraulicProperties(kw_sat=1e-4) # hydraulic properties
 end
 
@@ -15,78 +15,94 @@ end
 
 Type alias for Snowpack with `Bulk` parameterization.
 """
-const BulkSnowpack{T} = Snowpack{<:Bulk{T}} where {T}
-# Local alias for Heat EnthalpyBased type
-const EnthalpyBased = Heat.EnthalpyBased
+const BulkSnowpack{TD} = Snowpack{<:Bulk{TD}} where {TD}
 
+"""
+    threshold(snow::BulkSnowpack)
+
+Retrieves the minimum snow threshold for the bulk snow scheme.
+"""
 threshold(snow::BulkSnowpack) = snow.para.thresh
+
+function snowdensity!(
+    snow::BulkSnowpack{<:ConstantDensity},
+    mass::SnowMassBalance,
+    state
+)
+    ρsn = snow.para.density.ρsn
+    ρw = waterdensity(snow)
+    state.ρsn .= ρsn
+    state.θsat .= 1 - ρsn / ρw
+    return nothing
+end
 
 # implement ablation! for DegreeDayMelt
 function ablation!(
     ::Top,
     ::SnowBC,
     snow::BulkSnowpack,
-    mass::DynamicSnowMassBalance{TAcc,<:DegreeDayMelt},
+    mass::SnowMassBalance{TAcc,<:DegreeDayMelt},
     stop,
     ssnow,
 ) where {TAcc}
-    if isactive(snow, ssnow)
-        T_ub = getscalar(ssnow.T_ub) # upper boundary temperature
-        dmelt = calculate_degree_day_snow_melt(mass.ablation, T_ub)
-        dmelt = min(dmelt, getscalar(ssnow.swe))
-        # swe flux
-        @. ssnow.dswe -= dmelt
-        # thickness flux
-        por = getscalar(ssnow.por)
-        θis = 1 - por # solid ice
-        Δdsn = -dmelt / θis
-        @. ssnow.dΔz += Δdsn
-        # add water flux due to melt
-        sat = getscalar(ssnow.sat)
-        ssnow.jw[1] += dmelt - Δdsn*por*sat
-    end
+    swe = getscalar(ssnow.swe)
+    T_ub = getscalar(stop.T_ub) # upper boundary temperature
+    dd_melt = calculate_degree_day_snow_melt(mass.ablation, T_ub)
+    dmelt = min(dd_melt, max(swe, zero(swe)))
+    # swe flux
+    @. ssnow.dswe -= dmelt
+    θsat = getscalar(ssnow.θsat)
+    θis = 1 - θsat # solid ice
+    Δdsn = -dmelt / θis
+    # add corresponding layer thickness flux if dmelt > 0
+    @. ssnow.dΔz += Δdsn
+    # add water flux due to melt if and only if snowpack is "active"
+    sat = getscalar(ssnow.sat)
+    water_flux_in = (dmelt + Δdsn*θsat*sat)*isactive(snow, ssnow)
+    ssnow.jw[1] += water_flux_in
+    return nothing
 end
 
 # simple linear accumulation scheme for bulk snow
-function accumulate!(
+function accumulation!(
     ::Top,
     snowbc::SnowBC,
     snowpack::BulkSnowpack,
-    mass::DynamicSnowMassBalance{<:LinearAccumulation},
+    mass::SnowMassBalance{<:LinearAccumulation},
     stop,
     ssnow,
 )
+    # get scaling factor(s)
     rate_scale = mass.accumulation.rate_scale
-    jw_snow = snowfall(snowbc, stop)
+    jw_snow = snowfall(snowbc, stop)[1]
     Δswe = rate_scale*jw_snow
     @. ssnow.dswe += Δswe
-    por = getscalar(ssnow.por)
-    θis = 1 - por # solid ice
-    Δdsn = Δswe/ θis
+    θsat = getscalar(ssnow.θsat)
+    θis = 1 - θsat # solid ice
+    Δdsn = Δswe / θis
     @. ssnow.dΔz += Δdsn
 end
 
-function snowdensity!(
-    snow::BulkSnowpack{<:ConstantDensity},
-    mass::DynamicSnowMassBalance,
-    state
-)
-    ρsn = snow.para.density.ρsn
-    ρw = waterdensity(snow)
-    state.ρsn .= ρsn
-    state.por .= 1 - ρsn / ρw
-    return nothing
-end
+Heat.thermalproperties(snow::BulkSnowpack) = snow.para.heat.prop
 
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     ρw = waterdensity(snow)
     ρsn = snowdensity(snow, state)
+    θis = ρsn / ρw
+    # note that if the snow density changes, this will actually
+    # water will be lost; ideally the saturation should also change
+    state.θsat .= 1 .- ρsn / ρw
     # total water content = snow water + pore water
-    @. state.θwi = ρsn / ρw + state.por*state.sat
-    # θsat = porespace
-    @. state.θsat = state.por
+    state.θwi .= θis + state.θsat.*state.sat
     return nothing
 end
+
+CryoGrid.variables(snow::BulkSnowpack, ::SnowMassBalance) = (
+    Prognostic(:swe, Scalar, u"m", domain=0..Inf),
+    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
+    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
+    snowvariables(snow)...,
+)
 
 # specify single cell (i.e. "bulk") grid
 CryoGrid.makegrid(::BulkSnowpack, strategy, bounds) = Grid([bounds[1], bounds[2]])
@@ -113,6 +129,7 @@ function CryoGrid.criterion(
     # i.e. the event will fire when snow depth crosses this threshold.
     return Δz - threshold(snow)
 end
+
 # triggers for minimum snow threshold event
 function CryoGrid.trigger!(
     ::ContinuousEvent{:snow_min},
@@ -141,60 +158,58 @@ function CryoGrid.trigger!(
     heatcapacity!(snow, snow.heat, state)
     state.T .= state.T_ub
     state.H .= state.T.*state.C
-    state.por .= 1 - getscalar(state.ρsn) / waterdensity(snow)
+    state.θsat .= 1 - getscalar(state.ρsn) / waterdensity(snow)
     state.sat .= zero(eltype(state.sat))
     return nothing
 end
 
+# mass balance fluxes are handled in interact! for bulk snowpack
+CryoGrid.computefluxes!(snow::BulkSnowpack, mass::SnowMassBalance, state) = nothing
+
 # computefluxes! for free water, enthalpy based HeatBalance on bulk snow layer
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
-    ps::Coupled(SnowMassBalance, HeatBalance{FreeWater,<:EnthalpyBased}),
+    ps::CoupledSnowWaterHeat{TM,TW,<:HeatBalance{FreeWater,<:EnthalpyBased}},
     state
-)
-    mass, heat = ps
-    computefluxes!(snow, mass, state)
-    dsn = getscalar(state.dsn)
-    if dsn < snow.para.thresh
-        # set divergence to zero if there is no snow
-        @. state.dH = zero(eltype(state.H))
-    else
-        computefluxes!(snow, heat, state)
-    end
-    return nothing
-end
-function CryoGrid.computefluxes!(
-    snow::BulkSnowpack,
-    ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance{FreeWater,<:EnthalpyBased}),
-    state
-)
+) where {TM,TW}
     mass, water, heat = ps
     computefluxes!(snow, mass, state)
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
-        # set divergence to zero if there is no snow
+        # set fluxes to zero if there is no snow
         @. state.dH = zero(eltype(state.H))
+        @. state.dsat = zero(eltype(state.sat))
     else
-        # otherwise call computefluxes! for other processes
+        # otherwise call computefluxes! for coupled water/heat
         computefluxes!(snow, Coupled(water, heat), state)
     end
     return nothing
 end
 
-# ==== Timestep control ==== #
-# Heat
-CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
-function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
-    Δx = Δ(state.grid)
-    dtmax = Inf
-    if getscalar(state.dsn) > snow.para.thresh
-        @inbounds for i in eachindex(Δx)
-            dtmax = min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
-        end
-        dtmax = isfinite(dtmax) && dtmax > 0 ? dtmax : Inf
+# diagnostic
+function CryoGrid.computediagnostic!(snow::BulkSnowpack, heat::HeatBalance, state)
+    Heat.freezethaw!(snow, heat, state)
+    # compute thermal conductivity
+    Heat.thermalconductivity!(snow, heat, state)
+    if CryoGrid.isactive(snow, state)
+        state.k .= state.kc[1]
     end
-    return dtmax
 end
+
+function CryoGrid.diagnosticstep!(snow::BulkSnowpack, state)
+    # force swe to be >= 0
+    swe = getscalar(state.swe)
+    dsn = getscalar(state.dsn)
+    if swe < zero(swe)
+        state.swe .= zero(swe)
+        state.Δz .= state.dsn .= zero(dsn)
+        return true
+    end
+    return false
+end
+
+# ==== Timestep control ==== #
+
 # Snow mass
 function CryoGrid.timestep(snow::BulkSnowpack, mass::SnowMassBalance, state)
     dΔz = getscalar(state.dΔz)
@@ -203,126 +218,10 @@ function CryoGrid.timestep(snow::BulkSnowpack, mass::SnowMassBalance, state)
     dtmax = Inf
     if dsn > thresh && dΔz < zero(dΔz)
         dtmax = (dsn - thresh) / abs(dΔz)
-    elseif dsn < thresh && dΔz > zero(dΔz)
+    elseif 0 < dsn < thresh && dΔz > zero(dΔz)
         dtmax = (thresh - dsn) / dΔz
     end
+    # take min of threshold dtmax and dt limiter
+    # dtmax = mass.dtlim(dΔz, dsn, state.t, 0.0, Inf)
     return dtmax
-end
-
-# ==== Dynamic bulk snow scheme ==== #
-
-CryoGrid.variables(snow::BulkSnowpack, ::DynamicSnowMassBalance) = (
-    Prognostic(:swe, Scalar, u"m", domain=0..Inf),
-    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
-    Diagnostic(:por, OnGrid(Cells), domain=0..1),
-    Diagnostic(:θwi, OnGrid(Cells), domain=0..1),
-    snowvariables(snow)...,
-)
-function CryoGrid.computediagnostic!(
-    snow::BulkSnowpack{<:ConstantDensity},
-    procs::Coupled(
-        DynamicSnowMassBalance{TAcc,<:DegreeDayMelt},
-        WaterBalance,
-        HeatBalance{FreeWater,<:EnthalpyBased}
-    ),
-    state
-) where {TAcc}
-    mass, water, heat = procs
-    # update snow density
-    snowdensity!(snow, mass, state)
-    # update snow depth
-    snowdepth!(snow, mass, state)
-    # update water content
-    computediagnostic!(snow, water, state)
-    # evaluate freezing/thawing processes for snow layer
-    Heat.freezethaw!(snow, heat, state)
-    # compute thermal conductivity
-    Heat.thermalconductivity!(snow, heat, state)
-    if CryoGrid.isactive(snow, state)
-        state.k .= state.kc[1]
-    end
-    return nothing
-end
-
-# ==== Prescribed/forced snow scheme ==== #
-
-# Snow mass balance
-CryoGrid.variables(snow::BulkSnowpack, ::PrescribedSnowMassBalance) = (
-    Diagnostic(:swe, Scalar, u"m", domain=0..Inf),
-    Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
-    Diagnostic(:θwi, OnGrid(Cells), u"kg/m^3", domain=0..1),
-    snowvariables(snow)...,
-)
-CryoGrid.events(::BulkSnowpack, ::Coupled(PrescribedSnowMassBalance, HeatBalance)) = (
-    ContinuousEvent(:snow_min),
-)
-function CryoGrid.criterion(
-    ::ContinuousEvent{:snow_min},
-    snow::BulkSnowpack,
-    mass::PrescribedSnowMassBalance,
-    state,
-)
-    ρw = waterdensity(snow)
-    new_swe = swe(snow, mass, state)
-    new_ρsn = snowdensity(snow, state)
-    new_dsn = new_swe*ρw/new_ρsn
-    return new_dsn - threshold(snow)
-end
-function CryoGrid.trigger!(
-    ::ContinuousEvent{:snow_min},
-    ::Decreasing,
-    snow::BulkSnowpack,
-    ::Coupled(PrescribedSnowMassBalance,HeatBalance),
-    state
-)
-    state.H .= 0.0
-    return nothing
-end
-function CryoGrid.trigger!(
-    ::ContinuousEvent{:snow_min},
-    ::Increasing,
-    snow::BulkSnowpack,
-    procs::Coupled(PrescribedSnowMassBalance, HeatBalance),
-    state
-)
-    _, heat = procs
-    c_snow = heatcapacity(snow, snow.heat, state, 1)
-    state.T .= state.T_ub
-    state.H .= state.T.*c_snow
-    return nothing
-end
-function CryoGrid.computediagnostic!(
-    snow::BulkSnowpack,
-    procs::Coupled(PrescribedSnowMassBalance,HeatBalance{FreeWater,<:EnthalpyBased}),
-    state
-)
-    mass, heat = procs
-    ρw = waterdensity(snow)
-    new_swe = swe(snow, mass, state)
-    new_ρsn = snowdensity(snow, state)
-    new_dsn = new_swe*ρw/new_ρsn
-    @setscalar state.Δz = new_dsn
-    @unpack ch_a, kh_a = thermalproperties(snow)
-    if new_dsn > threshold(snow)
-        # if new snow depth is above threshold, set state variables
-        @setscalar state.swe = new_swe
-        @setscalar state.ρsn = new_ρsn
-        @setscalar state.dsn = new_dsn
-        @. state.θwi = new_ρsn / ρw
-        Heat.freezethaw!(snow, heat, state)
-        # cap temperature at 0°C
-        @. state.T = min(state.T, zero(eltype(state.T)))
-        Heat.thermalconductivity!(snow, heat, state)
-        @. state.k = state.kc
-    else
-        # otherwise, set to zero
-        @setscalar state.swe = 0.0
-        @setscalar state.ρsn = 0.0
-        @setscalar state.dsn = 0.0
-        state.θwi .= 0.0
-        state.θw .= 0.0
-        state.C .= ch_a
-        state.kc .= kh_a
-    end
-    return nothing
 end

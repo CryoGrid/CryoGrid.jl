@@ -124,6 +124,16 @@ end
 
 # other helper functions
 """
+    fpzero(x::Real)
+
+If `abs(x)` is below the machine epsilon value `eps(x)`, return zero.
+Otherwise return `x`.
+"""
+fpzero(x::Real) = ifelse(zero(x) < abs(x) <= eps(x), zero(x), x)
+fpzero(::Missing) = missing
+fpzero(::Nothing) = nothing
+
+"""
     harmonicmean(x₁, x₂, w₁, w₂)
 
 Simple weighted harmonic mean of two values, x₁ and x₂.

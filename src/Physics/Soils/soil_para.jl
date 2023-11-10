@@ -81,6 +81,9 @@ Hydrology.hydraulicproperties(soil::Soil{<:MineralOrganic}) = soil.para.water
 # field capacity
 Hydrology.minwater(soil::Soil{<:MineralOrganic}, ::WaterBalance) = hydraulicproperties(soil).fieldcapacity
 
+# porosity/max water
+Hydrology.maxwater(soil::Soil{<:MineralOrganic}, water::WaterBalance) = porosity(soil, water)
+
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}, state) where {THeat} = state.θwi

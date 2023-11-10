@@ -65,7 +65,7 @@ include("params/params_loaders.jl")
 export Forcings, Forcing, ConstantForcing, InterpolatedForcing
 export TemperatureForcing, WindForcing, HumidityForcing, EnergyFluxForcing, PressureForcing, VelocityForcing # aliases
 export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD
-export loadforcings
+export loadforcings, time_derivative_forcing
 include("forcings/forcings.jl")
 
 export CryoGridOutput

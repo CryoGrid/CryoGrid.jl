@@ -9,12 +9,8 @@ function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
 end
 
 # Free water freeze curve
-@propagate_inbounds function enthalpyinv(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state, i)
-    θwi = Hydrology.watercontent(sub, state, i)
-    H = state.H[i]
-    L = heat.prop.L
-    θw, Lθ = FreezeCurves.freewater(H, θwi, L)
-    C = heatcapacity(sub, heat, state, i)
+function enthalpyinv(::SubSurface, ::HeatBalance{FreeWater,<:EnthalpyBased}, H, θwi, C, L)
+    Lθ = L*θwi
     T_f = H / C
     T_t = (H - Lθ) / C
     T = IfElse.ifelse(
@@ -30,7 +26,7 @@ end
             zero(T_f)
         )
     )
-    return T, θw, C
+    return T
 end
 
 """
@@ -42,11 +38,15 @@ total water content (θwi), and liquid water content (θw).
 """
 freezethaw!(sub, state) = freezethaw!(sub, processes(sub), state)
 function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state)
+    L = heat.prop.L
     @inbounds for i in 1:length(state.H)
-        # update T, θw, C
-        state.T[i], state.θw[i], state.C[i] = enthalpyinv(sub, heat, state, i)
+        H = state.H[i]
+        θwi = Hydrology.watercontent(sub, state, i)
+        state.θw[i], _ = FreezeCurves.freewater(H, θwi, L)
+        C = state.C[i] = heatcapacity(sub, heat, state, i)
+        T = state.T[i] = enthalpyinv(sub, heat, H, θwi, C, L)
         # set ∂H∂T (a.k.a ∂H∂T)
-        state.∂H∂T[i] = iszero(state.T[i]) ? 1e8 : state.C[i]
+        state.∂H∂T[i] = iszero(T) ? 1e8 : C
     end
     return nothing
 end

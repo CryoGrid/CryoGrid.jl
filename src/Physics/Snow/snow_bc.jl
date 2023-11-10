@@ -1,13 +1,12 @@
-const SnowBC = BoundaryProcess{T} where {SnowMassBalance<:T<:SubSurfaceProcess}
-
-# always allow Top interactions with Snowpack mass balance
+# unconditionally apply top interactions for snow
 CryoGrid.caninteract(::Top, ::WaterBC, ::Snowpack, ::SnowMassBalance, s1, s2) = true
-# also for subsurface water balance interaction
+CryoGrid.caninteract(::Top, ::HeatBC, snow::Snowpack, ::HeatBalance, s1, s2) = true
+# unconditionally apply subsurface interactions for water
 CryoGrid.caninteract(::Snowpack, ::WaterBalance, ::SubSurface, ::WaterBalance, s1, s2) = true
-# only apply heat bc when active
-CryoGrid.caninteract(::Top, ::HeatBC, snow::Snowpack, ::HeatBalance, s1, s2) = isactive(snow, s2)
+# only apply heat interactions when snowpack is active
+CryoGrid.caninteract(snow::Snowpack, ::HeatBalance, ::SubSurface, ::HeatBalance, s1, s2) = isactive(snow, s2)
 
-# default top interact! for snow mass balance
+# default top interact! for dynamic snow mass balance
 function CryoGrid.interact!(
     top::Top,
     sbc::SnowBC,
@@ -16,7 +15,7 @@ function CryoGrid.interact!(
     stop,
     ssnow
 )
-    Snow.accumulate!(top, sbc, snow, mass, stop, ssnow)
+    Snow.accumulation!(top, sbc, snow, mass, stop, ssnow)
     Snow.ablation!(top, sbc, snow, mass, stop, ssnow)
     return nothing
 end
@@ -29,19 +28,19 @@ function CryoGrid.interact!(
     stop,
     ssnow
 )
-    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
-    # boundary flux
-    ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    T_ub = getscalar(stop.T_ub)
+    @setscalar ssnow.T_ub = T_ub
+    if isactive(snow, ssnow)
+        # boundary flux
+        ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    else
+        # set snow grid cells temperature to upper boundary temperature
+        ssnow.T .= T_ub
+    end
     return nothing
 end
-# default interact! for coupled water/heat
-function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, HeatBalance), stop, ssub)
-    waterbc, heatbc = bc
-    snowmass, heat = ps
-    interactmaybe!(top, waterbc, snow, snowmass, stop, ssub)
-    interactmaybe!(top, heatbc, snow, heat, stop, ssub)
-end
-function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::Coupled(SnowMassBalance, WaterBalance, HeatBalance), stop, ssub)
+# default interact! for coupled snow mass, water, and heat
+function CryoGrid.interact!(top::Top, bc::WaterHeatBC, snow::Snowpack, ps::CoupledSnowWaterHeat, stop, ssub)
     waterbc, heatbc = bc
     snowmass, water, heat = ps
     interactmaybe!(top, waterbc, snow, snowmass, stop, ssub)

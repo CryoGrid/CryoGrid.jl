@@ -2,6 +2,11 @@ Base.@kwdef struct LinearAccumulation{S} <: SnowAccumulationScheme
     rate_scale::S = 1.0 # scaling factor for snowfall rate
 end
 
+# constant density (using Snowpack properties)
+Base.@kwdef struct ConstantDensity{Tρsn} <: SnowDensityScheme
+    ρsn::Tρsn = 250.0u"kg/m^3" # constant snow density
+end
+
 Base.@kwdef struct DegreeDayMelt{Tfactor,Tmax} <: SnowAblationScheme
     factor::Tfactor = 5.0u"mm/K/d"
     max_unfrozen::Tmax = 0.5
@@ -19,3 +24,5 @@ function calculate_degree_day_snow_melt(ddm::DegreeDayMelt, T_ub::Number)
     dmelt = ddf*max(T_ub-Tref, zero(T_ub)) # [m/s]
     return max(dmelt, zero(dmelt))
 end
+
+CryoGrid.Volume(::Type{<:Snowpack{T,<:SnowMassBalance}}) where {T} = CryoGrid.PrognosticVolume()

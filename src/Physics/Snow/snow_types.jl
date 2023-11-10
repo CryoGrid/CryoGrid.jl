@@ -6,11 +6,23 @@ Base type for snowpack paramterization schemes.
 abstract type SnowpackParameterization <: CryoGrid.Parameterization end
 
 """
-    SnowMassBalance{Tpara<:SnowMassParameterization} <: CryoGrid.SubSurfaceProcess
+    SnowMassBalance{TAcc,TAbl} <: CryoGrid.SubSurfaceProcess
 
-Base type for subsurface processes representing the dynamic accumulation and ablation of snow cover.
+Subsurface process for snow layers governing how snow is accumulated and ablated.
 """
-abstract type SnowMassBalance <: CryoGrid.SubSurfaceProcess end
+Base.@kwdef struct SnowMassBalance{TAcc,TAbl,TAux,TDt} <: CryoGrid.SubSurfaceProcess
+    accumulation::TAcc = LinearAccumulation()
+    ablation::TAbl = DegreeDayMelt()
+    dtlim::TDt = CryoGrid.MaxDelta(0.01)
+    aux::TAux = nothing
+end
+
+"""
+    SnowBC
+
+Type alias for any `BoundaryProcess` compatible with `SnowMassBalance`.
+"""
+const SnowBC = BoundaryProcess{T} where {SnowMassBalance<:T<:SubSurfaceProcess}
 
 """
     SnowAblationScheme
@@ -27,22 +39,28 @@ Base type for different snow accumulation schemes.
 abstract type SnowAccumulationScheme end
 
 """
-    PrescribedSnowMassBalance{Tswe} <: SnowMassBalance
+    SnowDensityScheme
 
-"Prescribed" snow mass balance, i.e. where the snow water equivalent is given as a constant or forcing.
+Base type for different snow density schemes.
 """
-Base.@kwdef struct PrescribedSnowMassBalance{Tswe} <: SnowMassBalance
-    swe::Tswe = 0.0u"m" # depth snow water equivalent [m]
-end
+abstract type SnowDensityScheme end
+
 
 """
-    DynamicSnowMassBalance{TAcc,TAbl} <: SnowMassBalance
+    SnowThermalConductivity
 
-Dynamic snow mass balance, i.e. where snow is accumulated and ablated according to dynamic physical processes.
+Base type for snow thermal conductivity parameterizations.
 """
-Base.@kwdef struct DynamicSnowMassBalance{TAcc,TAbl} <: SnowMassBalance
-    accumulation::TAcc = LinearAccumulation()
-    ablation::TAbl = DegreeDayMelt()
+abstract type SnowThermalConductivity end
+
+"""
+    SnowThermalProperties{Tcond<:SnowThermalConductivity,Tprop}
+
+Specifies the thermal properties of the snowpack.
+"""
+Base.@kwdef struct SnowThermalProperties{Tcond<:SnowThermalConductivity,Tprop}
+    cond::Tcond = SturmQuadratic()
+    prop::Tprop = ThermalProperties()
 end
 
 """
@@ -52,7 +70,7 @@ Generic representation of a snowpack "subsurface" layer.
 """
 Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
-    mass::Tmass = DynamicSnowMassBalance()
+    mass::Tmass = SnowMassBalance()
     heat::Theat = HeatBalance()
     water::Twater = WaterBalance()
     aux::Taux = nothing
@@ -60,3 +78,10 @@ end
 
 # Processes type aliases
 const CoupledSnowWaterHeat{Tmass,Twater,Theat} = Coupled(SnowMassBalance, WaterBalance, HeatBalance)
+
+"""
+    Snowpack(para::SnowpackParameterization; kwargs...)
+
+Convenience constructor that accepts the parameterization as a positional argument.
+"""
+Snowpack(para::SnowpackParameterization; kwargs...) = Snowpack(; para, kwargs...)

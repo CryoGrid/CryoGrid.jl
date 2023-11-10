@@ -1,4 +1,4 @@
-using CryoGrid.Snow: DynamicSnowMassBalance, LinearAccumulation
+using CryoGrid.Snow: SnowMassBalance, LinearAccumulation
 
 """
     SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
@@ -7,11 +7,9 @@ The `SurfaceWaterBalance` represents the closure of the water balance at the sur
 a Neumann-type upper boundary condition for snow and water fluxes as well as an accountant for the
 water mass balance at the surface.
 """
-struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
-    rainfall::TR
-    snowfall::TS
-    SurfaceWaterBalance(rainfall::VelocityForcing, snowfall::VelocityForcing) =
-        new{typeof(rainfall),typeof(snowfall)}(rainfall, snowfall)
+Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
+    rainfall::TR = ConstantForcing(0.0u"m/s")
+    snowfall::TS = ConstantForcing(0.0u"m/s")
 end
 SurfaceWaterBalance(forcings::Forcings) = SurfaceWaterBalance(forcings.rainfall, forcings.snowfall)
 

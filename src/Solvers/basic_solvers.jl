@@ -19,7 +19,7 @@ struct CGEulerCache{Tu} <: SciMLBase.DECache
     du::Tu
 end
 
-function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0, kwargs...)
+function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0, saveat=3*3600.0, kwargs...)
     tile = Tile(prob.f)
     u0 = copy(prob.u0)
     du0 = zero(u0)
@@ -42,7 +42,8 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
         similar(prob.u0),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    opts = CryoGridIntegratorOptions(;kwargs...)
+    saveat = isa(saveat, Number) ? collect(prob.tspan[1]:saveat:prob.tspan[2]) : saveat
+    opts = CryoGridIntegratorOptions(;saveat, kwargs...)
     return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end
 
@@ -63,6 +64,9 @@ function perform_step!(integrator::CryoGridIntegrator{CGEuler})
     integrator.t = t₀ + dt
     integrator.dt = dt
     integrator.step += 1
+    # diagnostic step
+    # TODO: use tstops to step at fixed interval?
+    CryoGrid.diagnosticstep!(tile, getstate(integrator))
     # set next dt
     # compute maximum timestep
     dtmax = CryoGrid.timestep(tile, du, u, p, t₀)

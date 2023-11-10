@@ -117,10 +117,10 @@ computefluxes!(layer[i], ...)
 """
 function computefluxes!(
     _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
-    _du,
-    _u,
-    p,
-    t,
+    _du::AbstractVector,
+    _u::AbstractVector,
+    p::Union{Nothing,AbstractVector},
+    t::Number,
     dt=1.0,
 ) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
     _du .= zero(eltype(_du))
@@ -148,14 +148,15 @@ CryoGrid.diagnosticstep!(tile::Tile, state::TileState) = diagnosticstep!(tile.st
 Computes the maximum permissible forward timestep for this `Tile` given the current `u`, `p`, and `t`.
 """
 function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
-    iip = isinplace(_tile)
     du = ComponentArray(_du, getaxes(_tile.state.uproto))
     u = ComponentArray(_u, getaxes(_tile.state.uproto))
     tile = resolve(_tile, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
     state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t, 1.0)
-    CryoGrid.timestep(strat::Stratigraphy, state)
+    dtmax = CryoGrid.timestep(strat::Stratigraphy, state)
+    @assert dtmax > zero(dtmax) "timestep $dtmax cannot be <= 0"
+    return dtmax
 end
 
 """

@@ -13,22 +13,23 @@ using ModelParameters
 using Unitful
 using UnPack
 
-export Snowpack, SnowMassBalance, DynamicSnowMassBalance, PrescribedSnowMassBalance
+# Local alias for Heat EnthalpyBased type
+const EnthalpyBased = Heat.EnthalpyBased
+
+export Snowpack, SnowMassBalance, SnowBC
 include("snow_types.jl")
 
-export SnowBC
-include("snow_bc.jl")
-
-export swe, snowdensity
-include("snow_methods.jl")
-
-# snow ablation/accumulation schemes
 include("snow_mass.jl")
 
-# snow density schemes
-include("snow_density.jl")
+include("snow_heat.jl")
 
-# bulk snow scheme
+# single-layer "bulk" snow scheme
 include("snow_bulk.jl")
+
+export swe, snowdensity, snowdepth, snowfall
+export accumulation!, ablation!
+include("snow_methods.jl")
+
+include("snow_bc.jl")
 
 end
