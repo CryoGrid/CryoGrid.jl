@@ -88,8 +88,12 @@ Heat.thermalproperties(snow::BulkSnowpack) = snow.para.heat.prop
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     ρw = waterdensity(snow)
     ρsn = snowdensity(snow, state)
+    θis = ρsn / ρw
+    # note that if the snow density changes, this will actually
+    # water will be lost; ideally the saturation should also change
+    state.θsat .= 1 .- ρsn / ρw
     # total water content = snow water + pore water
-    @. state.θwi = ρsn / ρw + state.θsat*state.sat
+    state.θwi .= θis + state.θsat.*state.sat
     return nothing
 end
 

@@ -43,9 +43,6 @@ tspan = (DateTime(2010,9,30), DateTime(2012,9,30))
 u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T, :top => (:T_ub), :snowpack => (:dsn,)))
 
-integrator = init(prob, CGEuler())
-step!(integrator, 2*30*24*3600);
-
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 @info "Running model ..."
 sol = @time solve(prob, CGEuler(), dt=300.0);
@@ -53,10 +50,11 @@ out = CryoGridOutput(sol)
 
 # Plot it!
 using Plots: plot, plot!, heatmap, cgrad, Measures
-zs = [-1.0,1,10,20,30,50,100,200,500]u"cm"
+zs = [1,10,20,30,50,100,200,500]u"cm"
 cg = cgrad(:copper,rev=true);
 plot(ustrip(out.T[Z(Near(zs))]), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature (°C)", leg=false, dpi=150)
-plt1 = plot!(ustrip.(out.top.T_ub), color=:skyblue, linestyle=:dash, alpha=0.7, leg=false, dpi=150)
+plot!(ustrip(out.T[1,:]), color=:darkgray, ylabel="Temperature (°C)", leg=false, dpi=150)
+plt1 = plot!(ustrip.(out.top.T_ub), color=:skyblue, linestyle=:dash, alpha=0.5, leg=false, dpi=150)
 
 # Plot snow water equivalent and depth:
 plot(ustrip(out.snowpack.swe), ylabel="Depth (m)", label="Snow water equivalent", dpi=150)

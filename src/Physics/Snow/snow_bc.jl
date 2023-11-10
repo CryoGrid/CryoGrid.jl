@@ -28,10 +28,14 @@ function CryoGrid.interact!(
     stop,
     ssnow
 )
-    @setscalar ssnow.T_ub = getscalar(stop.T_ub)
+    T_ub = getscalar(stop.T_ub)
+    @setscalar ssnow.T_ub = T_ub
     if isactive(snow, ssnow)
         # boundary flux
         ssnow.jH[1] += CryoGrid.boundaryflux(bc, top, heat, snow, stop, ssnow)
+    else
+        # set snow grid cells temperature to upper boundary temperature
+        ssnow.T .= T_ub
     end
     return nothing
 end
