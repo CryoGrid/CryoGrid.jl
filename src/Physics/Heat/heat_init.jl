@@ -18,7 +18,8 @@ Base.@kwdef struct LinearTwoPhaseTempProfile{TT1,TT2,TTb,TTm,Tz1,Tz2,Tz3,Tz4} <:
     z_base::Tz4 = 500.0u"m"
 end
 
-# make initializer callable
+(init::LinearTwoPhaseTempProfile)(::SubSurface, state) = init(state.T, state.grid)
+
 """
     (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
 
@@ -41,10 +42,4 @@ function (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
     f = Interp.extrapolate(Interp.interpolate((zs,), Ts, Interp.Gridded(Interp.Linear())), Interp.Flat())
     # evaluate interpolant at grid cell midpoints
     T .= f.(cells(grid))
-end
-
-# implement initialcondition! for initializer type
-function CryoGrid.initialcondition!(init!::LinearTwoPhaseTempProfile, ::SubSurface, ::HeatBalance, state)
-    init!(state.T, state.grid)
-    return nothing
 end

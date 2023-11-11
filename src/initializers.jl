@@ -1,3 +1,4 @@
+# add varname dispatch for initializer types
 CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname
 
 # default behavior is to not automatically parameterize initializers
@@ -13,12 +14,12 @@ struct FunctionInitializer{varname,F} <: VarInitializer{varname}
     FunctionInitializer(varname::Symbol, f::F) where {F} = new{varname,F}(f)
 end
 
+(init::FunctionInitializer)(layer::Layer, state) = init.f(layer, state)
+
 # do not deconstruct FunctionInitializer
 Flatten.flattenable(::Type{<:FunctionInitializer}, ::Type{Val{:f}}) = false
 
 ConstructionBase.constructorof(::Type{T}) where {varname,T<:FunctionInitializer{varname}} = f -> FunctionInitializer(varname, f)
-
-CryoGrid.initialcondition!(init::FunctionInitializer, layer::Layer, state) = init.f(layer, state)
 
 Base.getindex(init::FunctionInitializer, itrv::Interval) = init
 
@@ -36,9 +37,7 @@ struct InterpInitializer{varname,P,I,E} <: VarInitializer{varname}
     InterpInitializer(varname::Symbol, profile::P, interp::I=Linear(), extrap::E=Flat()) where {P<:Profile,I,E} = new{varname,P,I,E}(profile, interp, extrap)
 end
 
-ConstructionBase.constructorof(::Type{T}) where {varname,T<:InterpInitializer{varname}} = (profile, interp, extrap) -> InterpInitializer(varname, profile, interp, extrap)
-
-function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state) where var
+function (init::InterpInitializer{var})(::Layer, state) where {var}
     profile, interp, extrap = init.profile, init.interp, init.extrap
     depths = collect(ustrip.(keys(profile)))
     u = getproperty(state, var)
@@ -64,6 +63,8 @@ function CryoGrid.initialcondition!(init::InterpInitializer{var}, ::Layer, state
         return u
     end
 end
+
+ConstructionBase.constructorof(::Type{T}) where {varname,T<:InterpInitializer{varname}} = (profile, interp, extrap) -> InterpInitializer(varname, profile, interp, extrap)
 
 # automatic partitioning of profile based on interval
 Base.getindex(init::InterpInitializer{var}, itrv::Interval) where var = InterpInitializer(var, init.profile[itrv], init.interp, init.extrap)

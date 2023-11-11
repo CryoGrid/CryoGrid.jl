@@ -13,6 +13,8 @@ Base.@kwdef struct WaterTableInitializer{Tsat,Tz0,Tzp,TI} <: VarInitializer{:sat
     interp::TI = Interp.Constant()
 end
 
+(init::WaterTableInitializer)(::SubSurface, state) = init(state.sat, state.grid)
+
 function (init::WaterTableInitializer)(sat::AbstractVector, grid::Grid)
     z0 = ustrip(init.z0)
     z_tab = ustrip(init.z_tab)
@@ -26,11 +28,4 @@ function (init::WaterTableInitializer)(sat::AbstractVector, grid::Grid)
         Interp.Flat(),
     )
     sat .= f.(cells(grid))
-end
-
-
-# implement initialcondition! for initializer type
-function CryoGrid.initialcondition!(init!::WaterTableInitializer, ::SubSurface, ::WaterBalance, state)
-    init!(state.sat, state.grid)
-    return nothing
 end

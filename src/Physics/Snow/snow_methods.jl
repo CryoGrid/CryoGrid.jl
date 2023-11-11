@@ -98,6 +98,19 @@ function CryoGrid.volumetricfractions(::Snowpack, state, i)
     end
 end
 
+# handle snow depth initializers; since swe is the actual prognostic state variable,
+# we need to make sure this is computed as a function of the user initialized snow depth
+function CryoGrid.initialcondition!(init!::VarInitializer{:dsn}, snow::Snowpack, state)
+    # set snow depth variable
+    init!(snow, state)
+    # compute snow density
+    snowdensity!(snow, snow.mass, state)
+    # compute snow water equivalent
+    ρsn = state.ρsn
+    ρw = waterdensity(snow)
+    @. state.swe = state.dsn * ρsn / ρw
+end
+
 function CryoGrid.computediagnostic!(
     snow::Snowpack,
     procs::CoupledSnowWaterHeat,

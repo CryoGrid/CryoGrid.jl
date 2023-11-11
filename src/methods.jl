@@ -23,15 +23,14 @@ variables(::Any) = ()
 """
     initialcondition!(::Layer, state)
     initialcondition!(::Layer, ::Process, state)
-    initialcondition!(::VarInitializer, ::Layer, ::Process, state)
+    initialcondition!(::VarInitializer, ::Layer, state)
 
 Defines the initial condition for a given `Layer` and possibly an `initializer`.
 `initialcondition!` should compute initial values into all relevant state variables in `state`.
 """
 initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(layer), state)
-initialcondition!(initializer::VarInitializer, layer::Layer, state) = initialcondition!(initializer, layer, processes(layer), state)
 initialcondition!(::Layer, ::Process, state) = nothing
-initialcondition!(::VarInitializer, ::Layer, ::Process, state) = nothing
+initialcondition!(initializer::VarInitializer, layer::Layer, state) = initializer(layer, state)
 
 """
     initialcondition!(layer1::Layer, layer2::Layer, state1, state2)
