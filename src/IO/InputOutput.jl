@@ -62,7 +62,7 @@ include("params/params.jl")
 export ParamsJSON, ParamsYAML
 include("params/params_loaders.jl")
 
-export Forcings, Forcing, ConstantForcing, InterpolatedForcing
+export Forcings, Forcing, ConstantForcing, TransformedForcing, InterpolatedForcing
 export TemperatureForcing, WindForcing, HumidityForcing, EnergyFluxForcing, PressureForcing, VelocityForcing # aliases
 export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD
 export loadforcings, time_derivative_forcing

@@ -25,6 +25,12 @@ const HumidityForcing{T} = Forcing{u"kg/kg",T} where {T}
 const PressureForcing{T} = Forcing{upreferred(u"Pa"),T} where {T}
 const EnergyFluxForcing{T} = Forcing{upreferred(u"W/m^2"),T} where {T}
 
+"""
+      ConstantForcing{unit,T} <: Forcing{unit,T}
+
+Simple `Forcing` type that just returns a constant value. This type is primarily
+intended for writing tests but could still be used in applications if necessary.
+"""
 struct ConstantForcing{unit,T} <: Forcing{unit,T}
       value::T
       name::Symbol
@@ -32,7 +38,31 @@ struct ConstantForcing{unit,T} <: Forcing{unit,T}
       ConstantForcing(qty::Unitful.AbstractQuantity, name::Symbol) = new{unit(qty),typeof(qty)}(qty, name)
       ConstantForcing(qty::Number, name::Symbol) = new{Unitful.NoUnits,typeof(qty)}(qty, name)
 end
+
 (f::ConstantForcing)(::Number) = f.value
+
+"""
+      TransformedForcing(transformed_unit,orig_unit,TF,T,TO<:Forcing{orig_unit,T}) <: Forcing{transformed_unit,T}
+
+Wraps another `Forcing` and applies an arbitrary transformation `f` when evaluated. The transformed unit
+can either be automatically determined on construction or specified directly.
+"""
+struct TransformedForcing{transformed_unit,orig_unit,TF,T,TO<:Forcing{orig_unit,T}} <: Forcing{transformed_unit,T}
+      orig::TO
+      func::TF
+      name::Symbol
+      function TransformedForcing(transformed_unit::Unitful.Units, orig::TO, func::TF, name::Symbol) where {unit,T,TO<:Forcing{unit,T},TF}
+            new{transformed_unit,unit,TF,T,TO}(orig, func, name)
+      end
+end
+
+function TransformedForcing(orig::TO, func::TF, name::Symbol) where {unit,T,TO<:Forcing{unit,T},TF}
+      val_with_units = one(T)*unit
+      transformed_val = func(val_with_units)
+      return TransformedForcing(Unitful.unit(transformed_val), orig, func, name)
+end
+
+(f::TransformedForcing)(x::Number) = f.func(f.orig(x))
 
 """
       InterpolatedForcing{unit,T,TI}
@@ -76,12 +106,12 @@ time series and returns a new forcing with units `[unit].s⁻¹`
 """
 function time_derivative_forcing(
     f::InterpolatedForcing{unit},
-    new_name::Symbol;
-    interpolation_mode=Numerics.Linear()
+    new_name::Symbol=Symbol(:∂,f.name,:∂t);
+    interpolation_mode=Numerics.Constant()
 ) where {unit}
     ts = f.interpolant.knots[1]
-    ∂f∂t = map(t -> Numerics.gradient(f.interpolant, t)[1]*unit/1.0u"s", ts_mid)
-    return InterpolatedForcing(convert_t.(ts[1:end-1]), ∂f∂t, new_name; interpolation_mode)
+    ∂f∂t = map(t -> first(Numerics.gradient(f.interpolant, t))*unit/1.0u"s", ts)
+    return InterpolatedForcing(convert_t.(ts), ∂f∂t, new_name; interpolation_mode)
 end
 
 """
