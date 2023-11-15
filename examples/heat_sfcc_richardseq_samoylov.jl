@@ -43,13 +43,6 @@ u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw));
 integrator = init(prob, CGEuler())
 
-using BenchmarkTools
-@btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
-
-# Here we take just one step to check if it's working.
-step!(integrator)
-@assert all(isfinite.(integrator.u))
-
 # We can use the `getstate` function to construct the current Tile state from the integrator.
 # We then check that all water fluxes are near zero since we're starting in frozen conditions.
 state = getstate(integrator);

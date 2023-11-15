@@ -16,8 +16,10 @@ using UnPack
 # Local alias for Heat EnthalpyBased type
 const EnthalpyBased = Heat.EnthalpyBased
 
-export Snowpack, SnowMassBalance, SnowBC
 include("snow_types.jl")
+
+export Snowpack, SnowMassBalance, SnowBC
+include("snowpack.jl")
 
 include("snow_mass.jl")
 
