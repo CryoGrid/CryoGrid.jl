@@ -8,8 +8,8 @@ using CryoGrid.Soils
 using CryoGrid.Numerics
 using CryoGrid.Utils
 
-using NonlinearSolve
 using Setfield
+using SimpleNonlinearSolve
 using StaticArrays: @SVector
 using Unitful
 

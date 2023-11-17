@@ -1,4 +1,4 @@
-function NonlinearSolve.solve(seb::SurfaceEnergyBalance{<:Numerical}, initialstate::SEBState)
+function SimpleNonlinearSolve.solve(seb::SurfaceEnergyBalance{<:Numerical}, initialstate::SEBState)
     function resid(u, p)
         state = SEBState(;
             Qh=u[1],

@@ -2,7 +2,7 @@ using ComponentArrays
 using SpecialFunctions
 using UnPack
 
-import NonlinearSolve
+import SimpleNonlinearSolve
 import SciMLBase
 
 const DefaultHeatProperties = HeatBalanceProperties()
@@ -103,10 +103,10 @@ function (sol::StefanSolution)(x, t)
         IfElse.ifelse(x >= x_m, uconvert(u"°C", T_s), uconvert(u"°C", T_l))
     end
 end
-function SciMLBase.solve(prob::StefanProblem, alg=NonlinearSolve.NewtonRaphson(); p=prob.p, x0=prob.x0, t0=prob.t0)
+function SciMLBase.solve(prob::StefanProblem, alg=SimpleNonlinearSolve.SimpleNewtonRaphson(); p=prob.p, x0=prob.x0, t0=prob.t0)
     prob = StefanProblem(ComponentVector(p), x0, t0)
     f(u,p) = stefan_residual(u, p.T_m, p.T_l, p.T_s, p.k_l, p.c_l, p.k_s, p.c_s, p.ρ, p.θwi, p.Lf)
-    nlprob = NonlinearSolve.NonlinearProblem(f, ustrip(1/(p.Lf*p.θwi)), p)
+    nlprob = SimpleNonlinearSolve.NonlinearProblem(f, ustrip(1/(p.Lf*p.θwi)), p)
     nlsol = SciMLBase.solve(nlprob, alg)
     λ = nlsol.u
     return StefanSolution(prob, nlsol, λ)
