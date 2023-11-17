@@ -82,7 +82,7 @@ struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatB
     stabfun::TStabFun
 end
 # User facing constructors
-SurfaceEnergyBalance(forcings::Forcings, z=-2.0u"m") = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z)
+SurfaceEnergyBalance(forcings::Forcings, z=-2.0u"m"; kwargs...) = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z; kwargs...)
 function SurfaceEnergyBalance(
     Tair::TemperatureForcing, # air temperature
     pr::PressureForcing, # air pressure
