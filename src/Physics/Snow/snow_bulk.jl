@@ -109,7 +109,8 @@ CryoGrid.makegrid(::BulkSnowpack, strategy, bounds) = Grid([bounds[1], bounds[2]
 
 # Initialization
 function CryoGrid.initialcondition!(snow::BulkSnowpack, ::SnowMassBalance, state)
-    @. state.Δz = state.dsn
+    state.Δz .= state.dsn
+    state.T .= min(state.T_ub, zero(state.T_ub))
     state.sat .= zero(eltype(state.sat))
     return nothing
 end

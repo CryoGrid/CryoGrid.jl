@@ -28,6 +28,7 @@ function SimpleNonlinearSolve.solve(seb::SurfaceEnergyBalance{<:Numerical}, init
     ]
     prob = NonlinearProblem{false}(resid, u0)
     sol = solve(prob, seb.solscheme.solver)
+    @assert sol.retcode == ReturnCode.Success "SEB solve failed with return code: $(sol.retcode), initial state: $(initialstate)"
     solstate = SEBState(;
         Qh=sol.u[1],
         Qe=sol.u[2],
