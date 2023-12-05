@@ -64,10 +64,6 @@ function CryoGridProblem(
     function_kwargs=(),
     prob_kwargs...
 )
-    # workaround for bug in DiffEqCallbacks; see https://github.com/SciML/DifferentialEquations.jl/issues/326
-    # we have to manually expand single-number `saveat` (i.e. time interval for saving) to a step-range.
-    expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
-    expandtstep(tstep::AbstractVector) = tstep
     getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
     tile, p = if isnothing(p) && isempty(ModelParameters.params(tile))

@@ -43,7 +43,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
     saveat = isa(saveat, Number) ? collect(prob.tspan[1]:saveat:prob.tspan[2]) : saveat
-    opts = CryoGridIntegratorOptions(;saveat, kwargs...)
+    opts = CryoGridIntegratorOptions(; saveat=expandtstep(saveat), kwargs...)
     return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end
 

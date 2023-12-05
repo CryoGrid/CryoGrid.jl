@@ -111,8 +111,7 @@ perform_step!(integrator::CryoGridIntegrator) = error("perform_step! not impleme
 function saveat!(integrator::CryoGridIntegrator)
     tile = Tile(integrator)
     du = get_du(integrator)
-    prob = integrator.sol.prob
-    saveat = prob.saveat
+    saveat = integrator.opts.saveat
     t_saves = integrator.sol.t
     u_saves = integrator.sol.u
     res = searchsorted(saveat, integrator.t)
@@ -143,3 +142,6 @@ function handle_tstops!(integrator::CryoGridIntegrator)
         end
     end
 end
+
+expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
+expandtstep(tstep::AbstractVector) = tstep
