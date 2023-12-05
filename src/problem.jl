@@ -82,7 +82,7 @@ function CryoGridProblem(
     # set up saving callback
     stateproto = getsavestate(tile, u0, du0)
     savevals = SavedValues(Float64, typeof(stateproto))
-    saveat = expandtstep(saveat)
+    saveat = expandtstep(saveat, tspan)
     savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
     diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_stepsize:tspan[end], diagnosticstep!)
     defaultcallbacks = (savingcallback, diagnostic_step_callback)

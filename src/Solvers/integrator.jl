@@ -143,5 +143,5 @@ function handle_tstops!(integrator::CryoGridIntegrator)
     end
 end
 
-expandtstep(tstep::Number) = tspan[1]:tstep:tspan[end]
-expandtstep(tstep::AbstractVector) = tstep
+expandtstep(tstep::Number, tspan) = tspan[1]:tstep:tspan[end]
+expandtstep(tstep::AbstractVector, tspan) = tstep
