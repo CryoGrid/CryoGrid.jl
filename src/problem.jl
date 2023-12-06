@@ -106,29 +106,28 @@ function CryoGridProblem(
 	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
 end
 
-function SciMLBase.remaker_of(prob::CryoGridProblem{iip}) where {iip}
-    function remake_cryogrid_problem(;
-        f=deepcopy(prob.f),
-        u0=nothing,
-        tspan=prob.tspan,
-        p=prob.p,
-        callbacks=prob.callbacks,
-        saveat=prob.saveat,
-        savefunc=prob.savefunc,
-        isoutofdomain=prob.isoutofdomain,
-        kwargs=prob.kwargs,
-    )
-        # always re-run initialcondition! with the given tspan and parameters
-        _u0, du0 = initialcondition!(Tile(f), tspan, p)
-        # if u0 was explicitly given, use it instead of the computed value
-        if !isnothing(u0)
-            # evaluate Tile on new initial state
-            f(du0, u0, p, tspan[1])
-        else
-            u0 = _u0
-        end
-        return CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
+function SciMLBase.remake(
+    prob::CryoGridProblem{iip};
+    f=deepcopy(prob.f),
+    u0=nothing,
+    tspan=prob.tspan,
+    p=prob.p,
+    callbacks=prob.callbacks,
+    saveat=prob.saveat,
+    savefunc=prob.savefunc,
+    isoutofdomain=prob.isoutofdomain,
+    kwargs=prob.kwargs,
+) where iip
+    # always re-run initialcondition! with the given tspan and parameters
+    _u0, du0 = initialcondition!(Tile(f), tspan, p)
+    # if u0 was explicitly given, use it instead of the computed value
+    if !isnothing(u0)
+        # evaluate Tile on new initial state
+        f(du0, u0, p, tspan[1])
+    else
+        u0 = _u0
     end
+    return CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
 end
 
 """
