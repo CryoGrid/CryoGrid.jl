@@ -13,26 +13,28 @@ struct Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
     layers::TLayers
     Stratigraphy(boundaries::NTuple{N,Any}, layers::NamedTuple) where {N} = new{N,typeof(layers),typeof(boundaries)}(boundaries, layers)
     Stratigraphy(
-        top::Pair{<:DistQuantity,<:Top},
-        sub::Pair{<:DistQuantity},
-        bot::Pair{<:DistQuantity,<:Bottom}
+        top::Pair{<:Number,<:Top},
+        sub::Pair{<:Number},
+        bot::Pair{<:Number,<:Bottom}
     ) = Stratigraphy(top,(sub,),bot)
     Stratigraphy(
-        top::Pair{<:DistQuantity,<:Top},
-        sub::AbstractVector{<:Pair{<:DistQuantity}},
-        bot::Pair{<:DistQuantity,<:Bottom}
+        top::Pair{<:Number,<:Top},
+        sub::AbstractVector{<:Pair{<:Number}},
+        bot::Pair{<:Number,<:Bottom}
     ) = Stratigraphy(top, Tuple(sub), bot)
     Stratigraphy(
-        top::Pair{<:DistQuantity,<:Top},
-        sub::Numerics.Profile{N,<:Tuple{Vararg{DistQuantity}},<:Tuple{Vararg{SubSurface}}},
-        bot::Pair{<:DistQuantity,<:Bottom}
+        top::Pair{<:Number,<:Top},
+        sub::Numerics.Profile{N,<:Tuple{Vararg{Number}},<:Tuple{Vararg{SubSurface}}},
+        bot::Pair{<:Number,<:Bottom}
     ) where N = Stratigraphy(top, Tuple(sub), bot)
     function Stratigraphy(
         # use @nospecialize to (hopefully) reduce compilation overhead
-        @nospecialize(top::Pair{<:DistQuantity,<:Top}),
-        @nospecialize(sub::Tuple{Vararg{Pair{<:DistQuantity}}}),
-        @nospecialize(bot::Pair{<:DistQuantity,<:Bottom})
+        @nospecialize(top::Pair{<:Number,<:Top}),
+        @nospecialize(sub::Tuple{Vararg{Pair{<:Number}}}),
+        @nospecialize(bot::Pair{<:Number,<:Bottom})
     )
+        updateparam(p::Param) = Param(merge(parent(p), (layer=:strat,)))
+        updateparam(x) = x
         # check subsurface layers
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
         length(sub) > 18 && @warn "Stratigraphies with more than 20 layers will result in very long compile times and are not recommended. Consider creating heterogeneous layer types."
@@ -41,9 +43,11 @@ struct Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
         sub = _withnames(sub)
         sub_names = map(nameof, map(last, sub))
         @assert all(map(∉(RESERVED_LAYER_NAMES), sub_names)) "Subsurface layer names may not be one of: $RESERVED_LAYER_NAMES"
-        boundaries = Tuple(map(first, (top, sub..., bot)))
+        boundaries = map(updateparam ∘ first, (top, sub..., bot))
+        # in case one or more boundaries has parameters/units, strip to get numerical value
+        boundaryvalues = map(pstrip, boundaries)
         # check boundary depths
-        @assert issorted(boundaries) "Stratigraphy boundary locations must be in strictly increasing order."
+        @assert issorted(boundaryvalues) "Stratigraphy boundary locations must be in strictly increasing order."
         # wrap layers
         named_layers = tuple(last(top), map(last, sub)..., last(bot))
         layers = NamedTuple(named_layers)
