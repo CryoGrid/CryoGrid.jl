@@ -29,7 +29,7 @@ include("thermal_properties.jl")
 export HeatBC, ConstantTemperature, GeothermalHeatFlux, TemperatureBC, GroundHeatFlux, NFactor
 include("heat_bc.jl")
 
-export LinearTwoPhaseInitialTempProfile
+export LinearTwoPhaseInitialTempProfile, ThermalSteadyStateInit
 include("heat_init.jl")
 
 export heatconduction!

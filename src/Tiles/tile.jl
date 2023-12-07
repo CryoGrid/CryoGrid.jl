@@ -37,7 +37,7 @@ Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEv
     Tile(
         @nospecialize(strat::Stratigraphy),
         @nospecialize(discretization_strategy::DiscretizationStrategy),
-        @nospecialize(inits::VarInitializer...);
+        @nospecialize(inits::CryoGrid.Initializer...);
         metadata::Dict=Dict(),
         arraytype::Type{A}=Vector,
         iip::Bool=true,
@@ -50,7 +50,7 @@ Constructs a `Tile` from the given stratigraphy and discretization strategy. `ar
 function Tile(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(discretization_strategy::DiscretizationStrategy),
-    @nospecialize(inits::VarInitializer...);
+    @nospecialize(inits::CryoGrid.Initializer...);
     metadata::Dict=Dict(),
     cachetype::Type{T}=DiffCache,
     arraytype::Type{A}=Vector{Float64},
@@ -61,6 +61,7 @@ function Tile(
     grid = Numerics.makegrid(strat, discretization_strategy)
     if strip_units
         strat = stripunits(strat)
+        inits = stripunits(inits)
         grid = Grid(ustrip.(grid))
     end
     events = CryoGrid.events(strat)
@@ -75,7 +76,11 @@ function Tile(
         @warn "No initializers provided. State variables without initializers will be set to zero by default."
     end
     inits = map(inits) do init
-        _addlayerfield(init, Symbol(:init_, varname(init)))
+        if isa(init, VarInitializer)
+            _addlayerfield(init, Symbol(:init_, varname(init)))
+        else
+            _addlayerfield(init, Symbol(:init))
+        end
     end
     return Tile(strat, grid, states, inits, (;events...), TileData(), metadata, iip)
 end
@@ -179,7 +184,7 @@ function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::Abs
     zs = initboundaries!(tile, u)
     state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t0, 1.0)
     CryoGrid.initialcondition!(tile.grid, state)
-    CryoGrid.initialcondition!(strat, state, tile.inits)
+    CryoGrid.initialcondition!(strat, state, tile.inits...)
     # evaluate initial time derivative
     computefluxes!(tile, du, u, p, t0)
     return u, du

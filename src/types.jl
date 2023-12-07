@@ -178,8 +178,17 @@ a single parameter `t` which corresponds to the current timestamp in seconds.
 abstract type DynamicParameterization <: Parameterization end
 
 """
+    Initializer
+
+Base type for all state initializers.    
+"""
+abstract type Initializer end
+
+"""
     VarInitializer{varname}
 
-Base type for state variable initializers.
+Base type for state variable initializers. Initializers of this type are
+dedicated to a specific state variable with name `varname` and are run
+before all other initializers.
 """
-abstract type VarInitializer{varname} end
+abstract type VarInitializer{varname} <: Initializer end

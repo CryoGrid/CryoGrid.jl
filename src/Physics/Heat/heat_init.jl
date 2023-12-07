@@ -41,3 +41,36 @@ function (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
     # evaluate interpolant at grid cell midpoints
     T .= f.(cells(grid))
 end
+
+Base.@kwdef struct ThermalSteadyStateInit{TT,TQ} <: CryoGrid.Initializer
+    T0::TT = 0.0u"°C"
+    Qgeo::TQ = 0.053u"W/m^2"
+    maxiters::Int = 100
+    thresh::Float64 = 1e-6
+end
+
+function CryoGrid.initialcondition!(init::ThermalSteadyStateInit, top::Top, sub::SubSurface, stop, ssub)
+    steadystate!(sub, ssub, init.T0, init.Qgeo, init.maxiters, init.thresh)
+end
+
+function CryoGrid.initialcondition!(init::ThermalSteadyStateInit, sub1::SubSurface, sub2::SubSurface, s1, s2)
+    T_upper = s1.T[end] # bottom temperature from upper layer
+    steadystate!(sub2, s2, T_upper, init.Qgeo, init.maxiters, init.thresh)
+end
+
+function steadystate!(sub::SubSurface, state, T0, Qgeo, maxiters::Int, convergence_thresh::Float64)
+    i = 1
+    z = cells(state.grid)
+    ΔT = Inf
+    while i < maxiters && ΔT > convergence_thresh
+        T_new = T0 .+ z*Qgeo ./ state.kc
+        ΔT = maximum(abs.(T_new .- state.T))
+        state.T .= T_new
+        # recompute initial condition and diagnostic state
+        initialcondition!(sub, state)
+        computediagnostic!(sub, state)
+        i += 1
+    end
+    # return temperature profile
+    return state.T
+end

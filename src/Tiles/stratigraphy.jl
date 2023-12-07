@@ -116,19 +116,16 @@ function Numerics.makegrid(strat::Stratigraphy, strategy::DiscretizationStrategy
     return Grid(ustrip.(strat_grid))
 end
 
-function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
+function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits::CryoGrid.Initializer...)
     # initialcondition! is only called once so we don't need to worry about performance;
     # we can just loop over everything.
-    # first invoke initialconditon! with initializers
-    for i in 1:length(strat)
-        layerᵢ = strat[i]
-        stateᵢ = getproperty(state, layernames(strat)[i])
-        for init in tuplejoin(CryoGrid.initializers(layerᵢ), inits)
-            if hasproperty(stateᵢ, varname(init))
-                CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
-            end
-        end
-    end
+
+    varinits = filter(init -> isa(init, VarInitializer), inits)
+    otherinits = filter(init -> !isa(init, VarInitializer), inits)
+
+    # first invoke var initializers
+    _initializers!(strat, state, varinits)
+
     # then invoke non-specific layer inits
     for i in 1:length(strat)-1
         layerᵢ = strat[i]
@@ -141,6 +138,9 @@ function CryoGrid.initialcondition!(strat::Stratigraphy, state, inits)
         CryoGrid.initialcondition!(layerᵢ₊₁, stateᵢ₊₁)
         CryoGrid.initialcondition!(layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
     end
+
+    # and finally non-var initializers
+    _initializers!(strat, state, otherinits)
 end
 
 function CryoGrid.resetfluxes!(strat::Stratigraphy, state)
@@ -257,6 +257,32 @@ function CryoGrid.variables(strat::Stratigraphy)
         )
     end
 end
+
+function _initializers!(strat::Stratigraphy, state, inits)
+    # first invoke initialconditon! with initializers
+    for i in 1:length(strat)-1
+        layerᵢ = strat[i]
+        layerᵢ₊₁ = strat[i+1]
+        stateᵢ = getproperty(state, layernames(strat)[i])
+        stateᵢ₊₁ = getproperty(state, layernames(strat)[i+1])
+        for init in sort(collect(tuplejoin(CryoGrid.initializers(layerᵢ), inits)))
+            isvalidᵢ = !isa(init, VarInitializer) || hasproperty(stateᵢ, varname(init))
+            isvalidᵢ₊₁ = !isa(init, VarInitializer) || hasproperty(stateᵢ₊₁, varname(init))
+            if i == 1
+                if isvalidᵢ
+                    CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+                end
+            end
+            if isvalidᵢ₊₁
+                CryoGrid.initialcondition!(init, layerᵢ₊₁, stateᵢ₊₁)
+            end
+            if isvalidᵢ && isvalidᵢ₊₁
+                CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
+            end
+        end
+    end
+end
+
 # collects and validates all variables in a given layer
 function _collectvars(@nospecialize(layer::Layer))
     declared_vars = variables(layer)

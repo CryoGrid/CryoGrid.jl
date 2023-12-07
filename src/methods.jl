@@ -30,7 +30,7 @@ Defines the initial condition for a given `Layer` and possibly an `initializer`.
 """
 initialcondition!(layer::Layer, state) = initialcondition!(layer, processes(layer), state)
 initialcondition!(::Layer, ::Process, state) = nothing
-initialcondition!(initializer::VarInitializer, layer::Layer, state) = initializer(layer, state)
+initialcondition!(initializer::Initializer, layer::Layer, state) = nothing
 
 """
     initialcondition!(layer1::Layer, layer2::Layer, state1, state2)
@@ -40,8 +40,8 @@ Defines the initial condition for two processes on adjacent layers. `initialcond
 relevant state variables in `state`.
 """
 initialcondition!(layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(layer1, processes(layer1), layer2, processes(layer2), state1, state2)
-initialcondition!(initializer::VarInitializer, layer1::Layer, layer2::Layer, state1, state2) = initialcondition!(initializer, layer1, processes(layer1), layer2, processes(layer2), state1, state2)
 initialcondition!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
+initialcondition!(::Initializer, ::Layer, ::Layer, state1, state2) = nothing
 
 """
     computediagnostic!(l::Layer, state)

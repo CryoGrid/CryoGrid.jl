@@ -16,15 +16,10 @@ soilprofile = SoilProfile(
     3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
     10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
 )
-tempprofile_linear = TemperatureProfile(
-    0.0u"m" => -30.0u"°C",
-    10.0u"m" => -10.0u"°C", 
-    1000.0u"m" => 10.2u"°C"
-)
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
 upperbc = TemperatureBC(forcings.Tair, NFactor())
-initT = initializer(:T, tempprofile_linear)
+ssinit = ThermalSteadyStateInit(T0=-15.0u"°C")
 heatop = Heat.EnthalpyImplicit()
 freezecurve = FreeWater()
 heat = HeatBalance(heatop; freezecurve)
@@ -35,7 +30,7 @@ strat = Stratigraphy(
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm
-tile = Tile(strat, modelgrid, initT);
+tile = Tile(strat, modelgrid, ssinit);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 20 years.
