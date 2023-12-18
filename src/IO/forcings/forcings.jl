@@ -49,11 +49,13 @@ Simple `Forcing` type that evaluates a given function `f(t)` of where `t` is the
 struct TimeVaryingForcing{unit,F,T} <: Forcing{unit,T}
       f::F
       name::Symbol
-      function TimeVaryingForcing(f::F, name::Symbol; t0=0.0) where F
-            f0 = f(t0)
-            return new{unit(f0),F,typeof(ustrip(f0))}(f, name)
+      TimeVaryingForcing(unit, ::Type{T}, f::F, name::Symbol) where {F,T} = new{unit,F,T}(f, name)
+      function TimeVaryingForcing(f::F, name::Symbol; initial_value::T=f(0.0)) where {F,T}
+            return new{unit(initial_value),F,typeof(ustrip(initial_value))}(f, name)
       end
 end
+
+ConstructionBase.constructorof(::Type{TimeVaryingForcing{unit,F,T}}) where {unit,F,T} = (f, name) -> TimeVaryingForcing(unit, T, f, name)
 
 (f::TimeVaryingForcing)(t::Number) = f.f(t)
 
