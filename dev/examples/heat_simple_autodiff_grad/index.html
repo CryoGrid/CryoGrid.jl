@@ -14,7 +14,7 @@ tile = CryoGrid.Presets.SoilHeatTile(
     grid=grid
 )
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-u0, du0 = @time initialcondition!(tile, tspan);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 16.753272 seconds (19.60 M allocations: 1.466 GiB, 1.23% gc time, 99.98% compilation time)</code></pre><p>Collect model parameters</p><pre><code class="language-julia hljs">p = CryoGrid.parameters(tile)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">CryoGridParams{Float64} with 2 parameters
+u0, du0 = @time initialcondition!(tile, tspan);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 16.746803 seconds (19.70 M allocations: 1.466 GiB, 0.99% gc time, 99.97% compilation time)</code></pre><p>Collect model parameters</p><pre><code class="language-julia hljs">p = CryoGrid.parameters(tile)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">CryoGridParams{Float64} with 2 parameters
 Parameters:
 ┌───────────┬───────────┬─────────┬────────┬───────┬────────┐
 │<span class="sgr1"> component │ fieldname │     val │  layer │   idx │   name │
