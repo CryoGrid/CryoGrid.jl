@@ -39,7 +39,9 @@ Pkg.add("CryoGrid")
 
 ## Quick start
 
-Single layer heat conduction model with free water freeze curve and simple air temperature upper boundary condition:
+This is a simple layer heat conduction model with free water freeze curve and simple air temperature upper boundary condition.
+
+Make sure that you have the `Plots` package installed in addition to `CryoGrid` in order to run this example code.
 
 ```julia
 using CryoGrid
@@ -74,6 +76,16 @@ cg = Plots.cgrad(:copper,rev=true)
 plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false)
 ```
 ![Ts_output_freew](res/Ts_H_tair_freeW_2010-2011.png)
+
+## Running additional examples
+
+The `examples/` folder contains a number of other examples that should help users get started with the model.
+
+In order to run these examples, it is recommended to clone the repository or add it as a development package via the package manager (i.e. `dev CryoGrid` instead of `add CryoGrid`). In the latter case, you can find the repository in `$JULIA_HOME/.dev/CryoGrid`.
+
+Then `cd` into the `CryoGrid` repository and start julia with the `examples` folder set as the project environment; e.g. `julia --project=examples` or `julia` followed by `activate examples` in the package manager.
+
+The package manager will install all additional dependencies needed for the examples (e.g. plotting and analysis packages). After this is finished, you should be able to run all of the examples without issue. If you encounter any errors while running the examples, please create an issue on GitHub so that we can fix it.
 
 ## Feature comparison with other versions of CryoGrid
 
