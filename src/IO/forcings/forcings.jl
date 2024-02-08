@@ -42,6 +42,24 @@ end
 (f::ConstantForcing)(::Number) = f.value
 
 """
+      TimeVaryingForcing{unit,T} <: Forcing{unit,T}
+
+Simple `Forcing` type that evaluates a given function `f(t)` of where `t` is the current time.
+"""
+struct TimeVaryingForcing{unit,F,T} <: Forcing{unit,T}
+      f::F
+      name::Symbol
+      TimeVaryingForcing(unit, ::Type{T}, f::F, name::Symbol) where {F,T} = new{unit,F,T}(f, name)
+      function TimeVaryingForcing(f::F, name::Symbol; initial_value::T=f(0.0)) where {F,T}
+            return new{unit(initial_value),F,typeof(ustrip(initial_value))}(f, name)
+      end
+end
+
+ConstructionBase.constructorof(::Type{TimeVaryingForcing{unit,F,T}}) where {unit,F,T} = (f, name) -> TimeVaryingForcing(unit, T, f, name)
+
+(f::TimeVaryingForcing)(t::Number) = f.f(t)
+
+"""
       TransformedForcing(transformed_unit,orig_unit,TF,T,TO<:Forcing{orig_unit,T}) <: Forcing{transformed_unit,T}
 
 Wraps another `Forcing` and applies an arbitrary transformation `f` when evaluated. The transformed unit
