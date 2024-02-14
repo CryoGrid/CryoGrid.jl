@@ -68,7 +68,7 @@ export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD
 export loadforcings, time_derivative_forcing
 include("forcings/forcings.jl")
 
-export CryoGridOutput
+export CryoGridOutput, write_netcdf!
 include("output.jl")
 
 end

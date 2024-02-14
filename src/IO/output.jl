@@ -47,13 +47,16 @@ function Base.getproperty(out::CryoGridOutput, sym::Symbol)
 end
 Base.Dict(out::CryoGridOutput) = Dict(map(k -> string(k) => getproperty(out, k), keys(out))...)
 
+dimstr(::Ti) = "time"
+dimstr(::Z) = "depth"
+
 """
     CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
 
 Constructs a `CryoGridOutput` from the given `ODESolution`. Optional argument `tspan` restricts the time span of the output.
 """
-InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::NTuple{2,DateTime}) = CryoGridOutput(sol, convert_tspan(tspan))
-function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::NTuple{2,Float64}=(-Inf,Inf))
+CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::NTuple{2,DateTime}) = CryoGridOutput(sol, convert_tspan(tspan))
+function CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::NTuple{2,Float64}=(-Inf,Inf))
     # Helper functions for mapping variables to appropriate DimArrays by grid/shape.
     withdims(var::Var{name,<:CryoGrid.OnGrid{Cells}}, arr, grid, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Z(round.(typeof(1.0u"m"), cells(grid), digits=5)),Ti(ts)))
     withdims(var::Var{name,<:CryoGrid.OnGrid{Edges}}, arr, grid, ts) where {name} = DimArray(arr*one(vartype(var))*varunits(var), (Z(round.(typeof(1.0u"m"), edges(grid), digits=5)),Ti(ts)))
@@ -126,3 +129,29 @@ function InputOutput.CryoGridOutput(sol::SciMLBase.AbstractODESolution, tspan::N
     return CryoGridOutput(ts_datetime, sol, (;outputs...))
 end
 
+function write_netcdf!(filename::String, out::CryoGridOutput, filemode="c")
+    NCD.Dataset(filename, filemode) do ds
+        # this assumes that the primary state variable has time and depth axes
+        NCD.defDim(ds, "time", size(out.data[1], Ti))
+        NCD.defDim(ds, "depth", size(out.data[1], Z))
+        t = NCD.defVar(ds, "time", Float64, ("time",), attrib=Dict("units" => NCD.CFTime.DEFAULT_TIME_UNITS))
+        z = NCD.defVar(ds, "depth", Float64, ("depth",))
+        t[:] = collect(dims(out.data[1], Ti))
+        z[:] = ustrip.(dims(out.data[1], Z))
+        for var in keys(out)
+            _write_ncd_var!(ds, var, getproperty(out, var))
+        end
+    end
+end
+
+function _write_ncd_var!(ds::NCD.Dataset, key::Symbol, data::AbstractDimArray)
+    datavar = NCD.defVar(ds, string(key), Float64, map(dimstr, dims(data)))
+    idx = [Colon() for ax in axes(data)]
+    setindex!(datavar, Array(ustrip.(data)), idx...)
+end
+
+function _write_ncd_var!(ds::NCD.Dataset, key::Symbol, nt::NamedTuple)
+    for var in keys(nt)
+        _write_ncd_var!(ds, key, nt[var])
+    end
+end

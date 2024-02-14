@@ -45,8 +45,17 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T, :top => (
 
 # solve full tspan with forward Euler and initial timestep of 5 minutes
 @info "Running model ..."
-sol = @time solve(prob, CGEuler(), dt=300.0);
+sol = @time solve(prob, Euler(), dt=300.0);
 out = CryoGridOutput(sol)
+
+integrator = init(prob, Euler(), dt=300.0)
+step!(integrator)
+
+for i in integrator
+    println(convert_t(integrator.t))
+end
+
+@btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
 
 # Plot it!
 using Plots: plot, plot!, heatmap, cgrad, Measures
