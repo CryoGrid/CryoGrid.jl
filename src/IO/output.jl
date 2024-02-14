@@ -49,6 +49,7 @@ Base.Dict(out::CryoGridOutput) = Dict(map(k -> string(k) => getproperty(out, k),
 
 dimstr(::Ti) = "time"
 dimstr(::Z) = "depth"
+dimstr(::Dim{name}) where name = string(name)
 
 """
     CryoGridOutput(sol::TSol, tspan::NTuple{2,Float64}=(-Inf,Inf)) where {TSol<:SciMLBase.AbstractODESolution}
@@ -145,6 +146,9 @@ function write_netcdf!(filename::String, out::CryoGridOutput, filemode="c")
 end
 
 function _write_ncd_var!(ds::NCD.Dataset, key::Symbol, data::AbstractDimArray)
+    # drop dims of length 1; would be nice if there were a squeeze(..) function...
+    single_dims = filter(d -> length(d) == 1, dims(data))
+    data = isempty(single_dims) ? data : dropdims(data, dims=single_dims)
     datavar = NCD.defVar(ds, string(key), Float64, map(dimstr, dims(data)))
     idx = [Colon() for ax in axes(data)]
     setindex!(datavar, Array(ustrip.(data)), idx...)
@@ -152,6 +156,6 @@ end
 
 function _write_ncd_var!(ds::NCD.Dataset, key::Symbol, nt::NamedTuple)
     for var in keys(nt)
-        _write_ncd_var!(ds, key, nt[var])
+        _write_ncd_var!(ds, Symbol("$key.$var"), nt[var])
     end
 end
