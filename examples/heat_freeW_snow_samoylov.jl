@@ -48,15 +48,6 @@ prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T, :top => (
 sol = @time solve(prob, Euler(), dt=300.0);
 out = CryoGridOutput(sol)
 
-integrator = init(prob, Euler(), dt=300.0)
-step!(integrator)
-
-for i in integrator
-    println(convert_t(integrator.t))
-end
-
-@btime $tile($du0, $u0, $prob.p, $prob.tspan[1])
-
 # Plot it!
 using Plots: plot, plot!, heatmap, cgrad, Measures
 zs = [1,10,20,30,50,100,200,500]u"cm"
