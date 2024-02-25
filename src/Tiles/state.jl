@@ -54,11 +54,20 @@ end
 
 @inline selectlayer(state::TileState, layername::Symbol) = selectlayer(state, Val{layername}())
 @inline function selectlayer(state::TileState, ::Val{layername}) where {layername}
-    states = getproperty(state.states, layername)
+    # The following lines fix a performance regression on Julia 1.10;
+    # we need to use getfield explicitly here to avoid a circular relationship
+    # between getproperty(::TileState, sym) and this method. This seems to break
+    # type inference in the compiler.
+    t = getfield(state, :t)
+    dt = getfield(state, :dt)
+    states = getproperty(getfield(state, :states), layername)
+    grid = getfield(states, :grid)
+    # make subgrid
     z₁ = states.z[1]
     z₂ = max(z₁, z₁ + states.Δz[1])
-    subgrid = state.grid[z₁..z₂]
-    return LayerState(layername, subgrid, states, state.t, state.dt)
+    subgrid = grid[z₁..z₂]
+    # build layer state
+    return LayerState(layername, subgrid, states, t, dt)
 end
 
 """
