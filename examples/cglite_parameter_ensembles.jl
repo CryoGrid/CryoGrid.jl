@@ -1,6 +1,5 @@
-# # [Fast heat conduction with CryoGridLite](@id example7)
-# This example is very similar to [Example 1](@ref) but uses the
-# fast implicit CryoGridLite solver of Langer et al. 2023.
+# # [Parameter ensembles](@id example12)
+# This example is very similar to [Example 7](@ref) but shows how to create and run parallelized parameter ensembels.
 
 # Make sure to explicitly import the `LiteImplicit` submodule which has
 # the relevant solver types.
@@ -52,6 +51,8 @@ tspan = (DateTime(2000,1,1), DateTime(2010,12,31))
 u0, du0 = initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,))
 
+# The CryoGridParams type behaves like a table and can be easily converted
+# to a DataFrame with DataFrame(params) when DataFrames.jl is loaded.
 params = CryoGrid.parameters(tile)
 
 # you can use Julia's `vec` method to convert `CryoGridParams` into a `ComponentVector`
