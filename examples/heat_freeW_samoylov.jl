@@ -29,7 +29,7 @@ tile = CryoGrid.Presets.SoilHeatTile(
 );
 
 # Here we define the time span:
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30));
+tspan = (DateTime(2010,12,31),DateTime(2011,12,31));
 
 # Evaluate the initial condition
 u0, du0 = initialcondition!(tile, tspan);
