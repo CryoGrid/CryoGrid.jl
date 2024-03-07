@@ -259,25 +259,25 @@ function CryoGrid.variables(strat::Stratigraphy)
 end
 
 function _initializers!(strat::Stratigraphy, state, inits)
-    # first invoke initialconditon! with initializers
-    for i in 1:length(strat)-1
+    for i in 1:length(strat)
         layerᵢ = strat[i]
-        layerᵢ₊₁ = strat[i+1]
         stateᵢ = getproperty(state, layernames(strat)[i])
-        stateᵢ₊₁ = getproperty(state, layernames(strat)[i+1])
+        if i < length(strat)
+            layerᵢ₊₁ = strat[i+1]
+            stateᵢ₊₁ = getproperty(state, layernames(strat)[i+1])
+        end
+        # loop over initializers
         for init in sort(collect(tuplejoin(CryoGrid.initializers(layerᵢ), inits)))
             isvalidᵢ = !isa(init, VarInitializer) || hasproperty(stateᵢ, varname(init))
-            isvalidᵢ₊₁ = !isa(init, VarInitializer) || hasproperty(stateᵢ₊₁, varname(init))
-            if i == 1
-                if isvalidᵢ
-                    CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+            if isvalidᵢ
+                CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+            end
+
+            if i < length(strat)
+                isvalidᵢ₊₁ = !isa(init, VarInitializer) || hasproperty(stateᵢ₊₁, varname(init))
+                if isvalidᵢ && isvalidᵢ₊₁
+                    CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
                 end
-            end
-            if isvalidᵢ₊₁
-                CryoGrid.initialcondition!(init, layerᵢ₊₁, stateᵢ₊₁)
-            end
-            if isvalidᵢ && isvalidᵢ₊₁
-                CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
             end
         end
     end

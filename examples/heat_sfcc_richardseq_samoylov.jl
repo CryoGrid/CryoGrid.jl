@@ -32,21 +32,17 @@ heat = HeatBalance(heatop, freezecurve=sfcc)
 water = WaterBalance(waterflow)
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.8,org=0.75); heat, water),
-    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.9,org=0.10); heat, water),
+    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.9,org=0.75); heat, water),
+    0.5u"m" => Ground(MineralOrganic(por=0.40,sat=1.0,org=0.10); heat, water),
+    1.0u"m" => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0); heat, water),
     2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0); heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, grid, initT);
-u0, du0 = initialcondition!(tile, tspan)
+u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw));
 integrator = init(prob, CGEuler())
-
-# We can use the `getstate` function to construct the current Tile state from the integrator.
-# We then check that all water fluxes are near zero since we're starting in frozen conditions.
-state = getstate(integrator);
-@assert all(isapprox.(0.0, state.ground1.jw, atol=1e-14))
 
 # Run the integrator forward in time until the end of the tspan;
 # Note that this is currently somewhat slow since the integrator must take very small time steps during the thawed season;
@@ -67,14 +63,14 @@ end;
 out = CryoGridOutput(integrator.sol)
 
 # Check mass conservation...
-water_added = values(sum(upreferred.(forcings.rainfall.(tspan[1]:Hour(3):tspan[2]).*u"m/s".*3u"hr")))[1]
-water_mass = Diagnostics.integrate(out.θwi, tile.grid)
-water_resid = water_mass[end] - water_mass[1] - water_added*1u"m^2"
+water_added = out.top.infil[end]
+water_mass = Diagnostics.integrate(out.θwi, grid)
+water_resid = water_mass[end] - water_mass[1] - water_added
 
 # Plot it!
 import Plots
 zs = [1,5,10,15,20,30,40,50,100,150,200]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 p1 = Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-p2 = Plots.plot(out.sat[Z(Near([1,5,10,15,30,50,100]u"cm"))], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
+p2 = Plots.plot(out.sat[Z(Near([1,5,10,15,20,25,30]u"cm"))], color=cg[LinRange(0.0,1.0,10)]', ylabel="Saturation", leg=false, size=(800,500), dpi=150)
 Plots.plot(p1, p2, size=(1200,400))

@@ -26,12 +26,14 @@ function runoff!(::Top, ::SurfaceWaterBalance, state)
     jw_rain = getscalar(state.jw_rain)
     jw_infil = getscalar(state.jw_infil)
     @setscalar state.drunoff = max(zero(jw_rain), jw_rain - jw_infil)*area(state.grid)
+    @setscalar state.dinfil = max(zero(jw_rain), jw_infil)*area(state.grid)
 end
 
 CryoGrid.BCKind(::Type{<:SurfaceWaterBalance}) = CryoGrid.Neumann()
 
 CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
     Prognostic(:runoff, Scalar, u"m^3", domain=0..Inf),
+    Prognostic(:infil, Scalar, u"m^3", domain=0..Inf),
     Diagnostic(:jw_rain, Scalar, u"m/s", domain=0..Inf),
     Diagnostic(:jw_snow, Scalar, u"m/s", domain=0..Inf),
     Diagnostic(:jw_infil, Scalar, u"m/s", domain=0..Inf),
