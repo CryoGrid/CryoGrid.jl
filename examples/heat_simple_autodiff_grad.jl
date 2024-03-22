@@ -34,7 +34,7 @@ out = CryoGridOutput(sol)
 
 # Define a "loss" function; here we'll just take the mean over the final temperature field.
 using Statistics
-function loss(p)
+function loss(tile::Tile, tspan, p)
     local u0, _ = initialcondition!(tile, tspan, p)
     local prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0)
     local sol = solve(prob, CGEuler());
@@ -47,4 +47,4 @@ using ForwardDiff
 pvec = vec(p)
 
 # Compute gradient with forward diff:
-grad = @time ForwardDiff.gradient(loss, pvec)
+grad = @time ForwardDiff.gradient(pᵢ -> loss(tile, tspan, pᵢ), pvec)

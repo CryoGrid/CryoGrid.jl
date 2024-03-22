@@ -63,8 +63,8 @@ end
     states = getproperty(getfield(state, :states), layername)
     grid = getfield(states, :grid)
     # make subgrid
-    z₁ = states.z[1]
-    z₂ = max(z₁, z₁ + states.Δz[1])
+    z₁ = ForwardDiff.value(states.z[1])
+    z₂ = ForwardDiff.value(max(z₁, z₁ + states.Δz[1]))
     subgrid = grid[z₁..z₂]
     # build layer state
     return LayerState(layername, subgrid, states, t, dt)
