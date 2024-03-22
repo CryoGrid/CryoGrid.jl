@@ -70,10 +70,7 @@ function CryoGrid.computediagnostic!(sub::SubSurface, ps::Coupled(WaterBalance, 
     # Compute water contents from current state
     Hydrology.watercontent!(sub, water, state)
     # HeatBalance diagnostics
-    # Evaluate freeze/thaw processes
-    Heat.freezethaw!(sub, state)
-    # Update thermal conductivity
-    Heat.thermalconductivity!(sub, heat, state)
+    Heat.computediagnostic!(sub, heat, state)
     # then hydraulic conductivity (requires liquid water content from heat conduction)
     Hydrology.hydraulicconductivity!(sub, water, state)
 end

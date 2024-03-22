@@ -15,8 +15,9 @@ function CryoGrid.interact!(
     stop,
     ssnow
 )
-    Snow.accumulation!(top, sbc, snow, mass, stop, ssnow)
-    Snow.ablation!(top, sbc, snow, mass, stop, ssnow)
+    accumulation!(top, sbc, snow, mass, stop, ssnow)
+    compaction!(top, sbc, snow, mass, stop, ssnow)
+    ablation!(top, sbc, snow, mass, stop, ssnow)
     return nothing
 end
 # default interact! for heat

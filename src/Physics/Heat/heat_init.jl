@@ -44,12 +44,14 @@ function (init::LinearTwoPhaseTempProfile)(T::AbstractVector, grid::Grid)
     T .= f.(cells(grid))
 end
 
-Base.@kwdef struct ThermalSteadyStateInit{TT,TQ} <: CryoGrid.Initializer
+Base.@kwdef struct ThermalSteadyStateInit{TT,TQ} <: CryoGrid.VarInitializer{:T}
     T0::TT = 0.0u"°C"
     Qgeo::TQ = 0.053u"W/m^2"
     maxiters::Int = 100
     thresh::Float64 = 1e-6
 end
+
+(init::ThermalSteadyStateInit)(::SubSurface, state) = nothing
 
 function CryoGrid.initialcondition!(init::ThermalSteadyStateInit, top::Top, sub::SubSurface, stop, ssub)
     steadystate!(sub, ssub, init.T0, init.Qgeo, init.maxiters, init.thresh)

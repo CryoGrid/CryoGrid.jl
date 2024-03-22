@@ -3,40 +3,17 @@ Type alias for the implicit enthalpy formulation of HeatBalance.
 """
 const HeatBalanceImplicit{Tfc} = HeatBalance{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
 
-apbc(::Dirichlet, k, Δk) = k / (Δk^2/2)
-apbc(::Dirichlet, k, Δk, Δx) = k / Δx / Δk
-apbc(::Neumann, k, Δk) = 0
+# CryoGrid methods
 
-function prefactors!(ap, an, as, k, dx, dxp)
-    # loop over grid cells
-    @inbounds for i in eachindex(dxp)
-        if i == 1
-            as[1] = k[2] / dx[1] / dxp[1]
-        elseif i == length(dxp)
-            an[end] = k[end-1] / dx[end] / dxp[end]
-        else
-            an[i] = k[i] / dx[i-1] / dxp[i]
-            as[i] = k[i+1] / dx[i] / dxp[i]
-        end
-        ap[i] = an[i] + as[i]
-    end
-    return nothing
-end
-
-CryoGrid.variables(::HeatBalanceImplicit) = (
+CryoGrid.variables(heat::HeatBalanceImplicit) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
-    Diagnostic(:∂H∂T, OnGrid(Cells), u"J/K/m^3", domain=0..Inf),
-    Diagnostic(:∂θw∂T, OnGrid(Cells), domain=0..Inf),
-    Diagnostic(:C, OnGrid(Cells), u"J/K/m^3"),
-    Diagnostic(:k, OnGrid(Edges), u"W/m/K"),
-    Diagnostic(:kc, OnGrid(Cells), u"W/m/K"),
-    Diagnostic(:θw, OnGrid(Cells), domain=0..1),
     # coefficients and cache variables for implicit diffusion operator
     Diagnostic(:DT_an, OnGrid(Cells)),
     Diagnostic(:DT_as, OnGrid(Cells)),
     Diagnostic(:DT_ap, OnGrid(Cells)),
     Diagnostic(:DT_bp, OnGrid(Cells)),
+    Heat.heatvariables(heat)...,
 )
 
 function CryoGrid.computediagnostic!(
@@ -117,4 +94,26 @@ function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalanceImplicit, state
         state.DT_an[i] = 0.0
         state.DT_as[i] = 0.0
     end
+end
+
+# implementations
+
+apbc(::Dirichlet, k, Δk) = k / (Δk^2/2)
+apbc(::Dirichlet, k, Δk, Δx) = k / Δx / Δk
+apbc(::Neumann, k, Δk) = 0
+
+function prefactors!(ap, an, as, k, dx, dxp)
+    # loop over grid cells
+    @inbounds for i in eachindex(dxp)
+        if i == 1
+            as[1] = k[2] / dx[1] / dxp[1]
+        elseif i == length(dxp)
+            an[end] = k[end-1] / dx[end] / dxp[end]
+        else
+            an[i] = k[i] / dx[i-1] / dxp[i]
+            as[i] = k[i+1] / dx[i] / dxp[i]
+        end
+        ap[i] = an[i] + as[i]
+    end
+    return nothing
 end

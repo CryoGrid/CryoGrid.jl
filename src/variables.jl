@@ -10,8 +10,11 @@ struct OnGrid{S} <: VarDim{S}
     offset::Int # G -> G' where G is the edge grid
     OnGrid(::Type{S}, offset::Int=0) where {S<:GridOffset} = new{S}(offset)
 end
+
 struct Shape{S} <: VarDim{S} Shape(dims::Int...) = new{dims}() end
+
 const Scalar = Shape()
+
 ConstructionBase.constructorof(::Type{OnGrid{S}}) where {S} = f -> OnGrid(S, f)
 ConstructionBase.constructorof(::Type{Shape{S}}) where {S} = f -> Shpae(S...)
 dimlength(::Shape{dims}, N::Int) where dims = prod(dims)
@@ -24,6 +27,7 @@ dimlength(d::OnGrid{Edges}, gridlen::Int) = gridlen + d.offset
 Base type for symbolic state variables in the model.
 """
 abstract type Var{name,S<:VarDim,T,units,domain} end
+
 """
     Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 
@@ -35,6 +39,7 @@ struct Prognostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     Prognostic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
     Prognostic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
+
 """
     Algebraic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 
@@ -47,6 +52,7 @@ struct Algebraic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
     Algebraic(name::Symbol, dims::Union{<:Shape,OnGrid{Cells}}, units=NoUnits, ::Type{T}=Float64; domain=-Inf..Inf, desc="") where {T} = new{name,typeof(dims),T,units,domain}(dims, desc)
     Algebraic(::Symbol, dims::OnGrid, args...) = error("Off-cell prognostic/algebraic spatial variables are not currently supported.")
 end
+
 """
     DVar{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
 
@@ -61,6 +67,7 @@ struct DVar{dname,name,S,T,units,domain} <: Var{dname,S,T,units,domain}
     DVar(var::Algebraic{name,S,T,units,domain}) where {name,S,T,units,domain} = let dims=vardims(var); new{dname(name),name,typeof(dims),T,units,domain}(dims) end
 end
 dname(sym::Symbol) = Symbol(:d,sym)
+
 """
     Diagnostic{name,S,T,units,domain} <: Var{name,S,T,units,domain}
 

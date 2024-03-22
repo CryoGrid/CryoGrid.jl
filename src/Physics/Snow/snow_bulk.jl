@@ -24,6 +24,9 @@ Retrieves the minimum snow threshold for the bulk snow scheme.
 """
 threshold(snow::BulkSnowpack) = snow.para.thresh
 
+# do nothing for constant density scheme
+compaction!(::BulkSnowpack{<:ConstantDensity}, mass, state) = nothing
+
 function snowdensity!(
     snow::BulkSnowpack{<:ConstantDensity},
     mass::SnowMassBalance,
@@ -83,8 +86,6 @@ function accumulation!(
     @. ssnow.dΔz += Δdsn
 end
 
-Heat.thermalproperties(snow::BulkSnowpack) = snow.para.heat.prop
-
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     ρw = waterdensity(snow)
     ρsn = snowdensity(snow, state)
@@ -96,6 +97,12 @@ function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     state.θwi .= θis + state.θsat.*state.sat
     return nothing
 end
+
+CryoGrid.Volume(::Type{<:BulkSnowpack{<:SnowMassBalance}}) = CryoGrid.PrognosticVolume()
+
+CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
+
+CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = abs(getscalar(state.z) + getscalar(state.Δz)) / 2
 
 CryoGrid.variables(snow::BulkSnowpack, ::SnowMassBalance) = (
     Prognostic(:swe, Scalar, u"m", domain=0..Inf),

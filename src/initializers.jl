@@ -1,4 +1,4 @@
-Base.isless(init1::VarInitializer, init2::VarInitializer) = false
+Base.isless(init1::Initializer, init2::Initializer) = false
 
 # add varname dispatch for initializer types
 CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname
