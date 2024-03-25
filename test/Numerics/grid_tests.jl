@@ -2,8 +2,6 @@ using CryoGrid
 using CryoGrid.Numerics
 using Test, BenchmarkTools
 
-include("../testutils.jl")
-
 @testset "Grid" begin
     gridvals = [1:0.1:2...,2.5:0.5:3...,4:1.0:10...]u"m"
     grid = Grid(gridvals)

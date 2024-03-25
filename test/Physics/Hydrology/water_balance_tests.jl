@@ -1,3 +1,10 @@
+using CryoGrid
+using CryoGrid.Numerics
+using CryoGrid.Hydrology
+using CryoGrid.Utils
+
+using Test
+
 @testset "Bucket scheme" begin
     testgrid = CryoGrid.Presets.DefaultGrid_2cm
     @testset "variables" begin

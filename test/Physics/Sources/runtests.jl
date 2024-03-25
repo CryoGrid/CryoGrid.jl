@@ -1,8 +1,6 @@
 using CryoGrid
 using Test
 
-include("../../types.jl")
-
 @testset "Sources" begin
     @testset "Constant" begin
         heatsource = Source(HeatBalance, Sources.Constant(1.0u"W/m^3"))

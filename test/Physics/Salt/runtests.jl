@@ -4,8 +4,6 @@ using CryoGrid.Utils
 
 using Test
 
-include("../../testutils.jl")
-
 @testset "Salt" begin
     testgrid = CryoGrid.Presets.DefaultGrid_2cm
     @testset "variables" begin
