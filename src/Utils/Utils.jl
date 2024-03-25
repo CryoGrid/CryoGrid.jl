@@ -49,14 +49,9 @@ StructTypes.construct(::Type{Q}, value::String) where {Q<:Quantity} = uconvert(Q
 Conditionally applies unit `u` to `x` if and only if `x` is a unit-free quantity.
 If `x` is a unitful quantity, asserts that the unit matches `u`.
 """
-function applyunits(u::Unitful.Units, x::Number)
-    if typeof(unit(x)) <: Unitful.FreeUnits{(), NoDims, nothing}
-       return  x*u
-    else
-        @assert unit(x) == u "quantity $x has units incompatible with $u"
-        return x
-    end
-end
+applyunits(u::Unitful.Units, x::Number) = x*u
+applyunits(u::Unitful.Units, x::Unitful.Quantity) = uconvert(u, x)
+
 """
     fastmap(f::F, iter::NTuple{N,Any}...) where {F,N}
 

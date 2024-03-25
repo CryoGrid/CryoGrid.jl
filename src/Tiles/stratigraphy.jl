@@ -87,9 +87,8 @@ Base.length(strat::Stratigraphy) = length(layers(strat))
 Base.getindex(strat::Stratigraphy, i::Int) = layers(strat)[i]
 Base.firstindex(strat::Stratigraphy) = 1
 Base.lastindex(strat::Stratigraphy) = length(strat)
-Base.iterate(strat::Stratigraphy) = (layers(strat)[1],layers(strat)[2:end])
-Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
-Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
+Base.iterate(strat::Stratigraphy) = iterate(layers(strat))
+Base.iterate(strat::Stratigraphy, i) = iterate(layers(strat), i)
 Base.NamedTuple(strat::Stratigraphy) = layers(strat)
 function Base.show(io::IO, ::MIME"text/plain", strat::Stratigraphy)
     print(io, "Stratigraphy:\n")

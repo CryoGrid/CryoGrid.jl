@@ -15,7 +15,7 @@ forcingunits(::ForcingFormatJSON) = Dict(
     :Sin => u"W/m^2",
     :snowfall => u"mm/d",
     :rainfall => u"mm/d",
-    :Ptot => u"mm",
+    :Ptot => u"mm/d",
 )
 
 function loadforcings(format::ForcingFormatJSON{1}, filename::String)

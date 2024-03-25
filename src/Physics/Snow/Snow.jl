@@ -10,6 +10,7 @@ using CryoGrid.Utils
 
 using IfElse
 using ModelParameters
+using Statistics
 using Unitful
 using UnPack
 
@@ -27,6 +28,9 @@ include("snow_heat.jl")
 
 # single-layer "bulk" snow scheme
 include("snow_bulk.jl")
+
+# gridded scheme from CryoGridLite
+include("snow_lite.jl")
 
 export swe, snowdensity, snowdepth, snowfall
 export accumulation!, ablation!

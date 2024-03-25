@@ -28,15 +28,15 @@ Base.@kwdef struct SnowThermalProperties{Tcond<:SnowThermalConductivity,Tprop}
 end
 
 """
-    Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
+    Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Twater<:WaterBalance,Theat<:HeatBalance,Taux} <: CryoGrid.SubSurface
 
 Generic representation of a snowpack "subsurface" layer.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Twater<:WaterBalance,Theat<:HeatBalance,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
-    heat::Theat = HeatBalance()
     water::Twater = WaterBalance()
+    heat::Theat = HeatBalance()
     aux::Taux = nothing
 end
 
@@ -61,14 +61,16 @@ Hydrology.hydraulicconductivity(snow::Snowpack, water::WaterBalance, θw, θwi, 
 # max (fully saturated) water content
 Hydrology.maxwater(::Snowpack, ::WaterBalance, state) = 1.0
 
+# Heat methods:
+
+Heat.thermalproperties(snow::Snowpack) = snow.para.heat.prop
+
 # Default implementations of CryoGrid methods for Snowpack
 CryoGrid.processes(snow::Snowpack) = Coupled(snow.mass, snow.water, snow.heat)
 
-CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
-
-CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + getscalar(state.Δz)) / 2
-
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
+
+CryoGrid.Volume(::Type{<:Snowpack{T,<:SnowMassBalance}}) where {T} = CryoGrid.DiagnosticVolume()
 
 # volumetric fractions for snowpack
 function CryoGrid.volumetricfractions(::Snowpack, state, i)
@@ -95,10 +97,9 @@ end
 
 function CryoGrid.computediagnostic!(
     snow::Snowpack,
-    procs::CoupledSnowWaterHeat,
     state,
 )
-    mass, water, heat = procs
+    mass, water, heat = processes(snow)
     computediagnostic!(snow, mass, state)
     computediagnostic!(snow, water, state)
     computediagnostic!(snow, heat, state)

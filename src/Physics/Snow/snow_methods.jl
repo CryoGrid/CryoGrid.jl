@@ -15,6 +15,13 @@ Computes snow mass balance fluxes due to ablation (e.g. snow melt).
 ablation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error("not implemented")
 
 """
+    compaction!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow)
+
+Computes snow density changes due to compaction, if defined.
+"""
+compaction!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) = error("not implemented")
+
+"""
     accumulation!(::Top, ::SnowBC, ::Snowpack, ::SnowMassBalance, stop, ssnow) 
 
 Computes snow mass balance fluxes due to accumulation (e.g. snowfall).

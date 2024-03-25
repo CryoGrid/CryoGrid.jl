@@ -10,7 +10,7 @@ Base.@kwdef struct Lake{Tpara<:LakeParameterization,Theat<:HeatBalance,Taux} <: 
     aux::Taux = nothing
 end
 
-function get_upper_boundary_index(T_ub, θw)
+function get_lake_ub_idx(T_ub, θw)
     ubc_idx = 1
     if T_ub >= zero(T_ub)
         @inbounds for i in eachindex(θw)
@@ -32,9 +32,8 @@ CryoGrid.processes(lake::Lake) = lake.heat
 
 CryoGrid.volumetricfractions(::Lake, state, i) = (state.θw[i], 1 - state.θw[i], 0.0)
 
-CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
+CryoGrid.variables(::Lake, heat::HeatBalance) = (
     CryoGrid.variables(heat)...,
-    # Diagnostic(:I_t, OnGrid(Cells), desc="Indicator variable for is thawed (1 or 0)."),
     Diagnostic(:ρ_w, Scalar, u"kg*m^-3", domain=0..Inf, desc = "density of water with temperature"),
     Diagnostic(:T_ub, Scalar, u"°C"),
     Diagnostic(:ubc_idx, Scalar, NoUnits, Int),
@@ -42,7 +41,7 @@ CryoGrid.variables(lake::Lake, heat::HeatBalance) = (
 
 function CryoGrid.diagnosticstep!(::Lake, state)
     T_ub = getscalar(state.T_ub)
-    @setscalar state.ubc_idx = get_upper_boundary_index(T_ub, state.θw)
+    @setscalar state.ubc_idx = get_lake_ub_idx(T_ub, state.θw)
     return false
 end
 
