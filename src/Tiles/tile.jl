@@ -129,8 +129,8 @@ function computefluxes!(
     dt=1.0,
 ) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
     _du .= zero(eltype(_du))
-    du = ComponentArray(_du, getaxes(_tile.state.uproto))
-    u = ComponentArray(_u, getaxes(_tile.state.uproto))
+    du = withaxes(_du, _tile)
+    u = withaxes(_u, _tile)
     tile = resolve(_tile, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
@@ -153,8 +153,8 @@ CryoGrid.diagnosticstep!(tile::Tile, state::TileState) = diagnosticstep!(tile.st
 Computes the maximum permissible forward timestep for this `Tile` given the current `u`, `p`, and `t`.
 """
 function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
-    du = ComponentArray(_du, getaxes(_tile.state.uproto))
-    u = ComponentArray(_u, getaxes(_tile.state.uproto))
+    du = withaxes(_du, _tile)
+    u = withaxes(_u, _tile)
     tile = resolve(_tile, p, t)
     strat = tile.strat
     zs = map(getscalar, boundaries!(tile, u))
@@ -306,8 +306,8 @@ Constructs a `LayerState` representing the full state of `layername` given `tile
 time step `t`.
 """
 function getstate(tile::Tile, _u, _du, t, dt=1.0)
-    du = ComponentArray(_du, getaxes(tile.state.uproto))
-    u = ComponentArray(_u, getaxes(tile.state.uproto))
+    du = withaxes(_du, tile)
+    u = withaxes(_u, tile)
     return TileState(tile.strat, tile.grid, tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), du, u, t, dt)
 end
 """

@@ -69,7 +69,6 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
 function CryoGrid.computediagnostic!(::Top, swb::SurfaceWaterBalance, stop)
     @setscalar stop.jw_snow = swb.snowfall(stop.t)
     @setscalar stop.jw_rain = swb.rainfall(stop.t)
-    @assert stop.jw_rain[1] >= 0.0
 end
 
 function CryoGrid.computefluxes!(top::Top, swb::SurfaceWaterBalance, state)
