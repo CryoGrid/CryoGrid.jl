@@ -7,8 +7,6 @@ using LinearAlgebra
 using Statistics
 using Test
 
-include("../../types.jl")
-
 @testset "Sanity checks" begin
 	@testset "Generic" begin
 		x = Grid(exp.(0.0:0.01:1.0)u"m")

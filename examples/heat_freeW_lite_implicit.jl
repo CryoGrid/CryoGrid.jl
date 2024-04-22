@@ -57,4 +57,4 @@ Plots.plot(out.ρsn[Z(Near(-1.0u"cm"))])
 # Note that these sovers generally will not be faster (in execution time) but may be more stable in some cases. Adaptive timestepping can be employed by
 # removing the `adaptive=false` argument.
 # using OrdinaryDiffEq
-# sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0, saveat=24*3600);
+# sol2 = @time solve(prob, ImplicitEuler(nlsolve=NLCGLite()), adaptive=false, dt=24*3600.0, saveat=24*3600.0);

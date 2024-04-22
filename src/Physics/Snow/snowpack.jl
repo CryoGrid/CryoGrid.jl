@@ -123,7 +123,7 @@ CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.C
 function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
-    if getscalar(state.dsn) > snow.para.thresh
+    if isactive(snow, state)
         @inbounds for i in eachindex(Δx)
             dtmax = min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
         end

@@ -4,6 +4,12 @@ using CryoGrid.Utils
 
 using Test
 
+# test utils
+include("testutils.jl")
+include("types.jl")
+include("test_problems.jl")
+
+# test suites
 include("Utils/runtests.jl")
 include("Numerics/runtests.jl")
 include("IO/runtests.jl")

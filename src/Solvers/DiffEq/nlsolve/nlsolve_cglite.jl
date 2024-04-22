@@ -40,8 +40,8 @@ OrdinaryDiffEq.@muladd function OrdinaryDiffEq.initialize!(nlsolver::NLSolver{<:
     nlsolver.cache.tstep = integrator.t + nlsolver.c * integrator.dt
     copyto!(nlsolver.cache.innercache.uprev, nlsolver.tmp)
     # this won't work if u has units
-    @. nlsolver.cache.innercache.T_new = zero(eltype(integrator.u))
-    @. nlsolver.cache.innercache.resid = zero(eltype(integrator.u))
+    nlsolver.cache.innercache.T_new .= zero(eltype(integrator.u))
+    nlsolver.cache.innercache.resid .= zero(eltype(integrator.u))
     return nothing
 end
 
