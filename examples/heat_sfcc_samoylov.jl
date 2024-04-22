@@ -21,6 +21,9 @@ tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,));
 
+integrator = init(prob)
+
+
 # ... then solve it with the built-in forward Euler integrator.
 sol = @time solve(prob);
 out = CryoGridOutput(sol)
