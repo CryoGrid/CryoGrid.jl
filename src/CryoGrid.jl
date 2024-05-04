@@ -50,7 +50,7 @@ export VarDim, OnGrid, Shape, Scalar, GridOffset, Edges, Cells
 export varname, vartype, vardims, varunits, vardomain, isprognostic, isalgebraic, isflux, isdiagnostic, isongrid, dimlength
 include("variables.jl")
 
-export BCKind, Volume, FixedVolume, DiagnosticVolume, PrognosticVolume
+export BCKind
 include("traits.jl")
 
 export initialcondition!, computediagnostic!, interact!, interactmaybe!, computefluxes!, resetfluxes!, diagnosticstep!

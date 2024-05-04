@@ -236,25 +236,10 @@ end
 # collecting/grouping components
 CryoGrid.events(strat::Stratigraphy) = (; map(named_layer -> nameof(named_layer) => _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), namedlayers(strat))...)
 
-CryoGrid.variables(::Union{FixedVolume,DiagnosticVolume}) = (
-    Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
-    # technically the domain for z should be double bounded by the surrounding layers...
-    # unfortunately there is no way to represent that here, so we just have to ignore it
-    Diagnostic(:z, Scalar, u"m"),
-)
-CryoGrid.variables(::PrognosticVolume) = (
-    Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
-    Diagnostic(:z, Scalar, u"m"),
-)
 # collects all variables in the stratgriphy, returning a NamedTuple of variable sets.
 function CryoGrid.variables(strat::Stratigraphy)
     layervars = map(_collectvars, layers(strat))
-    return map(layervars, layers(strat)) do vars, layer
-        (
-            vars...,
-            CryoGrid.variables(CryoGrid.Volume(layer))...,
-        )
-    end
+    return (; map(Pair, keys(strat), layervars)...)
 end
 
 function _initializers!(strat::Stratigraphy, state, inits)

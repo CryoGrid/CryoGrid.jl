@@ -8,7 +8,7 @@
 
 using CryoGrid
 
-# First we set up the model:
+# First we set up the soil heat model:
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_1979_2020);
 grid = CryoGrid.Presets.DefaultGrid_5cm
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
@@ -18,11 +18,8 @@ upperbc = TemperatureBC(forcings.Tair, NFactor(nf=0.6))
 lowerbc = GeothermalHeatFlux(0.053u"W/m^2")
 tile = CryoGrid.Presets.SoilHeatTile(upperbc, lowerbc, soilprofile, initT; grid=grid, freezecurve=sfcc)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
-u0, du0 = initialcondition!(tile, tspan)
+u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,));
-
-integrator = init(prob)
-
 
 # ... then solve it with the built-in forward Euler integrator.
 sol = @time solve(prob);

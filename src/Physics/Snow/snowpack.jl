@@ -70,8 +70,6 @@ CryoGrid.processes(snow::Snowpack) = Coupled(snow.mass, snow.water, snow.heat)
 
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
-CryoGrid.Volume(::Type{<:Snowpack{T,<:SnowMassBalance}}) where {T} = CryoGrid.DiagnosticVolume()
-
 # volumetric fractions for snowpack
 function CryoGrid.volumetricfractions(::Snowpack, state, i)
     @inbounds let θwi = state.θwi[i],
@@ -112,9 +110,22 @@ function CryoGrid.computediagnostic!(
 )
     # update snow density
     snowdensity!(snow, mass, state)
-    # update snow depth;
-    # by default, we just use the current layer thickness
-    @setscalar state.dsn = getscalar(state.Δz)
+    # update snow depth based on density and swe
+    ρw = waterdensity(snow)
+    @. state.dsn = max(state.swe*state.ρsn / ρw, zero(eltype(state.dsn)))
+    # update grid
+    z0 = state.grid[end] - state.dsn[1]
+    updategrid!(state.grid, z0, state.dsn)
+end
+
+function CryoGrid.computefluxes!(
+    snow::Snowpack,
+    state,
+)
+    mass, water, heat = processes(snow)
+    computefluxes!(snow, mass, state)
+    computefluxes!(snow, water, state)
+    computefluxes!(snow, heat, state)
 end
 
 # Special overrides for heat timestep control on snow layer

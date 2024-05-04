@@ -4,7 +4,7 @@ CryoGrid.caninteract(::Top, ::HeatBC, snow::Snowpack, ::HeatBalance, s1, s2) = t
 # unconditionally apply subsurface interactions for water
 CryoGrid.caninteract(::Snowpack, ::WaterBalance, ::SubSurface, ::WaterBalance, s1, s2) = true
 # only apply heat interactions when snowpack is active
-CryoGrid.caninteract(snow::Snowpack, ::HeatBalance, ::SubSurface, ::HeatBalance, s1, s2) = isactive(snow, s2)
+CryoGrid.caninteract(snow::Snowpack, ::HeatBalance, ::SubSurface, ::HeatBalance, s1, s2) = isactive(snow, s1)
 
 # default top interact! for dynamic snow mass balance
 function CryoGrid.interact!(

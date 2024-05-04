@@ -133,8 +133,7 @@ function computefluxes!(
     u = withaxes(_u, _tile)
     tile = resolve(_tile, p, t)
     strat = tile.strat
-    zs = map(getscalar, boundaries!(tile, u))
-    state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t, dt)
+    state = TileState(tile.strat, tile.grid, tile.state, du, u, t, dt)
     CryoGrid.resetfluxes!(strat, state)
     CryoGrid.computediagnostic!(strat, state)
     checkstate!(tile, state, u, du, :computediagnostic!)
@@ -157,8 +156,7 @@ function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
     u = withaxes(_u, _tile)
     tile = resolve(_tile, p, t)
     strat = tile.strat
-    zs = map(getscalar, boundaries!(tile, u))
-    state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t, 1.0)
+    state = TileState(tile.strat, tile.grid, tile.state, du, u, t, 1.0)
     dtmax = CryoGrid.timestep(strat::Stratigraphy, state)
     @assert dtmax > zero(dtmax) "timestep $dtmax cannot be <= 0"
     return dtmax
@@ -180,9 +178,7 @@ function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::Abs
     u = zero(similar(tile.state.uproto, utype))
     tile = resolve(tile, p, t0)
     strat = tile.strat
-    # get stratigraphy boundaries
-    zs = initboundaries!(tile, u)
-    state = TileState(tile.strat, tile.grid, tile.state, zs, du, u, t0, 1.0)
+    state = TileState(tile.strat, tile.grid, tile.state, du, u, t0, 1.0)
     CryoGrid.initialcondition!(tile.grid, state)
     CryoGrid.initialcondition!(strat, state, tile.inits...)
     # evaluate initial time derivative
@@ -230,55 +226,6 @@ function domain(tile::Tile)
     end
 end
 
-# layer thickness
-_layerthick(::PrognosticVolume, tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer} = getproperty(u, name).Δz
-_layerthick(::Union{FixedVolume,DiagnosticVolume}, tile::Tile, ::Named{name,TLayer}, u) where {name,TLayer<:Layer} = retrieve(getproperty(tile.state.diag, name).Δz, u)
-function _layerthick(tile::Tile, layer::Named{name,TLayer}, u) where {name,TLayer<:Layer}
-    return _layerthick(CryoGrid.Volume(TLayer), tile, layer, u)
-end
-
-@generated function boundaries!(tile::Tile{TStrat}, u) where {TStrat}
-    if all(map(typ -> isa(Volume(typ), FixedVolume), layertypes(TStrat)))
-        # Micro-optimization: if all layers in the stratigraphy have static volume, skip all of the fancy stuff
-        quote
-            boundaries(tile.strat)
-        end
-    else
-        quote
-            zs = update_layer_boundaries!(tile, u)
-            return reverse(zs)
-        end
-    end
-end
-
-function initboundaries!(tile::Tile{TStrat}, u) where {TStrat}
-    bounds = boundarypairs(tile.strat)
-    map(bounds, namedlayers(tile.strat)) do (z1, z2), named_layer
-        name = nameof(named_layer)
-        diag_layer = getproperty(tile.state.diag, name)
-        z = retrieve(diag_layer.z, u)
-        Δz = _layerthick(tile, named_layer, u)
-        @setscalar Δz = z2 - z1
-        @setscalar z = z1
-        return z1
-    end
-end
-
-function update_layer_boundaries!(tile::Tile, u)
-    # calculate grid boundaries starting from the bottom moving up to the surface
-    zbot = tile.grid[end]
-    return accumulate(reverse(namedlayers(tile.strat)); init=zbot) do z_acc, named_layer
-        name = nameof(named_layer)
-        diag_layer = getproperty(tile.state.diag, name)
-        z_state = retrieve(diag_layer.z, u)
-        Δz = getscalar(_layerthick(tile, named_layer, u))
-        @setscalar z_state = z_acc - max(Δz, zero(Δz))
-        z = getscalar(z_state)
-        # strip ForwardDiff type if necessary and round to avoid numerical issues
-        return round(ForwardDiff.value(z), digits=12)
-    end
-end
-
 """
     getvar(name::Symbol, tile::Tile, u; interp=true)
     getvar(::Val{name}, tile::Tile, u; interp=true)
@@ -308,7 +255,7 @@ time step `t`.
 function getstate(tile::Tile, _u, _du, t, dt=1.0)
     du = withaxes(_du, tile)
     u = withaxes(_u, tile)
-    return TileState(tile.strat, tile.grid, tile.state, map(ustrip ∘ stripparams, boundaries(tile.strat)), du, u, t, dt)
+    return TileState(tile.strat, tile.grid, tile.state, du, u, t, dt)
 end
 """
     getstate(integrator::SciMLBase.DEIntegrator)
@@ -426,8 +373,9 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     default_chunk_size = length(para) > 0 ? length(para) : 12
     chunk_size = isnothing(chunk_size) ? default_chunk_size : chunk_size
     vars = merge(stratvars, (grid=gridvars,))
+    zs = boundaries(strat)
     # create state variable cache
-    states = StateVars(vars, grid, cachetype, arraytype; chunk_size)
+    states = StateVars(vars, grid, zs, cachetype, arraytype; chunk_size)
     return states
 end
 

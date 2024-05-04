@@ -28,34 +28,3 @@ where `BP` is a `BoundaryProcess` that provides the boundary conditions.
 """
 BCKind(::Type{BP}) where {BP<:BoundaryProcess} = error("No boundary condition type specified for boundary process $BP")
 BCKind(bc::BoundaryProcess) = BCKind(typeof(bc))
-
-abstract type Volume end
-"""
-    FixedVolume
-
-`Volume` trait instance for fixed volume layers. Default for all `Layer` types.
-"""
-struct FixedVolume <: Volume end
-"""
-    PrognosticVolume
-
-`Volume` trait instance for layers with time varying volume where the volume should
-be treated as a prognostic state variable.
-"""
-struct PrognosticVolume <: Volume end
-"""
-    DiagnosticVolume
-
-`Volume` trait instance for layers with time varying volume where the volume should
-be treated as a diagnostic state variable.
-"""
-struct DiagnosticVolume <: Volume end
-
-"""
-    Volume(::Type{<:Layer})
-
-Trait for layer types that determines whether its spatial volume is temporally invariant,
-`FixedVolume`, or varying with time, `DiagnosticVolume` or `PrognosticVolume`.
-"""
-Volume(::Type{<:Layer}) = FixedVolume()
-Volume(layer::Layer) = Volume(typeof(layer))

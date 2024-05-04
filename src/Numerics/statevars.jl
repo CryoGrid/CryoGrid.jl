@@ -1,15 +1,16 @@
 """
-    StateVars{names,griddvars,TU,TV,DF,DG}
+    StateVars{names,griddvars,TU,TV,TI,DF,DG}
 
 Generic container for holding discretized state arrays from symbolic variables (`Var` types).
 The `uproto` field represetns a "prototype" of the prognostic state array which should fully
 define the state of the system at any given point.
 """
-struct StateVars{names,griddvars,TU,TV,DF,DG}
+struct StateVars{names,griddvars,TU,TV,TI,DF,DG}
     uproto::TU # prognostic state vector prototype
     vars::NamedTuple{names,TV} # variable metadata
     diag::NamedTuple{names,DF} # off-grid diagnostic variables
     griddiag::NamedTuple{griddvars,DG} # on-grid diagnostic variables
+    layeridx::NamedTuple{names,TI}
 end
 
 """
@@ -21,6 +22,7 @@ Constructs a `StateVars` container from `vars` and the given discretization `D`.
 function StateVars(
     @nospecialize(vars::NamedTuple),
     @nospecialize(D::Numerics.AbstractDiscretization),
+    zs::NTuple,
     ::Type{TCache},
     ::Type{TArray}=Vector;
     cache_kwargs...
@@ -45,7 +47,10 @@ function StateVars(
     griddiagstate = map(v -> varname(v) => TCache(varname(v), instantiate(v, D, TArray); cache_kwargs...), griddiagvars)
     # join prognostic variables with delta and flux variables, then build nested named tuples in each group with varnames as keys
     allvars = map(vars -> NamedTuple{map(varname, vars)}(vars), map(tuplejoin, vars, dpvars))
-    return StateVars(uproto, allvars, (;freediagstate...), (;griddiagstate...))
+    # get layer indices
+    zs = tuple(zs..., D[end], D[end])
+    layeridx = map((k, z1, z2) -> k => bounds(D[z1..z2]), keys(allvars), zs[1:end-1], zs[2:end])
+    return StateVars(uproto, allvars, (;freediagstate...), (;griddiagstate...), (;layeridx...))
 end
 
 @generated function getvar(::Val{name}, vs::StateVars{layers,griddvars}, u, du=nothing) where {name,layers,griddvars}

@@ -47,7 +47,7 @@ function (init::InterpInitializer{var})(::Layer, state) where {var}
     depths = collect(ustrip.(keys(profile)))
     u = getproperty(state, var)
     z = cells(state.grid)
-    @assert length(z) == length(u) "$(length(z)) != $(length(u))"
+    @assert length(z) == length(u) "Length of grid does not match state of $var on layer $(state.name): $(length(z)) != $(length(u))"
     if length(depths) > 1
         f = Interpolations.extrapolate(
             Interpolations.interpolate(
