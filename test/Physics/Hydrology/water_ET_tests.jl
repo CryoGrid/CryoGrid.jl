@@ -2,8 +2,6 @@ using CryoGrid
 using CryoGrid.Hydrology
 using Test
 
-Hydrology.hydraulicproperties(::TestGroundLayer) = HydraulicProperties()
-
 function evapotranspiration_tests()
     layer = stripparams(TestGroundLayer(WaterBalance(BucketScheme(), DampedET())))
     water = processes(layer)

@@ -9,18 +9,52 @@ thermalproperties(sub::SubSurface, state) = thermalproperties(sub)
 thermalproperties(sub::SubSurface, state, i) = thermalproperties(sub, state)
 
 """
-    thermalconductivity(::SubSurface, state, i)
+    thermalconductivities(sub::SubSurface)
 
-Computes the thermal conductivity for the given `SubSurface` layer at grid cell `i`.
+Get thermal conductivities for generic `SubSurface` layer.
 """
-thermalconductivity(::SubSurface, state, i) = error("not implemented")
+function thermalconductivities(sub::SubSurface)
+    @unpack kh_w, kh_i, kh_a = thermalproperties(sub)
+    return (kh_w, kh_i, kh_a)
+end
+thermalconductivities(sub::SubSurface, state) = thermalconductivities(sub)
+thermalconductivities(sub::SubSurface, state, i) = thermalconductivities(sub, state)
 
 """
-    heatcapacity(::SubSurface, state, i)
+    heatcapacities(::SubSurface)
 
-Computes the heat capacity for the given `SubSurface` layer at grid cell `i`.
+Get heat capacities for generic `SubSurface` layer.
 """
-heatcapacity(::SubSurface, state, i) = error("not implemented")
+function heatcapacities(sub::SubSurface)
+    @unpack ch_w, ch_i, ch_a = thermalproperties(sub)
+    return ch_w, ch_i, ch_a
+end
+heatcapacities(sub::SubSurface, state) = heatcapacities(sub)
+heatcapacities(sub::SubSurface, state, i) = heatcapacities(sub, state)
+
+"""
+    thermalconductivity(sub::SubSurface, heat::HeatBalance, state, i)
+
+Computes the thermal conductivity as a squared weighted sum over constituent conductivities with volumetric fractions `θfracs`.
+"""
+function thermalconductivity(sub::SubSurface, state, i)
+    θs = volumetricfractions(sub, state, i)
+    ks = thermalconductivities(sub, state, i)
+    f = thermalproperties(sub).thermcond
+    return f(ks, θs)
+end
+
+"""
+    heatcapacity(sub::SubSurface, state, i)
+
+Computes the heat capacity as a weighted average over constituent capacities with volumetric fractions `θfracs`.
+"""
+function heatcapacity(sub::SubSurface, state, i)
+    θs = volumetricfractions(sub, state, i)
+    cs = heatcapacities(sub, state, i)
+    f = thermalproperties(sub).heatcap
+    return f(cs, θs)
+end
 
 """
     freezethaw!(sub::SubSurface, heat::HeatBalance, state)
@@ -61,17 +95,3 @@ dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 Convenience constructor for `Numerics.Profile` which automatically converts temperature quantities.
 """
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
-
-"""
-    thermal_conductivity_function(op::HeatOperator)
-
-Retreives the thermal conductivity function for this heat operator.
-"""
-thermal_conductivity_function(op::HeatOperator) = op.cond
-
-"""
-    heat_capacity_function(op::HeatOperator)
-
-Retreives the volumetric heat capacity function for this heat operator.
-"""
-heat_capacity_function(op::HeatOperator) = op.hc

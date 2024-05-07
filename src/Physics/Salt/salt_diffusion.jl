@@ -20,7 +20,7 @@ function Heat.freezethaw!(
             state.θw[i] = θw = ForwardDiff.value(res_dual.θw)
             state.∂θw∂T[i] = ∂θw∂T = ForwardDiff.partials(res_dual.θw)[1]
             state.∂θw∂c[i] = ForwardDiff.partials(res_dual.θw)[2]
-            state.C[i] = C = heatcapacity(soil, heat, state, i)
+            state.C[i] = C = heatcapacity(soil, state, i)
             state.∂H∂T[i] =  C + L*∂θw∂T
             state.H[i] = enthalpy(T, C, L, θw)
             state.dₛ_mid[i] = salt.prop.dₛ₀ * θw / salt.prop.τ
