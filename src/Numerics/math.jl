@@ -155,6 +155,13 @@ function harmonicmean!(h::AbstractVector, x::AbstractVector, w::AbstractVector)
 end
 
 """
+    linearmean(x, w)
+
+Calculates a weighted average of `x` with weights `w`.
+"""
+linearmean(x, w) = sum(map(*, x, w))
+
+"""
     tdma_solve!(x, a, b, c, d)
 
 Tridiagonal matrix solver via the Thomas algorithm; adapted from original CryoGridLite implementation. Modifies all input vectors in-place.

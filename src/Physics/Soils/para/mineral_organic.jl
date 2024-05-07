@@ -40,7 +40,8 @@ SoilThermalProperties(
     ch_a = ThermalProperties().ch_a,
     ch_o=2.5e6u"J/K/m^3", # heat capacity organic
     ch_m=2.0e6u"J/K/m^3", # heat capacity mineral
-) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o)
+    kwargs...,
+) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o, kwargs...)
 
 # CryoGrid methods
 CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
@@ -58,6 +59,8 @@ CryoGrid.initializers(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}) where {
     initializers(soil, processes(soil))...,
 )
 
+# Heat
+
 function Heat.thermalconductivities(soil::Soil{<:MineralOrganic})
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
     return kh_w, kh_i, kh_a, kh_m, kh_o
@@ -73,6 +76,8 @@ Gets the `ThermalProperties` for the given soil layer.
 """
 Heat.thermalproperties(soil::Soil{<:MineralOrganic}) = soil.para.heat
 
+# Hydrology
+
 """
 Gets the `HydraulicProperties` for the given soil layer.
 """
@@ -87,6 +92,8 @@ Hydrology.maxwater(soil::Soil{<:MineralOrganic}, water::WaterBalance) = porosity
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}, state) where {THeat} = state.θwi
+
+# Heterogeneous
 
 saturation(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.sat
 porosity(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.por

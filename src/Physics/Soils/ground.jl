@@ -5,14 +5,14 @@ abstract type GroundParameterization end
 
 Base type for all ground layers defining heat and water balance schemes.
 """
-abstract type AbstractGround{Tpara<:GroundParameterization,Theat<:HeatBalance,Twater<:Optional{WaterBalance}} <: SubSurface end
+abstract type AbstractGround{Tpara<:GroundParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}} <: SubSurface end
 
 """
     Ground{Tpara,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: Soil{Tpara,Theat,Twater}
 
 Generic representation of a `Ground` layer with material parameterization `para`.
 """
-Base.@kwdef struct Ground{Tpara,Theat<:HeatBalance,Twater<:WaterBalance,Tsolver,Taux} <: AbstractGround{Tpara,Theat,Twater}
+Base.@kwdef struct Ground{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsolver,Taux} <: AbstractGround{Tpara,Theat,Twater}
     para::Tpara = MineralOrganic() # ground parameterization
     heat::Theat = HeatBalance() # heat conduction
     water::Twater = WaterBalance() # water balance
@@ -30,4 +30,6 @@ fcsolver(ground::Ground) = ground.fcsolver
 
 # CryoGrid methods
 
-CryoGrid.processes(g::Ground) = Coupled(g.water, g.heat)
+CryoGrid.processes(g::Ground{<:GroundParameterization,<:HeatBalance,Nothing}) = g.heat
+CryoGrid.processes(g::Ground{<:GroundParameterization,Nothing,<:WaterBalance}) = g.water
+CryoGrid.processes(g::Ground{<:GroundParameterization,<:HeatBalance,<:WaterBalance}) = Coupled(g.water, g.heat)

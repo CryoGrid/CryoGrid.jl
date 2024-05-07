@@ -49,30 +49,24 @@ _validate_heat_config(::FreeWater, ::TemperatureBased) = error("Invalid heat bal
 
 # Heat operators
 """
-    Diffusion1D{progvar,Tcond,Thc} <: HeatOperator{progvar}
+    Diffusion1D{progvar} <: HeatOperator{progvar}
 
 Represents a standard method-of-lines (MOL) forward diffusion operator in 1 dimension.
 """
-struct Diffusion1D{progvar,Tcond,Thc} <: HeatOperator{progvar}
-    cond::Tcond
-    hc::Thc
-    Diffusion1D(progvar::Symbol=:H, cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{progvar,typeof(cond),typeof(hc)}(cond, hc)
+struct Diffusion1D{progvar} <: HeatOperator{progvar}
+    Diffusion1D(progvar::Symbol=:H) = new{progvar}()
 end
-ConstructionBase.constructorof(::Type{<:Diffusion1D{progvar}}) where {progvar} = (cond, hc) -> Diffusion1D(progvar, cond, hc)
+ConstructionBase.constructorof(::Type{<:Diffusion1D{progvar}}) where {progvar} = () -> Diffusion1D(progvar)
 
 """
-    EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
+    EnthalpyImplicit <: HeatOperator{:H}
 
 Implicit enthalpy formulation of Swaminathan and Voller (1992) and Langer et al. (2022). Note that this
 heat operator formulation does not compute a divergence `dH` but only computes the necessary diffusion
 coefficients for use by an appropriate solver. See the `LiteImplicit` module for the appropriate
 solver algorithms.
 """
-struct EnthalpyImplicit{Tcond,Thc} <: HeatOperator{:H}
-    cond::Tcond
-    hc::Thc
-    EnthalpyImplicit(cond=quadratic_parallel_conductivity, hc=weighted_average_heatcapacity) = new{typeof(cond),typeof(hc)}(cond, hc)
-end
+struct EnthalpyImplicit <: HeatOperator{:H} end
 
 """
 Numerical constants for pararameterizing heat processes.

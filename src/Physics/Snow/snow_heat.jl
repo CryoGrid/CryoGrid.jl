@@ -27,7 +27,7 @@ function Heat.thermalconductivity(sq::SturmQuadratic, ρsn::Number)
 end
 
 # extract thermal conductivity scheme from thermal properties struct and invoke special dispatches defined above.
-Heat.thermalconductivity(snow::Snowpack, heat::HeatBalance, state, i) = thermalconductivity(snow.para.heat.cond, state.ρsn[i])
+Heat.thermalconductivity(snow::Snowpack, state, i) = thermalconductivity(snow.para.heat.cond, state.ρsn[i])
 
 function Heat.enthalpyinv(::Snowpack, heat::HeatBalance{FreeWater,<:EnthalpyBased}, H, θwi, C, L)
     T_f = H / C

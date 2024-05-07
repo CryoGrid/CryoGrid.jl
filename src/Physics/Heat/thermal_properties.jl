@@ -8,6 +8,8 @@ this includes the thermal properties of water, ice, and air. This can be extende
 by passing additional properties into the constructor.
 """
 Utils.@properties ThermalProperties(
+    thermcond = quadratic_parallel_conductivity,
+    heatcap = Numerics.linearmean,
     kh_w = 0.57u"J/s/m/K", # thermal conductivity of water [Hillel (1982)]
     kh_i = 2.2u"J/s/m/K", # thermal conductivity of ice [Hillel (1982)]
     kh_a = 0.025u"J/s/m/K", # thermal conductivity of air [Hillel (1982)]
@@ -17,18 +19,6 @@ Utils.@properties ThermalProperties(
 )
 
 # Thermal conductivity
-
-"""
-    thermalconductivities(sub::SubSurface)
-
-Get thermal conductivities for generic `SubSurface` layer.
-"""
-function thermalconductivities(sub::SubSurface)
-    @unpack kh_w, kh_i, kh_a = thermalproperties(sub)
-    return (kh_w, kh_i, kh_a)
-end
-thermalconductivities(sub::SubSurface, state) = thermalconductivities(sub)
-thermalconductivities(sub::SubSurface, state, i) = thermalconductivities(sub, state)
 
 """
     quadratic_parallel_conductivity(ks, θs)
@@ -56,25 +46,13 @@ Woodside, W. & Messmer, J.H. 1961. Thermal conductivity of porous media. I. Unco
 geometric_conductivity(ks, θs) = prod(map((k,θ) -> k^θ, ks, θs))
 
 """
-    thermalconductivity(sub::SubSurface, heat::HeatBalance, state, i)
-
-Computes the thermal conductivity as a squared weighted sum over constituent conductivities with volumetric fractions `θfracs`.
-"""
-function thermalconductivity(sub::SubSurface, heat::HeatBalance, state, i)
-    θs = volumetricfractions(sub, state, i)
-    ks = thermalconductivities(sub, state, i)
-    f = thermal_conductivity_function(heat.op)
-    return f(ks, θs)
-end
-
-"""
     thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
 
 Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `k`.
 """
-function thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
+function thermalconductivity!(sub::SubSurface, ::HeatBalance, state)
     @inbounds for i in 1:length(state.T)
-        state.kc[i] = thermalconductivity(sub, heat, state, i)
+        state.kc[i] = thermalconductivity(sub, state, i)
         if i > 1
             Δk₁ = CryoGrid.thickness(sub, state, i-1)
             Δk₂ = CryoGrid.thickness(sub, state, i)
@@ -90,44 +68,12 @@ end
 # Heat capacity
 
 """
-    heatcapacities(::SubSurface)
-
-Get heat capacities for generic `SubSurface` layer.
-"""
-function heatcapacities(sub::SubSurface)
-    @unpack ch_w, ch_i, ch_a = thermalproperties(sub)
-    return ch_w, ch_i, ch_a
-end
-heatcapacities(sub::SubSurface, state) = heatcapacities(sub)
-heatcapacities(sub::SubSurface, state, i) = heatcapacities(sub, state)
-
-"""
-    weighted_average_heatcapacity(cs, θs)
-
-Represents a simple composite heat capacity that is the sum of each constituent heat capacity weighted
-by the volumetric fraction.
-"""
-weighted_average_heatcapacity(cs, θs) = sum(map(*, cs, θs))
-
-"""
-    heatcapacity(sub::SubSurface, heat::HeatBalance, state, i)
-
-Computes the heat capacity as a weighted average over constituent capacities with volumetric fractions `θfracs`.
-"""
-function heatcapacity(sub::SubSurface, heat::HeatBalance, state, i)
-    θs = volumetricfractions(sub, state, i)
-    cs = heatcapacities(sub, state, i)
-    f = heat_capacity_function(heat.op)
-    return f(cs, θs)
-end
-
-"""
-    heatcapacity!(sub::SubSurface, heat::HeatBalance, state)
+    heatcapacity!(sub::SubSurface, state)
 
 Computes the heat capacity for the given layer from the current state and stores the result in-place in the state variable `C`.
 """
-function heatcapacity!(sub::SubSurface, heat::HeatBalance, state)
+function heatcapacity!(sub::SubSurface, state)
     @inbounds for i in 1:length(state.T)
-        state.C[i] = heatcapacity(sub, heat, state, i)
+        state.C[i] = heatcapacity(sub, state, i)
     end
 end

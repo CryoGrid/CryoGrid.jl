@@ -51,7 +51,7 @@ end
         z_bot = 1000.0u"m"
         heatop = Heat.EnthalpyImplicit()
         # heatop = Heat.Diffusion1D(:H)
-        soil = Ground(MineralOrganic(por=0.3, sat=1.0, org=0.0), heat=HeatBalance(heatop))
+        soil = Ground(MineralOrganic(por=0.3, sat=1.0, org=0.0), heat=HeatBalance(heatop), water=nothing)
         strat = @Stratigraphy(
             z_top => Top(ConstantTemperature(1.0u"°C")),
             z_top => :soil => soil,
@@ -75,12 +75,11 @@ end
         θ_l = (θw=porosity(strat.soil), θi=0.0, θa=0.0, θm=θm, θo=θo)
         k_vals = Heat.thermalconductivities(strat.soil)
         c_vals = Heat.heatcapacities(strat.soil)
-        thermcond = Heat.thermal_conductivity_function(strat.soil.heat.op)
-        heatcap = Heat.heat_capacity_function(strat.soil.heat.op)
-        k_s = thermcond(k_vals, θ_s)
-        k_l = thermcond(k_vals, θ_l)
-        c_s = heatcap(c_vals, θ_s)
-        c_l = heatcap(c_vals, θ_l)
+        thermalprops = Heat.thermalproperties(strat.soil)
+        k_s = thermalprops.thermcond(k_vals, θ_s)
+        k_l = thermalprops.thermcond(k_vals, θ_l)
+        c_s = thermalprops.heatcap(c_vals, θ_s)
+        c_l = thermalprops.heatcap(c_vals, θ_l)
         stefan_prob = StefanProblem(p=StefanParameters(T_s=-1.0u"°C", T_l=1.0u"°C"; k_s, k_l, c_s, c_l, θwi=0.3))
         stefan_sol = solve(stefan_prob)
         ts = ustrip.(u"d", (tspan[1]:24*3600:tspan[end])*u"s")

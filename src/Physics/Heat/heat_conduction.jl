@@ -12,7 +12,7 @@ function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBase
         H = state.H[i]
         θwi = Hydrology.watercontent(sub, state, i)
         state.θw[i], _ = FreezeCurves.freewater(H, θwi, L)
-        C = state.C[i] = heatcapacity(sub, heat, state, i)
+        C = state.C[i] = heatcapacity(sub, state, i)
         T = state.T[i] = enthalpyinv(sub, heat, H, θwi, C, L)
         # set ∂H∂T (a.k.a ∂H∂T)
         state.∂H∂T[i] = iszero(T) ? 1e8 : C

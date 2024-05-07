@@ -18,70 +18,71 @@ using InteractiveUtils: @which
             @test hasproperty(model.state.vars, :testground)
             @test hasproperty(model.state.vars, :bottom)
         end
-        try
-            # case: no variables defined
-            @test_throws AssertionError model = Tile(strat, grid)
-            # case: no prognostic variables defined
-            CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-                Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
-            )
-            @test_throws AssertionError model = Tile(strat, grid)
-            # case: OK
-            CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-                Prognostic(:x, OnGrid(Cells), u"J"),
-                Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
-            )
-            model = Tile(strat, grid, DummyInitializer{:x}())
-            checkfields(model)
-            @test hasproperty(model.state.uproto,:x)
-            @test hasproperty(model.state.griddiag,:k)
-            # no initializers
-            model = @test_logs (:warn, r"No initializers provided.*") Tile(strat, grid)
-            # variable declared as prognostic and diagnostic
-            CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-                Prognostic(:x, OnGrid(Cells), u"J"),
-                Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
-                Diagnostic(:w, OnGrid(Cells), u"kg"),
-                Prognostic(:w, OnGrid(Cells), u"kg"),
-            )
-            model = Tile(strat, grid, DummyInitializer{:x}())
-            checkfields(model)
-            @test hasproperty(model.state.uproto,:x)
-            @test hasproperty(model.state.uproto,:w)
-            # allow non-conflicting duplicates
-            CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-                Prognostic(:x, OnGrid(Cells), u"J"),
-                Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
-                Diagnostic(:w, OnGrid(Cells), u"kg"),
-                Diagnostic(:w, OnGrid(Cells), u"kg"),
-            )
-            model = Tile(strat, grid, DummyInitializer{:x}())
-            checkfields(model)
-            @test hasproperty(model.state.griddiag,:w)
-            # error when conflicting variables declared
-            CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-                Prognostic(:x, OnGrid(Cells), u"J"),
-                Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
-                Diagnostic(:w, OnGrid(Cells), u"kg/m"),
-                Diagnostic(:w, OnGrid(Edges), u"kg/m"),
-            )
-            @test_throws AssertionError model = Tile(strat, grid, DummyInitializer{:x}())
-            # test scalar variables and parameters
-            CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
-                Prognostic(:x, OnGrid(Cells), u"J"),
-                Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
-                Diagnostic(:a, Scalar, NoUnits, Float64),
-            )
-            model = Tile(strat, grid, DummyInitializer{:x}())
-            checkfields(model)
-            @test hasproperty(model.state.diag.testground, :a)
-            model.state.diag.testground.a.cache.du[1] = 2.0
-            @test model.state.diag.testground.a.cache.du[1] == 2.0
-            state = getproperty(getstate(model, model.state.uproto, model.state.uproto, 0.0), :testground)
-        finally
-            # clean-up method definitions (necessary for re-running test set)
-            Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
-        end
+        # case: no variables defined
+        @test_throws AssertionError model = Tile(strat, grid)
+        # case: no prognostic variables defined
+        CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
+            Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
+        )
+        @test_throws AssertionError model = Tile(strat, grid)
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
+        # case: OK
+        CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
+            Prognostic(:x, OnGrid(Cells), u"J"),
+            Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
+        )
+        model = Tile(strat, grid, DummyInitializer{:x}())
+        checkfields(model)
+        @test hasproperty(model.state.uproto,:x)
+        @test hasproperty(model.state.griddiag,:k)
+        # no initializers
+        model = @test_logs (:warn, r"No initializers provided.*") Tile(strat, grid)
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
+        # variable declared as prognostic and diagnostic
+        CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
+            Prognostic(:x, OnGrid(Cells), u"J"),
+            Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
+            Diagnostic(:w, OnGrid(Cells), u"kg"),
+            Prognostic(:w, OnGrid(Cells), u"kg"),
+        )
+        model = Tile(strat, grid, DummyInitializer{:x}())
+        checkfields(model)
+        @test hasproperty(model.state.uproto,:x)
+        @test hasproperty(model.state.uproto,:w)
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
+        # allow non-conflicting duplicates
+        CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
+            Prognostic(:x, OnGrid(Cells), u"J"),
+            Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
+            Diagnostic(:w, OnGrid(Cells), u"kg"),
+            Diagnostic(:w, OnGrid(Cells), u"kg"),
+        )
+        model = Tile(strat, grid, DummyInitializer{:x}())
+        checkfields(model)
+        @test hasproperty(model.state.griddiag,:w)
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
+        # error when conflicting variables declared
+        CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
+            Prognostic(:x, OnGrid(Cells), u"J"),
+            Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
+            Diagnostic(:w, OnGrid(Cells), u"kg/m"),
+            Diagnostic(:w, OnGrid(Edges), u"kg/m"),
+        )
+        @test_throws AssertionError model = Tile(strat, grid, DummyInitializer{:x}())
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
+        # test scalar variables and parameters
+        CryoGrid.variables(::TestGroundLayer, ::TestGroundProcess) = (
+            Prognostic(:x, OnGrid(Cells), u"J"),
+            Diagnostic(:k, OnGrid(Edges), u"J/s/m^3"),
+            Diagnostic(:a, Scalar, NoUnits, Float64),
+        )
+        model = Tile(strat, grid, DummyInitializer{:x}())
+        checkfields(model)
+        @test hasproperty(model.state.diag.testground, :a)
+        model.state.diag.testground.a.cache.du[1] = 2.0
+        @test model.state.diag.testground.a.cache.du[1] == 2.0
+        state = getproperty(getstate(model, model.state.uproto, model.state.uproto, 0.0), :testground)
+        Base.delete_method(@which CryoGrid.variables(TestGroundLayer(TestGroundProcess()), TestGroundProcess()))
     end
     @testset "4-layer" begin
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")
