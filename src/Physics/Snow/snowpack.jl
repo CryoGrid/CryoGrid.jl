@@ -28,15 +28,15 @@ Base.@kwdef struct SnowThermalProperties{Tcond<:SnowThermalConductivity,Tprop}
 end
 
 """
-    Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
+    Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Twater<:WaterBalance,Theat<:HeatBalance,Taux} <: CryoGrid.SubSurface
 
 Generic representation of a snowpack "subsurface" layer.
 """
-Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: CryoGrid.SubSurface
+Base.@kwdef struct Snowpack{Tpara<:SnowpackParameterization,Tmass<:SnowMassBalance,Twater<:WaterBalance,Theat<:HeatBalance,Taux} <: CryoGrid.SubSurface
     para::Tpara = Bulk()
     mass::Tmass = SnowMassBalance()
-    heat::Theat = HeatBalance()
     water::Twater = WaterBalance()
+    heat::Theat = HeatBalance()
     aux::Taux = nothing
 end
 
@@ -61,12 +61,12 @@ Hydrology.hydraulicconductivity(snow::Snowpack, water::WaterBalance, θw, θwi, 
 # max (fully saturated) water content
 Hydrology.maxwater(::Snowpack, ::WaterBalance, state) = 1.0
 
+# Heat methods:
+
+Heat.thermalproperties(snow::Snowpack) = snow.para.heat.prop
+
 # Default implementations of CryoGrid methods for Snowpack
 CryoGrid.processes(snow::Snowpack) = Coupled(snow.mass, snow.water, snow.heat)
-
-CryoGrid.thickness(::Snowpack, state, i::Integer=1) = abs(getscalar(state.Δz))
-
-CryoGrid.midpoint(::Snowpack, state, i::Integer=1) = abs(getscalar(state.z) + getscalar(state.Δz)) / 2
 
 CryoGrid.isactive(snow::Snowpack, state) = CryoGrid.thickness(snow, state) > threshold(snow)
 
@@ -95,10 +95,9 @@ end
 
 function CryoGrid.computediagnostic!(
     snow::Snowpack,
-    procs::CoupledSnowWaterHeat,
     state,
 )
-    mass, water, heat = procs
+    mass, water, heat = processes(snow)
     computediagnostic!(snow, mass, state)
     computediagnostic!(snow, water, state)
     computediagnostic!(snow, heat, state)
@@ -111,9 +110,22 @@ function CryoGrid.computediagnostic!(
 )
     # update snow density
     snowdensity!(snow, mass, state)
-    # update snow depth;
-    # by default, we just use the current layer thickness
-    @setscalar state.dsn = getscalar(state.Δz)
+    # update snow depth based on density and swe
+    ρw = waterdensity(snow)
+    @. state.dsn = max(state.swe*state.ρsn / ρw, zero(eltype(state.dsn)))
+    # update grid
+    z0 = state.grid[end] - state.dsn[1]
+    updategrid!(state.grid, z0, state.dsn)
+end
+
+function CryoGrid.computefluxes!(
+    snow::Snowpack,
+    state,
+)
+    mass, water, heat = processes(snow)
+    computefluxes!(snow, mass, state)
+    computefluxes!(snow, water, state)
+    computefluxes!(snow, heat, state)
 end
 
 # Special overrides for heat timestep control on snow layer
@@ -122,7 +134,7 @@ CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.C
 function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
-    if getscalar(state.dsn) > snow.para.thresh
+    if isactive(snow, state)
         @inbounds for i in eachindex(Δx)
             dtmax = min(dtmax, heat.dtlim(state.dH[i], state.H[i], state.t))
         end

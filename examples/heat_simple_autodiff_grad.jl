@@ -19,32 +19,37 @@ tile = CryoGrid.Presets.SoilHeatTile(
     freezecurve=PainterKarra(),
     grid=grid
 )
-tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
+tspan = (DateTime(2010,10,1),DateTime(2010,10,2))
 u0, du0 = @time initialcondition!(tile, tspan);
 
 # Collect model parameters
 p = CryoGrid.parameters(tile)
 
 # Create the `CryoGridProblem`.
-prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0);
+prob = CryoGridProblem(tile, u0, tspan, p, saveat=3600.0);
 
 # Solve the forward problem with default parameter settings:
 sol = @time solve(prob)
 out = CryoGridOutput(sol)
 
-# Define a "loss" function; here we'll just take the mean over the final temperature field.
-using Statistics
-function loss(p)
-    local u0, _ = initialcondition!(tile, tspan, p)
-    local prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0)
-    local sol = solve(prob, CGEuler());
-    local out = CryoGridOutput(sol)
-    return mean(ustrip.(out.T[:,end]))
-end
-
 # ForwardDiff provides tools for forward-mode automatic differentiation.
 using ForwardDiff
-pvec = vec(p)
+using SciMLSensitivity
+using Zygote
+
+# Define a "loss" function; here we'll just take the mean over the final temperature field.
+using Statistics
+function loss(prob::CryoGridProblem, p)
+    # local u0, _ = initialcondition!(tile, tspan, p)
+    # local prob = CryoGridProblem(tile, u0, tspan, p, saveat=24*3600.0)
+    newprob = remake(prob, p=p)
+    sensealg = InterpolatingAdjoint(autojacvec=true, checkpointing=true)
+    newsol = solve(newprob, Euler(), dt=300.0, sensealg=sensealg);
+    newout = CryoGridOutput(newsol)
+    return mean(ustrip.(newout.T[:,end]))
+end
 
 # Compute gradient with forward diff:
-grad = @time ForwardDiff.gradient(loss, pvec)
+pvec = vec(p)
+grad = @time ForwardDiff.gradient(pᵢ -> loss(prob, pᵢ), pvec)
+grad = @time Zygote.gradient(pᵢ -> loss(prob, pᵢ), pvec)

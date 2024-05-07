@@ -147,6 +147,7 @@ CryoGrid.parameterize(f::Forcings; ignored...) = f
 Base.propertynames(::Forcings{names}) where {names} = (:metadata, names...)
 Base.getproperty(fs::Forcings{names}, sym::Symbol) where {names} = sym ∈ names ? getproperty(getfield(fs, :data), sym) : getfield(fs, sym)
 Base.merge(fs::Forcings...) = Forcings(merge(map(f -> getfield(f, :data), fs)...), merge(map(f -> getfield(f, :metadata), fs)...))
+Base.rename(fs::Forcings, names::Pair{Symbol,Symbol}) = Forcings((; map(nm -> nm == names[1] ? names[2] => fs.data[nm] : nm => fs.data[nm], keys(fs.data))...), fs.metadata)
 
 forcingunits(::ForcingFormat) = Dict()
 

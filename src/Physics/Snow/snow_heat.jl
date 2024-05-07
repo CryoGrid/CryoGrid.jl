@@ -10,25 +10,20 @@ function Heat.thermalconductivity(se::SturmExponential, ρsn::Number)
     return k_eff
 end
 
-Base.@kwdef struct SturmQuadratic{Trh,Thi,Tlo} <: SnowThermalConductivity
-    range_hi::Trh = 156..600.0
+Base.@kwdef struct SturmQuadratic{Thi,Tlo,Tthresh,Tmax} <: SnowThermalConductivity
     coefs_hi::Thi = (a = 3.233, b = -1.01, c = 0.138)
     coefs_lo::Tlo = (a = 0.0, b = 0.234, c = 0.023)
+    thresh::Tthresh = 0.156u"g/cm^3"
+    k_max::Tmax = 2.2u"W/m/K" # assumed cond. of ice
 end
 
 function Heat.thermalconductivity(sq::SturmQuadratic, ρsn::Number)
-    coefs = if ρsn ∈ sq.range_hi
-        sq.coefs_hi
-    elseif ρsn < infimum(sq.range_hi)
-        sq.coefs_lo
-    else
-        error("snow density $ρsn outside of supported range (max: $(supremum(sq.range_hi)))")
-    end
+    coefs = map((hi,lo) -> hi*(ρsn >= sq.thresh) + lo*(ρsn < sq.thresh), sq.coefs_hi, sq.coefs_lo)
     # convert ρsn to g/cm^3
-    ρsn = 1000*ρsn / 1e6
+    ρsn = ustrip(u"g/cm^3", applyunits(u"kg/m^3", ρsn))
     # calculate conductivity
     k_eff = coefs.c + coefs.b*ρsn + coefs.a*ρsn^2
-    return k_eff
+    return min(k_eff*unit(sq.k_max), sq.k_max)
 end
 
 # extract thermal conductivity scheme from thermal properties struct and invoke special dispatches defined above.
@@ -48,3 +43,5 @@ function Heat.enthalpyinv(::Snowpack, heat::HeatBalance{FreeWater,<:EnthalpyBase
     )
     return T
 end
+
+Heat.freezethaw!(snowpack::Snowpack, state) = Heat.freezethaw!(snowpack, snowpack.heat, state)

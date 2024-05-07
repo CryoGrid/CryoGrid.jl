@@ -87,9 +87,8 @@ Base.length(strat::Stratigraphy) = length(layers(strat))
 Base.getindex(strat::Stratigraphy, i::Int) = layers(strat)[i]
 Base.firstindex(strat::Stratigraphy) = 1
 Base.lastindex(strat::Stratigraphy) = length(strat)
-Base.iterate(strat::Stratigraphy) = (layers(strat)[1],layers(strat)[2:end])
-Base.iterate(strat::Stratigraphy, itrstate::Tuple) = (itrstate[1],itrstate[2:end])
-Base.iterate(strat::Stratigraphy, itrstate::Tuple{}) = nothing
+Base.iterate(strat::Stratigraphy) = iterate(layers(strat))
+Base.iterate(strat::Stratigraphy, i) = iterate(layers(strat), i)
 Base.NamedTuple(strat::Stratigraphy) = layers(strat)
 function Base.show(io::IO, ::MIME"text/plain", strat::Stratigraphy)
     print(io, "Stratigraphy:\n")
@@ -237,47 +236,32 @@ end
 # collecting/grouping components
 CryoGrid.events(strat::Stratigraphy) = (; map(named_layer -> nameof(named_layer) => _addlayerfield(CryoGrid.events(named_layer.val), nameof(named_layer)), namedlayers(strat))...)
 
-CryoGrid.variables(::Union{FixedVolume,DiagnosticVolume}) = (
-    Diagnostic(:Δz, Scalar, u"m", domain=0..Inf),
-    # technically the domain for z should be double bounded by the surrounding layers...
-    # unfortunately there is no way to represent that here, so we just have to ignore it
-    Diagnostic(:z, Scalar, u"m"),
-)
-CryoGrid.variables(::PrognosticVolume) = (
-    Prognostic(:Δz, Scalar, u"m", domain=0..Inf),
-    Diagnostic(:z, Scalar, u"m"),
-)
 # collects all variables in the stratgriphy, returning a NamedTuple of variable sets.
 function CryoGrid.variables(strat::Stratigraphy)
     layervars = map(_collectvars, layers(strat))
-    return map(layervars, layers(strat)) do vars, layer
-        (
-            vars...,
-            CryoGrid.variables(CryoGrid.Volume(layer))...,
-        )
-    end
+    return (; map(Pair, keys(strat), layervars)...)
 end
 
 function _initializers!(strat::Stratigraphy, state, inits)
-    # first invoke initialconditon! with initializers
-    for i in 1:length(strat)-1
+    for i in 1:length(strat)
         layerᵢ = strat[i]
-        layerᵢ₊₁ = strat[i+1]
         stateᵢ = getproperty(state, layernames(strat)[i])
-        stateᵢ₊₁ = getproperty(state, layernames(strat)[i+1])
+        if i < length(strat)
+            layerᵢ₊₁ = strat[i+1]
+            stateᵢ₊₁ = getproperty(state, layernames(strat)[i+1])
+        end
+        # loop over initializers
         for init in sort(collect(tuplejoin(CryoGrid.initializers(layerᵢ), inits)))
             isvalidᵢ = !isa(init, VarInitializer) || hasproperty(stateᵢ, varname(init))
-            isvalidᵢ₊₁ = !isa(init, VarInitializer) || hasproperty(stateᵢ₊₁, varname(init))
-            if i == 1
-                if isvalidᵢ
-                    CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+            if isvalidᵢ
+                CryoGrid.initialcondition!(init, layerᵢ, stateᵢ)
+            end
+
+            if i < length(strat)
+                isvalidᵢ₊₁ = !isa(init, VarInitializer) || hasproperty(stateᵢ₊₁, varname(init))
+                if isvalidᵢ && isvalidᵢ₊₁
+                    CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
                 end
-            end
-            if isvalidᵢ₊₁
-                CryoGrid.initialcondition!(init, layerᵢ₊₁, stateᵢ₊₁)
-            end
-            if isvalidᵢ && isvalidᵢ₊₁
-                CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
             end
         end
     end

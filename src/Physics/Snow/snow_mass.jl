@@ -24,5 +24,3 @@ function calculate_degree_day_snow_melt(ddm::DegreeDayMelt, T_ub::Number)
     dmelt = ddf*max(T_ub-Tref, zero(T_ub)) # [m/s]
     return max(dmelt, zero(dmelt))
 end
-
-CryoGrid.Volume(::Type{<:Snowpack{T,<:SnowMassBalance}}) where {T} = CryoGrid.PrognosticVolume()

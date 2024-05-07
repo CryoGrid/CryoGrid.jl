@@ -4,7 +4,7 @@
 Simple, bulk ("single layer") snow scheme where snowpack is represented as a single grid cell with homogenous state.
 """
 Base.@kwdef struct Bulk{Tden<:SnowDensityScheme,Tthresh,Theat,Twater} <: SnowpackParameterization
-    thresh::Tthresh = 0.001u"m" # snow threshold
+    thresh::Tthresh = 0.005u"m" # snow threshold
     density::Tden = ConstantDensity() # snow density
     heat::Theat = SnowThermalProperties() # thermal properties
     water::Twater = HydraulicProperties(kw_sat=1e-4) # hydraulic properties
@@ -23,6 +23,9 @@ const BulkSnowpack{TD} = Snowpack{<:Bulk{TD}} where {TD}
 Retrieves the minimum snow threshold for the bulk snow scheme.
 """
 threshold(snow::BulkSnowpack) = snow.para.thresh
+
+# do nothing for constant density scheme
+compaction!(::Top, ::SnowBC, ::BulkSnowpack{<:ConstantDensity}, ::SnowMassBalance, stop, ssnow) = nothing
 
 function snowdensity!(
     snow::BulkSnowpack{<:ConstantDensity},
@@ -54,8 +57,6 @@ function ablation!(
     θsat = getscalar(ssnow.θsat)
     θis = 1 - θsat # solid ice
     Δdsn = -dmelt / θis
-    # add corresponding layer thickness flux if dmelt > 0
-    @. ssnow.dΔz += Δdsn
     # add water flux due to melt if and only if snowpack is "active"
     sat = getscalar(ssnow.sat)
     water_flux_in = (dmelt + Δdsn*θsat*sat)*isactive(snow, ssnow)
@@ -77,13 +78,10 @@ function accumulation!(
     jw_snow = snowfall(snowbc, stop)[1]
     Δswe = rate_scale*jw_snow
     @. ssnow.dswe += Δswe
-    θsat = getscalar(ssnow.θsat)
-    θis = 1 - θsat # solid ice
-    Δdsn = Δswe / θis
-    @. ssnow.dΔz += Δdsn
+    # θsat = getscalar(ssnow.θsat)
+    # θis = 1 - θsat # solid ice
+    # Δdsn = Δswe / θis
 end
-
-Heat.thermalproperties(snow::BulkSnowpack) = snow.para.heat.prop
 
 function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     ρw = waterdensity(snow)
@@ -97,6 +95,10 @@ function Hydrology.watercontent!(snow::BulkSnowpack, ::WaterBalance, state)
     return nothing
 end
 
+CryoGrid.thickness(::BulkSnowpack, state, i::Integer=1) = getscalar(state.dsn)
+
+CryoGrid.midpoint(::BulkSnowpack, state, i::Integer=1) = getscalar(cells(state.grid))
+
 CryoGrid.variables(snow::BulkSnowpack, ::SnowMassBalance) = (
     Prognostic(:swe, Scalar, u"m", domain=0..Inf),
     Diagnostic(:ρsn, Scalar, u"kg/m^3", domain=0..Inf),
@@ -109,7 +111,6 @@ CryoGrid.makegrid(::BulkSnowpack, strategy, bounds) = Grid([bounds[1], bounds[2]
 
 # Initialization
 function CryoGrid.initialcondition!(snow::BulkSnowpack, ::SnowMassBalance, state)
-    state.Δz .= state.dsn
     state.T .= min(state.T_ub, zero(state.T_ub))
     state.sat .= zero(eltype(state.sat))
     return nothing
@@ -125,7 +126,7 @@ function CryoGrid.criterion(
     snow::BulkSnowpack,
     state,
 )
-    Δz = getscalar(state.Δz)
+    Δz = getscalar(Δ(state.grid))
     # use threshold adjusted depth as residual;
     # i.e. the event will fire when snow depth crosses this threshold.
     return Δz - threshold(snow)
@@ -138,6 +139,7 @@ function CryoGrid.trigger!(
     snow::BulkSnowpack,
     state
 )
+    cellthick = Δ(state.grid)
     # Case 1: Decreasing snow depth; set everything to zero to remove snowpack
     state.H .= 0.0
     state.T .= 0.0
@@ -145,7 +147,7 @@ function CryoGrid.trigger!(
     state.θwi .= 0.0
     state.swe .= 0.0
     state.dsn .= 0.0
-    state.Δz .= 0.0
+    cellthick .= 0.0
     return nothing
 end
 function CryoGrid.trigger!(
@@ -170,16 +172,18 @@ CryoGrid.computefluxes!(snow::BulkSnowpack, mass::SnowMassBalance, state) = noth
 # computefluxes! for free water, enthalpy based HeatBalance on bulk snow layer
 function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
-    ps::CoupledSnowWaterHeat{TM,TW,<:HeatBalance{FreeWater,<:EnthalpyBased}},
+    ps::CoupledSnowWaterHeat{TM,TW,TH},
     state
-) where {TM,TW}
+) where {TM,TW,TH<:HeatBalance{FreeWater,<:EnthalpyBased}}
     mass, water, heat = ps
     computefluxes!(snow, mass, state)
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set fluxes to zero if there is no snow
-        @. state.dH = zero(eltype(state.H))
-        @. state.dsat = zero(eltype(state.sat))
+        state.dH .= 0.0
+        if !isa(water.flow, NoFlow)
+            state.dsat .= 0.0
+        end
     else
         # otherwise call computefluxes! for coupled water/heat
         computefluxes!(snow, Coupled(water, heat), state)
@@ -201,9 +205,10 @@ function CryoGrid.diagnosticstep!(snow::BulkSnowpack, state)
     # force swe to be >= 0
     swe = getscalar(state.swe)
     dsn = getscalar(state.dsn)
+    cellthick = Δ(state.grid)
     if swe < zero(swe)
         state.swe .= zero(swe)
-        state.Δz .= state.dsn .= zero(dsn)
+        cellthick .= state.dsn .= zero(dsn)
         return true
     end
     return false
@@ -213,14 +218,14 @@ end
 
 # Snow mass
 function CryoGrid.timestep(snow::BulkSnowpack, mass::SnowMassBalance, state)
-    dΔz = getscalar(state.dΔz)
+    ρw = waterdensity(snow)
+    ρsn = getscalar(snowdensity(snow, state))
+    dΔz = getscalar(state.dswe)*ρsn/ρw
     dsn = getscalar(state.dsn)
     thresh = snow.para.thresh
     dtmax = Inf
     if dsn > thresh && dΔz < zero(dΔz)
         dtmax = (dsn - thresh) / abs(dΔz)
-    elseif 0 < dsn < thresh && dΔz > zero(dΔz)
-        dtmax = (thresh - dsn) / dΔz
     end
     # take min of threshold dtmax and dt limiter
     # dtmax = mass.dtlim(dΔz, dsn, state.t, 0.0, Inf)
