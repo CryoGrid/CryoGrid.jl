@@ -35,20 +35,7 @@ examples_output_dir = joinpath(@__DIR__, "src", "examples")
 rm(examples_output_dir, recursive=true, force=true)
 # recreate directory
 mkpath(examples_output_dir)
-# generate example docs from scripts
-ignored_files = [
-       "Manifest.toml",
-       "Project.toml",
-       "heat_sfcc_richardseq_samoylov.jl",
-       "heat_freeW_lake_lite_implicit.jl",
-]
-example_docfiles = map(filter(∉(ignored_files), readdir(examples_dir))) do f
-       infile = joinpath(examples_dir, f)
-       @info "Generating docpage for example script $infile and writing to directory $examples_output_dir"
-       Literate.markdown(infile, examples_output_dir, execute=false, documenter=true)
-       return f
-end
-
+# define example files to make pages from
 name_lookup = Dict(
        "heat_freeW_samoylov.md" => "Soil heat with free water freeze curve",
        "heat_sfcc_constantbc.md" => "Soil heat with SFCC and constant BCs",
@@ -60,7 +47,17 @@ name_lookup = Dict(
        "heat_sfcc_richardseq_samoylov.md" => "Coupled soil heat and water transport",
        "heat_sfcc_salt_constantbc.md" => "Coupled heat and salt diffusion on salty soil column",
        "heat_simple_autodiff_grad.md" => "Computing parameter sensitivities with autodiff",
+       "cglite_parameter_ensembles.md" => "Running parameter ensembles",
 )
+# change file suffixes
+example_scripts = map(f -> split(f, ".")[1]*".jl", keys(name_lookup))
+# generate example docs from scripts
+example_docfiles = map(filter(∈(example_scripts), readdir(examples_dir))) do f
+       infile = joinpath(examples_dir, f)
+       @info "Generating docpage for example script $infile and writing to directory $examples_output_dir"
+       Literate.markdown(infile, examples_output_dir, execute=false, documenter=true)
+       return f
+end
 
 example_docpages = map(example_docfiles) do f
        docpage = replace(f, "jl" => "md")
