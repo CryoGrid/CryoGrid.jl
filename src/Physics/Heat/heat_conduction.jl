@@ -1,34 +1,3 @@
-function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
-    # thermal conductivity between cells
-    k = Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
-    # calculate heat flux between cells
-    jH = @inbounds let δ = z₂ - z₁;
-        Numerics.flux(T₁, T₂, δ, k)
-    end
-    return (; jH, k)
-end
-
-# Free water freeze curve
-function enthalpyinv(::SubSurface, ::HeatBalance{FreeWater,<:EnthalpyBased}, H, θwi, C, L)
-    Lθ = L*θwi
-    T_f = H / C
-    T_t = (H - Lθ) / C
-    T = IfElse.ifelse(
-        H < zero(θwi),
-        # Case 1: H < 0 -> frozen
-        T_f,
-        # Case 2: H >= 0
-        IfElse.ifelse(
-            H >= Lθ,
-            # Case 2a: H >= Lθ -> thawed
-            T_t,
-            # Case 2b: 0 <= H < Lθ -> phase change
-            zero(T_f)
-        )
-    )
-    return T
-end
-
 """
     freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state)
 
@@ -177,4 +146,35 @@ function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
     @. state.jH = zero(eltype(state.jH))
+end
+
+function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
+    # thermal conductivity between cells
+    k = Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
+    # calculate heat flux between cells
+    jH = @inbounds let δ = z₂ - z₁;
+        Numerics.flux(T₁, T₂, δ, k)
+    end
+    return (; jH, k)
+end
+
+# Free water freeze curve
+function enthalpyinv(::SubSurface, ::HeatBalance{FreeWater,<:EnthalpyBased}, H, θwi, C, L)
+    Lθ = L*θwi
+    T_f = H / C
+    T_t = (H - Lθ) / C
+    T = IfElse.ifelse(
+        H < zero(θwi),
+        # Case 1: H < 0 -> frozen
+        T_f,
+        # Case 2: H >= 0
+        IfElse.ifelse(
+            H >= Lθ,
+            # Case 2a: H >= Lθ -> thawed
+            T_t,
+            # Case 2b: 0 <= H < Lθ -> phase change
+            zero(T_f)
+        )
+    )
+    return T
 end

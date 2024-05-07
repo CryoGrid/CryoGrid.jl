@@ -111,8 +111,9 @@ function balancefluxes!(sub::SubSurface, water::WaterBalance, state)
     end
     # apply flux limits to uppermost and lowermost edges;
     # this may in some cases be redundant with interact! but is necessary due to the possible addition of ET fluxes
-    @inbounds state.jw[1] = limit_upper_flux(water, state.jw[1]*dt, state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], state.Δz[1])/dt
-    @inbounds state.jw[end] = limit_lower_flux(water, state.jw[end]*dt, state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], state.Δz[end])/dt
+    Δz = CryoGrid.thickness(sub, state)
+    @inbounds state.jw[1] = limit_upper_flux(water, state.jw[1]*dt, state.θw[1], state.θwi[1], state.θsat[1], state.sat[1], Δz[1])/dt
+    @inbounds state.jw[end] = limit_lower_flux(water, state.jw[end]*dt, state.θw[end], state.θwi[end], state.θsat[end], state.sat[end], Δz[end])/dt
     return nothing
 end
 
@@ -244,7 +245,7 @@ end
 hydraulicconductivity!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.variables(::NoFlow) = (
-    Prognostic(:sat, OnGrid(Cells), domain=0..1),
+    Diagnostic(:sat, OnGrid(Cells), domain=0..1),
 )
 
 function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}, state)

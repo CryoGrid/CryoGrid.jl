@@ -18,12 +18,9 @@ upperbc = WaterHeatBC(
     SurfaceWaterBalance(forcings),
     TemperatureBC(forcings.Tair)
 )
-snowmass = SnowMassBalance(
-    ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")
-)
 snowpack = Snowpack(
     para=Snow.Bulk(),
-    mass=snowmass,
+    mass=SnowMassBalance(ablation = Snow.DegreeDayMelt(factor=5.0u"mm/K/d")),
     heat=HeatBalance(),
     water=WaterBalance(),
 )

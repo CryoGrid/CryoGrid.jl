@@ -4,8 +4,6 @@ using CryoGrid.Utils
 using Test
 using InteractiveUtils: @which
 
-include("../types.jl")
-
 @testset "Tile" begin
     @testset "3-layer" begin
         grid = Grid(Vector(0.0:10.0:1000.0)u"m")

@@ -1,8 +1,6 @@
 using CryoGrid
 using Test
 
-include("../types.jl")
-
 @testset "Stratigraphy" begin
     @testset "3-layer" begin
         bounds = (-1.0u"m",0.0u"m",10.0u"m")

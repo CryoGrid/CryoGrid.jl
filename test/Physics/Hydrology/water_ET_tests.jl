@@ -2,9 +2,6 @@ using CryoGrid
 using CryoGrid.Hydrology
 using Test
 
-include("../../testutils.jl")
-include("../../types.jl")
-
 Hydrology.hydraulicproperties(::TestGroundLayer) = HydraulicProperties()
 
 function evapotranspiration_tests()

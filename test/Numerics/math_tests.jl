@@ -3,8 +3,6 @@ using CryoGrid.Numerics: flux!, divergence!, nonlineardiffusion!
 using LinearAlgebra
 using Test
 
-include("../testutils.jl")
-
 function test_flux!_and_divergence!()
 	x = 0.0:0.25:1.0
 	xc = (x[1:end-1] .+ x[2:end])./2

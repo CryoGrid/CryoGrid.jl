@@ -114,7 +114,7 @@ function updategrid!(grid::Grid{Edges}, z0, thick::AbstractVector)
     z_edges[2:end] .= z0 .+ thick
     z_cells .= (z_edges[1:end-1] .+ z_edges[2:end]) ./ (2*one(eltype(grid)))
     Δz_cells .= z_cells[2:end] .- z_cells[1:end-1]
-    @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing"
+    @assert issorted(parent(grid)) "updated grid values are invalid; grid edges must be strictly non-decreasing: $grid"
     return grid
 end
 
