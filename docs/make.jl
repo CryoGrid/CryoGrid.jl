@@ -50,7 +50,7 @@ name_lookup = Dict(
        "cglite_parameter_ensembles.md" => "Running parameter ensembles",
 )
 # change file suffixes
-example_scripts = map(f -> split(f, ".")[1]*".jl", keys(name_lookup))
+example_scripts = map(f -> split(f, ".")[1]*".jl", collect(keys(name_lookup)))
 # generate example docs from scripts
 example_docfiles = map(filter(∈(example_scripts), readdir(examples_dir))) do f
        infile = joinpath(examples_dir, f)
