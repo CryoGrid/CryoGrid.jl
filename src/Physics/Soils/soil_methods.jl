@@ -49,8 +49,3 @@ saturation(soil::Soil, state) = saturation(soil)
 # For soil layers with water balance, use saturation state variable
 saturation(::Soil{<:Any,<:Any,<:WaterBalance}, state) = state.sat
 saturation(::Soil) = error("not implemented for $(typeof(soil))")
-
-# CryoGrid core methods
-CryoGrid.processes(soil::Soil{<:SoilParameterization,<:HeatBalance,Nothing}) = soil.heat
-CryoGrid.processes(soil::Soil{<:SoilParameterization,Nothing,<:WaterBalance}) = soil.water
-CryoGrid.processes(soil::Soil{<:SoilParameterization,<:HeatBalance,<:WaterBalance}) = Coupled(soil.water, soil.heat)

@@ -1,21 +1,21 @@
 abstract type GroundParameterization end
 
 """
-    AbstractGround{Tpara<:GroundParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}} <: SubSurface
+    AbstractGround{Tpara<:GroundParameterization,Theat<:HeatBalance,Twater<:WaterBalance} <: SubSurface
 
 Base type for all ground layers defining heat and water balance schemes.
 """
-abstract type AbstractGround{Tpara<:GroundParameterization,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance}} <: SubSurface end
+abstract type AbstractGround{Tpara<:GroundParameterization,Theat<:HeatBalance,Twater<:Optional{WaterBalance}} <: SubSurface end
 
 """
-    Ground{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Taux} <: Soil{Tpara,Theat,Twater}
+    Ground{Tpara,Theat<:HeatBalance,Twater<:WaterBalance,Taux} <: Soil{Tpara,Theat,Twater}
 
 Generic representation of a `Ground` layer with material parameterization `para`.
 """
-Base.@kwdef struct Ground{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsolver,Taux} <: AbstractGround{Tpara,Theat,Twater}
+Base.@kwdef struct Ground{Tpara,Theat<:HeatBalance,Twater<:WaterBalance,Tsolver,Taux} <: AbstractGround{Tpara,Theat,Twater}
     para::Tpara = MineralOrganic() # ground parameterization
     heat::Theat = HeatBalance() # heat conduction
-    water::Twater = nothing # water balance
+    water::Twater = WaterBalance() # water balance
     fcsolver::Tsolver = default_fcsolver(para, heat, water)
     aux::Taux = nothing # user-defined specialization
 end
@@ -27,3 +27,7 @@ default_fcsolver(::GroundParameterization, ::HeatBalance{<:SFCC}, ::Nothing) = S
 default_fcsolver(::GroundParameterization, ::HeatBalance{<:SFCC}, ::WaterBalance) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
 
 fcsolver(ground::Ground) = ground.fcsolver
+
+# CryoGrid methods
+
+CryoGrid.processes(g::Ground) = Coupled(g.water, g.heat)
