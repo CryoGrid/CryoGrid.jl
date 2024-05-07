@@ -1,5 +1,5 @@
 """
-    MineralOrganic{Tpor,Tsat,Torg} <: SoilParameterization
+    MineralOrganic{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
 
 Represents a simple organic/mineral soil mixutre in terms of its characteristic fractions:
 i.e. natural porosity, saturation, and organic solid fraction. This is the standard CryoGrid representation
@@ -87,27 +87,6 @@ Hydrology.maxwater(soil::Soil{<:MineralOrganic}, water::WaterBalance) = porosity
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
 Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}, state) where {THeat} = state.θwi
-
-"""
-    Heterogeneous{V,N,D,Taux} <: SoilParameterization
-
-Special `SoilParameterization` which wraps a `Profile` of another soil parameterization type
-to indicate that it should be heterogeneous with over depth.
-"""
-Base.@kwdef struct Heterogeneous{V,N,IT,VT,Taux} <: SoilParameterization
-    profile::SoilProfile{N,IT,VT}
-    aux::Taux = nothing
-    Heterogeneous(::SoilProfile) = error("SoilProfile for heterogeneous layer must have uniform parameterization types (but the parameters may vary).")
-    Heterogeneous(profile::SoilProfile{N,IT,VT}, aux=nothing) where {N,V<:SoilParameterization,IT<:NTuple{N},VT<:NTuple{N,V}} = new{V,N,IT,VT,typeof(aux)}(profile, aux)
-end
-
-"""
-    Ground(soilprofile::SoilProfile; kwargs...)
-"""
-Ground(soilprofile::SoilProfile; kwargs...) = Ground(Heterogeneous(soilprofile); kwargs...)
-
-# add dispatch for default_fcsolver that selects the ND presolver
-default_fcsolver(::Heterogeneous, ::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
 
 saturation(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.sat
 porosity(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.por
