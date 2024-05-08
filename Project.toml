@@ -43,7 +43,7 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-Adapt = "3"
+Adapt = "3, 4"
 ComponentArrays = "0.13, 0.14, 0.15"
 ConstructionBase = "1.4"
 DataStructures = "0.18"
