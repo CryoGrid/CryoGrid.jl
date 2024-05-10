@@ -1,9 +1,10 @@
 # SURFEX paramterization
-Base.@kwdef struct SURFEX{Tρs,Tρo,Tpo,Ttex<:SoilTexture,Thp,Twp} <: SoilParameterization
+Base.@kwdef struct SURFEX{Tρs,Tρo,Tpo,Tsat,Twilt,Ttex<:SoilTexture,Thp,Twp} <: SoilParameterization
     ρ_soc::Tρs = 65.0u"kg/m^3"
     ρ_org::Tρo = 1300u"kg/m^3"
     por_org::Tpo = 0.90
-    wilting_point = 0.05
+    sat::Tsat = 1.0
+    wilting_point::Twilt = 0.05
     texture::Ttex = SoilTexture()
     heat::Thp = SoilThermalProperties(MineralOrganic) # same thermal properties as MineralOrganic
     water::Twp = HydraulicProperties(fieldcapacity=0.20) # hydraulic properties
@@ -23,12 +24,59 @@ organic(soil::Soil{<:SURFEX}) = organic(soil.para)
 
 mineral(soil::Soil{<:SURFEX}) = 1 - organic(soil.para)
 
+saturation(soil::Soil{<:SURFEX}) = soil.para.sat
+
 function porosity(soil::Soil{<:SURFEX})
     org = organic(soil)
     por = org*soil.para.por_org + (1-org)*mineral_porosity(soil.para)
     return por
 end
 
+# Heat
+
+function Heat.thermalconductivities(soil::Soil{<:SURFEX})
+    @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
+    return kh_w, kh_i, kh_a, kh_m, kh_o
+end
+
+function Heat.heatcapacities(soil::Soil{<:SURFEX})
+    @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil)
+    return ch_w, ch_i, ch_a, ch_m, ch_o
+end
+
+"""
+Gets the `ThermalProperties` for the given soil layer.
+"""
 Heat.thermalproperties(soil::Soil{<:SURFEX}) = soil.para.heat
 
+# Soil thermal properties
+SoilThermalProperties(
+    ::Type{SURFEX};
+    kh_w = ThermalProperties().kh_w,
+    kh_i = ThermalProperties().kh_i,
+    kh_a = ThermalProperties().kh_a,
+    kh_o=0.25u"W/m/K", # organic [Hillel (1982)]
+    kh_m=3.8u"W/m/K", # mineral [Hillel (1982)]
+    ch_w = ThermalProperties().ch_w,
+    ch_i = ThermalProperties().ch_i,
+    ch_a = ThermalProperties().ch_a,
+    ch_o=2.5e6u"J/K/m^3", # heat capacity organic
+    ch_m=2.0e6u"J/K/m^3", # heat capacity mineral
+    kwargs...,
+) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o, kwargs...)
+
+# Hydrology
+
+"""
+Gets the `HydraulicProperties` for the given soil layer.
+"""
 Hydrology.hydraulicproperties(soil::Soil{<:SURFEX}) = soil.para.water
+
+# field capacity
+Hydrology.minwater(soil::Soil{<:SURFEX}, ::WaterBalance) = hydraulicproperties(soil).fieldcapacity
+
+# porosity/max water
+Hydrology.maxwater(soil::Soil{<:SURFEX}, water::WaterBalance) = porosity(soil, water)
+
+# water content for soils without water balance
+Hydrology.watercontent(soil::Soil{<:SURFEX,THeat,Nothing}, state) where {THeat} = porosity(soil)*saturation(soil, state)
