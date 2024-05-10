@@ -114,7 +114,7 @@ function CryoGrid.computediagnostic!(
     ρw = waterdensity(snow)
     @. state.dsn = max(state.swe*state.ρsn / ρw, zero(eltype(state.dsn)))
     # update grid
-    z0 = state.grid[end] - state.dsn[1]
+    z0 = state.grid[end]
     updategrid!(state.grid, z0, state.dsn)
 end
 
