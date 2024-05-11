@@ -32,6 +32,11 @@ function porosity(soil::Soil{<:SURFEX})
     return por
 end
 
+CryoGrid.initializers(soil::Soil{<:SURFEX,THeat,<:WaterBalance}) where {THeat} = (
+    initializer(:sat, soil.para.sat),
+    initializers(soil, processes(soil))...,
+)
+
 # Heat
 
 function Heat.thermalconductivities(soil::Soil{<:SURFEX})
@@ -76,7 +81,7 @@ Hydrology.hydraulicproperties(soil::Soil{<:SURFEX}) = soil.para.water
 Hydrology.minwater(soil::Soil{<:SURFEX}, ::WaterBalance) = hydraulicproperties(soil).fieldcapacity
 
 # porosity/max water
-Hydrology.maxwater(soil::Soil{<:SURFEX}, water::WaterBalance) = porosity(soil, water)
+Hydrology.maxwater(soil::Soil{<:SURFEX}, water::WaterBalance) = porosity(soil)
 
 # water content for soils without water balance
 Hydrology.watercontent(soil::Soil{<:SURFEX,THeat,Nothing}, state) where {THeat} = porosity(soil)*saturation(soil, state)
