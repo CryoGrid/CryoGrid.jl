@@ -57,14 +57,30 @@ function heatcapacity(sub::SubSurface, state, i)
 end
 
 """
-    freezethaw!(sub::SubSurface, heat::HeatBalance, state)
+    freezecurve(sub::SubSurface)
+
+Returns the soil freezing characteristic `FreezeCurve` for the given subsurface layer.
+Defautls to `FreeWater`.
+"""
+freezecurve(sub::SubSurface) = FreeWater()
+
+"""
+    freezethaw!(sub::SubSurface, state)
+    freezethaw!(::FreezeCurve, sub::SubSurface, proc::SubSurfaceProcess, state)
 
 Calculates freezing and thawing effects, including evaluation of the freeze curve.
 In general, this function should compute at least the liquid/frozen water contents
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
 may also need to be computed depending on the thermal scheme being implemented.
 """
-freezethaw!(::SubSurface, ::HeatBalance, state) = error("not implemented")
+freezethaw!(sub::SubSurface, state) = freezethaw!(freezecurve(sub), sub, processes(sub), state)
+
+"""
+    enthalpyinv([::FreezeCurve], sub::SubSurface, heat::HeatBalance, state)
+
+Evaluates the inverse enthalpy function (H -> T) on the current state.
+"""
+enthalpyinv(sub::SubSurface, heat::HeatBalance, state) = enthalypinv(freezecurve(sub), sub, heat, state)
 
 # Helper methods
 """

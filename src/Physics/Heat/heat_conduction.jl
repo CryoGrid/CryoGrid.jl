@@ -1,23 +1,52 @@
-"""
-    freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state)
+function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
+    # thermal conductivity between cells
+    k = Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
+    # calculate heat flux between cells
+    jH = @inbounds let δ = z₂ - z₁;
+        Numerics.flux(T₁, T₂, δ, k)
+    end
+    return (; jH, k)
+end
 
+# Free water freeze curve
+
+"""
 Implementation of "free water" freezing characteristic for any subsurface layer.
 Assumes that `state` contains at least temperature (T), enthalpy (H), heat capacity (C),
 total water content (θwi), and liquid water content (θw).
 """
-freezethaw!(sub, state) = freezethaw!(sub, processes(sub), state)
-function freezethaw!(sub::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased}, state)
+function freezethaw!(fw::FreeWater, sub::SubSurface, heat::HeatBalance{<:EnthalpyBased}, state)
     L = heat.prop.L
     @inbounds for i in 1:length(state.H)
         H = state.H[i]
         θwi = Hydrology.watercontent(sub, state, i)
         state.θw[i], _ = FreezeCurves.freewater(H, θwi, L)
         C = state.C[i] = heatcapacity(sub, state, i)
-        T = state.T[i] = enthalpyinv(sub, heat, H, θwi, C, L)
+        T = state.T[i] = enthalpyinv(fw, H, θwi, C, L)
         # set ∂H∂T (a.k.a ∂H∂T)
         state.∂H∂T[i] = iszero(T) ? 1e8 : C
     end
     return nothing
+end
+
+function enthalpyinv(::FreeWater, H, θwi, C, L)
+    Lθ = L*θwi
+    T_f = H / C
+    T_t = (H - Lθ) / C
+    T = IfElse.ifelse(
+        H < zero(θwi),
+        # Case 1: H < 0 -> frozen
+        T_f,
+        # Case 2: H >= 0
+        IfElse.ifelse(
+            H >= Lθ,
+            # Case 2a: H >= Lθ -> thawed
+            T_t,
+            # Case 2b: 0 <= H < Lθ -> phase change
+            zero(T_f)
+        )
+    )
+    return T
 end
 
 """
@@ -36,7 +65,7 @@ heatvariables(::HeatBalance) = (
 """
 Variable definitions for heat conduction (enthalpy) on any SubSurface layer.
 """
-CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:EnthalpyBased}) = (
+CryoGrid.variables(heat::HeatBalance{<:EnthalpyBased}) = (
     Prognostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:T, OnGrid(Cells), u"°C"),
     heatvariables(heat)...,
@@ -44,7 +73,7 @@ CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:EnthalpyBased}) = (
 """
 Variable definitions for heat conduction (temperature).
 """
-CryoGrid.variables(heat::HeatBalance{<:FreezeCurve,<:TemperatureBased}) = (
+CryoGrid.variables(heat::HeatBalance{<:TemperatureBased}) = (
     Prognostic(:T, OnGrid(Cells), u"°C"),
     Diagnostic(:H, OnGrid(Cells), u"J/m^3"),
     Diagnostic(:dH, OnGrid(Cells), u"W/m^3"),
@@ -75,7 +104,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     return nothing
 end
 
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:EnthalpyBased}, state)
+function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set;
@@ -86,7 +115,7 @@ function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:Ent
     divergence!(state.dH, state.jH, Δk)
     return nothing
 end
-function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:TemperatureBased}, state)
+function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:TemperatureBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
@@ -101,16 +130,14 @@ function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:FreezeCurve,<:
     return nothing
 end
 
-# CFL not defined for free-water freeze curve
-CryoGrid.timestep(::SubSurface, heat::HeatBalance{FreeWater,<:EnthalpyBased,<:CryoGrid.CFL}, state) = Inf
 """
-    timestep(::SubSurface, ::HeatBalance{Tfc,THeatOp,CFL}, state) where {Tfc,THeatOp}
+    timestep(::SubSurface, ::HeatBalance{THeatOp,CFL}, state) where {THeatOp}
 
 Implementation of `timestep` for `HeatBalance` using the Courant-Fredrichs-Lewy condition
 defined as: Δt_max = u*Δx^2, where`u` is the "characteristic velocity" which here
 is taken to be the diffusivity: `∂H∂T / kc`.
 """
-function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.CFL}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{THeatOp,<:CryoGrid.CFL}, state) where {THeatOp}
     derivative(::EnthalpyBased, state) = state.dH
     derivative(::TemperatureBased, state) = state.dT
     prognostic(::EnthalpyBased, state) = state.H
@@ -131,7 +158,7 @@ function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGri
     dtmax = isfinite(dtmax) ? dtmax : Inf
     return dtmax
 end
-function CryoGrid.timestep(::SubSurface, heat::HeatBalance{Tfc,THeatOp,<:CryoGrid.MaxDelta}, state) where {Tfc,THeatOp}
+function CryoGrid.timestep(::SubSurface, heat::HeatBalance{THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     @inbounds for i in eachindex(Δx)
@@ -146,35 +173,4 @@ function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalance, state)
     # but necessary when it is not.
     @. state.dH = zero(eltype(state.dH))
     @. state.jH = zero(eltype(state.jH))
-end
-
-function heatflux(T₁, T₂, k₁, k₂, Δ₁, Δ₂, z₁, z₂)
-    # thermal conductivity between cells
-    k = Numerics.harmonicmean(k₁, k₂, Δ₁, Δ₂)
-    # calculate heat flux between cells
-    jH = @inbounds let δ = z₂ - z₁;
-        Numerics.flux(T₁, T₂, δ, k)
-    end
-    return (; jH, k)
-end
-
-# Free water freeze curve
-function enthalpyinv(::SubSurface, ::HeatBalance{FreeWater,<:EnthalpyBased}, H, θwi, C, L)
-    Lθ = L*θwi
-    T_f = H / C
-    T_t = (H - Lθ) / C
-    T = IfElse.ifelse(
-        H < zero(θwi),
-        # Case 1: H < 0 -> frozen
-        T_f,
-        # Case 2: H >= 0
-        IfElse.ifelse(
-            H >= Lθ,
-            # Case 2a: H >= Lθ -> thawed
-            T_t,
-            # Case 2b: 0 <= H < Lθ -> phase change
-            zero(T_f)
-        )
-    )
-    return T
 end

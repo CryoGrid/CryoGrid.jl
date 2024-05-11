@@ -130,8 +130,8 @@ end
 
 # Special overrides for heat timestep control on snow layer
 
-CryoGrid.timestep(::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
-function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{<:FreeWater,THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
+CryoGrid.timestep(::Snowpack, heat::HeatBalance{THeatOp,<:CryoGrid.CFL}, state) where {THeatOp} = error("CFL is not supported on snow layer")
+function CryoGrid.timestep(snow::Snowpack, heat::HeatBalance{THeatOp,<:CryoGrid.MaxDelta}, state) where {THeatOp}
     Δx = Δ(state.grid)
     dtmax = Inf
     if isactive(snow, state)

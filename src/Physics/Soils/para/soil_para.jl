@@ -17,7 +17,7 @@ end
 Ground(soilprofile::SoilProfile; kwargs...) = Ground(Heterogeneous(soilprofile); kwargs...)
 
 # add dispatch for default_fcsolver that selects the ND presolver
-default_fcsolver(::Heterogeneous, ::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
+default_fcsolver(::Heterogeneous, ::HeatBalance, ::Any) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
 
 include("mineral_organic.jl")
 

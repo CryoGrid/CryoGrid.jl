@@ -74,7 +74,7 @@ The real work finally happens in [`computediagnostic!`](@ref) and [`computefluxe
 We can take as an example the implementation of `computefluxes!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 
 ```julia
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:FreezeCurve,<:EnthalpyBased}, state)
+function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

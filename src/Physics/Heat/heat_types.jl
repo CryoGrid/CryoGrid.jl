@@ -20,32 +20,23 @@ default_dtlim(::HeatOperator) = nothing
 
 # Heat Balance type
 """
-    HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
+    HeatBalance{THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
 
 Represents subsurface heat transfer processes. The formulation of heat transfer is governed by
 the `HeatOperator`, `op`. 
 """
-Base.@kwdef struct HeatBalance{Tfc<:FreezeCurve,THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
-    freezecurve::Tfc = FreeWater()
+Base.@kwdef struct HeatBalance{THeatOp<:HeatOperator,Tdt,Tprop} <: SubSurfaceProcess
     op::THeatOp = Diffusion1D(:H)
     prop::Tprop = HeatBalanceProperties()
     dtlim::Tdt = default_dtlim(op)  # timestep limiter
     advection::Bool = true # whether or not to include advective fluxes when coupled with WaterBalance
-    function HeatBalance(freezecurve, op, prop, dtlim, advection)
-        # check that heat configuration is valid
-        _validate_heat_config(freezecurve, op)
-        return new{typeof(freezecurve),typeof(op),typeof(dtlim),typeof(prop)}(freezecurve, op, prop, dtlim, advection)
-    end
 end
+
 # convenience constructors for HeatBalance
 HeatBalance(var::Symbol; kwargs...) = HeatBalance(Val{var}(); kwargs...)
 HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater(), kwargs...) = HeatBalance(; op=Diffusion1D(:H), freezecurve, kwargs...)
 HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=Diffusion1D(:T), freezecurve, kwargs...)
 HeatBalance(op::HeatOperator; kwargs...) = HeatBalance(; op, kwargs...)
-
-# validation of HeatBalance freezecurve/operator configuration
-_validate_heat_config(::FreezeCurve, ::HeatOperator) = nothing # do nothing when valid
-_validate_heat_config(::FreeWater, ::TemperatureBased) = error("Invalid heat balance configuration; temperature formulations of the heat operator are not compatible with the free water freeze curve.")
 
 # Heat operators
 """

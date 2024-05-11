@@ -29,7 +29,7 @@ end
 # extract thermal conductivity scheme from thermal properties struct and invoke special dispatches defined above.
 Heat.thermalconductivity(snow::Snowpack, state, i) = thermalconductivity(snow.para.heat.cond, state.ρsn[i])
 
-function Heat.enthalpyinv(::Snowpack, heat::HeatBalance{FreeWater,<:EnthalpyBased}, H, θwi, C, L)
+function Heat.enthalpyinv(::Snowpack, heat::HeatBalance{<:EnthalpyBased}, H, θwi, C, L)
     T_f = H / C
     T = IfElse.ifelse(
         H < zero(θwi),

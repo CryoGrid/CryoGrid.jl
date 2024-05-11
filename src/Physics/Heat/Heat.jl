@@ -20,7 +20,7 @@ export FreeWater, FreezeCurve
 export HeatBalance
 include("heat_types.jl")
 
-export TemperatureProfile, thermalproperties, freezethaw!, enthalpy, enthalpyinv
+export TemperatureProfile, thermalproperties, freezethaw!, freezecurve, enthalpy, enthalpyinv
 include("heat_methods.jl")
 
 export ThermalProperties, thermalconductivity, thermalconductivity!, heatcapacity, heatcapacity!

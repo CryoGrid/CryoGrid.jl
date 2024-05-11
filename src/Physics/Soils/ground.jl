@@ -22,9 +22,9 @@ end
 # Convenience constructors
 Ground(para::GroundParameterization; kwargs...) = Ground(; para, kwargs...)
 
-default_fcsolver(::Any, ::Any, ::Any) = nothing
-default_fcsolver(::GroundParameterization, ::HeatBalance{<:SFCC}, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCache1D())
-default_fcsolver(::GroundParameterization, ::HeatBalance{<:SFCC}, ::WaterBalance) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
+default_fcsolver(::GroundParameterization, ::Nothing, ::WaterBalance) = nothing
+default_fcsolver(::GroundParameterization, ::HeatBalance, ::Nothing) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCache1D())
+default_fcsolver(::GroundParameterization, ::HeatBalance, ::WaterBalance) = SFCCPreSolver(FreezeCurves.SFCCPreSolverCacheND())
 
 fcsolver(ground::Ground) = ground.fcsolver
 
