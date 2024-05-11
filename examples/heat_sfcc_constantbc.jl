@@ -38,8 +38,7 @@ tile = CryoGrid.Presets.SoilHeatTile(
     ConstantBC(HeatBalance, CryoGrid.Neumann, 10.0u"W/m^2"),
     soilprofile,
     initT;
-    grid, 
-    freezecurve=sfcc,
+    grid,
 );
 
 # Define the simulation time span.

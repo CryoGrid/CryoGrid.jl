@@ -20,15 +20,14 @@ export SoilHeatTile, SamoylovDefault
 include("presetgrids.jl")
 
 """
-    SoilHeatTile([heatop=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::CryoGrid.Initializer...; grid::Grid=DefaultGrid_10cm, freezecurve::F=FreeWater(), tile_kwargs...) where {F<:FreezeCurve}
+    SoilHeatTile([heatop=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::CryoGrid.Initializer...; grid::Grid=DefaultGrid_10cm, tile_kwargs...) where {F<:FreezeCurve}
 
-Builds a simple one-layer soil/heat-conduction model with the given grid and configuration. Uses the "free water" freeze curve by default,
-but this can be changed via the `freezecurve` parameter. For example, to use the Dall'Amico freeze curve, set `freezecurve=SFCC(DallAmico())`.
+Builds a simple one-layer soil/heat-conduction model with the given grid and configuration.
 """
-function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, inits::CryoGrid.Initializer...; grid::Grid=DefaultGrid_5cm, freezecurve::F=FreeWater(), fcsolver=SFCCPreSolver(), tile_kwargs...) where {F<:FreezeCurve}
+function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, inits::CryoGrid.Initializer...; grid::Grid=DefaultGrid_5cm, fcsolver=SFCCPreSolver(), tile_kwargs...) where {F<:FreezeCurve}
     strat = Stratigraphy(
         grid[1] => Top(upperbc),
-        Tuple(d => Ground(para, heat=HeatBalance(heatop, freezecurve=freezecurve), fcsolver=fcsolver) for (i,(d,para)) in enumerate(soilprofile)),
+        Tuple(d => Ground(para, heat=HeatBalance(heatop), fcsolver=fcsolver) for (i,(d,para)) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, PresetGrid(grid), inits...; tile_kwargs...)
@@ -48,11 +47,12 @@ Parameters = (
 
 const SamoylovDefault = (
     soilprofile = SoilProfile(
-        0.0u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.75),
-        0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25),
-        0.4u"m" => SimpleSoil(por=0.55,sat=1.0,org=0.25),
-        3.0u"m" => SimpleSoil(por=0.50,sat=1.0,org=0.0),
-        10.0u"m" => SimpleSoil(por=0.30,sat=1.0,org=0.0),
+        0.0u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.75,freezecurve=PainterKarra(swrc=VanGenuchten("organic"))),
+        0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25,freezecurve=PainterKarra(swrc=VanGenuchten("organic"))),
+        0.4u"m" => SimpleSoil(por=0.55,sat=1.0,org=0.25,freezecurve=PainterKarra(swrc=VanGenuchten("sandy loam"))),
+        3.0u"m" => SimpleSoil(por=0.50,sat=1.0,org=0.0,freezecurve=PainterKarra(swrc=VanGenuchten("sandy loam"))),
+        10.0u"m" => SimpleSoil(por=0.30,sat=1.0,org=0.0,freezecurve=PainterKarra(swrc=VanGenuchten("sandy loam"))),
+        30.0u"m" => SimpleSoil(por=0.05,sat=1.0,org=0.0,freezecurve=PainterKarra(swrc=VanGenuchten("sand"))),
     ),
     tempprofile = TemperatureProfile(
         0.0u"m" => -1.0u"°C",

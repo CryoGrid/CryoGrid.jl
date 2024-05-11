@@ -58,7 +58,7 @@ The `CryoGrid` module defines three primary methods that can be used to implemen
 
 Layer and/or process specific implementations of each of these methods can generally assume that the previous methods have already been invoked by the caller (it is the responsibility of the calling code to ensure that this is the case). This is, for example, the order in which these methods will be invoked by `tile(du, u, p t)`.
 
-Note that, due to the nature of multiple dispatch, the execution path (i.e. with respect to the actual source code) of any given model configuration will typically be quite nonlinear and may span multiple source files depending on where the matching method dispatches are defined. Users may find the `which` provided by Julia (and correspondingly the `@which` macro from `InteractiveUtils`) useful in figuring out where executing code is located. For example:
+Note that, due to the nature of multiple dispatch, the execution path (i.e. with respect to the actual source code) of any given model configuration will typically be quite nonlinear and may span multiple source files depending on where the matching method dispatches are defined. Users may find the `which` provided by Julia (and correspondingly the `@which` macro from `InteractiveUtils`) useful in figuring out which code is being executed. For example:
 
 ```julia
 using CryoGrid
