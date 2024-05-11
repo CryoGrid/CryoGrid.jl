@@ -22,9 +22,9 @@ function CryoGrid.computediagnostic!(
     state
 )
     # Evaluate freeze/thaw processes
-    freezethaw!(sub, heat, state)
+    freezethaw!(sub, state)
     # Update thermal conductivity
-    thermalconductivity!(sub, heat, state)
+    thermalconductivity!(sub, state)
     # Compute diffusion coefficients
     an = state.DT_an
     as = state.DT_as

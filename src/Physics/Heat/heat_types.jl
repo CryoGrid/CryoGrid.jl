@@ -34,8 +34,8 @@ end
 
 # convenience constructors for HeatBalance
 HeatBalance(var::Symbol; kwargs...) = HeatBalance(Val{var}(); kwargs...)
-HeatBalance(::Val{:H}; freezecurve::FreezeCurve=FreeWater(), kwargs...) = HeatBalance(; op=Diffusion1D(:H), freezecurve, kwargs...)
-HeatBalance(::Val{:T}; freezecurve::FreezeCurve, kwargs...) = HeatBalance(; op=Diffusion1D(:T), freezecurve, kwargs...)
+HeatBalance(::Val{:H}; kwargs...) = HeatBalance(; op=Diffusion1D(:H), kwargs...)
+HeatBalance(::Val{:T}; kwargs...) = HeatBalance(; op=Diffusion1D(:T), kwargs...)
 HeatBalance(op::HeatOperator; kwargs...) = HeatBalance(; op, kwargs...)
 
 # Heat operators

@@ -97,7 +97,7 @@ end
 function CryoGrid.computediagnostic!(sub::Lake, heat::HeatBalance{<:Heat.Diffusion1D{:H}}, state)
     Heat.resetfluxes!(sub, heat, state)
     # Evaluate freeze/thaw processes
-    Heat.freezethaw!(sub, heat, state)
+    Heat.freezethaw!(sub, state)
 
     # force unfrozen water to Tair
     if all(state.θw .>= 1.)
@@ -106,7 +106,7 @@ function CryoGrid.computediagnostic!(sub::Lake, heat::HeatBalance{<:Heat.Diffusi
     end
 
     # Update thermal conductivity
-    Heat.thermalconductivity!(sub, heat, state)
+    Heat.thermalconductivity!(sub, state)
     return nothing
 end
 

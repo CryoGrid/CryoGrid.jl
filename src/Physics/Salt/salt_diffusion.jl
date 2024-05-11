@@ -1,5 +1,12 @@
 # Heat methods
 
+Heat.freezethaw!(soil::SalineGround, state) = freezethaw!(
+    freezecurve(soil),
+    soil,
+    Coupled(soil.salt, soil.heat),
+    state,
+)
+
 function Heat.freezethaw!(
     sfcc::DallAmicoSalt,
     soil::SalineGround,
@@ -59,7 +66,7 @@ function CryoGrid.computediagnostic!(
     # Evaluate freeze/thaw processes
     freezethaw!(soil, state)
     # Update thermal conductivity
-    thermalconductivity!(soil, heat, state)
+    thermalconductivity!(soil, state)
     # thermal conductivity at boundaries
     # assumes boundary conductivities = cell conductivities
     @inbounds state.k[1] = state.kc[1]

@@ -193,9 +193,9 @@ end
 
 # diagnostic
 function CryoGrid.computediagnostic!(snow::BulkSnowpack, heat::HeatBalance, state)
-    Heat.freezethaw!(snow, heat, state)
+    Heat.freezethaw!(snow, state)
     # compute thermal conductivity
-    Heat.thermalconductivity!(snow, heat, state)
+    Heat.thermalconductivity!(snow, state)
     if CryoGrid.isactive(snow, state)
         state.k .= state.kc[1]
     end
