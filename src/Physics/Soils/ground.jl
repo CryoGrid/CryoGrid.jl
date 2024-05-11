@@ -30,7 +30,7 @@ fcsolver(ground::Ground) = ground.fcsolver
 
 # Heat methods
 
-Heat.freezecurve(ground::Ground) = freezecurve(ground.para)
+Heat.freezecurve(ground::AbstractGround) = freezecurve(ground.para)
 
 # CryoGrid methods
 

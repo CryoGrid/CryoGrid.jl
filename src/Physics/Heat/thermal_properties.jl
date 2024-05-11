@@ -46,11 +46,11 @@ Woodside, W. & Messmer, J.H. 1961. Thermal conductivity of porous media. I. Unco
 geometric_conductivity(ks, θs) = prod(map((k,θ) -> k^θ, ks, θs))
 
 """
-    thermalconductivity!(sub::SubSurface, heat::HeatBalance, state)
+    thermalconductivity!(sub::SubSurface, state)
 
 Computes the thermal conductivity for the given layer from the current state and stores the result in-place in the state variable `k`.
 """
-function thermalconductivity!(sub::SubSurface, ::HeatBalance, state)
+function thermalconductivity!(sub::SubSurface, state)
     @inbounds for i in 1:length(state.T)
         state.kc[i] = thermalconductivity(sub, state, i)
         if i > 1

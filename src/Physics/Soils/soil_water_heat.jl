@@ -1,7 +1,10 @@
 # Freeze/thaw dynamics
-Heat.freezethaw!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state) = Heat.freezethaw!(soil, ps[2], state)
-# special implementation of freezethaw! for the pressure-head  based form;
-# this is necessary because of the need to compute ∂θw∂ψ
+
+## default to invoking heat-only implementation
+Heat.freezethaw!(fc::FreezeCurve, soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state) = Heat.freezethaw!(fc, soil, ps[2], state)
+
+## special implementation of freezethaw! for the pressure-head  based form;
+## this is necessary because of the need to compute ∂θw∂ψ
 function Heat.freezethaw!(
     sfcc::SFCC, 
     soil::Soil,

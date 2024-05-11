@@ -87,7 +87,7 @@ function CryoGrid.computediagnostic!(sub::SubSurface, heat::HeatBalance, state)
     # Evaluate freeze/thaw processes
     freezethaw!(sub, state)
     # Update thermal conductivity
-    thermalconductivity!(sub, heat, state)
+    thermalconductivity!(sub, state)
     return nothing
 end
 

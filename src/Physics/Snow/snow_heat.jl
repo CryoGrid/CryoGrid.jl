@@ -43,5 +43,3 @@ function Heat.enthalpyinv(::Snowpack, heat::HeatBalance{<:EnthalpyBased}, H, θw
     )
     return T
 end
-
-Heat.freezethaw!(snowpack::Snowpack, state) = Heat.freezethaw!(snowpack, snowpack.heat, state)
