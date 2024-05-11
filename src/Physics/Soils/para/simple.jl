@@ -1,17 +1,20 @@
 """
-    SimpleSoil{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
+    SimpleSoil{Tfc,Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
 
 Represents a simple organic/mineral soil mixutre in terms of its characteristic fractions:
 i.e. natural porosity, saturation, and organic solid fraction. This is the standard CryoGrid representation
 of a discrete soil volume.
 """
-Base.@kwdef struct SimpleSoil{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
+Base.@kwdef struct SimpleSoil{Tfc,Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
     por::Tpor = 0.5 # natural porosity
     sat::Tsat = 1.0 # saturation
     org::Torg = 0.0 # organic fraction of solid; mineral fraction is 1-org
+    freezecurve::Tfc = FreeWater()
     heat::Thp = SoilThermalProperties(SimpleSoil)
     water::Twp = SoilHydraulicProperties(SimpleSoil, fieldcapacity=0.20)
 end
+
+Heat.freezecurve(soil::SimpleSoil) = soil.freezecurve
 
 # Helper functions for obtaining soil compositions from characteristic fractions.
 soilcomponent(::Val{var}, para::SimpleSoil) where var = soilcomponent(Val{var}(), para.por, para.sat, para.org)
