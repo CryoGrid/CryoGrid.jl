@@ -11,14 +11,22 @@
 using CryoGrid
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 
-# We use the provided default soil and temperature profiles for Samoylov.
-soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault;
-
 # We choose the default grid discretization with 5 cm spacing at the surface.
 grid = CryoGrid.Presets.DefaultGrid_5cm;
 
-# We construct a state variable initializer for temperature `T` from the temperature profile.
-initT = initializer(:T, tempprofile)
+# We use a simple 5-layer stratigraphy suitable for Samoylov. This is based on the
+# profile provided in `Presets` but uses the default "free water" freezing characteristic
+# defined on `SimpleSoil`.
+soilprofile = SoilProfile(
+    0.0u"m" => SimpleSoil(; por=0.80, org=0.75),
+    0.1u"m" => SimpleSoil(; por=0.80, org=0.25),
+    0.4u"m" => SimpleSoil(; por=0.55, org=0.25),
+    3.0u"m" => SimpleSoil(; por=0.50, org=0.0),
+    10.0u"m" => SimpleSoil(; por=0.30, org=0.0),
+)
+
+# We construct a state variable initializer for temperature `T` from the temperature profile preset for Samoylov.
+initT = initializer(:T, CryoGrid.Presets.SamoylovDefault.tempprofile)
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
     TemperatureBC(forcings.Tair, NFactor(nf=0.6)),

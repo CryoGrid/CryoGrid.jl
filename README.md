@@ -39,7 +39,7 @@ Pkg.add("CryoGrid")
 
 ## Quick start
 
-This is a simple layer heat conduction model with free water freeze curve and simple air temperature upper boundary condition.
+Here we define a multi-layer heat conduction model on the pre-defined soil profile for Samoylov Island.
 
 Make sure that you have the `Plots` package installed in addition to `CryoGrid` in order to run this example code.
 
@@ -55,7 +55,7 @@ soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # choose grid with 5cm spacing
 grid = CryoGrid.Presets.DefaultGrid_5cm
-# basic 1-layer heat conduction model (defaults to free water freezing scheme)
+# build a default Tile with heat conduction on the given soil profile
 tile = CryoGrid.Presets.SoilHeatTile(
     TemperatureBC(forcings.Tair),
     GeothermalHeatFlux(0.053u"W/m^2"),

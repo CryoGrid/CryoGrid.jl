@@ -13,10 +13,9 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_197
 grid = CryoGrid.Presets.DefaultGrid_5cm
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-sfcc = PainterKarra(swrc=VanGenuchten(α=0.1, n=2.0))
 upperbc = TemperatureBC(forcings.Tair, NFactor(nf=0.6))
 lowerbc = GeothermalHeatFlux(0.053u"W/m^2")
-tile = CryoGrid.Presets.SoilHeatTile(upperbc, lowerbc, soilprofile, initT; grid=grid, freezecurve=sfcc)
+tile = CryoGrid.Presets.SoilHeatTile(upperbc, lowerbc, soilprofile, initT; grid=grid)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,));

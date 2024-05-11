@@ -10,13 +10,6 @@ using CryoGrid.LiteImplicit
 # Load forcings and build stratigraphy like before.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 forcings = Base.rename(forcings, :Ptot => :precip)
-soilprofile = SoilProfile(
-    0.0u"m" => SimpleSoil(por=0.80, org=0.75),
-    0.1u"m" => SimpleSoil(por=0.80, org=0.25),
-    0.4u"m" => SimpleSoil(por=0.55, org=0.25),
-    3.0u"m" => SimpleSoil(por=0.50, org=0.0),
-    10.0u"m" => SimpleSoil(por=0.30, org=0.0),
-)
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
@@ -26,6 +19,13 @@ upperbc = WaterHeatBC(
 ssinit = ThermalSteadyStateInit(T0=-15.0u"°C")
 heatop = Heat.EnthalpyImplicit()
 freezecurve = FreeWater()
+soilprofile = SoilProfile(
+    0.0u"m" => SimpleSoil(; por=0.80, org=0.75, freezecurve),
+    0.1u"m" => SimpleSoil(; por=0.80, org=0.25, freezecurve),
+    0.4u"m" => SimpleSoil(; por=0.55, org=0.25, freezecurve),
+    3.0u"m" => SimpleSoil(; por=0.50, org=0.0, freezecurve),
+    10.0u"m" => SimpleSoil(; por=0.30, org=0.0, freezecurve),
+)
 heat = HeatBalance(heatop; freezecurve)
 water = WaterBalance()
 soil_layers = map(para -> Ground(para; heat, water), soilprofile)

@@ -16,7 +16,6 @@ tile = CryoGrid.Presets.SoilHeatTile(
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
     initT;
-    freezecurve=PainterKarra(),
     grid=grid
 )
 tspan = (DateTime(2010,10,1),DateTime(2010,10,2))
