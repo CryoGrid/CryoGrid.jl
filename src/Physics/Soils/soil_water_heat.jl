@@ -3,12 +3,12 @@ Heat.freezethaw!(soil::Soil, ps::Coupled(WaterBalance, HeatBalance), state) = He
 # special implementation of freezethaw! for the pressure-head  based form;
 # this is necessary because of the need to compute ∂θw∂ψ
 function Heat.freezethaw!(
+    sfcc::SFCC, 
     soil::Soil,
-    ps::Coupled(WaterBalance{<:RichardsEq{Pressure}},HeatBalance{<:SFCC,THeatForm}),
+    ps::Coupled(WaterBalance{<:RichardsEq{Pressure}},HeatBalance{THeatOp}),
     state
-) where {THeatForm<:Heat.HeatOperator}
+) where {THeatOp<:Heat.HeatOperator}
     water, heat = ps
-    sfcc = heat.freezecurve
     swrc = FreezeCurves.swrc(sfcc)
     # helper function for computing temperature (inverse enthalpy, if necessary)
     _get_temperature(::Type{<:TemperatureBased}, i) = state.T[i]
@@ -16,7 +16,7 @@ function Heat.freezethaw!(
     L = heat.prop.L
     @inbounds @fastmath for i in 1:length(state.T)
         @unpack ch_w, ch_i = thermalproperties(soil, state, i)
-        T = state.T[i] = _get_temperature(THeatForm, i)
+        T = state.T[i] = _get_temperature(THeatOp, i)
         sat = state.sat[i]
         θsat = state.θsat[i]
         ψ, ∂ψ∂T = ∇(Tᵢ -> sfcc(Tᵢ, sat, Val{:ψ}(); θsat), T)
@@ -31,7 +31,7 @@ function Heat.freezethaw!(
         state.C[i] = C
         state.∂H∂T[i] = ∂H∂T
         state.∂θw∂ψ[i] = ∂θw∂ψ
-        if THeatForm == TemperatureBased
+        if THeatOp == TemperatureBased
             state.H[i] = Heat.enthalpy(T, C, L, θw)
         end
     end
@@ -41,22 +41,22 @@ end
 # Initialization
 function CryoGrid.initialcondition!(
     soil::Soil,
-    ps::Coupled(WaterBalance{<:RichardsEq}, HeatBalance{<:SFCC}),
+    ps::Coupled(WaterBalance{<:RichardsEq}, HeatBalance),
     state,
 )
     water, heat = ps
     # initialize water
     CryoGrid.computediagnostic!(soil, water, state)
     # initialize heat
-    fc = heat.freezecurve
-    solver = initialize_sfccsolver!(soil, heat, state)
+    sfcc = freezecurve(soil)
+    solver = initialize_sfccsolver!(soil, state)
     @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
     L = heat.prop.L
     @inbounds for i in 1:length(state.T)
         @unpack ch_w, ch_i = thermalproperties(soil, state, i)
-        fc_kwargsᵢ = sfcckwargs(fc, soil, heat, state, i)
+        fc_kwargsᵢ = sfcckwargs(sfcc, soil, state, i)
         T = state.T[i]
-        θw, ∂θw∂T = ∇(T -> fc(T, state.sat[i]; fc_kwargsᵢ...), T)
+        θw, ∂θw∂T = ∇(T -> sfcc(T, state.sat[i]; fc_kwargsᵢ...), T)
         state.θw[i] = θw
         state.C[i] = heatcapacity(soil, state, i)
         state.H[i] = enthalpy(state.T[i], state.C[i], L, state.θw[i])

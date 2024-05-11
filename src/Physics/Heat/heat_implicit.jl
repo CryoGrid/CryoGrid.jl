@@ -1,7 +1,7 @@
 """
 Type alias for the implicit enthalpy formulation of HeatBalance.
 """
-const HeatBalanceImplicit{Tfc} = HeatBalance{Tfc,<:EnthalpyImplicit} where {Tfc<:FreezeCurve}
+const HeatBalanceImplicit = HeatBalance{<:EnthalpyImplicit}
 
 # CryoGrid methods
 

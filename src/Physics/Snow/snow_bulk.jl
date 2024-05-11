@@ -174,7 +174,7 @@ function CryoGrid.computefluxes!(
     snow::BulkSnowpack,
     ps::CoupledSnowWaterHeat{TM,TW,TH},
     state
-) where {TM,TW,TH<:HeatBalance{FreeWater,<:EnthalpyBased}}
+) where {TM,TW,TH<:HeatBalance{<:EnthalpyBased}}
     mass, water, heat = ps
     computefluxes!(snow, mass, state)
     dsn = getscalar(state.dsn)
