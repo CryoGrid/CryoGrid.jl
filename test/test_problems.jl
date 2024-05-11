@@ -7,7 +7,7 @@ function test_heat_conduction_freeW_periodic_bc()
         1000.0u"m" => 10.0u"°C",
     );
     soilprofile = SoilProfile(
-        0.0u"m" => MineralOrganic(por=0.50),
+        0.0u"m" => SimpleSoil(por=0.50),
     );
     heatop = Heat.Diffusion1D(:H)
     initT = initializer(:T, tempprofile)
@@ -35,7 +35,7 @@ function test_water_flow_bucket_scheme(topflux=0.0u"m/s")
     discretization = CryoGrid.Presets.DefaultGrid_10cm
     strat = Stratigraphy(
         0.0u"m" => Top(ConstantBC(WaterBalance, CryoGrid.Neumann, topflux),),
-        0.0u"m" => Ground(MineralOrganic(por=0.5, sat=0.5), heat=nothing, water=WaterBalance(BucketScheme())),
+        0.0u"m" => Ground(SimpleSoil(por=0.5, sat=0.5), heat=nothing, water=WaterBalance(BucketScheme())),
         1.0u"m" => Bottom(ConstantBC(WaterBalance, CryoGrid.Neumann, zero(topflux)),)
     )
     tile = Tile(strat, discretization, initsat)

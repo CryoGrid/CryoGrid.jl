@@ -32,10 +32,10 @@ heat = HeatBalance(heatop, freezecurve=sfcc)
 water = WaterBalance(waterflow)
 strat = @Stratigraphy(
     -2.0u"m" => Top(upperbc),
-    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.9,org=0.75); heat, water),
-    0.5u"m" => Ground(MineralOrganic(por=0.40,sat=1.0,org=0.10); heat, water),
-    1.0u"m" => Ground(MineralOrganic(por=0.30,sat=1.0,org=0.0); heat, water),
-    2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0); heat, water),
+    0.0u"m" => Ground(SimpleSoil(por=0.80,sat=0.9,org=0.75); heat, water),
+    0.5u"m" => Ground(SimpleSoil(por=0.40,sat=1.0,org=0.10); heat, water),
+    1.0u"m" => Ground(SimpleSoil(por=0.30,sat=1.0,org=0.0); heat, water),
+    2.0u"m" => Ground(SimpleSoil(por=0.10,sat=1.0,org=0.0); heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 grid = CryoGrid.Presets.DefaultGrid_2cm

@@ -17,12 +17,12 @@ end
 # Load forcings and build stratigraphy like before.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=Param(0.80, prior=Uniform(0.65,0.95)),sat=1.0,org=0.75),
-    0.1u"m" => MineralOrganic(por=Param(0.80, prior=Uniform(0.65,0.95)),sat=1.0,org=0.25),
-    0.4u"m" => MineralOrganic(por=Param(0.55, prior=Uniform(0.35,0.75)),sat=1.0,org=0.25),
-    3.0u"m" => MineralOrganic(por=Param(0.50, prior=Uniform(0.30,0.70)),sat=1.0,org=0.0),
-    10.0u"m" => MineralOrganic(por=Param(0.30, prior=Uniform(0.10,0.50)),sat=1.0,org=0.0),
-    100.0u"m" => MineralOrganic(por=0.05,sat=1.0,org=0.0),
+    0.0u"m" => SimpleSoil(por=Param(0.80, prior=Uniform(0.65,0.95)),sat=1.0,org=0.75),
+    0.1u"m" => SimpleSoil(por=Param(0.80, prior=Uniform(0.65,0.95)),sat=1.0,org=0.25),
+    0.4u"m" => SimpleSoil(por=Param(0.55, prior=Uniform(0.35,0.75)),sat=1.0,org=0.25),
+    3.0u"m" => SimpleSoil(por=Param(0.50, prior=Uniform(0.30,0.70)),sat=1.0,org=0.0),
+    10.0u"m" => SimpleSoil(por=Param(0.30, prior=Uniform(0.10,0.50)),sat=1.0,org=0.0),
+    100.0u"m" => SimpleSoil(por=0.05,sat=1.0,org=0.0),
 )
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"

@@ -15,9 +15,9 @@ upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureBC(forcings.Tair
 # It would be equivalent to use the `Stratigraphy` constructor directly and wrap these layers in a tuple or list.
 strat = @Stratigraphy(
     0.0u"m" => Top(upperbc),
-    0.0u"m" => Ground(MineralOrganic(por=0.80,sat=0.5,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    0.2u"m" => Ground(MineralOrganic(por=0.40,sat=0.75,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
-    2.0u"m" => Ground(MineralOrganic(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.0u"m" => Ground(SimpleSoil(por=0.80,sat=0.5,org=0.75), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    0.2u"m" => Ground(SimpleSoil(por=0.40,sat=0.75,org=0.10), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
+    2.0u"m" => Ground(SimpleSoil(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2")),
 );
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm

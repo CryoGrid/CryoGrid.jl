@@ -14,7 +14,7 @@ Base.@kwdef struct SaltMassBalance{TOp,Tdt,Tprop} <: SubSurfaceProcess
 end
 
 Base.@kwdef struct SalineGround{Tpara,Theat,Tsalt,Twater,Taux} <: AbstractGround{Tpara,Theat,Twater}
-    para::Tpara = MineralOrganic()
+    para::Tpara = SimpleSoil()
     heat::Theat = HeatBalance(:T, freezecurve=DallAmicoSalt())
     salt::Tsalt = SaltMassBalance()
     water::Twater = WaterBalance(NoFlow())
