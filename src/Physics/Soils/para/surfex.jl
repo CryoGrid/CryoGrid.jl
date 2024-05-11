@@ -6,7 +6,7 @@ Base.@kwdef struct SURFEX{Tρs,Tρo,Tpo,Tsat,Twilt,Ttex<:SoilTexture,Thp,Twp} <:
     sat::Tsat = 1.0
     wilting_point::Twilt = 0.05
     texture::Ttex = SoilTexture()
-    heat::Thp = SoilThermalProperties(MineralOrganic) # same thermal properties as MineralOrganic
+    heat::Thp = SoilThermalProperties(SimpleSoil) # same thermal properties as SimpleSoil
     water::Twp = HydraulicProperties(fieldcapacity=0.20) # hydraulic properties
 end
 

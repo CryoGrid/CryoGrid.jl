@@ -11,11 +11,11 @@ using CryoGrid.LiteImplicit
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 forcings = Base.rename(forcings, :Ptot => :precip)
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=0.80, org=0.75),
-    0.1u"m" => MineralOrganic(por=0.80, org=0.25),
-    0.4u"m" => MineralOrganic(por=0.55, org=0.25),
-    3.0u"m" => MineralOrganic(por=0.50, org=0.0),
-    10.0u"m" => MineralOrganic(por=0.30, org=0.0),
+    0.0u"m" => SimpleSoil(por=0.80, org=0.75),
+    0.1u"m" => SimpleSoil(por=0.80, org=0.25),
+    0.4u"m" => SimpleSoil(por=0.55, org=0.25),
+    3.0u"m" => SimpleSoil(por=0.50, org=0.0),
+    10.0u"m" => SimpleSoil(por=0.30, org=0.0),
 )
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"

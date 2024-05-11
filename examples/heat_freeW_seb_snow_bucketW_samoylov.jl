@@ -10,11 +10,11 @@ using OrdinaryDiffEq
 # First, load the forcings and construct the Tile.
 modelgrid = CryoGrid.Presets.DefaultGrid_2cm;
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.75),
-    0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25),
-    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
-    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
-    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
+    0.0u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.75),
+    0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25),
+    0.4u"m" => SimpleSoil(por=0.55,sat=1.0,org=0.25),
+    3.0u"m" => SimpleSoil(por=0.50,sat=1.0,org=0.0),
+    10.0u"m" => SimpleSoil(por=0.30,sat=1.0,org=0.0),
 );
 ## mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile

@@ -8,11 +8,11 @@ CryoGrid.debug(true)
 
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic(por=0.80,sat=0.9,org=0.75),
-    0.1u"m" => MineralOrganic(por=0.80,sat=1.0,org=0.25),
-    0.4u"m" => MineralOrganic(por=0.55,sat=1.0,org=0.25),
-    3.0u"m" => MineralOrganic(por=0.50,sat=1.0,org=0.0),
-    10.0u"m" => MineralOrganic(por=0.30,sat=1.0,org=0.0),
+    0.0u"m" => SimpleSoil(por=0.80,sat=0.9,org=0.75),
+    0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25),
+    0.4u"m" => SimpleSoil(por=0.55,sat=1.0,org=0.25),
+    3.0u"m" => SimpleSoil(por=0.50,sat=1.0,org=0.0),
+    10.0u"m" => SimpleSoil(por=0.30,sat=1.0,org=0.0),
 )
 tempprofile_linear = TemperatureProfile(
     -2.0u"m" => 0.0u"°C",

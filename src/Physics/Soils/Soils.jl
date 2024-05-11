@@ -38,7 +38,7 @@ include("soil_methods.jl")
 export SoilTexture
 include("soil_texture.jl")
 
-export Heterogeneous, MineralOrganic, SURFEX
+export Heterogeneous, SimpleSoil, SURFEX
 export soilcomponent
 include("para/soil_para.jl")
 

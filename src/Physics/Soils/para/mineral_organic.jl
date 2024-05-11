@@ -1,20 +1,20 @@
 """
-    MineralOrganic{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
+    SimpleSoil{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
 
 Represents a simple organic/mineral soil mixutre in terms of its characteristic fractions:
 i.e. natural porosity, saturation, and organic solid fraction. This is the standard CryoGrid representation
 of a discrete soil volume.
 """
-Base.@kwdef struct MineralOrganic{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
+Base.@kwdef struct SimpleSoil{Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
     por::Tpor = 0.5 # natural porosity
     sat::Tsat = 1.0 # saturation
     org::Torg = 0.0 # organic fraction of solid; mineral fraction is 1-org
-    heat::Thp = SoilThermalProperties(MineralOrganic)
-    water::Twp = SoilHydraulicProperties(MineralOrganic, fieldcapacity=0.20)
+    heat::Thp = SoilThermalProperties(SimpleSoil)
+    water::Twp = SoilHydraulicProperties(SimpleSoil, fieldcapacity=0.20)
 end
 
 # Helper functions for obtaining soil compositions from characteristic fractions.
-soilcomponent(::Val{var}, para::MineralOrganic) where var = soilcomponent(Val{var}(), para.por, para.sat, para.org)
+soilcomponent(::Val{var}, para::SimpleSoil) where var = soilcomponent(Val{var}(), para.por, para.sat, para.org)
 soilcomponent(::Val{:θwi}, ϕ, θ, ω) = ϕ*θ
 soilcomponent(::Val{:θp}, ϕ, θ, ω) = ϕ
 soilcomponent(::Val{:θa}, ϕ, θ, ω) = ϕ*(1-θ)
@@ -22,14 +22,14 @@ soilcomponent(::Val{:θm}, ϕ, θ, ω) = (1-ϕ)*(1-ω)
 soilcomponent(::Val{:θo}, ϕ, θ, ω) = (1-ϕ)*ω
 
 # Soil methods (homogeneous)
-saturation(soil::Soil{<:MineralOrganic}) = soil.para.sat
-porosity(soil::Soil{<:MineralOrganic}) = soil.para.por
-mineral(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θm}(), soil.para)
-organic(soil::Soil{<:MineralOrganic}) = soilcomponent(Val{:θo}(), soil.para)
+saturation(soil::Soil{<:SimpleSoil}) = soil.para.sat
+porosity(soil::Soil{<:SimpleSoil}) = soil.para.por
+mineral(soil::Soil{<:SimpleSoil}) = soilcomponent(Val{:θm}(), soil.para)
+organic(soil::Soil{<:SimpleSoil}) = soilcomponent(Val{:θo}(), soil.para)
 
 # Soil thermal properties
 SoilThermalProperties(
-    ::Type{MineralOrganic};
+    ::Type{SimpleSoil};
     kh_w = ThermalProperties().kh_w,
     kh_i = ThermalProperties().kh_i,
     kh_a = ThermalProperties().kh_a,
@@ -44,7 +44,7 @@ SoilThermalProperties(
 ) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o, kwargs...)
 
 # CryoGrid methods
-CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
+CryoGrid.parameterize(para::SimpleSoil) = SimpleSoil(
     por = CryoGrid.parameterize(para.por, domain=0..1, desc="Natural porosity of the soil volume."),
     sat = CryoGrid.parameterize(para.sat, domain=0..1, desc="Initial water+ice saturation level of the soil volume."),
     org = CryoGrid.parameterize(para.org, domain=0..1, desc="Organic solid fraction of the soil volume."),
@@ -52,21 +52,21 @@ CryoGrid.parameterize(para::MineralOrganic) = MineralOrganic(
     water = CryoGrid.parameterize(para.water, domain=0..Inf),
 )
 
-CryoGrid.variables(soil::Soil{<:MineralOrganic}) = CryoGrid.variables(soil, processes(soil))
+CryoGrid.variables(soil::Soil{<:SimpleSoil}) = CryoGrid.variables(soil, processes(soil))
 
-CryoGrid.initializers(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}) where {THeat} = (
+CryoGrid.initializers(soil::Soil{<:SimpleSoil,THeat,<:WaterBalance}) where {THeat} = (
     initializer(:sat, soil.para.sat),
     initializers(soil, processes(soil))...,
 )
 
 # Heat
 
-function Heat.thermalconductivities(soil::Soil{<:MineralOrganic})
+function Heat.thermalconductivities(soil::Soil{<:SimpleSoil})
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
     return kh_w, kh_i, kh_a, kh_m, kh_o
 end
 
-function Heat.heatcapacities(soil::Soil{<:MineralOrganic})
+function Heat.heatcapacities(soil::Soil{<:SimpleSoil})
     @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil)
     return ch_w, ch_i, ch_a, ch_m, ch_o
 end
@@ -74,33 +74,33 @@ end
 """
 Gets the `ThermalProperties` for the given soil layer.
 """
-Heat.thermalproperties(soil::Soil{<:MineralOrganic}) = soil.para.heat
+Heat.thermalproperties(soil::Soil{<:SimpleSoil}) = soil.para.heat
 
 # Hydrology
 
 """
 Gets the `HydraulicProperties` for the given soil layer.
 """
-Hydrology.hydraulicproperties(soil::Soil{<:MineralOrganic}) = soil.para.water
+Hydrology.hydraulicproperties(soil::Soil{<:SimpleSoil}) = soil.para.water
 
 # field capacity
-Hydrology.minwater(soil::Soil{<:MineralOrganic}, ::WaterBalance) = hydraulicproperties(soil).fieldcapacity
+Hydrology.minwater(soil::Soil{<:SimpleSoil}, ::WaterBalance) = hydraulicproperties(soil).fieldcapacity
 
 # porosity/max water
-Hydrology.maxwater(soil::Soil{<:MineralOrganic}, water::WaterBalance) = porosity(soil, water)
+Hydrology.maxwater(soil::Soil{<:SimpleSoil}, water::WaterBalance) = porosity(soil, water)
 
 # water content for soils without water balance
-Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
-Hydrology.watercontent(soil::Soil{<:MineralOrganic,THeat,<:WaterBalance}, state) where {THeat} = state.θwi
+Hydrology.watercontent(soil::Soil{<:SimpleSoil,THeat,Nothing}, state) where {THeat} = soilcomponent(Val{:θwi}(), soil.para)
+Hydrology.watercontent(soil::Soil{<:SimpleSoil,THeat,<:WaterBalance}, state) where {THeat} = state.θwi
 
 # Heterogeneous
 
-saturation(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.sat
-porosity(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.por
-mineral(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.θm
-organic(::Soil{<:Heterogeneous{<:MineralOrganic}}, state) = state.θo
+saturation(::Soil{<:Heterogeneous{<:SimpleSoil}}, state) = state.sat
+porosity(::Soil{<:Heterogeneous{<:SimpleSoil}}, state) = state.por
+mineral(::Soil{<:Heterogeneous{<:SimpleSoil}}, state) = state.θm
+organic(::Soil{<:Heterogeneous{<:SimpleSoil}}, state) = state.θo
 
-CryoGrid.variables(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
+CryoGrid.variables(soil::Soil{<:Heterogeneous{<:SimpleSoil}}) = (
     # process variables
     variables(soil, processes(soil))...,
     # soil composition
@@ -126,7 +126,7 @@ CryoGrid.variables(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
     Diagnostic(:fieldcapacity, OnGrid(Cells), domain=0..1),
 )
 
-CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
+CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:SimpleSoil}}) = (
     initializer(:por, map(para -> para.por, soil.para.profile)),
     initializer(:sat, map(para -> para.sat, soil.para.profile)),
     initializer(:org, map(para -> para.org, soil.para.profile)),
@@ -146,14 +146,14 @@ CryoGrid.initializers(soil::Soil{<:Heterogeneous{<:MineralOrganic}}) = (
     initializers(soil, processes(soil))...,
 )
 
-function CryoGrid.initialcondition!(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, state)
+function CryoGrid.initialcondition!(soil::Soil{<:Heterogeneous{<:SimpleSoil}}, state)
     # initialize θo and θm variables
     @. state.θo = soilcomponent(Val{:θo}(), state.por, state.sat, state.org)
     @. state.θm = soilcomponent(Val{:θm}(), state.por, state.sat, state.org)
     initialcondition!(soil, processes(soil), state)
 end
 
-Base.@propagate_inbounds function Heat.thermalproperties(::Soil{<:Heterogeneous{<:MineralOrganic}}, state, i)
+Base.@propagate_inbounds function Heat.thermalproperties(::Soil{<:Heterogeneous{<:SimpleSoil}}, state, i)
     return ThermalProperties(
         kh_w = state.kh_w[i],
         kh_i = state.kh_i[i],
@@ -168,21 +168,21 @@ Base.@propagate_inbounds function Heat.thermalproperties(::Soil{<:Heterogeneous{
     )
 end
 
-Base.@propagate_inbounds function Heat.thermalconductivities(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, state, i)
+Base.@propagate_inbounds function Heat.thermalconductivities(soil::Soil{<:Heterogeneous{<:SimpleSoil}}, state, i)
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil, state, i)
     return (kh_w, kh_i, kh_a, kh_m, kh_o)
 end
 
-Base.@propagate_inbounds function Heat.heatcapacities(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, state, i)
+Base.@propagate_inbounds function Heat.heatcapacities(soil::Soil{<:Heterogeneous{<:SimpleSoil}}, state, i)
     @unpack ch_w, ch_i, ch_a, ch_m, ch_o = thermalproperties(soil, state, i)
     return (ch_w, ch_i, ch_a, ch_m, ch_o)
 end
 
-Base.@propagate_inbounds function Hydrology.hydraulicproperties(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, state, i)
+Base.@propagate_inbounds function Hydrology.hydraulicproperties(soil::Soil{<:Heterogeneous{<:SimpleSoil}}, state, i)
     return HydraulicProperties(
         kw_sat = state.kw_sat[i],
         fieldcapacity = state.fieldcapacity[i],
     )
 end
 
-Base.@propagate_inbounds Hydrology.minwater(soil::Soil{<:Heterogeneous{<:MineralOrganic}}, ::WaterBalance, state, i) = state.fieldcapacity[i]
+Base.@propagate_inbounds Hydrology.minwater(soil::Soil{<:Heterogeneous{<:SimpleSoil}}, ::WaterBalance, state, i) = state.fieldcapacity[i]

@@ -16,7 +16,7 @@ tempprofile = TemperatureProfile(
 
 # Here we use a simple single layer model with default soil parameters (50% porosity, no organic).
 soilprofile = SoilProfile(
-    0.0u"m" => MineralOrganic()
+    0.0u"m" => SimpleSoil()
 );
 
 # Here we specify the soil freezing characteristic curve (SFCC) formulation of Painter and Karra (2014).
