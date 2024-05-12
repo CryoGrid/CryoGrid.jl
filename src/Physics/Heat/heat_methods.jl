@@ -65,15 +65,14 @@ Defautls to `FreeWater`.
 freezecurve(sub::SubSurface) = FreeWater()
 
 """
-    freezethaw!(sub::SubSurface, state)
-    freezethaw!(::FreezeCurve, sub::SubSurface, proc::SubSurfaceProcess, state)
+    freezethaw!(::FreezeCurve, ::SubSurface, ::Process, state)
 
 Calculates freezing and thawing effects, including evaluation of the freeze curve.
 In general, this function should compute at least the liquid/frozen water contents
 and the corresponding heat capacity. Other variables such as temperature or enthalpy
 may also need to be computed depending on the thermal scheme being implemented.
 """
-freezethaw!(sub::SubSurface, state) = freezethaw!(freezecurve(sub), sub, processes(sub), state)
+freezethaw!(::FreezeCurve, ::SubSurface, ::Process, state) = error("not implemented")
 
 """
     enthalpyinv([::FreezeCurve], sub::SubSurface, heat::HeatBalance, state)

@@ -15,10 +15,11 @@ Generic representation of a `Ground` layer with material parameterization `para`
 Base.@kwdef struct Ground{Tpara,Theat<:Optional{HeatBalance},Twater<:Optional{WaterBalance},Tsolver,Taux} <: AbstractGround{Tpara,Theat,Twater}
     para::Tpara = SimpleSoil() # ground parameterization
     heat::Theat = HeatBalance() # heat conduction
-    water::Twater = WaterBalance() # water balance
+    water::Twater = nothing # water balance
     fcsolver::Tsolver = default_fcsolver(para, heat, water)
     aux::Taux = nothing # user-defined specialization
 end
+
 # Convenience constructors
 Ground(para::GroundParameterization; kwargs...) = Ground(; para, kwargs...)
 

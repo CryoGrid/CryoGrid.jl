@@ -65,6 +65,8 @@ Hydrology.maxwater(::Snowpack, ::WaterBalance, state) = 1.0
 
 Heat.thermalproperties(snow::Snowpack) = snow.para.heat.prop
 
+Heat.freezethaw!(fc::FreezeCurve, snow::Snowpack, ::CoupledSnowWaterHeat, state) = freezethaw!(freezecurve(snow), snow, snow.heat, state)
+
 # Default implementations of CryoGrid methods for Snowpack
 CryoGrid.processes(snow::Snowpack) = Coupled(snow.mass, snow.water, snow.heat)
 
