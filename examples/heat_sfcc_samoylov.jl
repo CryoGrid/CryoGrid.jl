@@ -1,10 +1,7 @@
 # # [Soil heat with SFCC](@id example3)
 # In this example, we use the preset `SoilHeatTile` to construct
 # a `Tile` consisting of a soil column with heat conduction
-# forced using air temperatures from Samoylov Island. We use the
-# SFCC formulation of Painter and Karra (2014). For the purpose
-# of demonstration, we use the apparent heat capacity form of the
-# heat equation in this example (i.e. [`Heat.Diffusion1D(:T) `](@ref)).
+# forced using n-factor scaled air temperatures from Samoylov Island.
 
 using CryoGrid
 
@@ -13,7 +10,7 @@ forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA5_fitted_daily_197
 grid = CryoGrid.Presets.DefaultGrid_5cm
 soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
 initT = initializer(:T, tempprofile)
-upperbc = TemperatureBC(forcings.Tair, NFactor(nf=0.6))
+upperbc = TemperatureBC(forcings.Tair, NFactor(nf=0.6, nt=0.9))
 lowerbc = GeothermalHeatFlux(0.053u"W/m^2")
 tile = CryoGrid.Presets.SoilHeatTile(upperbc, lowerbc, soilprofile, initT; grid=grid)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))

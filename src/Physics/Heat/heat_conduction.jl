@@ -85,7 +85,7 @@ Diagnostic state update for heat conduction (all state configurations) on any su
 """
 function CryoGrid.computediagnostic!(sub::SubSurface, heat::HeatBalance, state)
     # Evaluate freeze/thaw processes
-    freezethaw!(sub, state)
+    freezethaw!(freezecurve(sub), sub, processes(sub), state)
     # Update thermal conductivity
     thermalconductivity!(sub, state)
     return nothing

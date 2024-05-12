@@ -24,10 +24,10 @@ include("presetgrids.jl")
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration.
 """
-function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, inits::CryoGrid.Initializer...; grid::Grid=DefaultGrid_5cm, fcsolver=SFCCPreSolver(), tile_kwargs...)
+function SoilHeatTile(heatop, upperbc::BoundaryProcess, lowerbc::BoundaryProcess, soilprofile::Profile, inits::CryoGrid.Initializer...; grid::Grid=DefaultGrid_5cm, tile_kwargs...)
     strat = Stratigraphy(
         grid[1] => Top(upperbc),
-        Tuple(d => Ground(para, heat=HeatBalance(heatop), fcsolver=fcsolver) for (i,(d,para)) in enumerate(soilprofile)),
+        Tuple(d => Ground(para, heat=HeatBalance(heatop), water=nothing) for (i,(d,para)) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, PresetGrid(grid), inits...; tile_kwargs...)

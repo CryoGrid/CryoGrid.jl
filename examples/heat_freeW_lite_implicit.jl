@@ -26,7 +26,7 @@ soilprofile = SoilProfile(
     3.0u"m" => SimpleSoil(; por=0.50, org=0.0, freezecurve),
     10.0u"m" => SimpleSoil(; por=0.30, org=0.0, freezecurve),
 )
-heat = HeatBalance(heatop; freezecurve)
+heat = HeatBalance(heatop)
 water = WaterBalance()
 soil_layers = map(para -> Ground(para; heat, water), soilprofile)
 strat = @Stratigraphy(

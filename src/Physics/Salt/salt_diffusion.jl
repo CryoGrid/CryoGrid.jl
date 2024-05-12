@@ -1,12 +1,5 @@
 # Heat methods
 
-Heat.freezethaw!(soil::SalineGround, state) = freezethaw!(
-    freezecurve(soil),
-    soil,
-    Coupled(soil.salt, soil.heat),
-    state,
-)
-
 function Heat.freezethaw!(
     sfcc::DallAmicoSalt,
     soil::SalineGround,
@@ -60,11 +53,8 @@ function CryoGrid.computediagnostic!(
     ps::CoupledHeatSalt{THeat},
     state
 ) where {THeat<:HeatBalance{<:TemperatureBased}}
-    # Reset energy flux to zero; this is redundant when H is the prognostic variable
-    # but necessary when it is not.
-    salt, heat = ps
     # Evaluate freeze/thaw processes
-    freezethaw!(soil, state)
+    freezethaw!(freezecurve(soil), soil, ps, state)
     # Update thermal conductivity
     thermalconductivity!(soil, state)
     # thermal conductivity at boundaries
