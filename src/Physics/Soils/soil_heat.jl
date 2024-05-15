@@ -10,19 +10,8 @@ function sfccheatcap(soil::Soil, state, i)
     function heatcap(θw, θwi, θsat)
         θi = θwi - θw
         θa = θsat - θwi
-        θm = state.θm[i]
-        θo = state.θo[i]
-        return f(cs, (θw, θi, θa, θm, θo))
-    end
-end
-function sfccheatcap(soil::Soil{<:SimpleSoil}, state, i)
-    f = thermalproperties(soil).heatcap
-    cs = Heat.heatcapacities(soil, state, i)
-    function heatcap(θw, θwi, θsat)
-        θi = θwi - θw
-        θa = θsat - θwi
-        θm = (1-soil.para.org)*(1-θsat)
-        θo = soil.para.org*(1-θsat)
+        θm = mineral(soil, state, i)*(1-θsat)
+        θo = organic(soil, state, i)*(1-θsat)
         return f(cs, (θw, θi, θa, θm, θo))
     end
 end
