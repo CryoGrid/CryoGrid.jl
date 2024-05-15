@@ -24,8 +24,6 @@ mineral_field_capacity(surf::SURFEX) = 0.45*surf.texture.clay^0.3496
 
 organic_fraction(surf::SURFEX) = surfex_organic(surf.ρ_soc, surf.ρ_org, surf.por_org)
 
-freezecurve(surf::SURFEX) = surf.freezecurve
-
 function default_surfex_freezecurve(texture::SoilTexture, ρ_soc, ρ_org, por_org)
     # TODO: find a more justified value for this threshold?
     # if soil is organic-rich, use organic freeze curve
@@ -55,6 +53,8 @@ CryoGrid.initializers(soil::Soil{<:SURFEX,THeat,<:WaterBalance}) where {THeat} =
 )
 
 # Heat
+
+Heat.freezecurve(soil::Soil{<:SURFEX}) = soil.para.freezecurve
 
 function Heat.thermalconductivities(soil::Soil{<:SURFEX})
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)

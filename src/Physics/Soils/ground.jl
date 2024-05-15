@@ -29,10 +29,6 @@ default_fcsolver(::GroundParameterization, ::HeatBalance, ::WaterBalance) = SFCC
 
 fcsolver(ground::Ground) = ground.fcsolver
 
-# Heat methods
-
-Heat.freezecurve(ground::AbstractGround) = freezecurve(ground.para)
-
 # CryoGrid methods
 
 CryoGrid.processes(g::Ground{<:GroundParameterization,<:HeatBalance,Nothing}) = g.heat
