@@ -25,7 +25,7 @@ SoilTexture(::Val{:sandyloam}) = SoilTexture(sand=0.80, silt=0.10, clay=0.10)
 SoilTexture(::Val{:siltyloam}) = SoilTexture(sand=0.10, silt=0.80, clay=0.10)
 SoilTexture(::Val{:clayloam}) = SoilTexture(sand=0.30, silt=0.30, clay=0.40)
 
-function freezecurve(texture::SoilTexture)
+function Heat.freezecurve(texture::SoilTexture)
     return if texture.sand >= 0.90
         PainterKarra(swrc=VanGenuchten(:sand))
     elseif texture.sand >= 0.50 && texture.clay < 0.20
