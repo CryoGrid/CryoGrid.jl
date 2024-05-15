@@ -14,8 +14,6 @@ Base.@kwdef struct SimpleSoil{Tfc,Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterizatio
     water::Twp = SoilHydraulicProperties(SimpleSoil, fieldcapacity=0.20)
 end
 
-Heat.freezecurve(soil::SimpleSoil) = soil.freezecurve
-
 # Helper functions for obtaining soil compositions from characteristic fractions.
 soilcomponent(::Val{var}, para::SimpleSoil) where var = soilcomponent(Val{var}(), para.por, para.sat, para.org)
 soilcomponent(::Val{:θwi}, ϕ, θ, ω) = ϕ*θ
@@ -63,6 +61,8 @@ CryoGrid.initializers(soil::Soil{<:SimpleSoil,THeat,<:WaterBalance}) where {THea
 )
 
 # Heat
+
+Heat.freezecurve(soil::Soil{<:SimpleSoil}) = soil.para.freezecurve
 
 function Heat.thermalconductivities(soil::Soil{<:SimpleSoil})
     @unpack kh_w, kh_i, kh_a, kh_m, kh_o = thermalproperties(soil)
