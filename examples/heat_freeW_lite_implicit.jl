@@ -18,13 +18,12 @@ upperbc = WaterHeatBC(
 )
 ssinit = ThermalSteadyStateInit(T0=-15.0u"°C")
 heatop = Heat.EnthalpyImplicit()
-freezecurve = FreeWater()
 soilprofile = SoilProfile(
-    0.0u"m" => SimpleSoil(; por=0.80, org=0.75, freezecurve),
-    0.1u"m" => SimpleSoil(; por=0.80, org=0.25, freezecurve),
-    0.4u"m" => SimpleSoil(; por=0.55, org=0.25, freezecurve),
-    3.0u"m" => SimpleSoil(; por=0.50, org=0.0, freezecurve),
-    10.0u"m" => SimpleSoil(; por=0.30, org=0.0, freezecurve),
+    0.0u"m" => SimpleSoil(; por=0.80, org=0.75, freezecurve=FreeWater()),
+    0.1u"m" => SimpleSoil(; por=0.80, org=0.25, freezecurve=FreeWater()),
+    0.4u"m" => SimpleSoil(; por=0.55, org=0.25, freezecurve=FreeWater()),
+    3.0u"m" => SimpleSoil(; por=0.50, org=0.0, freezecurve=FreeWater()),
+    10.0u"m" => SimpleSoil(; por=0.30, org=0.0, freezecurve=FreeWater()),
 )
 heat = HeatBalance(heatop)
 water = WaterBalance()
@@ -39,8 +38,8 @@ modelgrid = Grid(vcat(z_top:0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm
 tile = Tile(strat, modelgrid, ssinit);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
-# Here we specify a time span of 20 years.
-tspan = (DateTime(2000,10,1), DateTime(2020,10,1))
+# Here we specify a time span of 30 years.
+tspan = (DateTime(1990,10,1), DateTime(2020,10,1))
 u0, du0 = initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,:θw,:θwi,:kc,:ρsn))
 sol = @time solve(prob, LiteImplicitEuler())
@@ -51,7 +50,7 @@ import Plots
 zs = [1,5,10,15,20,25,30,40,50,100]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)
-Plots.plot(out.ρsn[Z(Near(-1.0u"cm"))])
+Plots.plot(out.snowpack.dsn)
 
 # CryoGridLite can also be embedded into integrators from OrdinaryDiffEq.jl via the `NLCGLite` nonlinear solver interface.
 # Note that these sovers generally will not be faster (in execution time) but may be more stable in some cases. Adaptive timestepping can be employed by
