@@ -36,9 +36,9 @@ function default_surfex_freezecurve(texture::SoilTexture, ρ_soc, ρ_org, por_or
 end
 
 # Soil methods
-organic(soil::Soil{<:SURFEX}) = organic_fraction(soil.para)*porosity(soil)
+organic(soil::Soil{<:SURFEX}) = organic_fraction(soil.para)*(1 - porosity(soil))
 
-mineral(soil::Soil{<:SURFEX}) = (1 - porosity(soil))*(1 - organic_fraction(soil.para))
+mineral(soil::Soil{<:SURFEX}) = (1 - organic_fraction(soil.para))*(1 - porosity(soil))
 
 saturation(soil::Soil{<:SURFEX}) = soil.para.sat
 
