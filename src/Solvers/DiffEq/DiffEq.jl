@@ -38,7 +38,7 @@ function __init__()
     # OrdinaryDiffEq compatibility
     @require OrdinaryDiffEq="1dea7af3-3e70-54e6-95c3-0bf5283fa5ed" begin
         using .OrdinaryDiffEq
-        using .OrdinaryDiffEq: NLSolver
+        using .OrdinaryDiffEq: NLSolver, OrdinaryDiffEqAlgorithm, DAEAlgorithm
         # re-export selected types from OrdinaryDiffEq;
         export OrdinaryDiffEq
         # explicit methods
