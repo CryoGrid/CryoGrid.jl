@@ -2,6 +2,7 @@ using ..LiteImplicit
 
 Base.@kwdef struct NLCGLite <: AbstractCryoGridNLSolverAlgorithm
     max_iter::Int = 1000
+    check_div::Bool = false
 end
 
 mutable struct NLCGLiteCache{Tu,Tt,Tcache} <: OrdinaryDiffEq.AbstractNLSolverCache
@@ -34,9 +35,7 @@ end
 # and is probably used by the adaptive timestepping algorithms.
 initial_η(nlsolver::NLSolver{<:NLCGLite}, integrator) = nlsolver.ηold
 
-OrdinaryDiffEq.check_div(::NLCGLite) = false
-
-OrdinaryDiffEq.@muladd function OrdinaryDiffEq.initialize!(nlsolver::NLSolver{<:NLCGLite}, integrator::DiffEqBase.DEIntegrator)
+DiffEqBase.@muladd function OrdinaryDiffEq.initialize!(nlsolver::NLSolver{<:NLCGLite}, integrator::DiffEqBase.DEIntegrator)
     nlsolver.cache.tstep = integrator.t + nlsolver.c * integrator.dt
     copyto!(nlsolver.cache.innercache.uprev, nlsolver.tmp)
     # this won't work if u has units
@@ -45,7 +44,7 @@ OrdinaryDiffEq.@muladd function OrdinaryDiffEq.initialize!(nlsolver::NLSolver{<:
     return nothing
 end
 
-OrdinaryDiffEq.@muladd function OrdinaryDiffEq.compute_step!(nlsolver::NLSolver{<:NLCGLite, true}, integrator)
+DiffEqBase.@muladd function OrdinaryDiffEq.compute_step!(nlsolver::NLSolver{<:NLCGLite, true}, integrator)
     @unpack p, dt = integrator
     @unpack z, tmp, ztmp, γ, α, cache = nlsolver
     @unpack ustep, tstep, innercache = cache
