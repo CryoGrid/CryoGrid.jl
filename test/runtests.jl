@@ -17,6 +17,7 @@ include("Physics/runtests.jl")
 include("Tiles/runtests.jl")
 include("Solvers/runtests.jl")
 include("Diagnostics/runtests.jl")
+include("CryoGridSBIExt/runtests.jl")
 
 # these tests verify that (some of) the example scripts do not error;
 # the actual model output is not verified!

@@ -1,0 +1,3 @@
+[deps]
+CryoGrid = "a535b82e-5f3d-4d97-8b0b-d6483f5bebd5"
+SimulationBasedInference = "78927d98-f421-490e-8789-96b006983a5c"

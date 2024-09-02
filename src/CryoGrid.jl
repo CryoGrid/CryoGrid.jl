@@ -18,6 +18,7 @@ using IfElse
 using LinearAlgebra
 using ModelParameters
 using Reexport
+using Requires
 
 import Flatten
 import Interpolations
@@ -98,5 +99,14 @@ include("Solvers/Solvers.jl")
 
 # Presets
 include("Presets/Presets.jl")
+
+function __init__()
+    # SimulationBasedInference extension
+    @require SimulationBasedInference="78927d98-f421-490e-8789-96b006983a5c" begin
+        using .SimulationBasedInference
+        include("../ext/CryoGridSBIExt/CryoGridSBIExt.jl")
+        @reexport using .CryoGridSBIExt
+    end
+end
 
 end # module
