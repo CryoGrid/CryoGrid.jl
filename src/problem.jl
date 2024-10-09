@@ -137,7 +137,7 @@ Constructs a SciML `ODEFunction` given the model setup, initial state u0, parame
 Can (and should) be overridden by users to provide customized ODEFunction configurations for specific problem setups, e.g:
 ```
 tile = Tile(strat,grid)
-function CryoGrid.Setup.odefunction(::DefaultJac, setup::typeof(tile), u0, p, tspan)
+function CryoGrid.odefunction(::DefaultJac, setup::typeof(tile), u0, p, tspan)
     ...
     # make sure to return an instance of ODEFunction
 end
