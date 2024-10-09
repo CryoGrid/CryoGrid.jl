@@ -40,7 +40,7 @@ CryoGrid.variables(::LiteSnowpack, ::SnowMassBalance) = (
 
 CryoGrid.computediagnostic!(::LiteSnowpack, ::SnowMassBalance, state) = nothing
 
-CryoGrid.computefluxes!(::LiteSnowpack, ::SnowMassBalance, state) = nothing
+CryoGrid.computeprognostic!(::LiteSnowpack, ::SnowMassBalance, state) = nothing
 
 function CryoGrid.interact!(
     top::Top,

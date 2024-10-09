@@ -89,13 +89,13 @@ function CryoGrid.interact!(
 end
 
 # Flux calculation
-function CryoGrid.computefluxes!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
+function CryoGrid.computeprognostic!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
-    CryoGrid.computefluxes!(sub, water, state)
+    CryoGrid.computeprognostic!(sub, water, state)
     if heat.advection
         water_energy_advection!(sub, ps, state)
     end
-    CryoGrid.computefluxes!(sub, heat, state)
+    CryoGrid.computeprognostic!(sub, heat, state)
 end
 
 function heatcapacitywater(sub::SubSurface, state)

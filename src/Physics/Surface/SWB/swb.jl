@@ -71,7 +71,7 @@ function CryoGrid.computediagnostic!(::Top, swb::SurfaceWaterBalance, stop)
     @setscalar stop.jw_rain = swb.rainfall(stop.t)
 end
 
-function CryoGrid.computefluxes!(top::Top, swb::SurfaceWaterBalance, state)
+function CryoGrid.computeprognostic!(top::Top, swb::SurfaceWaterBalance, state)
     runoff!(top, swb, state)
 end
 

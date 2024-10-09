@@ -82,8 +82,8 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalanceImplicit, sub2::SubSu
     return nothing
 end
 
-# do nothing in computefluxes!
-CryoGrid.computefluxes!(::SubSurface, ::HeatBalanceImplicit, state) = nothing
+# do nothing in computeprognostic!
+CryoGrid.computeprognostic!(::SubSurface, ::HeatBalanceImplicit, state) = nothing
 
 function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalanceImplicit, state)
     @inbounds for i in 1:length(state.H)

@@ -104,7 +104,7 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     return nothing
 end
 
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
+function CryoGrid.computeprognostic!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set;
@@ -115,7 +115,7 @@ function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, s
     divergence!(state.dH, state.jH, Δk)
     return nothing
 end
-function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:TemperatureBased}, state)
+function CryoGrid.computeprognostic!(sub::SubSurface, ::HeatBalance{<:TemperatureBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

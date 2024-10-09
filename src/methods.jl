@@ -63,15 +63,15 @@ interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, proc
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 
 """
-    computefluxes!(l::Layer, p::Process, state)
+    computeprognostic!(l::Layer, p::Process, state)
 
-Calculates all internal fluxes for a given layer. Note that an instance of `computefluxes!` must be provided
+Calculates all internal fluxes for a given layer. Note that an instance of `computeprognostic!` must be provided
 for all non-boundary (subsurface) processes/layers.
 """
-computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
-computefluxes!(layer::Layer, proc::Process, state) = error("computefluxes! defined for $(typeof(layer)) with $(typeof(proc))")
-computefluxes!(::Top, ::BoundaryProcess, state) = nothing
-computefluxes!(::Bottom, ::BoundaryProcess, state) = nothing
+computeprognostic!(layer::Layer, state) = computeprognostic!(layer, processes(layer), state)
+computeprognostic!(layer::Layer, proc::Process, state) = error("computeprognostic! defined for $(typeof(layer)) with $(typeof(proc))")
+computeprognostic!(::Top, ::BoundaryProcess, state) = nothing
+computeprognostic!(::Bottom, ::BoundaryProcess, state) = nothing
 
 """
     caninteract(layer1::Layer, layer2::Layer, state1, state2)
@@ -111,7 +111,7 @@ resetfluxes!(layer::Layer, proc::Process, state) = nothing
     isactive(::Layer, state)
 
 Returns a boolean whether or not this layer is currently active in the stratigraphy and should interact with other layers.
-Note that `computediagnostic!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
+Note that `computediagnostic!` and `computeprognostic!` are always invoked regardless of the current state of `isactive`.
 The default implementation of `isactive` always returns `true`.
 """
 isactive(::Layer, state) = true

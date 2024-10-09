@@ -117,7 +117,7 @@ end
 		state = (T=T,dH=dH,jH=jH,k=k,grid=x,grids=(T=xc,k=x),t=t)
 		interact!(Top(bc), bc, sub, heat, state, state)
 		interact!(sub, heat, Bottom(bc), bc, state, state)
-		computefluxes!(sub, heat, state)
+		computeprognostic!(sub, heat, state)
 		# strip units from dH before returning it to the solver;
 		# note that we do not need to divide by diffusivity since we assume it to be unity
 		return ustrip.(dH)

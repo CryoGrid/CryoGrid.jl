@@ -108,7 +108,7 @@ function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
 end
 
 """
-    computefluxes!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
+    computeprognostic!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
 Time derivative step function (i.e. du/dt) for any arbitrary `Tile`. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
@@ -117,10 +117,10 @@ in sequence, i.e for each layer 1 <= i <= N:
 ```julia
 computediagnostic!(layer[i], ...)
 interact!(layer[i], ..., layer[i+1], ...)
-computefluxes!(layer[i], ...)
+computeprognostic!(layer[i], ...)
 ```
 """
-function computefluxes!(
+function computeprognostic!(
     _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
     _du::AbstractVector,
     _u::AbstractVector,
@@ -139,8 +139,8 @@ function computefluxes!(
     checkstate!(tile, state, u, du, :computediagnostic!)
     CryoGrid.interact!(strat, state)
     checkstate!(tile, state, u, du, :interact!)
-    CryoGrid.computefluxes!(strat, state)
-    checkstate!(tile, state, u, du, :computefluxes!)
+    CryoGrid.computeprognostic!(strat, state)
+    checkstate!(tile, state, u, du, :computeprognostic!)
     return nothing
 end
 
@@ -182,7 +182,7 @@ function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::Abs
     CryoGrid.initialcondition!(tile.grid, state)
     CryoGrid.initialcondition!(strat, state, tile.inits...)
     # evaluate initial time derivative
-    computefluxes!(tile, du, u, p, t0)
+    computeprognostic!(tile, du, u, p, t0)
     return u, du
 end
 

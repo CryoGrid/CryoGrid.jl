@@ -219,9 +219,9 @@ that `getproperty` would return the appropriate state object for the i'th layer 
     return expr
 end
 
-function CryoGrid.computefluxes!(strat::Stratigraphy, state)
+function CryoGrid.computeprognostic!(strat::Stratigraphy, state)
     fastiterate(namedlayers(strat)) do named_layer
-        CryoGrid.computefluxes!(named_layer.val, getproperty(state, nameof(named_layer)))
+        CryoGrid.computeprognostic!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
 end
 

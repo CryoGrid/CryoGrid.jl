@@ -54,7 +54,7 @@ include("variables.jl")
 export BCKind
 include("traits.jl")
 
-export initialcondition!, computediagnostic!, interact!, interactmaybe!, computefluxes!, resetfluxes!, diagnosticstep!
+export initialcondition!, computediagnostic!, interact!, interactmaybe!, computeprognostic!, resetfluxes!, diagnosticstep!
 export variables, processes, initializers, timestep, isactive, caninteract
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")

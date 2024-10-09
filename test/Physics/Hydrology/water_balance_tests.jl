@@ -32,14 +32,14 @@ using Test
         @test allfinite(state.kw)
         @test allfinite(state.θw)
     end
-    @testset "computefluxes!" begin
+    @testset "computeprognostic!" begin
         sub = TestGroundLayer(WaterBalance(BucketScheme()))
         state = Diagnostics.build_dummy_state(testgrid, sub, with_units=true)
         # initialize fully saturated
         state.sat .= 1.0
         procs = CryoGrid.processes(sub)
         CryoGrid.computediagnostic!(sub, procs, state)
-        CryoGrid.computefluxes!(sub, procs, state)
+        CryoGrid.computeprognostic!(sub, procs, state)
         @test allfinite(state.kw)
         @test allfinite(state.θw)
         @test all(iszero.(state.jw))
@@ -47,7 +47,7 @@ using Test
         state.sat .= 0.5
         procs = CryoGrid.processes(sub)
         CryoGrid.computediagnostic!(sub, procs, state)
-        CryoGrid.computefluxes!(sub, procs, state)
+        CryoGrid.computeprognostic!(sub, procs, state)
         @test allfinite(state.kw)
         @test allfinite(state.θw)
         @test all(state.jw[2:end-1] .> zero(eltype(state.jw)))

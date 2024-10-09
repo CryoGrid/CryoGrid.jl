@@ -17,7 +17,7 @@
         CryoGrid.computediagnostic!(top, swb, stop)
         CryoGrid.computediagnostic!(sub, water, ssub)
         CryoGrid.interact!(top, sub, stop, ssub)
-        CryoGrid.computefluxes!(top, stop)
+        CryoGrid.computeprognostic!(top, stop)
         @test iszero(ssub.jw[1])
         @test stop.drunoff[1] > zero(eltype(stop.drunoff))
         ssub.sat .= 0.5
@@ -26,7 +26,7 @@
         CryoGrid.computediagnostic!(top, swb, stop)
         CryoGrid.computediagnostic!(sub, water, ssub)
         CryoGrid.interact!(top, sub, stop, ssub)
-        CryoGrid.computefluxes!(top, stop)
+        CryoGrid.computeprognostic!(top, stop)
         @test ssub.jw[1] > zero(eltype(ssub.jw))
         @test iszero(stop.drunoff[1])
     end
