@@ -35,8 +35,7 @@ upperbc = TemperatureBC(
 )
 ssinit = ThermalSteadyStateInit(T0=-15.0u"°C")
 heatop = Heat.EnthalpyImplicit()
-freezecurve = FreeWater()
-heat = HeatBalance(heatop; freezecurve)
+heat = HeatBalance(heatop)
 soil_layers = map(para -> Ground(para; heat), soilprofile)
 strat = Stratigraphy(
     z_top => Top(upperbc),

@@ -138,6 +138,7 @@ function CryoGrid.initialcondition!(snowpack::LiteSnowpack, ::SnowMassBalance, s
     @. state.ρsn = snowpack.para.ρsn_0
     @. state.swe = 0.0
     @. state.dsn = 0.0
+    @. state.ubc_idx = length(state.T)
 end
 
 function Hydrology.watercontent!(snow::LiteSnowpack, ::WaterBalance, state)
