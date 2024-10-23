@@ -28,8 +28,8 @@ accumulation!(::Top, ::SnowBC, ::LiteSnowpack, ::SnowMassBalance, stop, ssnow) =
 
 # Declare snow mass balance variables for Lite scheme
 CryoGrid.variables(::LiteSnowpack, ::SnowMassBalance) = (
-    Prognostic(:swe, OnGrid(Cells), u"m"),
     Prognostic(:dsn, Scalar, u"m"),
+    Diagnostic(:swe, OnGrid(Cells), u"m"),
     Diagnostic(:ρsn, OnGrid(Cells), u"kg/m^3"),
     Diagnostic(:snowfall, Scalar, u"m/s"),
     Diagnostic(:T_ub, Scalar, u"°C"),
@@ -126,11 +126,16 @@ function CryoGrid.diagnosticstep!(snowpack::LiteSnowpack, state)
     new_dsn, new_ubc_idx = lite_snow!(state.θw, state.θwi, grid, dsn, para.dsn_max, sf, state.ρsn, para.ρsn_max, para.ρsn_k1, para.ρsn_k2, ρw, date)
     state.dsn .= new_dsn
     state.ubc_idx .= new_ubc_idx
+    total_swe = 0.0
     # calculate swe from updated water/ice contents
     @inbounds for i in eachindex(state.θwi)
-        state.swe[i] = (state.θwi[i] - state.θw[i])*min(dz[i], abs(dsn - grid[i+1]))
+        state.swe[i] = state.θwi[i]*dz[i]
+        total_swe += state.swe[i]
     end
     @. state.ρsn = ρw*state.swe / dz
+    if state.T_ub[1] > 1.0 && total_swe <= 0.0 && state.dsn[1] > 0.0
+        state.dsn .= 0.0
+    end
     return false
 end
 
@@ -138,7 +143,7 @@ function CryoGrid.initialcondition!(snowpack::LiteSnowpack, ::SnowMassBalance, s
     @. state.ρsn = snowpack.para.ρsn_0
     @. state.swe = 0.0
     @. state.dsn = 0.0
-    @. state.ubc_idx = length(state.T)
+    state.ubc_idx .= length(state.T)
 end
 
 function Hydrology.watercontent!(snow::LiteSnowpack, ::WaterBalance, state)

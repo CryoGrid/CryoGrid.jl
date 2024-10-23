@@ -10,6 +10,8 @@ using CryoGrid.LiteImplicit
 # Load forcings and build stratigraphy like before.
 forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 forcings = Base.rename(forcings, :Ptot => :precip)
+precip_values = forcings.precip.interpolant.coefs
+precip_values .*= 2
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
@@ -51,6 +53,20 @@ zs = [1,5,10,15,20,25,30,40,50,100]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", title="", leg=false, dpi=150)
 Plots.plot(out.snowpack.dsn)
+
+integrator = init(prob, LiteImplicitEuler())
+for i in integrator
+    state = getstate(integrator)
+    last_above_ground_idx = findlast(<(0), cells(state.grid))
+    if state.snowpack.dsn[1] > 0.0 && state.snowpack.swe[last_above_ground_idx] <= 0 && state.snowpack.snowfall[1] <= 0
+        println("stopping")
+        break
+    end
+end
+
+CryoGrid.debug(true)
+
+step!(integrator)
 
 # CryoGridLite can also be embedded into integrators from OrdinaryDiffEq.jl via the `NLCGLite` nonlinear solver interface.
 # Note that these sovers generally will not be faster (in execution time) but may be more stable in some cases. Adaptive timestepping can be employed by
