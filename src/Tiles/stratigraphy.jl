@@ -259,7 +259,8 @@ function _initializers!(strat::Stratigraphy, state, inits)
 
             if i < length(strat)
                 isvalidᵢ₊₁ = !isa(init, VarInitializer) || hasproperty(stateᵢ₊₁, varname(init))
-                if isvalidᵢ && isvalidᵢ₊₁
+                # invoke initial condition if valid for either layer
+                if isvalidᵢ || isvalidᵢ₊₁
                     CryoGrid.initialcondition!(init, layerᵢ, layerᵢ₊₁, stateᵢ, stateᵢ₊₁)
                 end
             end
