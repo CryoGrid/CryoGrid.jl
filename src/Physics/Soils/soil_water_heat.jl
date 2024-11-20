@@ -53,7 +53,7 @@ function CryoGrid.initialcondition!(
     # initialize heat
     sfcc = freezecurve(soil)
     solver = initialize_sfccsolver!(soil, state)
-    @assert !isnothing(solver) "SFCC solver must be provided in HeatBalance operator. Check the model configuration."
+    @assert !isnothing(solver) "No SFCC solver provided. Check the model configuration."
     L = heat.prop.L
     @inbounds for i in 1:length(state.T)
         @unpack ch_w, ch_i = thermalproperties(soil, state, i)
