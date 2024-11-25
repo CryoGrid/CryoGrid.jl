@@ -1,22 +1,16 @@
 Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb.para.soil
 
 @testset "Surface Energy Balance" begin
-    const_Tair = ConstantForcing(0.0u"°C", :Tair)
-    const_pr = ConstantForcing(upreferred(1.0u"atm"), :pr)
-    const_qh = ConstantForcing(0.001u"kg/kg", :qh)
-    const_wind = ConstantForcing(1.0u"m/s", :wind)
-    const_Lin = ConstantForcing(upreferred(300.0u"W/m^2"), :Lin)
-    const_Sin = ConstantForcing(upreferred(200.0u"W/m^2"), :Sin)
-    z = 2.0u"m"
+    Tair = 0.0u"°C"
+    pr = upreferred(1.0u"atm")
+    qh = 0.001u"kg/kg"
+    wind = 1.0u"m/s"
+    Lin = upreferred(300.0u"W/m^2")
+    Sin = upreferred(200.0u"W/m^2")
+    forcings = (; Tair, pr, qh, wind, Lin, Sin)
     @testset "Iterative" begin
         seb = SurfaceEnergyBalance(
-            const_Tair,
-            const_pr,
-            const_qh,
-            const_wind,
-            const_Lin,
-            const_Sin,
-            z,
+            forcings;
             solscheme = Surface.Iterative(),
         )
         # TODO: would be good to have SEB work correctly with units to verify correctness;
@@ -36,13 +30,7 @@ Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb
     end
     @testset "Analytical" begin
         seb = SurfaceEnergyBalance(
-            const_Tair,
-            const_pr,
-            const_qh,
-            const_wind,
-            const_Lin,
-            const_Sin,
-            z,
+            forcings;
             solscheme = Surface.Analytical(),
         )
         seb = pstrip(seb)
@@ -59,15 +47,9 @@ Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb
     end
     @testset "Numerical" begin
         seb = SurfaceEnergyBalance(
-        const_Tair,
-        const_pr,
-        const_qh,
-        const_wind,
-        const_Lin,
-        const_Sin,
-        z,
-        solscheme=Surface.Numerical()
-    )
+            forcings;
+            solscheme=Surface.Numerical(),
+        )
         seb = pstrip(seb)
         grid = Grid([0.0,0.1]u"m")
         toplayer = Top(seb)

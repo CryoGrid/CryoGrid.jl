@@ -6,7 +6,7 @@ Plots.plotly()
 
 CryoGrid.debug(true)
 
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 soilprofile = SoilProfile(
     0.0u"m" => SimpleSoil(por=0.80,sat=0.9,org=0.75),
     0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25),
@@ -24,7 +24,7 @@ modelgrid = Grid(vcat(-1.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_
 z_top = -1.0u"m"
 z_sub = keys(soilprofile)
 z_bot = modelgrid[end]
-upperbc = TemperatureBC(forcings.Tair, NFactor(nf=0.5))
+upperbc = TemperatureBC(Input(:Tair), NFactor(nf=0.5))
 initT = initializer(:T, tempprofile_linear)
 @info "Building stratigraphy"
 heatop = Heat.EnthalpyImplicit()
@@ -35,7 +35,7 @@ strat = @Stratigraphy(
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 @info "Building tile"
-tile = @time Tile(strat, modelgrid, initT)
+tile = @time Tile(strat, modelgrid, forcings, initT)
 # define time span, 5 years
 tspan = (DateTime(2010,12,30), DateTime(2012,12,30))
 tspan_sol = convert_tspan(tspan)

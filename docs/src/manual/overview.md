@@ -12,8 +12,9 @@ At the highest level, a model in `CryoGrid.jl` is defined by one or more [`Tile`
 ```julia
 # ... load forcings, set up profiles, etc.
 # see examples/heat_vgfc_seb_saoylov_custom.jl for more details
+forcings = (;Tair,pr,q,wind,Lin,Sin,z)
 strat = Stratigraphy(
-    -2.0u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
+    -2.0u"m" => Top(SurfaceEnergyBalance(forcings)),
     0.0u"m" => Ground(soilprofile, HeatBalance(:H; freezecurve=DallAmico())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );

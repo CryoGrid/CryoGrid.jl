@@ -69,6 +69,8 @@ export DiscretizationStrategy, AutoGrid, PresetGrid, LinearSpacing, Grid, cells,
 include("Numerics/Numerics.jl")
 using .Numerics
 
+include("default_grids.jl")
+
 export initializer
 include("initializers.jl")
 
@@ -99,6 +101,19 @@ include("Solvers/Solvers.jl")
 
 # Presets
 include("Presets/Presets.jl")
+
+using .InputOutput: Resource
+
+Forcings = (
+    Samoylov_ERA5_fitted_daily_1979_2020 = Resource("samoylov_era5_fitted_daily_1979-2020", ForcingFormatJSON{2}(), "https://nextcloud.awi.de/s/ScYAoHzeMzAfpjf/download/samoylov_era5_fitted_daily_1979-2020.json"),
+    Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044 = Resource("Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044", ForcingFormatJSON{1}(), "https://nextcloud.awi.de/s/cbeycGQoQpXi3Ei/download/samoylov_ERA_obs_fitted_1979_2014_spinup_extended2044.json"),
+    Samoylov_ERA_MkL3_CCSM4_long_term = Resource("Samoylov_ERA_MkL3_CCSM4_long_term", ForcingFormatJSON{1}(), "https://nextcloud.awi.de/s/45ax9AsTACxL25Q/download/FORCING_ULC_126_72.json"),
+    Bayelva_ERA5_fitted_daily_1979_2020 = Resource("bayelva_era5_fitted_daily_1979-2020", ForcingFormatJSON{2}(), "https://nextcloud.awi.de/s/5AdbRMYKneCHgx4/download/bayelva_era5_fitted_daily_1979-2020.json")
+)
+Parameters = (
+    # Faroux et al. doi:10.1109/IGARSS.2007.4422971
+    EcoCLimMap_ULC_126_72 = Resource("EcoCLimMap_ULC_126_72", ParamsJSON{1}(), "https://nextcloud.awi.de/s/7F65JET9TzdosMD/download/PARA_ULC_126_72.json")
+)
 
 function __init__()
     # SimulationBasedInference extension

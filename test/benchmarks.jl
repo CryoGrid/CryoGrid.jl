@@ -78,8 +78,8 @@ StatsPlots.groupedbar(xnames, results_freeW_tair.error[:,:,1], yerror=results_fr
 savefig("solver_benchmark_freeW_tair_error.png")
 
 # Test 2: Energy + SEB upper bc + free water freeze curve
-z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
-seb = SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)
+forcings = (; Tair,pr,q,wind,Lin,Sin)
+seb = SurfaceEnergyBalance()
 solvers = [Euler, DP5, ROCK2, ROCK4]
 results_freeW_seb = run_solver_benchmark(solvers, grids, dts, tspan, seb)
 serialize("solver_benchmark_freeW_seb.ser", results_freeW_seb)

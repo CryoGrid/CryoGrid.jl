@@ -18,12 +18,11 @@ soilprofile = SoilProfile(
 );
 ## mid-winter temperature profile
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 tempprofile = CryoGrid.Presets.SamoylovDefault.tempprofile
 initT = initializer(:T, tempprofile)
-z = 2.0u"m"; # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
-seb = SurfaceEnergyBalance(forcings, z)
-swb = SurfaceWaterBalance(forcings)
+seb = SurfaceEnergyBalance()
+swb = SurfaceWaterBalance()
 upperbc = WaterHeatBC(swb, seb)
 heat = HeatBalance()
 water = WaterBalance(BucketScheme(), DampedET())
@@ -35,7 +34,7 @@ strat = @Stratigraphy(
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2")),
 );
 ## create Tile
-tile = Tile(strat, modelgrid, initT);
+tile = Tile(strat, modelgrid, forcings, initT);
 
 # Set up the problem and solve it!
 tspan = (DateTime(2010,10,30), DateTime(2011,10,30))
@@ -87,3 +86,26 @@ Plots.plot(ustrip.(cumsum(out.top.Qg, dims=2)), color=cg[LinRange(0.0,1.0,length
 
 # Integratoed ground latent heat flux:
 Plots.plot(ustrip.(cumsum(out.top.Qe, dims=2)), color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Integrated ground heat flux", leg=false, size=(800,500), dpi=150)
+
+using BenchmarkTools
+using Interpolations
+
+function interpolant(xs::AbstractVector, ts::AbstractVector)
+    f = interpolate((ts,), xs, Gridded(Linear()))
+    return f
+end
+
+function eval(xs::AbstractVector, ts::AbstractVector, t)
+    f = interpolate((ts,), xs, Gridded(Linear()))
+    return f(t)
+end
+
+const xdata = randn(1000)
+const tdata = 1:1000
+@btime eval(xdata, tdata, 10.0)
+
+const itp = interpolant(xdata, tdata)
+@btime itp(10.0)
+
+x = randn(1000,2)
+interpolate((tdata,1:2), x, (Gridded(Linear()), NoInterp()))

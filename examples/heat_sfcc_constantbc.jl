@@ -37,6 +37,7 @@ tile = CryoGrid.Presets.SoilHeatTile(
     ConstantBC(HeatBalance, CryoGrid.Neumann, 10.0u"W/m^2"),
     ConstantBC(HeatBalance, CryoGrid.Neumann, 10.0u"W/m^2"),
     soilprofile,
+    inputs(),
     initT;
     grid,
 );

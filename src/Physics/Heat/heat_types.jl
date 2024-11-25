@@ -67,5 +67,3 @@ Utils.@properties HeatBalanceProperties(
     Lsl = CryoGrid.Constants.Lsl,
     L = ρw*Lsl,
 )
-# do not parameterize heat properties
-CryoGrid.parameterize(prop::HeatBalanceProperties) = prop

@@ -3,6 +3,26 @@ Type alias for the implicit enthalpy formulation of HeatBalance.
 """
 const HeatBalanceImplicit = HeatBalance{<:EnthalpyImplicit}
 
+apbc(::Dirichlet, k, Δk) = k / (Δk^2/2)
+apbc(::Dirichlet, k, Δk, Δx) = k / Δx / Δk
+apbc(::Neumann, k, Δk) = 0
+
+function prefactors!(ap, an, as, k, dx, dxp)
+    # loop over grid cells
+    @inbounds for i in eachindex(dxp)
+        if i == 1
+            as[1] = k[2] / dx[1] / dxp[1]
+        elseif i == length(dxp)
+            an[end] = k[end-1] / dx[end] / dxp[end]
+        else
+            an[i] = k[i] / dx[i-1] / dxp[i]
+            as[i] = k[i+1] / dx[i] / dxp[i]
+        end
+        ap[i] = an[i] + as[i]
+    end
+    return nothing
+end
+
 # CryoGrid methods
 
 CryoGrid.variables(heat::HeatBalanceImplicit) = (
@@ -94,26 +114,4 @@ function CryoGrid.resetfluxes!(sub::SubSurface, heat::HeatBalanceImplicit, state
         state.DT_an[i] = 0.0
         state.DT_as[i] = 0.0
     end
-end
-
-# implementations
-
-apbc(::Dirichlet, k, Δk) = k / (Δk^2/2)
-apbc(::Dirichlet, k, Δk, Δx) = k / Δx / Δk
-apbc(::Neumann, k, Δk) = 0
-
-function prefactors!(ap, an, as, k, dx, dxp)
-    # loop over grid cells
-    @inbounds for i in eachindex(dxp)
-        if i == 1
-            as[1] = k[2] / dx[1] / dxp[1]
-        elseif i == length(dxp)
-            an[end] = k[end-1] / dx[end] / dxp[end]
-        else
-            an[i] = k[i] / dx[i-1] / dxp[i]
-            as[i] = k[i+1] / dx[i] / dxp[i]
-        end
-        ap[i] = an[i] + as[i]
-    end
-    return nothing
 end

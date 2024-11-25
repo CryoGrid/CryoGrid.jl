@@ -9,18 +9,16 @@ Base.@kwdef struct SaltGradient{TbenthicSalt, TsurfaceState} <: BoundaryProcess{
     surfaceState::TsurfaceState
 end
 
-benthicSalt(bc::SaltGradient, t) = bc.benthicSalt
-benthicSalt(bc::SaltGradient{<:Forcing}, t) = bc.benthicSalt(t)
+benthicSalt(bc::SaltGradient) = bc.benthicSalt
 
-surfaceState(bc::SaltGradient, t) = bc.surfaceState
-surfaceState(bc::SaltGradient{<:Forcing}, t) = bc.surfaceState(t)
+surfaceState(bc::SaltGradient) = bc.surfaceState
 
 CryoGrid.BCKind(::Type{<:SaltGradient}) = CryoGrid.Dirichlet()
 
 function CryoGrid.interact!(::Top, bc::SaltGradient, soil::SalineGround, ::SaltMassBalance, stop, ssed)
     # upper boundary
-    surfaceState_t = surfaceState(bc, stop.t)
-    benthicSalt_t = benthicSalt(bc, stop.t)
+    surfaceState_t = surfaceState(bc)
+    benthicSalt_t = benthicSalt(bc)
     # distance to boundary; 1/2 thickness of first grid cell
     dz = CryoGrid.thickness(soil, ssed, first) / 2
     flux = if (surfaceState_t == 0) # if is inundated

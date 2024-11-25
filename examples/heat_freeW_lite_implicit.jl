@@ -8,16 +8,16 @@ using CryoGrid
 using CryoGrid.LiteImplicit
 
 # Load forcings and build stratigraphy like before.
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 forcings = Base.rename(forcings, :Ptot => :precip)
 precip_values = forcings.precip.interpolant.coefs
 precip_values .*= 2
 z_top = -2.0u"m"
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
-    SurfaceWaterBalance(forcings),
-    TemperatureBC(forcings.Tair, NFactor()),
-)
+    SurfaceWaterBalance(Input(:rainfall), Input(:snowfall)),
+    TemperatureBC(Input(:Tair), NFactor(0.5,0.9))
+);
 ssinit = ThermalSteadyStateInit(T0=-15.0u"°C")
 heatop = Heat.EnthalpyImplicit()
 soilprofile = SoilProfile(
@@ -37,7 +37,7 @@ strat = @Stratigraphy(
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
 modelgrid = Grid(vcat(z_top:0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
-tile = Tile(strat, modelgrid, ssinit);
+tile = Tile(strat, modelgrid, forcings, ssinit);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 30 years.

@@ -37,29 +37,37 @@ end
 """
     TemperatureBC{E,F} <: BoundaryProcess{HeatBalance}
 
-Represents a simple, forced Dirichlet temperature boundary condition for `HeatBalance` processes.
+Represents a simple, Dirichlet temperature boundary condition for `HeatBalance` processes.
 """
 struct TemperatureBC{E,F} <: BoundaryProcess{HeatBalance}
-    T::F # temperature forcing
+    T::F # boundary temperature
     effect::E # effect
-    TemperatureBC(T::F, effect::E=nothing) where {F<:Forcing{u"°C"},E} = new{E,F}(T, effect)
+    TemperatureBC(T::F, effect::E=nothing) where {F,E} = new{E,F}(T, effect)
 end
 
 CryoGrid.BCKind(::Type{<:TemperatureBC}) = Dirichlet()
 
-CryoGrid.boundaryvalue(bc::TemperatureBC, state) = getscalar(state.T_ub)
+CryoGrid.boundaryvalue(::TemperatureBC, state) = getscalar(state.T_ub)
 
-CryoGrid.variables(::Union{Top,Bottom}, bc::TemperatureBC) = (
+CryoGrid.variables(::Top, ::TemperatureBC) = (
     Diagnostic(:T_ub, Scalar, u"K"),
 )
 
-function CryoGrid.computediagnostic!(::Union{Top,Bottom}, bc::TemperatureBC, state)
-    @setscalar state.T_ub = bc.T(state.t)
+CryoGrid.variables(::Bottom, ::TemperatureBC) = (
+    Diagnostic(:T_lb, Scalar, u"K"),
+)
+
+function CryoGrid.computediagnostic!(::Top, bc::TemperatureBC, state)
+    @setscalar state.T_ub = bc.T
+end
+
+function CryoGrid.computediagnostic!(::Bottom, bc::TemperatureBC, state)
+    @setscalar state.T_lb = bc.T
 end
 
 Base.@kwdef struct NFactor{W,S} <: CryoGrid.BoundaryEffect
-    nf::W = 1.0 # applied when Tair <= 0
-    nt::S = 1.0 # applied when Tair > 0
+    nf::W = Param(1.0, domain=0..1) # applied when Tair <= 0
+    nt::S = Param(1.0, domain=0..1) # applied when Tair > 0
 end
 
 CryoGrid.variables(::Top, bc::TemperatureBC{<:NFactor}) = (
@@ -67,17 +75,12 @@ CryoGrid.variables(::Top, bc::TemperatureBC{<:NFactor}) = (
     Diagnostic(:nfactor, Scalar),
 )
 
-CryoGrid.parameterize(nf::NFactor) = NFactor(
-    nf = CryoGrid.parameterize(nf.nf, domain=0..1),
-    nt = CryoGrid.parameterize(nf.nt, domain=0..1),
-)
-
 nfactor(Tair, nfw, nfs) = (Tair <= zero(Tair))*nfw + (Tair > zero(Tair))*nfs
 
 function CryoGrid.computediagnostic!(::Top, bc::TemperatureBC{<:NFactor}, state)
     nfw = bc.effect.nf
     nfs = bc.effect.nt
-    Tair = bc.T(state.t)
+    Tair = bc.T
     @setscalar state.nfactor = nfactor(Tair, nfw, nfs)
     @setscalar state.T_ub = getscalar(state.nfactor)*Tair
 end
@@ -90,10 +93,10 @@ Represents a simple, forced Neumann heat flux boundary condition for `HeatBalanc
 struct GroundHeatFlux{TE,TQ} <: BoundaryProcess{HeatBalance}
 	Qg::TQ
     effect::TE
-    GroundHeatFlux(Qg::TQ, effect::TE=nothing) where {TQ<:Forcing{u"W/m^2"},TE} = new{TE,TQ}(Qg, effect)
+    GroundHeatFlux(Qg::TQ, effect::TE=nothing) where {TQ,TE} = new{TE,TQ}(Qg, effect)
 end
 
-CryoGrid.boundaryvalue(bc::GroundHeatFlux, state) = bc.Qg(state.t)
+CryoGrid.boundaryvalue(bc::GroundHeatFlux, state) = bc.Qg
 
 CryoGrid.BCKind(::Type{<:GroundHeatFlux}) = CryoGrid.Neumann()
 
@@ -108,7 +111,5 @@ struct GeothermalHeatFlux{TQ} <: BoundaryProcess{HeatBalance}
 end
 
 CryoGrid.boundaryvalue(bc::GeothermalHeatFlux, state) = -bc.Qgeo
-
-CryoGrid.boundaryvalue(bc::GeothermalHeatFlux{<:Forcing}, state) = -bc.Qgeo(state.t)
 
 CryoGrid.BCKind(::Type{<:GeothermalHeatFlux}) = CryoGrid.Neumann()

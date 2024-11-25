@@ -8,35 +8,8 @@ a Neumann-type upper boundary condition for snow and water fluxes as well as an 
 water mass balance at the surface.
 """
 Base.@kwdef struct SurfaceWaterBalance{TR,TS} <: BoundaryProcess{Union{WaterBalance, SnowMassBalance}}
-    rainfall::TR = ConstantForcing(0.0u"m/s")
-    snowfall::TS = ConstantForcing(0.0u"m/s")
-end
-
-"""
-    SurfaceWaterBalance(precip::Forcing{u"m/s",T1}, Tair::Forcing{u"°C",T2}) where {T1,T2}
-
-SWB constructor which derives rainfall and snowfall forcings from total precipitation and air temperature.
-"""
-function SurfaceWaterBalance(precip::Forcing{u"m/s",T1}, Tair::Forcing{u"°C",T2}) where {T1,T2}
-    return SurfaceWaterBalance(
-        TimeVaryingForcing(u"m/s", T1, t -> Tair(t) > 0.0 ? precip(t) : 0.0, :rainfall),
-        TimeVaryingForcing(u"m/s", T1, t -> Tair(t) <= 0.0 ? precip(t) : 0.0, :snowfall),
-    )
-end
-
-"""
-    SurfaceWaterBalance(forcings::Forcings)
-
-Automatically attempts to extract precipitation forcings from `forcings`.
-"""
-function SurfaceWaterBalance(forcings::Forcings)
-    if hasproperty(forcings, :rainfall) && hasproperty(forcings, :snowfall)
-        return SurfaceWaterBalance(forcings.rainfall, forcings.snowfall)
-    elseif hasproperty(forcings, :precip) && hasproperty(forcings, :Tair)
-        return SurfaceWaterBalance(forcings.precip, forcings.Tair)
-    else
-        error("forcings must provide either 'rainfall' and 'snowfall' or 'precip' and 'Tair'")
-    end
+    rainfall::TR = Input(:rainfall, units=u"m/s")
+    snowfall::TS = Input(:snowfall, units=u"m/s")
 end
 
 function infiltrate!(top::Top, swb::SurfaceWaterBalance, sub::SubSurface, water::WaterBalance, stop, ssub)
@@ -67,8 +40,8 @@ CryoGrid.variables(::Top, ::SurfaceWaterBalance) = (
 )
 
 function CryoGrid.computediagnostic!(::Top, swb::SurfaceWaterBalance, stop)
-    @setscalar stop.jw_snow = swb.snowfall(stop.t)
-    @setscalar stop.jw_rain = swb.rainfall(stop.t)
+    @setscalar stop.jw_snow = swb.snowfall
+    @setscalar stop.jw_rain = swb.rainfall
 end
 
 function CryoGrid.computeprognostic!(top::Top, swb::SurfaceWaterBalance, state)

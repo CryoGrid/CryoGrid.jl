@@ -1,14 +1,15 @@
 """
-    Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
+    Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip} <: AbstractTile{iip}
 
 Defines the full specification of a single CryoGrid tile; i.e. stratigraphy, grid, and state variables.
 """
-struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
+struct Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip} <: AbstractTile{iip}
     strat::TStrat # stratigraphy
     grid::TGrid # grid
     state::TStates # state variables
     inits::TInits # initializers
     events::TEvents # events
+    inputs::TInputs # inputs
     data::TileData # output data
     metadata::Dict # metadata
     function Tile(
@@ -17,19 +18,21 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,iip} <: AbstractTile{iip}
         state::TStates,
         inits::TInits,
         events::TEvents,
+        inputs::TInputs,
         data::TileData=TileData(),
         metadata::Dict=Dict(),
         iip::Bool=true) where
-        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple}
-        new{TStrat,TGrid,TStates,TInits,TEvents,iip}(strat,grid,state,inits,events,data,metadata)
+        {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple,TInputs<:InputProvider}
+        new{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}(strat, grid, state, inits, events, inputs, data, metadata)
     end
 end
-ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} =
-    (strat, grid, state, inits, events, data, metadata) -> Tile(strat, grid, state, inits, events, data, metadata, iip)
+ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip} =
+    (strat, grid, state, inits, events, inputs, data, metadata) -> Tile(strat, grid, state, inits, events, inputs, data, metadata, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:events}}) = true
+# all other fields are non-flattenable by default
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
 Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} = print(io, "Tile (iip=$iip) with layers $(keys(tile.strat)), $TGrid, $TStrat")
 
@@ -50,6 +53,7 @@ Constructs a `Tile` from the given stratigraphy and discretization strategy. `ar
 function Tile(
     @nospecialize(strat::Stratigraphy),
     @nospecialize(discretization_strategy::DiscretizationStrategy),
+    @nospecialize(inputs::InputProvider),
     @nospecialize(inits::CryoGrid.Initializer...);
     metadata::Dict=Dict(),
     cachetype::Type{T}=DiffCache,
@@ -82,11 +86,14 @@ function Tile(
             _addlayerfield(init, Symbol(:init))
         end
     end
-    return Tile(strat, grid, states, inits, (;events...), TileData(), metadata, iip)
+    tile = Tile(strat, grid, states, inits, (;events...), inputs, TileData(), metadata, iip)
+    _validate_inputs(tile, inputs)
+    return tile
 end
 Tile(strat::Stratigraphy, grid::Grid{Cells}, inits...; kwargs...) = Tile(strat, edges(grid), inits...; kwargs...)
 Tile(strat::Stratigraphy, grid::Grid{Edges}, inits...; kwargs...) = Tile(strat, PresetGrid(grid), inits...; kwargs...)
-Tile(strat::Stratigraphy, inits...; discretization_strategy=AutoGrid(), kwargs...) = Tile(strat, discretization_strategy, inits...; kwargs...)
+Tile(strat::Stratigraphy, disc::DiscretizationStrategy, inits::CryoGrid.Initializer...; kwargs...) = Tile(strat, disc, InputFunctionProvider(), inits...; kwargs...)
+Tile(strat::Stratigraphy, args...; discretization_strategy=AutoGrid(), kwargs...) = Tile(strat, discretization_strategy, args...; kwargs...)
 # convenience function to unwrap Tile from ODEFunction
 function Tile(f::ODEFunction)
     extract_f(tile::Tile) = tile
@@ -104,11 +111,11 @@ Constructs a `Tile` from a `SciMLBase` DEIntegrator.
 function Tiles.Tile(integrator::SciMLBase.DEIntegrator)
     tile = Tiles.Tile(integrator.sol.prob.f)
     u = integrator.u
-    return Tiles.resolve(tile, integrator.p, integrator.t)
+    return Tiles.materialize(tile, integrator.p, integrator.t)
 end
 
 """
-    computeprognostic!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
+    computeprognostic!(_tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,true}, _du, _u, p, t) where {TStrat,TGrid,TStates,TInits,TEvents}
 
 Time derivative step function (i.e. du/dt) for any arbitrary `Tile`. Specialized code is generated and compiled
 on the fly via the @generated macro to ensure type stability. The generated code updates each layer in the stratigraphy
@@ -121,17 +128,17 @@ computeprognostic!(layer[i], ...)
 ```
 """
 function computeprognostic!(
-    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,true},
+    _tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,true},
     _du::AbstractVector,
     _u::AbstractVector,
     p::Union{Nothing,AbstractVector},
     t::Number,
     dt=1.0,
-) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents}
+) where {N,TStrat<:Stratigraphy{N},TGrid,TStates,TInits,TEvents,TInputs}
     _du .= zero(eltype(_du))
     du = withaxes(_du, _tile)
     u = withaxes(_u, _tile)
-    tile = resolve(_tile, p, t)
+    tile = materialize(_tile, p, t)
     strat = tile.strat
     state = TileState(tile.strat, tile.grid, tile.state, du, u, t, dt)
     CryoGrid.resetfluxes!(strat, state)
@@ -154,7 +161,7 @@ Computes the maximum permissible forward timestep for this `Tile` given the curr
 function CryoGrid.timestep(_tile::Tile, _du, _u, p, t)
     du = withaxes(_du, _tile)
     u = withaxes(_u, _tile)
-    tile = resolve(_tile, p, t)
+    tile = materialize(_tile, p, t)
     strat = tile.strat
     state = TileState(tile.strat, tile.grid, tile.state, du, u, t, 1.0)
     dtmax = CryoGrid.timestep(strat::Stratigraphy, state)
@@ -176,7 +183,7 @@ function CryoGrid.initialcondition!(tile::Tile, tspan::NTuple{2,Float64}, p::Abs
     utype = isempty(p) ? eltype(tile.state.uproto) : eltype(p)
     du = zero(similar(tile.state.uproto, utype))
     u = zero(similar(tile.state.uproto, utype))
-    tile = resolve(tile, p, t0)
+    tile = materialize(tile, p, t0)
     strat = tile.strat
     state = TileState(tile.strat, tile.grid, tile.state, du, u, t0, 1.0)
     CryoGrid.initialcondition!(tile.grid, state)
@@ -269,28 +276,28 @@ getstate(integrator::SciMLBase.DEIntegrator) = Tiles.getstate(Tile(integrator), 
 """
 Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator; interp=true) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u; interp)
 
-"""
-    parameterize(tile::Tile)
+# """
+#     parameterize(tile::Tile)
 
-Adds parameter information to all nested types in `tile` by recursively calling `parameterize`.
-"""
-function CryoGrid.parameterize(tile::Tile)
-    ctor = ConstructionBase.constructorof(typeof(tile))
-    new_layers = map(namedlayers(tile.strat)) do named_layer
-        name = nameof(named_layer)
-        layer = CryoGrid.parameterize(named_layer.val)
-        name => _addlayerfield(layer, name)
-    end
-    new_inits = map(tile.inits) do init
-        _addlayerfield(CryoGrid.parameterize(init), :init)
-    end
-    new_events = map(keys(tile.events)) do name
-        evs = map(CryoGrid.parameterize, getproperty(tile.events, name))
-        name => _addlayerfield(evs, name)
-    end
-    new_strat = Stratigraphy(boundaries(tile.strat), (;new_layers...))
-    return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data, tile.metadata)
-end
+# Adds parameter information to all nested types in `tile` by recursively calling `parameterize`.
+# """
+# function CryoGrid.parameterize(tile::Tile)
+#     ctor = ConstructionBase.constructorof(typeof(tile))
+#     new_layers = map(namedlayers(tile.strat)) do named_layer
+#         name = nameof(named_layer)
+#         layer = CryoGrid.parameterize(named_layer.val)
+#         name => _addlayerfield(layer, name)
+#     end
+#     new_inits = map(tile.inits) do init
+#         _addlayerfield(CryoGrid.parameterize(init), :init)
+#     end
+#     new_events = map(keys(tile.events)) do name
+#         evs = map(CryoGrid.parameterize, getproperty(tile.events, name))
+#         name => _addlayerfield(evs, name)
+#     end
+#     new_strat = Stratigraphy(boundaries(tile.strat), (;new_layers...))
+#     return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data, tile.metadata)
+# end
 
 """
     variables(tile::Tile)
@@ -316,30 +323,40 @@ withaxes(u::AbstractArray, tile::Tile) = ComponentArray(u, getaxes(tile.state.up
 withaxes(u::ComponentArray, ::Tile) = u
 
 """
-    resolve(tile::Tile, p, t)
+    materialize(tile::Tile, p, t)
 
-Resolves/updates the given `tile` by:
-(1) Replacing all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
-(2) Resolving the boundary depths of the `Stratigraphy` layers by invoking `resolveboundaries`.
-(3) Replacing all instances of `DynamicParameterization` with their resolved values given the current state.
+Materializes the given `tile` by:
+- Replacing all `ModelParameters.AbstractParam` values in `tile` with their (possibly updated) value from `p`.
+- Evaluating and replacing all `DynamicParameterization`s given the time `t`.
+- Evaluating and replacing all `Input`s given the time `t`.
 
 Returns the reconstructed `Tile` instance.
 """
-function resolve(tile::Tile{TStrat,TGrid,TStates}, p::AbstractVector, t::Number) where {TStrat,TGrid,TStates}
-    IgnoreTypes = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
+function materialize(tile::Tile, p::AbstractVector, t::Number)
+    IgnoreTypes = _ignored_types(tile)
+    # ==== Update parameter values ==== #
     # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct method directly...
     # so that's what we do here. The last integer argument denotes the index of the first parameter.
-    tile_updated = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, IgnoreTypes, 1)[1]
-    dynamic_ps = Flatten.flatten(tile_updated, Flatten.flattenable, DynamicParameterization, IgnoreTypes)
+    parameterized_tile = Flatten._reconstruct(tile, p, Flatten.flattenable, ModelParameters.AbstractParam, IgnoreTypes, 1)[1]
+    # call materialize on parameterized tile
+    return materialize(parameterized_tile, nothing, t)
+end
+function materialize(tile::Tile, ::Nothing, t::Number)
+    IgnoreTypes = _ignored_types(tile)
+    # ==== Compute dynamic parameter values ==== #
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require deconstruction/reconstruction of layers in order to
     # build the `LayerState`s and evaluate the dynamic parameters in a fully type stable manner.
+    dynamic_ps = Flatten.flatten(tile, Flatten.flattenable, DynamicParameterization, IgnoreTypes)
     dynamic_values = map(d -> d(t), dynamic_ps)
-    reconstructed_tile = Flatten._reconstruct(tile_updated, dynamic_values, Flatten.flattenable, DynamicParameterization, IgnoreTypes, 1)[1]
-    return reconstructed_tile
+    tile2 = Flatten._reconstruct(tile, dynamic_values, Flatten.flattenable, DynamicParameterization, IgnoreTypes, 1)[1]
+    # ==== Compute input values ==== #
+    inputs = Flatten.flatten(tile2, Flatten.flattenable, Input, IgnoreTypes)
+    input_values = map(input -> tile2.inputs(input, t), inputs)
+    concrete_tile = Flatten._reconstruct(tile2, input_values, Flatten.flattenable, Input, IgnoreTypes, 1)[1]
+    return concrete_tile
 end
-resolve(tile::Tile, p::Nothing, t::Number) = tile
 
 function checkstate!(tile::Tile, state::TileState, u, du, label::Symbol)
     if CryoGrid.CRYOGRID_DEBUG
@@ -348,7 +365,7 @@ function checkstate!(tile::Tile, state::TileState, u, du, label::Symbol)
                 debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in current state vector at index $i"))
             end
             if !isfinite(du[i])
-                debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in computed time derivatives at index $i"))
+                debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in current time derivatives at index $i"))
             end
         end
     end
@@ -378,5 +395,18 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
     states = StateVars(vars, grid, zs, cachetype, arraytype; chunk_size)
     return states
 end
+
+function _validate_inputs(@nospecialize(tile::Tile), inputprovider::InputProvider)
+    IgnoreTypes = _ignored_types(tile)
+    inputs = Flatten.flatten(tile, Flatten.flattenable, Input, IgnoreTypes)
+    names = keys(inputprovider)
+    for input in inputs
+        name = nameof(input)
+        @assert name ∈ names "input $name does not exist in the given input provider with keys $names; check for typos or mismatched names"
+    end
+end
+
+# helper method that returns a Union type of all types that should be ignored by Flatten.flatten
+@inline _ignored_types(::Tile{TStrat,TGrid,TStates}) where {TStrat,TGrid,TStates} = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
 
 # ===================================================================== #

@@ -1,31 +1,30 @@
 """
     SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ,Tsurf}
 
-Non-prognostic input variables to the SEB that are assumed to be known a priori.
+Non-prognostic input variables to the SEB that are assumed to be given.
 """
 Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ,Tsurf}
-    Ts::TT1
-    Tair::TT2
-    Lin::TR
-    Sin::TR
-    pr::TP
-    qh::TQ
-    wind::TW
-    z::TZ
+    Ts::TT1 = nothing
+    Tair::TT2 = 0.0u"°C"
+    Lin::TR = 0.0u"W/m^2"
+    Sin::TR = 0.0u"W/m^2"
+    pr::TP = 0.0u"m/s"
+    qh::TQ = 0.0
+    wind::TW = 1e-8u"m/s"
     # surface properties
     surf::Tsurf = SurfaceProperties()
 end
+
 function SEBInputs(seb::SurfaceEnergyBalance, sub::SubSurface, stop, ssub)
     Ts = ssub.T[1] # soil temperature at surface
-    Tair = seb.forcings.Tair(stop.t)
-    Lin = seb.forcings.Lin(stop.t)
-    Sin = seb.forcings.Sin(stop.t)
-    pr = seb.forcings.pr(stop.t)
-    qh = seb.forcings.qh(stop.t)
-    wind = seb.forcings.wind(stop.t)
-    z = seb.forcings.z
+    Tair = seb.inputs.Tair
+    Lin = seb.inputs.Lin
+    Sin = seb.inputs.Sin
+    pr = seb.inputs.pr
+    qh = seb.inputs.qh
+    wind = seb.inputs.wind
     surf = surfaceproperties(seb, sub)
-    return SEBInputs(; Ts, Tair, Lin, Sin, pr, qh, wind, z, surf)
+    return SEBInputs(; Ts, Tair, Lin, Sin, pr, qh, wind, surf)
 end
 
 """

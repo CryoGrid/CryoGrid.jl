@@ -9,10 +9,7 @@
 # First we load the built-in forcing file from Nitzbon et al. 2020 (CryoGrid 3). Note that this will
 # download the forcing files from the AWI NextCloud if they are not already present in the `input/` folder.
 using CryoGrid
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
-
-# We choose the default grid discretization with 5 cm spacing at the surface.
-grid = CryoGrid.Presets.DefaultGrid_5cm;
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 
 # We use a simple 5-layer stratigraphy suitable for Samoylov. This is based on the
 # profile provided in `Presets` but uses the default "free water" freezing characteristic
@@ -23,15 +20,22 @@ soilprofile = SoilProfile(
     0.4u"m" => SimpleSoil(; por=0.55, org=0.25),
     3.0u"m" => SimpleSoil(; por=0.50, org=0.0),
     10.0u"m" => SimpleSoil(; por=0.30, org=0.0),
-)
+);
 
 # We construct a state variable initializer for temperature `T` from the temperature profile preset for Samoylov.
-initT = initializer(:T, CryoGrid.Presets.SamoylovDefault.tempprofile)
+initT = initializer(:T, CryoGrid.Presets.SamoylovDefault.tempprofile);
+
+# We choose the default grid discretization with 5 cm spacing at the surface.
+grid = CryoGrid.DefaultGrid_5cm;
+
+# Now we construct the Tile using the built-in model configuration `SoilHeatTile` which defines a
+# standalone soil straigraphy with only heat conduction and no water flow.
 tile = CryoGrid.Presets.SoilHeatTile(
     :H,
-    TemperatureBC(forcings.Tair, NFactor(nf=0.6)),
+    TemperatureBC(Input(:Tair), NFactor(nf=Param(0.6), nt=Param(0.9))),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
+    forcings,
     initT;
     grid=grid
 );
@@ -56,3 +60,6 @@ import Plots
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
+
+using BenchmarkTools
+@profview @btime $tile($du0, $u0, $prob.p, $prob.tspan[1])

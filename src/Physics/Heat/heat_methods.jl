@@ -110,3 +110,4 @@ dHdT(T, C, L, ∂θw∂T, ch_w, ch_i) = C + ∂θw∂T*(L + T*(ch_w - ch_i))
 Convenience constructor for `Numerics.Profile` which automatically converts temperature quantities.
 """
 TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param},<:Union{TempQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => uconvert(u"°C", p[2]), pairs))
+TemperatureProfile(pairs::Pair{<:Union{DistQuantity,Param}}...) = Profile(map(p -> uconvert(u"m", p[1]) => p[2], pairs))
