@@ -9,8 +9,8 @@ Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb
     Sin = upreferred(200.0u"W/m^2")
     forcings = (; Tair, pr, qh, wind, Lin, Sin)
     @testset "Iterative" begin
-        seb = SurfaceEnergyBalance(
-            forcings;
+        seb = SurfaceEnergyBalance(;
+            forcings...,
             solscheme = Surface.Iterative(),
         )
         # TODO: would be good to have SEB work correctly with units to verify correctness;
@@ -29,8 +29,8 @@ Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb
         @test seb_output.Qg > zero(seb_output.Qg)
     end
     @testset "Analytical" begin
-        seb = SurfaceEnergyBalance(
-            forcings;
+        seb = SurfaceEnergyBalance(;
+            forcings...,
             solscheme = Surface.Analytical(),
         )
         seb = pstrip(seb)
@@ -46,8 +46,8 @@ Surface.surfaceproperties(seb::SurfaceEnergyBalance, sub::TestGroundLayer) = seb
         @test seb_output.Qg > zero(seb_output.Qg)
     end
     @testset "Numerical" begin
-        seb = SurfaceEnergyBalance(
-            forcings;
+        seb = SurfaceEnergyBalance(;
+            forcings...,
             solscheme=Surface.Numerical(),
         )
         seb = pstrip(seb)

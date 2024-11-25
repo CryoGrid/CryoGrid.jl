@@ -8,7 +8,7 @@
 using CryoGrid
 
 # Select default grid and initial temperature profile.
-grid = CryoGrid.Presets.DefaultGrid_10cm
+grid = CryoGrid.DefaultGrid_10cm
 tempprofile = TemperatureProfile(
     0.0u"m" => -20.0u"°C",
     1000.0u"m" => 10.0u"°C",
@@ -31,7 +31,7 @@ Plots.plot(-2.0u"°C":0.01u"K":0.0u"°C", sfcc)
 # specified.
 heatop = Heat.Diffusion1D(:H)
 initT = initializer(:T, tempprofile)
-tile = CryoGrid.Presets.SoilHeatTile(
+tile = CryoGrid.SoilHeatTile(
     heatop,
     ## 10 W/m^2 in and out, i.e. net zero flux
     ConstantBC(HeatBalance, CryoGrid.Neumann, 10.0u"W/m^2"),

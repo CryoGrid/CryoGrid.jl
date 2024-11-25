@@ -1,10 +1,10 @@
 """
-    SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ,Tsurf}
+    SEBInputs{TT1,TT2,TR,TP,TQ,TW,Tsurf}
 
 Non-prognostic input variables to the SEB that are assumed to be given.
 """
-Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,TZ,Tsurf}
-    Ts::TT1 = nothing
+Base.@kwdef struct SEBInputs{TT1,TT2,TR,TP,TQ,TW,Tsurf}
+    Ts::TT1 = 0.0u"°C"
     Tair::TT2 = 0.0u"°C"
     Lin::TR = 0.0u"W/m^2"
     Sin::TR = 0.0u"W/m^2"

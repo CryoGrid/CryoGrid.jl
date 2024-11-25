@@ -79,19 +79,22 @@ using Test
 end
 @testset "Boundary conditions" begin
 	@testset "n-factors" begin
-		ts = DateTime(2010,1,1):Hour(1):DateTime(2010,1,1,4)
-		forcing = InterpolatedForcing(ts, [1.0,0.5,-0.5,-1.0,0.1]u"°C", :Tair)
-		tgrad = TemperatureBC(forcing, NFactor(nf=0.5, nt=1.0))
+		T_pos = TemperatureBC(10.0, NFactor(nf=0.5, nt=0.75))
+		T_neg = TemperatureBC(-10.0, NFactor(nf=0.5, nt=0.75))
 		heat = HeatBalance()
 		sub = TestGroundLayer(heat)
 		zerobc = ConstantBC(HeatBalance, CryoGrid.Dirichlet, 0.0u"°C")
 		function f1(t)
 			state = (T_ub=[Inf], nfactor=[Inf], t=t)
-			computediagnostic!(Top(zerobc), tgrad, state)
-			return boundaryvalue(tgrad, state)
+			computediagnostic!(Top(T_pos), T_pos, state)
+			T_ub = boundaryvalue(T_pos, state)
+			computediagnostic!(Top(T_neg), T_neg, state)
+			T_lb = boundaryvalue(T_neg, state)
+			return T_ub, T_lb
 		end
-		Tres = f1.(Dates.datetime2epochms.(ts)./1000.0)
-		@test all(Tres .≈ [1.0,0.5,-0.25,-0.5,0.1])
+		T1, T2 = f1(0.0)
+		@test T1 == 7.5
+		@test T2 == -5.0
 	end
 end
 @testset "Fourier solution" begin

@@ -5,7 +5,7 @@ using CryoGrid.Utils
 using Test
 
 @testset "Salt" begin
-    testgrid = CryoGrid.Presets.DefaultGrid_2cm
+    testgrid = CryoGrid.DefaultGrid_2cm
     @testset "variables" begin
         soil = SalineGround()
         vars = CryoGrid.variables(soil)

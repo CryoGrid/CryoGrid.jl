@@ -65,7 +65,7 @@ using CryoGrid
 using CryoGrid.Diagnostics
 
 soil = Ground()
-grid = CryoGrid.Presets.DefaultGrid_5cm
+grid = CryoGrid.DefaultGrid_5cm
 state = Diagnostics.build_dummy_state(grid, soil)
 
 @which CryoGrid.computediagnostic!(soil, state)

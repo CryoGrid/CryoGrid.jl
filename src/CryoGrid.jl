@@ -36,6 +36,8 @@ import Interpolations
 @reexport using Unitful
 @reexport using UnPack
 
+using SciMLBase: intervals # resolve name collision
+
 export Interpolations
 
 # Common types and methods
@@ -79,6 +81,7 @@ include("IO/InputOutput.jl")
 
 include("Tiles/Tiles.jl")
 @reexport using .Tiles
+using .Tiles: layers # resolve name collision
 parameters = Tiles.parameters
 
 export ConstantBC, PeriodicBC, ConstantValue, PeriodicValue, ConstantFlux, PeriodicFlux
@@ -99,8 +102,9 @@ include("problem.jl")
 export CGEuler, CryoGridIntegrator, CryoGridSolution
 include("Solvers/Solvers.jl")
 
-# Presets
-include("Presets/Presets.jl")
+# Built-in model definitions
+export SoilHeatTile, SamoylovDefault
+include("models.jl")
 
 using .InputOutput: Resource
 

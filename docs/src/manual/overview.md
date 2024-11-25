@@ -18,7 +18,7 @@ strat = Stratigraphy(
     0.0u"m" => Ground(soilprofile, HeatBalance(:H; freezecurve=DallAmico())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
-grid = CryoGrid.Presets.DefaultGrid_5cm
+grid = CryoGrid.DefaultGrid_5cm
 # define initial conditions for temperature using a given profile;
 # The default initializer linearly interpolates between profile points.
 initT = initializer(:T, tempprofile)

@@ -20,7 +20,7 @@ tempprofile_linear = TemperatureProfile(
     10.0u"m" => -10.0u"°C", 
     1000.0u"m" => 10.2u"°C"
 )
-modelgrid = Grid(vcat(-1.0u"m":0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
+modelgrid = Grid(vcat(-1.0u"m":0.02u"m":-0.02u"m", CryoGrid.DefaultGrid_2cm))
 z_top = -1.0u"m"
 z_sub = keys(soilprofile)
 z_bot = modelgrid[end]

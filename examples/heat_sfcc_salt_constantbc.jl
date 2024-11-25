@@ -14,7 +14,7 @@ strat = @Stratigraphy(
     0.0u"m" => SalineGround(SimpleSoil(freezecurve=sfcc), heat=HeatBalance(:T), salt=SaltMassBalance()),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-modelgrid = CryoGrid.Presets.DefaultGrid_10cm
+modelgrid = CryoGrid.DefaultGrid_10cm
 tile = Tile(strat, modelgrid, initT, initsalt, initpor)
 tspan = (DateTime(1990,1,1),DateTime(2000,12,31))
 u0, du0 = initialcondition!(tile, tspan)

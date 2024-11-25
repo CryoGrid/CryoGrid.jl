@@ -42,7 +42,7 @@ strat = Stratigraphy(
     soil_layers,
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-modelgrid = CryoGrid.Presets.DefaultGrid_2cm
+modelgrid = CryoGrid.DefaultGrid_2cm
 tile = Tile(strat, modelgrid, ssinit);
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 10 years.

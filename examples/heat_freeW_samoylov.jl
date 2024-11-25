@@ -23,14 +23,14 @@ soilprofile = SoilProfile(
 );
 
 # We construct a state variable initializer for temperature `T` from the temperature profile preset for Samoylov.
-initT = initializer(:T, CryoGrid.Presets.SamoylovDefault.tempprofile);
+initT = initializer(:T, CryoGrid.SamoylovDefault.tempprofile);
 
 # We choose the default grid discretization with 5 cm spacing at the surface.
 grid = CryoGrid.DefaultGrid_5cm;
 
 # Now we construct the Tile using the built-in model configuration `SoilHeatTile` which defines a
 # standalone soil straigraphy with only heat conduction and no water flow.
-tile = CryoGrid.Presets.SoilHeatTile(
+tile = CryoGrid.SoilHeatTile(
     :H,
     TemperatureBC(Input(:Tair), NFactor(nf=Param(0.6), nt=Param(0.9))),
     GeothermalHeatFlux(0.053u"W/m^2"),
@@ -60,6 +60,3 @@ import Plots
 zs = [1,10,20,30,50,100,200,500,1000]u"cm"
 cg = Plots.cgrad(:copper,rev=true);
 Plots.plot(out.T[Z(Near(zs))], color=cg[LinRange(0.0,1.0,length(zs))]', ylabel="Temperature", leg=false, size=(800,500), dpi=150)
-
-using BenchmarkTools
-@profview @btime $tile($du0, $u0, $prob.p, $prob.tspan[1])

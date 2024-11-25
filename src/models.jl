@@ -1,23 +1,4 @@
 """
-Pre-built CryoGrid configurations for rapid prototyping.
-"""
-module Presets
-
-using CryoGrid
-using CryoGrid.InputOutput: Resource
-using CryoGrid.Numerics
-using CryoGrid.Utils
-
-# physics modules
-using CryoGrid.Heat
-using CryoGrid.Hydrology
-using CryoGrid.Soils
-
-using Statistics
-
-export SoilHeatTile, SamoylovDefault
-
-"""
     SoilHeatTile([heatop=:H], upperbc::BoundaryProcess, soilprofile::Profile, init::CryoGrid.Initializer...; grid::Grid=DefaultGrid_10cm, tile_kwargs...) where {F<:FreezeCurve}
 
 Builds a simple one-layer soil/heat-conduction model with the given grid and configuration.
@@ -61,5 +42,3 @@ const SamoylovDefault = (
         1000.0u"m" => 10.2u"°C",
     )
 )
-
-end

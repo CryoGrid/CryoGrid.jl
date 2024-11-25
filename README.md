@@ -51,12 +51,12 @@ using Plots: plot
 # The forcing file will be automatically downloaded to the input/ folder if not already present.
 forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 # get preset soil and initial temperature profile for Samoylov
-soilprofile, tempprofile = CryoGrid.Presets.SamoylovDefault
+soilprofile, tempprofile = CryoGrid.SamoylovDefault
 initT = initializer(:T, tempprofile)
 # choose grid with 5cm spacing
-grid = CryoGrid.Presets.DefaultGrid_5cm
+grid = CryoGrid.DefaultGrid_5cm
 # build a default Tile with heat conduction on the given soil profile
-tile = CryoGrid.Presets.SoilHeatTile(
+tile = CryoGrid.SoilHeatTile(
     TemperatureBC(forcings.Tair),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,

@@ -38,7 +38,7 @@ strat = @Stratigraphy(
     2.0u"m" => Ground(SimpleSoil(por=0.10,sat=1.0,org=0.0,freezecurve=sfcc); heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-grid = CryoGrid.Presets.DefaultGrid_2cm
+grid = CryoGrid.DefaultGrid_2cm
 tile = Tile(strat, grid, forcings, initT);
 u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw));

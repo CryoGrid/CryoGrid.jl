@@ -41,7 +41,7 @@ function loadforcings(format::ForcingFormatJSON{1}, filename::String, kwargs...)
     end
     return Interpolated1D(DimStack((; forcings...)); kwargs...)
 end
-function loadforcings(format::ForcingFormatJSON{2}, filename::String)
+function loadforcings(format::ForcingFormatJSON{2}, filename::String; kwargs...)
     dict = open(filename, "r") do file; JSON3.read(file) end
     # convert JSON3 dict for data field to Julia dict
     data = Dict(dict[:data]...)

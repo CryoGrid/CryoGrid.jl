@@ -36,7 +36,7 @@ strat = @Stratigraphy(
     soil_layers...,
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-modelgrid = Grid(vcat(z_top:0.02u"m":-0.02u"m", CryoGrid.Presets.DefaultGrid_2cm))
+modelgrid = Grid(vcat(z_top:0.02u"m":-0.02u"m", CryoGrid.DefaultGrid_2cm))
 tile = Tile(strat, modelgrid, forcings, ssinit);
 
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.

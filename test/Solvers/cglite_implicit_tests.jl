@@ -27,7 +27,7 @@ end
         α = upreferred(strat.soil.para.heat.kh_m) / upreferred(strat.soil.para.heat.ch_m)
         T_analytic = Heat.heat_conduction_linear_periodic_ub(T₀, A, P, ustrip(α))
         initT = initializer(:T, (layer, state) -> state.T .= T_analytic.(cells(state.grid), 0.0))
-        modelgrid = CryoGrid.Presets.DefaultGrid_2cm
+        modelgrid = CryoGrid.DefaultGrid_2cm
         # modelgrid = Grid(z_top:0.02u"m":z_bot)
         # modelgrid = Grid(vcat(0.0:0.02:1.0, 1.05:0.05:5.0, 5.1:0.1:10.0)*u"m")
         tile = Tile(strat, modelgrid, initT)
@@ -58,7 +58,7 @@ end
             z_bot => Bottom(ConstantFlux(HeatBalance, 0.0))
         );
         initT = initializer(:T, -1.0)
-        modelgrid = CryoGrid.Presets.DefaultGrid_2cm
+        modelgrid = CryoGrid.DefaultGrid_2cm
         tile = Tile(strat, modelgrid, initT)
         # define time span, 5 years
         tspan = (0.0, 5*365*24*3600.0)
@@ -68,7 +68,6 @@ end
         sol = solve(prob, LiteImplicitEuler(), dt=24*3600)
         out = CryoGridOutput(sol)
 
-        kh_w, kh_i, kh_a, kh_m, kh_o = Heat.thermalconductivities(strat.soil)
         θm = mineral(strat.soil)
         θo = organic(strat.soil)
         θ_s = (θw=0.0, θi=porosity(strat.soil), θa=0.0, θm=θm, θo=θo)

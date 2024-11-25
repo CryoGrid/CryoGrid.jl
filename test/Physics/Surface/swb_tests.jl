@@ -1,13 +1,8 @@
 @testset "Surface Water Balance" begin
-    testgrid = CryoGrid.Presets.DefaultGrid_2cm
+    testgrid = CryoGrid.DefaultGrid_2cm
     @testset "interact!" begin
-        sub = TestGroundLayer(WaterBalance(BucketScheme()))
-        top = Top(
-            SurfaceWaterBalance(
-                ConstantForcing(1e-6u"m/s", :rainfall),
-                ConstantForcing(0.0u"m/s", :snowfall),
-            )
-        )
+        sub = stripparams(TestGroundLayer(WaterBalance(BucketScheme())))
+        top = Top(SurfaceWaterBalance(1e-6u"m/s", 0.0u"m/s"))
         stop = Diagnostics.build_dummy_state(testgrid, top, with_units=true)
         ssub = Diagnostics.build_dummy_state(testgrid, sub, with_units=true)
         # initialize fully saturated

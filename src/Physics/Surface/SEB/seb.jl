@@ -96,7 +96,7 @@ function SurfaceEnergyBalance(;
     stabfun::StabilityFunctions = HøgstrømSHEBA(),
 )
     inputs = (; Tair, Lin, Sin, pr, qh, wind)
-    SurfaceEnergyBalance(; inputs, para, solscheme, stabfun)
+    SurfaceEnergyBalance(inputs, para, solscheme, stabfun)
 end
 
 """

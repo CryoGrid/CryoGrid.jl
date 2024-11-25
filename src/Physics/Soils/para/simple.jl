@@ -35,12 +35,12 @@ SoilThermalProperties(
     kh_i = ThermalProperties().kh_i,
     kh_a = ThermalProperties().kh_a,
     kh_o=Param(0.25, units=u"W/m/K", domain=0..Inf), # organic [Hillel (1982)]
-    kh_m=Param(3.8, untis=u"W/m/K", domain=0..Inf), # mineral [Hillel (1982)]
+    kh_m=Param(3.8, units=u"W/m/K", domain=0..Inf), # mineral [Hillel (1982)]
     ch_w = ThermalProperties().ch_w,
     ch_i = ThermalProperties().ch_i,
     ch_a = ThermalProperties().ch_a,
     ch_o=Param(2.5e6, units=u"J/K/m^3", domain=0..Inf), # heat capacity organic
-    ch_m=Param(2.0e6, untis=u"J/K/m^3", domain=0..Inf), # heat capacity mineral
+    ch_m=Param(2.0e6, units=u"J/K/m^3", domain=0..Inf), # heat capacity mineral
     kwargs...,
 ) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o, kwargs...)
 

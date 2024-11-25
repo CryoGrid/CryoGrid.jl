@@ -6,9 +6,9 @@ using CryoGrid.Utils
 using Test
 
 @testset "Bucket scheme" begin
-    testgrid = CryoGrid.Presets.DefaultGrid_2cm
+    testgrid = CryoGrid.DefaultGrid_2cm
     @testset "variables" begin
-        sub = TestGroundLayer(WaterBalance(BucketScheme()))
+        sub = TestGroundLayer(WaterBalance(BucketScheme())) |> stripparams
         vars = CryoGrid.variables(sub)
         prognostic_vars = filter(CryoGrid.isprognostic, vars)
         diagnostic_vars = filter(CryoGrid.isdiagnostic, vars)
@@ -23,7 +23,7 @@ using Test
         @test isa(proc, WaterBalance)
     end
     @testset "computediagnostic!" begin
-        sub = TestGroundLayer(WaterBalance(BucketScheme()))
+        sub = TestGroundLayer(WaterBalance(BucketScheme())) |> stripparams
         state = Diagnostics.build_dummy_state(testgrid, sub, with_units=true)
         # initialize fully saturated
         state.sat .= 1.0
@@ -33,7 +33,7 @@ using Test
         @test allfinite(state.θw)
     end
     @testset "computeprognostic!" begin
-        sub = TestGroundLayer(WaterBalance(BucketScheme()))
+        sub = TestGroundLayer(WaterBalance(BucketScheme())) |> stripparams
         state = Diagnostics.build_dummy_state(testgrid, sub, with_units=true)
         # initialize fully saturated
         state.sat .= 1.0
@@ -53,8 +53,8 @@ using Test
         @test all(state.jw[2:end-1] .> zero(eltype(state.jw)))
     end
     @testset "interact!" begin
-        sub1 = TestGroundLayer(WaterBalance(BucketScheme()))
-        sub2 = TestGroundLayer(WaterBalance(BucketScheme()))
+        sub1 = TestGroundLayer(WaterBalance(BucketScheme())) |> stripparams
+        sub2 = TestGroundLayer(WaterBalance(BucketScheme())) |> stripparams
         state1 = Diagnostics.build_dummy_state(testgrid[0.0u"m"..10.0u"m"], sub1, with_units=true)
         state2 = Diagnostics.build_dummy_state(testgrid[10.0u"m"..1000.0u"m"], sub2, with_units=true)
         # case 1: both saturated
