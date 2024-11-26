@@ -5,6 +5,8 @@
 # pressure gradients.
 
 using CryoGrid
+
+
 forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 tspan = (DateTime(2011,1,1),DateTime(2011,12,31))
 T0 = forcings.Tair(tspan[1])

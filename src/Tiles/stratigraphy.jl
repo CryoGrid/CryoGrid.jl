@@ -93,7 +93,9 @@ Base.NamedTuple(strat::Stratigraphy) = layers(strat)
 function Base.show(io::IO, ::MIME"text/plain", strat::Stratigraphy)
     print(io, "Stratigraphy:\n")
     for (k,v,b) in zip(keys(strat), values(strat), boundaries(strat))
-        print(repeat(" ", Base.indent_width), "$b: $k :: $(nameof(typeof(v)))\n")
+        procs = isa(processes(v), Tuple) ? processes(v) : (processes(v),)
+        procnames = map(p -> string(nameof(typeof(p))), procs)
+        print(repeat(" ", Base.indent_width), "$(b*u"m"): $k :: $(nameof(typeof(v))) with processes $(join(procnames, ", "))\n")
     end
 end
 

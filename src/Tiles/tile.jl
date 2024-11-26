@@ -34,7 +34,13 @@ Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:events}}) = true
 # all other fields are non-flattenable by default
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{name}}) where name = false
-Base.show(io::IO, ::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,iip}) where {TStrat,TGrid,TStates,TInits,TEvents,iip} = print(io, "Tile (iip=$iip) with layers $(keys(tile.strat)), $TGrid, $TStrat")
+
+function Base.show(io::IO, mime::MIME"text/plain", tile::Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}) where {TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}
+    println(io, "Tile (iip=$iip) with layers $(keys(tile.strat))")
+    print("  "); show(io, mime, tile.grid); println();
+    print("  "); show(io, mime, tile.strat);
+    println("  metadata: $(tile.metadata)")
+end
 
 """
     Tile(

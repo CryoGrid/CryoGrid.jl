@@ -67,7 +67,7 @@ export Input, InputProvider, InputFunctionProvider
 export inputs
 include("input.jl")
 
-export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD
+export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD, Interpolated1D
 export loadforcings
 include("forcings/forcings.jl")
 

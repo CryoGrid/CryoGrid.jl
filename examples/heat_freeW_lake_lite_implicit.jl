@@ -6,7 +6,12 @@ Plots.plotly()
 
 CryoGrid.debug(true)
 
-forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
+raw_forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
+Tair = raw_forcings.data.Tair
+Ptot = uconvert.(u"m/s", raw_forcings.data.Ptot)
+rainfall = Ptot.*(Tair .> 0u"°C")
+snowfall = Ptot.*(Tair .<= 0u"°C")
+forcings = rebuild(raw_forcings; Tair, rainfall, snowfall);
 soilprofile = SoilProfile(
     0.0u"m" => SimpleSoil(por=0.80,sat=0.9,org=0.75),
     0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25),

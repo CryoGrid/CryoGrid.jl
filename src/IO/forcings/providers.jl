@@ -41,6 +41,11 @@ function Base.show(io::IO, mimetype::MIME"text/plain", data::Interpolated1D)
     show(io, mimetype, getfield(data, :data))
 end
 
+function DimensionalData.rebuild(data::Interpolated1D, default_interp_mode=Linear(); stripunits=true, interp_modes=(;), datasets...)
+    newdata = DimStack((; datasets...))
+    return Interpolated1D(newdata, default_interp_mode; stripunits, interp_modes...)
+end
+
 function inputmap(data::Interpolated1D)
     return map(_wrap_interpolant, getfield(data, :interpolants))
 end

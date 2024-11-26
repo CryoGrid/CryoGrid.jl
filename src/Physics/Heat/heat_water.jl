@@ -18,7 +18,6 @@ advectiveflux(jw, T₁, T₂, cw, L) = jw*(cw*T₁*(jw > zero(jw)) + cw*T₂*(jw
 Adds advective energy fluxes for all internal grid cell faces.
 """
 function water_energy_advection!(jH, jw, T, cw::Real, L::Real)
-    water, heat = ps
     @inbounds for i in 2:length(jw)-1
         let jw = jw[i],
             T₁ = T[i-1],
@@ -86,15 +85,20 @@ function CryoGrid.interact!(
     end
 end
 
-# Flux calculation
 function CryoGrid.computeprognostic!(sub::SubSurface, ps::Coupled(WaterBalance, HeatBalance), state)
     water, heat = ps
-    cw = heatcapacitywater(sub, state)
-    L = heat.prop.L
     CryoGrid.computeprognostic!(sub, water, state)
     if heat.advection
+        cw = heatcapacitywater(sub, state)
+        L = heat.prop.L
         water_energy_advection!(state.jH, state.jw, state.T, cw, L)
     end
+    CryoGrid.computeprognostic!(sub, heat, state)
+end
+
+function CryoGrid.computeprognostic!(sub::SubSurface, ps::Coupled(WaterBalance{NoFlow}, HeatBalance), state)
+    water, heat = ps
+    CryoGrid.computeprognostic!(sub, water, state)
     CryoGrid.computeprognostic!(sub, heat, state)
 end
 
