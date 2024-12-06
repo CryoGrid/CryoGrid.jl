@@ -233,3 +233,18 @@ thickness(::Layer, state, i) = Δ(state.grid)[i]
 thickness(l::Layer, state, ::typeof(first)) = thickness(l, state, 1)
 thickness(l::Layer, state, ::typeof(last)) = thickness(l, state, lastindex(state.grid)-1)
 thickness(::Union{Top,Bottom}, state) = Inf
+
+
+"""
+    param([::Type{paraType}], defval; kwargs...)
+
+Creates a new parameter type from the given default value and keyword properties.
+"""
+param(::Type{paraType}, defval; kwargs...) where {paraType<:AbstractParam} = paraType(defval; kwargs...)
+function param(defval; kwargs...)
+    if AUTOPARA
+        return param(Param, defval; kwargs...)
+    else
+        return param(FixedParam, defval; kwargs...)
+    end
+end

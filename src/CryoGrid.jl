@@ -1,12 +1,34 @@
 module CryoGrid
 
-global CRYOGRID_DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
-function debug(debug::Bool)
-    global CRYOGRID_DEBUG = debug
+global DEBUG = haskey(ENV,"CG_DEBUG") && ENV["CG_DEBUG"] == "true"
+@deprecate debug(x) debug!(x)
+
+"""
+    debug!(debug::Bool)
+
+Enable or disable global debug mode for CryoGrid. Debug mode disables certain optimizations (e.g. loop vectorizations)
+which sometimes ineterfere with the debugger. It also enables additional numerical stability checks.
+"""
+function debug!(debug::Bool)
+    global DEBUG = debug
     # disable loop vectorization in debug mode
     Numerics.turbo(!debug)
-    CRYOGRID_DEBUG && @warn "Debug mode enabled! Some performance features such as loop vectorization are now turned off by default."
-    return CRYOGRID_DEBUG
+    DEBUG && @warn "Debug mode enabled! Some performance features such as loop vectorization are now turned off by default."
+    return DEBUG
+end
+
+global AUTOPARA = haskey(ENV,"CG_AUTOPARA") && ENV["CG_AUTOPARA"] == "true"
+
+"""
+    autoparam!(parameterize::Bool)
+
+Enable or disable automatic parameterization mode. When enabled, model parameters in all layer/process types will be initialized
+as free `Param`s rather than `FixedParam`s.
+"""
+function autoparam!(parameterize::Bool)
+    global AUTOPARA = parameterize
+    AUTOPARA && @warn "Automatic parameterization enabled!" || @warn "Automatic parameterization disabled!"
+    return AUTOPARA
 end
 
 using Adapt
@@ -57,7 +79,7 @@ export BCKind
 include("traits.jl")
 
 export initialcondition!, computediagnostic!, interact!, interactmaybe!, computeprognostic!, resetfluxes!, diagnosticstep!
-export variables, processes, initializers, timestep, isactive, caninteract
+export variables, processes, initializers, timestep, isactive, caninteract, param
 export boundaryflux, boundaryvalue, criterion, criterion!, trigger!
 include("methods.jl")
 

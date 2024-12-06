@@ -33,7 +33,7 @@ struct Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
         @nospecialize(sub::Tuple{Vararg{Pair{<:Number}}}),
         @nospecialize(bot::Pair{<:Number,<:Bottom})
     )
-        updateparam(p::Param) = Param(merge(parent(p), (layer=:strat,)))
+        updateparam(p::paraType) where {paraType<:AbstractParam} = paraType(merge(parent(p), (layer=:strat,)))
         updateparam(x) = x
         # check subsurface layers
         @assert length(sub) > 0 "At least one subsurface layer must be specified"

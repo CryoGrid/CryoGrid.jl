@@ -19,7 +19,7 @@ struct CGEulerCache{Tu} <: SciMLBase.DECache
     du::Tu
 end
 
-function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0, saveat=3*3600.0, kwargs...)
+function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0, saveat=nothing, kwargs...)
     tile = Tile(prob.f)
     u0 = copy(prob.u0)
     du0 = zero(u0)
@@ -42,7 +42,11 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
         similar(prob.u0),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    saveat = isa(saveat, Number) ? collect(prob.tspan[1]:saveat:prob.tspan[2]) : saveat
+    if isnothing(saveat)
+        saveat = prob.saveat
+    elseif isa(saveat, Number)
+        saveat = collect(prob.tspan[1]:saveat:prob.tspan[2])
+    end
     opts = CryoGridIntegratorOptions(; saveat=expandtstep(saveat, prob.tspan), kwargs...)
     return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end

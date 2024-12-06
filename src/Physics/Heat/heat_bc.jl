@@ -66,8 +66,8 @@ function CryoGrid.computediagnostic!(::Bottom, bc::TemperatureBC, state)
 end
 
 Base.@kwdef struct NFactor{W,S} <: CryoGrid.BoundaryEffect
-    nf::W = Param(1.0, domain=0..1) # applied when Tair <= 0
-    nt::S = Param(1.0, domain=0..1) # applied when Tair > 0
+    nf::W = param(1.0, domain=0..1) # applied when Tair <= 0
+    nt::S = param(1.0, domain=0..1) # applied when Tair > 0
 end
 
 CryoGrid.variables(::Top, bc::TemperatureBC{<:NFactor}) = (

@@ -339,7 +339,7 @@ Materializes the given `tile` by:
 Returns the reconstructed `Tile` instance.
 """
 function materialize(tile::Tile, p::AbstractVector, t::Number)
-    IgnoreTypes = _ignored_types(tile)
+    IgnoreTypes = Utils.ignored_types(tile)
     # ==== Update parameter values ==== #
     # unfortunately, reconstruct causes allocations due to a mysterious dynamic dispatch when returning the result of _reconstruct;
     # I really don't know why, could be a compiler bug, but it doesn't happen if we call the internal _reconstruct method directly...
@@ -349,7 +349,7 @@ function materialize(tile::Tile, p::AbstractVector, t::Number)
     return materialize(parameterized_tile, nothing, t)
 end
 function materialize(tile::Tile, ::Nothing, t::Number)
-    IgnoreTypes = _ignored_types(tile)
+    IgnoreTypes = Utils.ignored_types(tile)
     # ==== Compute dynamic parameter values ==== #
     # TODO: perhaps should allow dependence on local layer state;
     # this would likely require deconstruction/reconstruction of layers in order to
@@ -365,7 +365,7 @@ function materialize(tile::Tile, ::Nothing, t::Number)
 end
 
 function checkstate!(tile::Tile, state::TileState, u, du, label::Symbol)
-    if CryoGrid.CRYOGRID_DEBUG
+    if CryoGrid.DEBUG
         @inbounds for i in eachindex(u)
             if !isfinite(u[i])
                 debughook!(tile, state, AssertionError("[$label] Found NaN/Inf value in current state vector at index $i"))
@@ -403,7 +403,7 @@ function _initstatevars(@nospecialize(strat::Stratigraphy), @nospecialize(grid::
 end
 
 function _validate_inputs(@nospecialize(tile::Tile), inputprovider::InputProvider)
-    IgnoreTypes = _ignored_types(tile)
+    IgnoreTypes = Utils.ignored_types(tile)
     inputs = Flatten.flatten(tile, Flatten.flattenable, Input, IgnoreTypes)
     names = keys(inputprovider)
     for input in inputs
@@ -413,6 +413,6 @@ function _validate_inputs(@nospecialize(tile::Tile), inputprovider::InputProvide
 end
 
 # helper method that returns a Union type of all types that should be ignored by Flatten.flatten
-@inline _ignored_types(::Tile{TStrat,TGrid,TStates}) where {TStrat,TGrid,TStates} = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
+@inline Utils.ignored_types(::Tile{TStrat,TGrid,TStates}) where {TStrat,TGrid,TStates} = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
 
 # ===================================================================== #

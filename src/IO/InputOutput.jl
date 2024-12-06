@@ -60,9 +60,6 @@ include("ioutils.jl")
 export CryoGridParams
 include("params/params.jl")
 
-export ParamsJSON, ParamsYAML
-include("params/params_loaders.jl")
-
 export Input, InputProvider, InputFunctionProvider
 export inputs
 include("input.jl")

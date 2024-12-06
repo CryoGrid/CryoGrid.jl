@@ -15,7 +15,7 @@ end
 Default material hydraulic properties.
 """
 Utils.@properties HydraulicProperties(
-    kw_sat = Param(1e-5, units=u"m/s"),
+    kw_sat = param(1e-5, units=u"m/s"),
 )
 
 """
