@@ -63,15 +63,15 @@ interact!(layer1::Layer, layer2::Layer, state1, state2) = interact!(layer1, proc
 interact!(::Layer, ::Process, ::Layer, ::Process, state1, state2) = nothing
 
 """
-    computefluxes!(l::Layer, p::Process, state)
+    computeprognostic!(l::Layer, p::Process, state)
 
-Calculates all internal fluxes for a given layer. Note that an instance of `computefluxes!` must be provided
+Calculates all internal fluxes for a given layer. Note that an instance of `computeprognostic!` must be provided
 for all non-boundary (subsurface) processes/layers.
 """
-computefluxes!(layer::Layer, state) = computefluxes!(layer, processes(layer), state)
-computefluxes!(layer::Layer, proc::Process, state) = error("computefluxes! defined for $(typeof(layer)) with $(typeof(proc))")
-computefluxes!(::Top, ::BoundaryProcess, state) = nothing
-computefluxes!(::Bottom, ::BoundaryProcess, state) = nothing
+computeprognostic!(layer::Layer, state) = computeprognostic!(layer, processes(layer), state)
+computeprognostic!(layer::Layer, proc::Process, state) = error("computeprognostic! defined for $(typeof(layer)) with $(typeof(proc))")
+computeprognostic!(::Top, ::BoundaryProcess, state) = nothing
+computeprognostic!(::Bottom, ::BoundaryProcess, state) = nothing
 
 """
     caninteract(layer1::Layer, layer2::Layer, state1, state2)
@@ -111,7 +111,7 @@ resetfluxes!(layer::Layer, proc::Process, state) = nothing
     isactive(::Layer, state)
 
 Returns a boolean whether or not this layer is currently active in the stratigraphy and should interact with other layers.
-Note that `computediagnostic!` and `computefluxes!` are always invoked regardless of the current state of `isactive`.
+Note that `computediagnostic!` and `computeprognostic!` are always invoked regardless of the current state of `isactive`.
 The default implementation of `isactive` always returns `true`.
 """
 isactive(::Layer, state) = true
@@ -133,32 +133,6 @@ Optionally performs discontinuous/discrete-time updates to the layer state. Shou
 if the prognostic state was modified and `false` otherwise. Defaults to returning `false`.
 """
 diagnosticstep!(layer::Layer, state) = false
-
-"""
-    parameterize(x::T) where {T}
-    parameterize(x::Unitful.AbstractQuantity; props...)
-    parameterize(p::AbstractParam; ignored...)
-
-Recursively wraps `x` or nested numeric quantities in `x` with `Param` to mark them as parameters.
-If `x` is already a `Param` type, `x` will be returned as-is.
-If `x` is a numeric type, `x` will be wrapped in `Param` with associated properties `props`.
-If `x` is a struct type, `x` will be recursively unpacked and `parameterize` called on each field.
-"""
-parameterize(x::Number; type=Param, props...) = type(x; props...)
-parameterize(x::Unitful.AbstractQuantity; type=Param, props...) = type(ustrip(x); untis=unit(x), props...)
-parameterize(p::AbstractParam; ignored...) = p
-parameterize(f::Function; ignored...) = f
-function parameterize(x::T; props...) where {T}
-    # get field names of T, if available
-    T_fieldnames = isabstracttype(T) ? () : fieldnames(T)
-    # invoke parameterize on all fields
-    new_fields = map(T_fieldnames) do fieldname
-        fieldvalue = getfield(x, fieldname)
-        parameterize(fieldvalue)
-    end
-    ctor = ConstructionBase.constructorof(T)
-    return ctor(new_fields...)
-end
 
 """
     initializers(::Layer)
@@ -259,3 +233,18 @@ thickness(::Layer, state, i) = Δ(state.grid)[i]
 thickness(l::Layer, state, ::typeof(first)) = thickness(l, state, 1)
 thickness(l::Layer, state, ::typeof(last)) = thickness(l, state, lastindex(state.grid)-1)
 thickness(::Union{Top,Bottom}, state) = Inf
+
+
+"""
+    param([::Type{paraType}], defval; kwargs...)
+
+Creates a new parameter type from the given default value and keyword properties.
+"""
+param(::Type{paraType}, defval; kwargs...) where {paraType<:AbstractParam} = paraType(defval; kwargs...)
+function param(defval; kwargs...)
+    if AUTOPARA
+        return param(Param, defval; kwargs...)
+    else
+        return param(FixedParam, defval; kwargs...)
+    end
+end

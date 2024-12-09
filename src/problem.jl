@@ -47,8 +47,7 @@ Constructor for `CryoGridProblem` that automatically generates all necessary cal
 function CryoGridProblem(
     tile::Tile,
     u0::ComponentVector,
-    tspan::NTuple{2,Float64},
-    p=nothing;
+    tspan::NTuple{2,Float64};
     diagnostic_stepsize=3600.0,
     saveat=3600.0,
     savevars=(),
@@ -66,16 +65,10 @@ function CryoGridProblem(
 )
     getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
     savefunc(u, t, integrator) = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
-    tile, p = if isnothing(p) && isempty(ModelParameters.params(tile))
-        # case 1: no parameters provided
-        tile, nothing
-    else
-        # case 2: parameters are provided; use Model interface to reconstruct Tile with new parameter values
-        model_tile = Model(tile)
-        p = isnothing(p) ? collect(model_tile[:val]) : p
-        model_tile[:val] = p
-        parent(model_tile), p
-    end
+    # strip all "fixed" parameters
+    tile = stripparams(FixedParam, tile)
+    # retrieve variable parameters
+    p = length(ModelParameters.params(tile)) > 0 ? parameters(tile) : nothing
     du0 = zero(u0)
     # remove units
     tile = stripunits(tile)
@@ -142,7 +135,7 @@ function CryoGrid.odefunction(::DefaultJac, setup::typeof(tile), u0, p, tspan)
     # make sure to return an instance of ODEFunction
 end
 ...
-prob = CryoGridProblem(tile, tspan, p)
+prob = CryoGridProblem(tile, u0, tspan)
 ```
 
 `JacobianStyle` can also be extended to create custom traits which can then be applied to compatible `Tile`s.

@@ -12,6 +12,7 @@ using Dates
 using DimensionalData
 using Downloads
 using Flatten
+using Interpolations
 using ModelParameters
 using Tables
 using Unitful
@@ -59,13 +60,12 @@ include("ioutils.jl")
 export CryoGridParams
 include("params/params.jl")
 
-export ParamsJSON, ParamsYAML
-include("params/params_loaders.jl")
+export Input, InputProvider, InputFunctionProvider
+export inputs
+include("input.jl")
 
-export Forcings, Forcing, ConstantForcing, TransformedForcing, TimeVaryingForcing, InterpolatedForcing
-export TemperatureForcing, WindForcing, HumidityForcing, EnergyFluxForcing, PressureForcing, VelocityForcing # aliases
-export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD
-export loadforcings, time_derivative_forcing
+export ForcingFormat, ForcingFormatJSON, ForcingFormatNCD, Interpolated1D
+export loadforcings
 include("forcings/forcings.jl")
 
 export CryoGridOutput, write_netcdf!

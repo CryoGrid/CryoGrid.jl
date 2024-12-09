@@ -15,7 +15,7 @@ if Threads.nthreads() == 1
 end
 
 # Load forcings and build stratigraphy like before.
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_MkL3_CCSM4_long_term);
 soilprofile = SoilProfile(
     0.0u"m" => SimpleSoil(por=Param(0.80, prior=Uniform(0.65,0.95)),sat=1.0,org=0.75),
     0.1u"m" => SimpleSoil(por=Param(0.80, prior=Uniform(0.65,0.95)),sat=1.0,org=0.25),
@@ -42,7 +42,7 @@ strat = Stratigraphy(
     soil_layers,
     z_bot => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-modelgrid = CryoGrid.Presets.DefaultGrid_2cm
+modelgrid = CryoGrid.DefaultGrid_2cm
 tile = Tile(strat, modelgrid, ssinit);
 # Since the solver can take daily timesteps, we can easily specify longer simulation time spans at minimal cost.
 # Here we specify a time span of 10 years.

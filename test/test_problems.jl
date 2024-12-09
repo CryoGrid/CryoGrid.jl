@@ -13,9 +13,9 @@ function test_heat_conduction_freeW_periodic_bc()
     initT = initializer(:T, tempprofile)
     # Define the simulation time span.
     tspan = (0.0,2*24*3600.0)
-    discretization = CryoGrid.Presets.DefaultGrid_10cm
+    discretization = CryoGrid.DefaultGrid_10cm
     Qbot = -0.01u"W/m^2"
-    tile = CryoGrid.Presets.SoilHeatTile(
+    tile = CryoGrid.SoilHeatTile(
         heatop,
         PeriodicBC(HeatBalance, CryoGrid.Neumann, 24*3600.0, 20.0, 0.0, -5.0),
         ConstantBC(HeatBalance, CryoGrid.Neumann, Qbot),
@@ -32,7 +32,7 @@ function test_water_flow_bucket_scheme(topflux=0.0u"m/s")
     initsat = initializer(:sat, 0.5)
     # Define the simulation time span.
     tspan = (0.0, 24*3600.0)
-    discretization = CryoGrid.Presets.DefaultGrid_10cm
+    discretization = CryoGrid.DefaultGrid_10cm
     strat = Stratigraphy(
         0.0u"m" => Top(ConstantBC(WaterBalance, CryoGrid.Neumann, topflux),),
         0.0u"m" => Ground(SimpleSoil(por=0.5, sat=0.5), heat=nothing, water=WaterBalance(BucketScheme())),

@@ -5,7 +5,7 @@ using CryoGrid.Utils
 using Test
 
 @testset "Salt" begin
-    testgrid = CryoGrid.Presets.DefaultGrid_2cm
+    testgrid = CryoGrid.DefaultGrid_2cm
     @testset "variables" begin
         soil = SalineGround()
         vars = CryoGrid.variables(soil)
@@ -63,7 +63,7 @@ using Test
         @test state1.jc[end] > zero(eltype(state1.jc))
         @test state2.jc[1] == state1.jc[end]
     end
-    @testset "computefluxes!" begin
+    @testset "computeprognostic!" begin
         soil = pstrip(SalineGround())
         state = Diagnostics.build_dummy_state(testgrid, soil, with_units=false)
         # initialize variables
@@ -72,7 +72,7 @@ using Test
         state.por .= porosity(soil)
         procs = CryoGrid.processes(soil)
         CryoGrid.computediagnostic!(soil, procs, state)
-        CryoGrid.computefluxes!(soil, procs, state)
+        CryoGrid.computeprognostic!(soil, procs, state)
         # check that all divergences are nonzero for both temperature and salt
         @test all(.!iszero.(state.dc))
         @test all(.!iszero.(state.dT))

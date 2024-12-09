@@ -29,6 +29,13 @@ function freezethaw!(fw::FreeWater, sub::SubSurface, heat::HeatBalance{<:Enthalp
     return nothing
 end
 
+"""
+    enthalpyinv(::FreeWater, H, θwi, C, L)
+
+Inverse enthalpy function for free water freezing characteristic given
+enthalpy `H`, total water content `θwi`, heat capacity `C`, and latent
+heat of fusion `L`.
+"""
 function enthalpyinv(::FreeWater, H, θwi, C, L)
     Lθ = L*θwi
     T_f = H / C
@@ -47,6 +54,33 @@ function enthalpyinv(::FreeWater, H, θwi, C, L)
         )
     )
     return T
+end
+
+"""
+    heatflux!(dH, jH, T, k, ΔT, Δk)
+
+Compute heat fluxes over internal grid cells and divergence for all grid cells.
+Note that fluxes are added to existing values in `dH` and `jH`.
+"""
+function heatflux!(dH, jH, T, k, ΔT, Δk)
+    # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
+    # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
+    # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
+    flux!(jH, T, ΔT, k)
+    divergence!(dH, jH, Δk)
+    return nothing
+end
+
+"""
+    temperatureflux!(dT, dH, ∂H∂T)
+
+Compute the temperature flux `dT = dH / ∂H∂T` as a funtion of the heat flux and effective heat capacity.
+"""
+function temperatureflux!(dT, dH, ∂H∂T)
+    # Compute temperature flux by dividing by ∂H∂T;
+    # ∂H∂T should be computed by the freeze curve.
+    @inbounds @. dT = dH / ∂H∂T
+    return nothing
 end
 
 """
@@ -104,29 +138,17 @@ function CryoGrid.interact!(sub1::SubSurface, ::HeatBalance, sub2::SubSurface, :
     return nothing
 end
 
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
+function CryoGrid.computeprognostic!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
-    # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set;
-    # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
-    # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
-    # nonlineardiffusion!(state.dH, state.jH, state.T, ΔT, state.k, Δk)
-    flux!(state.jH, state.T, ΔT, state.k)
-    divergence!(state.dH, state.jH, Δk)
+    heatflux!(state.dH, state.jH, state.T, state.k, ΔT, Δk)
     return nothing
 end
-function CryoGrid.computefluxes!(sub::SubSurface, ::HeatBalance{<:TemperatureBased}, state)
+function CryoGrid.computeprognostic!(sub::SubSurface, ::HeatBalance{<:TemperatureBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
-    # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set
-    # note that we now use the (slightly slower) explicit flux! and divergence! formulation since
-    # the nonlineardiffusion! function is not compatible with additive (existing) fluxes.
-    # nonlineardiffusion!(state.dH, state.jH, state.T, ΔT, state.k, Δk)
-    flux!(state.jH, state.T, ΔT, state.k)
-    divergence!(state.dH, state.jH, Δk)
-    # Compute temperature flux by dividing by ∂H∂T;
-    # ∂H∂T should be computed by the freeze curve.
-    @inbounds @. state.dT = state.dH / state.∂H∂T
+    heatflux!(state.dH, state.jH, state.T, state.k, ΔT, Δk)
+    temperatureflux!(state.dT, state.dH, state.∂H∂T)
     return nothing
 end
 

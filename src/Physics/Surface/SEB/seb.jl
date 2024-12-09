@@ -67,36 +67,36 @@ Utils.@properties SEBParams(
     βₕ = βₘ/Pr₀,
     γₘ = 15.0,
     γₕ = 9.0,
+
+    z = 2.0u"m"                     # height in meters of air and wind inputs
 )
 
 """
-    SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatBalance}
+    SurfaceEnergyBalance{TSolution,TStabFun,TPara,TInputs} <: BoundaryProcess{HeatBalance}
 
 Surface energy balance upper boundary condition.
 """
-struct SurfaceEnergyBalance{TSolution,TStabFun,TPara,F} <: BoundaryProcess{HeatBalance}
-    forcings::F
+struct SurfaceEnergyBalance{TSolution<:SolutionScheme,TStabFun<:StabilityFunctions,TPara,TInputs} <: BoundaryProcess{HeatBalance}
+    inputs::TInputs
     para::TPara
     # type-dependent parameters
     solscheme::TSolution
     stabfun::TStabFun
 end
-# User facing constructors
-SurfaceEnergyBalance(forcings::Forcings, z=-2.0u"m"; kwargs...) = SurfaceEnergyBalance(forcings.Tair, forcings.pressure, forcings.q, forcings.wind, forcings.Lin, forcings.Sin, z; kwargs...)
-function SurfaceEnergyBalance(
-    Tair::TemperatureForcing, # air temperature
-    pr::PressureForcing, # air pressure
-    qh::HumidityForcing, # specific humidity
-    wind::VelocityForcing, # non-directional wind speed
-    Lin::EnergyFluxForcing, # long-wave incoming radiation
-    Sin::EnergyFluxForcing, # short-wave incoming radiation
-    z; # height [m] of air temperature and wind forcing
+# convenience constructor for SEB
+function SurfaceEnergyBalance(;
+    Tair=Input(:Tair),
+    Lin=Input(:Lin),
+    Sin=Input(:Sin),
+    pr=Input(:pr),
+    qh=Input(:qh),
+    wind=Input(:wind),
     para::SEBParams = SEBParams(),
     solscheme::SolutionScheme = Numerical(),
     stabfun::StabilityFunctions = HøgstrømSHEBA(),
 )
-    forcings = (; Tair, pr, qh, wind, Lin, Sin, z);
-    SurfaceEnergyBalance(forcings, para, solscheme, stabfun)
+    inputs = (; Tair, Lin, Sin, pr, qh, wind)
+    SurfaceEnergyBalance(inputs, para, solscheme, stabfun)
 end
 
 """

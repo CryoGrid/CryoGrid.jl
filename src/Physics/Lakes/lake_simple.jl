@@ -110,7 +110,7 @@ function CryoGrid.computediagnostic!(sub::Lake, heat::HeatBalance{<:Heat.Diffusi
     return nothing
 end
 
-function CryoGrid.computefluxes!(::Lake, ::HeatBalance{<:Heat.Diffusion1D{:H}}, state)
+function CryoGrid.computeprognostic!(::Lake, ::HeatBalance{<:Heat.Diffusion1D{:H}}, state)
     Δk = Δ(state.grids.k) # cell sizes
     ΔT = Δ(state.grids.T) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

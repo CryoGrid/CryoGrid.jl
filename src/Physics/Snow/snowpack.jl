@@ -120,14 +120,14 @@ function CryoGrid.computediagnostic!(
     updategrid!(state.grid, z0, state.dsn)
 end
 
-function CryoGrid.computefluxes!(
+function CryoGrid.computeprognostic!(
     snow::Snowpack,
     state,
 )
     mass, water, heat = processes(snow)
-    computefluxes!(snow, mass, state)
-    computefluxes!(snow, water, state)
-    computefluxes!(snow, heat, state)
+    computeprognostic!(snow, mass, state)
+    computeprognostic!(snow, water, state)
+    computeprognostic!(snow, heat, state)
 end
 
 # Special overrides for heat timestep control on snow layer

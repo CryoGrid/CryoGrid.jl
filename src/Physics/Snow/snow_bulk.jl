@@ -167,16 +167,16 @@ function CryoGrid.trigger!(
 end
 
 # mass balance fluxes are handled in interact! for bulk snowpack
-CryoGrid.computefluxes!(snow::BulkSnowpack, mass::SnowMassBalance, state) = nothing
+CryoGrid.computeprognostic!(snow::BulkSnowpack, mass::SnowMassBalance, state) = nothing
 
-# computefluxes! for free water, enthalpy based HeatBalance on bulk snow layer
-function CryoGrid.computefluxes!(
+# computeprognostic! for free water, enthalpy based HeatBalance on bulk snow layer
+function CryoGrid.computeprognostic!(
     snow::BulkSnowpack,
     ps::CoupledSnowWaterHeat{TM,TW,TH},
     state
 ) where {TM,TW,TH<:HeatBalance{<:EnthalpyBased}}
     mass, water, heat = ps
-    computefluxes!(snow, mass, state)
+    computeprognostic!(snow, mass, state)
     dsn = getscalar(state.dsn)
     if dsn < snow.para.thresh
         # set fluxes to zero if there is no snow
@@ -185,8 +185,8 @@ function CryoGrid.computefluxes!(
             state.dsat .= 0.0
         end
     else
-        # otherwise call computefluxes! for coupled water/heat
-        computefluxes!(snow, Coupled(water, heat), state)
+        # otherwise call computeprognostic! for coupled water/heat
+        computeprognostic!(snow, Coupled(water, heat), state)
     end
     return nothing
 end

@@ -54,7 +54,7 @@ The `CryoGrid` module defines three primary methods that can be used to implemen
 
 1. [`computediagnostic!`](@ref) updates all (non-flux) state variables and/or derived quantities based on the current (prognostic) state.
 2. [`interact!`](@ref) defines interactions between adjacent layers in the stratigraphy, including fluxes over the layer boundary.
-3. [`computefluxes!`](@ref) computes all internal fluxes (and the divergence thereof) within each layer, after boundary fluxes are taken into account by `interact!`.
+3. [`computeprognostic!`](@ref) computes all internal fluxes (and the divergence thereof) within each layer, after boundary fluxes are taken into account by `interact!`.
 
 Layer and/or process specific implementations of each of these methods can generally assume that the previous methods have already been invoked by the caller (it is the responsibility of the calling code to ensure that this is the case). This is, for example, the order in which these methods will be invoked by `tile(du, u, p t)`.
 
@@ -65,7 +65,7 @@ using CryoGrid
 using CryoGrid.Diagnostics
 
 soil = Ground()
-grid = CryoGrid.Presets.DefaultGrid_5cm
+grid = CryoGrid.DefaultGrid_5cm
 state = Diagnostics.build_dummy_state(grid, soil)
 
 @which CryoGrid.computediagnostic!(soil, state)
@@ -82,7 +82,7 @@ In order to facilitate modularity and ease-of-use, CryoGrid.jl provides an autom
 
 `Prognostic`(@ref) state variables fully define the state of the system at any given time `t`. They form what is typically called the "phase space" or "state space" in the mathematics and engineering literature. In order to be compatible with standard ODE solvers (e.g. like those in `OrdinaryDiffEq`), CryoGrid.jl automatically assembles prognostic state variables into a single array `u` (and its corresponding time derivative `du`) which is returned when initializing a `Tile` with the `initialcondition!` method. Note again that this array should always fully define the state of the system.
 
-`Diagnostic`(@ref) state variables act as caches for intermediate and derived quantities defined by the model. They also may, in some cases, provide a means of coupling between different processes (e.g. the heat and water flux variables `jH` and `jw` might be updated by more than one `Process`). For any model configuration, all diagnostic variables should be fully updated (and thus consistent) with the given prognostic state after invoking `computediagnostic!`, `interact!`, and `computefluxes!`.
+`Diagnostic`(@ref) state variables act as caches for intermediate and derived quantities defined by the model. They also may, in some cases, provide a means of coupling between different processes (e.g. the heat and water flux variables `jH` and `jw` might be updated by more than one `Process`). For any model configuration, all diagnostic variables should be fully updated (and thus consistent) with the given prognostic state after invoking `computediagnostic!`, `interact!`, and `computeprognostic!`.
 
 When a `Tile` is constructed, all variables defined by each layer in the `Stratigraphy` are collected and then intiailized in [`StateVars`](@ref) according to the given `DiscretizationStrategy`.
 

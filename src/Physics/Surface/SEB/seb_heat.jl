@@ -14,7 +14,7 @@ function CryoGrid.initialcondition!(top::Top, seb::SurfaceEnergyBalance, state)
     resetfluxes!(top, seb, state)
     state.Lstar .= -1e5*oneunit(eltype(state.Lstar));
     state.ustar .= 10.0*oneunit(eltype(state.ustar));
-    state.T_ub .= seb.forcings.Tair(state.t)
+    state.T_ub .= seb.inputs.Tair
 end
 
 CryoGrid.BCKind(::Type{<:SurfaceEnergyBalance}) = CryoGrid.Neumann()
@@ -163,7 +163,7 @@ Friction velocity according to Monin-Obukhov theory
 function u_star(seb::SurfaceEnergyBalance, state::SEBState)
     let κ = seb.para.κ,
         uz = state.inputs.wind, # wind speed at height z
-        z = state.inputs.z, # height z of wind forcing
+        z = seb.para.z, # height z of wind forcing
         z₀ = state.inputs.surf.z₀, # aerodynamic roughness length [m]
         Lstar = state.Lstar;
         κ * uz ./ (log(z / z₀) - Ψ_M(seb, z / Lstar, z₀ / Lstar)) # Eq. (7) in Westermann et al. (2016)
@@ -209,7 +209,7 @@ function L_star(seb::SurfaceEnergyBalance{Analytical}, state::SEBState)
             p = state.inputs.pr, # atmospheric pressure at surface (height z)
             p₀ = state.inputs.pr, # normal pressure (for now assumed to be equal to p)
             uz = state.inputs.wind, # wind speed at height z
-            z = state.inputs.z, # height z of wind forcing
+            z = seb.para.z, # height z of wind forcing
             z₀ = state.inputs.surf.z₀, # aerodynamic roughness length [m]
             Pr₀ = seb.para.Pr₀, # turbulent Prandtl number
             γₕ = seb.para.γₕ,
@@ -260,7 +260,7 @@ function Q_H(seb::SurfaceEnergyBalance, state::SEBState)
         Tₕ = state.inputs.Tair, # air temperature
         T₀ = state.inputs.Ts, # surface temperature
         cₚ = seb.para.cₐ / seb.para.ρₐ, # specific heat capacity of air at constant pressure
-        z = state.inputs.z, # height at which forcing data are provided
+        z = seb.para.z, # height at which forcing data are provided
         Lstar = state.Lstar,
         ustar = state.ustar,
         pr = state.inputs.pr,
@@ -287,7 +287,7 @@ function Q_E(seb::SurfaceEnergyBalance, state::SEBState)
         T₀ = state.inputs.Ts, # surface temperature
         p = state.inputs.pr, # atmospheric pressure at surface
         qₕ = state.inputs.qh, # specific humidity at height h over surface
-        z = state.inputs.z, # height at which forcing data are provided
+        z = seb.para.z, # height at which forcing data are provided
         rₛ = state.inputs.surf.rₛ, # surface resistance against evapotranspiration / sublimation [1/m]
         Lstar = state.Lstar,
         ustar = state.ustar,

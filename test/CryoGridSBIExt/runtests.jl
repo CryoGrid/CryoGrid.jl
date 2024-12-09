@@ -15,14 +15,15 @@ function cryogrid_test_problem(tspan)
     );
     heatop = Heat.Diffusion1D(:H)
     initT = initializer(:T, tempprofile)
-    tile = CryoGrid.Presets.SoilHeatTile(
+    tile = CryoGrid.SoilHeatTile(
         heatop,
         ## 10 W/m^2 in and out, i.e. net zero flux
         PeriodicBC(HeatBalance, CryoGrid.Dirichlet, 365.0u"d", 15.0u"°C", 0.0, -5.0u"°C"),
         ConstantBC(HeatBalance, CryoGrid.Neumann, -0.1u"W/m^2"),
         soilprofile,
+        inputs(),
         initT;
-        grid=CryoGrid.Presets.DefaultGrid_10cm,
+        grid=CryoGrid.DefaultGrid_10cm,
     );
     u0, _ = initialcondition!(tile, tspan);
     prob = CryoGridProblem(tile, u0, tspan)

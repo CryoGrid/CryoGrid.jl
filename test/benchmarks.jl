@@ -15,7 +15,7 @@ function run_solver_benchmark(solvers, grids, dts, tspan, upperbc;
         # high accuracy reference solution, 1 minute time steps
         println("Computing reference solution for grid spacing $min_dx with forward Euler @ $dt_ref s time steps ...")
         # basic 1-layer heat conduction model (defaults to free water freezing scheme)
-        model = Presets.SoilHeat(:H, upperbc, profile; grid=grid, freezecurve=freezecurve)
+        model = SoilHeat(:H, upperbc, profile; grid=grid, freezecurve=freezecurve)
         p = copy(model.pproto)
         p .= params
         prob = CryoGridProblem(model,tspan,p)
@@ -55,7 +55,7 @@ forcings = loadforcings(filename);
 # use air temperature as upper boundary forcing
 tair = TemperatureBC(forcings.Tair)
 solvers = [Euler, DP5, ROCK2, ROCK4, Trapezoid, ROS3P]
-grids = [Presets.DefaultGrid_2cm, Presets.DefaultGrid_5cm, Presets.DefaultGrid_10cm, Presets.DefaultGrid_20cm]
+grids = [DefaultGrid_2cm, DefaultGrid_5cm, DefaultGrid_10cm, DefaultGrid_20cm]
 dts = [2*60.0, 10*60.0, 30*60.0, 3600.0]
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 results_freeW_tair = run_solver_benchmark(solvers, grids, dts, tspan, tair)
@@ -78,8 +78,8 @@ StatsPlots.groupedbar(xnames, results_freeW_tair.error[:,:,1], yerror=results_fr
 savefig("solver_benchmark_freeW_tair_error.png")
 
 # Test 2: Energy + SEB upper bc + free water freeze curve
-z = 2.;    # height [m] for which the forcing variables (Temp, humidity, wind, pressure) are provided
-seb = SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)
+forcings = (; Tair,pr,q,wind,Lin,Sin)
+seb = SurfaceEnergyBalance()
 solvers = [Euler, DP5, ROCK2, ROCK4]
 results_freeW_seb = run_solver_benchmark(solvers, grids, dts, tspan, seb)
 serialize("solver_benchmark_freeW_seb.ser", results_freeW_seb)

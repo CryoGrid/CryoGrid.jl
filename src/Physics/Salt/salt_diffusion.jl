@@ -121,7 +121,7 @@ function CryoGrid.timestep(::SalineGround, salt::SaltMassBalance{T,<:CryoGrid.CF
     return dtmax
 end
 
-function CryoGrid.computefluxes!(
+function CryoGrid.computeprognostic!(
     ::SalineGround,
     ps::CoupledHeatSalt{THeat},
     state

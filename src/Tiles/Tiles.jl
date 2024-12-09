@@ -2,7 +2,7 @@ module Tiles
 
 using CryoGrid
 using CryoGrid: Parameterization, DynamicParameterization, DVar
-using CryoGrid.InputOutput: Forcing, CryoGridParams
+using CryoGrid.InputOutput: CryoGridParams
 using CryoGrid.Numerics
 using CryoGrid.Utils
 

@@ -1,3 +1,6 @@
+export FixedParam
+include("param_types.jl")
+
 """
     CryoGridParams{T,TM} <: DenseArray{T,1}
 
@@ -6,7 +9,7 @@ type directly in math or linear algebra operations but rather to use `Base.value
 of parameter values.
 """
 struct CryoGridParams{T,TM} <: DenseArray{T,1}
-    obj::TM # param obj
+    obj::TM # parameter "model"
     CryoGridParams(m::AbstractModel) = new{eltype(m[:val]),typeof(m)}(m)
 end
 
@@ -66,7 +69,7 @@ function Base.show(io::IO, ::MIME"text/plain", ps::CryoGridParams{T}) where T
     ModelParameters.printparams(io, ps.obj)
 end
 
-paramname(p::Param, component::Type{T}, fieldname) where {T} = fieldname
+paramname(p::AbstractParam, component::Type{T}, fieldname) where {T} = fieldname
 
 Tables.columns(ps::CryoGridParams) = Tables.columns(ps.obj)
 Tables.rows(ps::CryoGridParams) = Tables.rows(ps.obj)
@@ -91,3 +94,9 @@ function _setparafields(m::Model)
     newparent = Flatten.reconstruct(parent(m), updated_parameterizations, CryoGrid.Parameterization)
     return Model(newparent)
 end
+
+export ParamsJSON, ParamsYAML
+include("params_loaders.jl")
+
+export PiecewiseConstant, PiecewiseLinear, LinearTrend, Transformed
+include("parameterizations.jl")

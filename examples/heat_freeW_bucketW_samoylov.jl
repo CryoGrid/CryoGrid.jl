@@ -5,11 +5,14 @@
 
 # Frist, load forcings and define boundary conditions.
 using CryoGrid
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
-_, tempprofile = CryoGrid.Presets.SamoylovDefault;
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
+_, tempprofile = CryoGrid.SamoylovDefault;
 initT = initializer(:T, tempprofile)
 initsat = initializer(:sat, (l,state) -> state.sat .= l.para.sat);
-upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureBC(forcings.Tair, NFactor(0.5,0.9)));
+upperbc = WaterHeatBC(
+    SurfaceWaterBalance(),
+    TemperatureBC(Input(:Tair), NFactor(0.5,0.9))
+);
 
 # The `@Stratigraphy` macro is just a small convenience that automatically wraps the three subsurface layers in a tuple.
 # It would be equivalent to use the `Stratigraphy` constructor directly and wrap these layers in a tuple or list.
@@ -20,8 +23,8 @@ strat = @Stratigraphy(
     2.0u"m" => Ground(SimpleSoil(por=0.10,sat=1.0,org=0.0), heat=HeatBalance(), water=WaterBalance(BucketScheme())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2")),
 );
-modelgrid = CryoGrid.Presets.DefaultGrid_2cm
-tile = Tile(strat, modelgrid, initT, initsat);
+modelgrid = CryoGrid.DefaultGrid_2cm
+tile = Tile(strat, modelgrid, forcings, initT, initsat);
 
 # Now we set up the problem and solve using the integrator interface.
 tspan = (DateTime(2010,5,30),DateTime(2012,8,30))

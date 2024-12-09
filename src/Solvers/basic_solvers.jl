@@ -19,7 +19,7 @@ struct CGEulerCache{Tu} <: SciMLBase.DECache
     du::Tu
 end
 
-function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0, saveat=3*3600.0, kwargs...)
+function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0, saveat=nothing, kwargs...)
     tile = Tile(prob.f)
     u0 = copy(prob.u0)
     du0 = zero(u0)
@@ -28,7 +28,7 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
     u_storage = [copy(u0)]
     t_storage = [prob.tspan[1]*one(eltype(u0))]
     # evaluate tile at initial condition
-    tile = Tiles.resolve(Tile(prob.f), prob.p, t0)
+    tile = Tiles.materialize(Tile(prob.f), prob.p, t0)
     tile(du0, u0, prob.p, t0, dt)
     # reset SavedValues on tile.data
     initialsave = prob.savefunc(tile, u0, similar(u0))
@@ -42,7 +42,11 @@ function DiffEqBase.__init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0
         similar(prob.u0),
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
-    saveat = isa(saveat, Number) ? collect(prob.tspan[1]:saveat:prob.tspan[2]) : saveat
+    if isnothing(saveat)
+        saveat = prob.saveat
+    elseif isa(saveat, Number)
+        saveat = collect(prob.tspan[1]:saveat:prob.tspan[2])
+    end
     opts = CryoGridIntegratorOptions(; saveat=expandtstep(saveat, prob.tspan), kwargs...)
     return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0*one(eltype(u0)), dt*one(eltype(u0)), 1, 1)
 end
@@ -54,7 +58,7 @@ function perform_step!(integrator::CryoGridIntegrator{CGEuler})
     t₀ = integrator.t
     p = integrator.p
     initial_tile = Tile(integrator.sol.prob.f)
-    tile = Tiles.resolve(initial_tile, p, t₀)
+    tile = Tiles.materialize(initial_tile, p, t₀)
     # compute time derivative du
     tile(du, u, p, t₀)
     dt = integrator.dt

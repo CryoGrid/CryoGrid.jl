@@ -5,9 +5,11 @@
 # pressure gradients.
 
 using CryoGrid
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
+
+
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 tspan = (DateTime(2011,1,1),DateTime(2011,12,31))
-T0 = values(forcings.Tair(tspan[1]))[1]
+T0 = forcings.Tair(tspan[1])
 tempprofile = TemperatureProfile(
     0.0u"m" => 0.0*u"°C",
     1.0u"m" => -8.0u"°C",
@@ -24,7 +26,7 @@ waterflow = RichardsEq(;swrc);
 
 # We use the enthalpy-based heat diffusion with high accuracy Newton-based solver for inverse enthalpy mapping
 heatop = Heat.Diffusion1D(:H)
-upperbc = WaterHeatBC(SurfaceWaterBalance(forcings), TemperatureBC(forcings.Tair, NFactor(nf=0.6, nt=0.9)));
+upperbc = WaterHeatBC(SurfaceWaterBalance(), TemperatureBC(Input(:Tair), NFactor(nf=0.6, nt=0.9)));
 
 # We will use a simple stratigraphy with three subsurface soil layers.
 # Note that the @Stratigraphy macro lets us list multiple subsurface layers without wrapping them in a tuple.
@@ -38,8 +40,8 @@ strat = @Stratigraphy(
     2.0u"m" => Ground(SimpleSoil(por=0.10,sat=1.0,org=0.0,freezecurve=sfcc); heat, water),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"W/m^2"))
 );
-grid = CryoGrid.Presets.DefaultGrid_2cm
-tile = Tile(strat, grid, initT);
+grid = CryoGrid.DefaultGrid_2cm
+tile = Tile(strat, grid, forcings, initT);
 u0, du0 = @time initialcondition!(tile, tspan)
 prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600, savevars=(:T,:θw,:θwi,:kw));
 integrator = init(prob, CGEuler())

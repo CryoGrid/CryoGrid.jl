@@ -11,15 +11,11 @@ struct EvapTop <: Evapotranspiration end
 Corresponds to evapotranspiration scheme 2 described in section 2.2.4 of Westermann et al. (2022).
 """
 Base.@kwdef struct DampedET{Tftr,Tdtr,Tdev} <: Evapotranspiration
-    f_tr::Tftr = 0.5
-    d_tr::Tdtr = 0.5u"m"
-    d_ev::Tdev = 0.1u"m"
+    f_tr::Tftr = param(0.5, domain=0..1, desc="Factor between 0 and 1 weighting transpirative vs. evaporative fluxes.")
+    d_tr::Tdtr = param(0.5, units=u"m", domain=0..Inf, desc="Damping depth for transpiration.")
+    d_ev::Tdev = param(0.1, units=u"m", domain=0..Inf, desc="Damping depth for evaporation.")
 end
-CryoGrid.parameterize(et::DampedET) = DampedET(
-    f_tr = CryoGrid.parameterize(et.f_tr, domain=0..1, desc="Factor between 0 and 1 weighting transpirative vs. evaporative fluxes."),
-    d_tr = CryoGrid.parameterize(et.d_tr, domain=0..Inf, desc="Damping depth for transpiration."),
-    d_ev = CryoGrid.parameterize(et.d_ev, domain=0..Inf, desc="Damping depth for evaporation."),
-)
+
 """
     evapotranspiration!(::SubSurface, ::WaterBalance, state)
 

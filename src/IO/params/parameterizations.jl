@@ -127,11 +127,6 @@ function binindex(values::Tuple, st, en, x)
     end
 end
 
-CryoGrid.parameters(pw::PiecewiseLinear) = (;
-    initialvalue = CryoGrid.parameters(pw.initialvalue),
-    knots = CryoGrid.parameters(pw.knots),
-)
-
 # Transformed parameterization
 
 """

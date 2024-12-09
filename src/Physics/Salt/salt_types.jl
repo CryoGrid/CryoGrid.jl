@@ -1,6 +1,6 @@
 SaltProperties(
-    τ = Param(1.5), # Turtuosity
-    dₛ₀ = Param(8.0e-10, units=u"m^2/s"), # salt diffusion coefficient    
+    τ = param(1.5), # Turtuosity
+    dₛ₀ = param(8.0e-10, units=u"m^2/s"), # salt diffusion coefficient    
 ) = (; τ, dₛ₀)
 
 abstract type SaltOperator end

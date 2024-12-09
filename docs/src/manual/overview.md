@@ -12,12 +12,13 @@ At the highest level, a model in `CryoGrid.jl` is defined by one or more [`Tile`
 ```julia
 # ... load forcings, set up profiles, etc.
 # see examples/heat_vgfc_seb_saoylov_custom.jl for more details
+forcings = (;Tair,pr,q,wind,Lin,Sin,z)
 strat = Stratigraphy(
-    -2.0u"m" => Top(SurfaceEnergyBalance(Tair,pr,q,wind,Lin,Sin,z)),
+    -2.0u"m" => Top(SurfaceEnergyBalance(forcings)),
     0.0u"m" => Ground(soilprofile, HeatBalance(:H; freezecurve=DallAmico())),
     1000.0u"m" => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
-grid = CryoGrid.Presets.DefaultGrid_5cm
+grid = CryoGrid.DefaultGrid_5cm
 # define initial conditions for temperature using a given profile;
 # The default initializer linearly interpolates between profile points.
 initT = initializer(:T, tempprofile)
@@ -69,12 +70,12 @@ When the `HeatBalance` process is assigned to a `Soil` layer, `Tile` will invoke
 
 Each variable definition consists of a name (a Julia `Symbol`), a type, and a shape. For variables discretized on the grid, the shape is specified by `OnGrid`, which will generate an array of the appropriate size when the model is compiled. The arguments `Cells` and `Edges` specify whether the variable should be defined on the grid cells or edges respecitvely.
 
-The real work finally happens in [`computediagnostic!`](@ref) and [`computefluxes!`](@ref), the latter of which should be used to compute the time derivatives (here `dH`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
+The real work finally happens in [`computediagnostic!`](@ref) and [`computeprognostic!`](@ref), the latter of which should be used to compute the time derivatives (here `dH`). [`interact!`](@ref) defines the behavior at the boundaries and should be used to compute the derivatives (and any other necessary values) at the interface between layers.
 
-We can take as an example the implementation of `computefluxes!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
+We can take as an example the implementation of `computeprognostic!` for enthalpy-based heat conduction (note that `jH` is a diagnostic variable representing the energy flux over each cell edge):
 
 ```julia
-function CryoGrid.computefluxes!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
+function CryoGrid.computeprognostic!(::SubSurface, ::HeatBalance{<:EnthalpyBased}, state)
     Δk = Δ(state.grid) # cell sizes
     ΔT = Δ(cells(state.grid)) # midpoint distances
     # compute internal fluxes and non-linear diffusion assuming boundary fluxes have been set

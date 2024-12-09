@@ -6,9 +6,9 @@ i.e. natural porosity, saturation, and organic solid fraction. This is the stand
 of a discrete soil volume.
 """
 Base.@kwdef struct SimpleSoil{Tfc,Tpor,Tsat,Torg,Thp,Twp} <: SoilParameterization
-    por::Tpor = 0.5 # natural porosity
-    sat::Tsat = 1.0 # saturation
-    org::Torg = 0.0 # organic fraction of solid; mineral fraction is 1-org
+    por::Tpor = param(0.5, domain=0..1, desc="Natural porosity of the soil volume.")
+    sat::Tsat = param(1.0, domain=0..1, desc="Initial water+ice saturation level of the soil volume.")
+    org::Torg = param(0.0, domain=0..1, desc="Organic solid fraction of the soil volume.")
     freezecurve::Tfc = FreeWater()
     heat::Thp = SoilThermalProperties(SimpleSoil)
     water::Twp = SoilHydraulicProperties(SimpleSoil, fieldcapacity=0.20)
@@ -34,24 +34,15 @@ SoilThermalProperties(
     kh_w = ThermalProperties().kh_w,
     kh_i = ThermalProperties().kh_i,
     kh_a = ThermalProperties().kh_a,
-    kh_o=0.25u"W/m/K", # organic [Hillel (1982)]
-    kh_m=3.8u"W/m/K", # mineral [Hillel (1982)]
+    kh_o=param(0.25, units=u"W/m/K", domain=0..Inf), # organic [Hillel (1982)]
+    kh_m=param(3.8, units=u"W/m/K", domain=0..Inf), # mineral [Hillel (1982)]
     ch_w = ThermalProperties().ch_w,
     ch_i = ThermalProperties().ch_i,
     ch_a = ThermalProperties().ch_a,
-    ch_o=2.5e6u"J/K/m^3", # heat capacity organic
-    ch_m=2.0e6u"J/K/m^3", # heat capacity mineral
+    ch_o=param(2.5e6, units=u"J/K/m^3", domain=0..Inf), # heat capacity organic
+    ch_m=param(2.0e6, units=u"J/K/m^3", domain=0..Inf), # heat capacity mineral
     kwargs...,
 ) = ThermalProperties(; kh_w, kh_i, kh_a, kh_m, kh_o, ch_w, ch_i, ch_a, ch_m, ch_o, kwargs...)
-
-# CryoGrid methods
-CryoGrid.parameterize(para::SimpleSoil) = SimpleSoil(
-    por = CryoGrid.parameterize(para.por, domain=0..1, desc="Natural porosity of the soil volume."),
-    sat = CryoGrid.parameterize(para.sat, domain=0..1, desc="Initial water+ice saturation level of the soil volume."),
-    org = CryoGrid.parameterize(para.org, domain=0..1, desc="Organic solid fraction of the soil volume."),
-    heat = CryoGrid.parameterize(para.heat, domain=0..Inf),
-    water = CryoGrid.parameterize(para.water, domain=0..Inf),
-)
 
 CryoGrid.variables(soil::Soil{<:SimpleSoil}) = CryoGrid.variables(soil, processes(soil))
 

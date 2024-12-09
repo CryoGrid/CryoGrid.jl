@@ -9,26 +9,14 @@ Base.@kwdef struct WaterBalanceProperties{Tρw,TLsg,Trfs}
     rf_smoothness::Trfs = 0.3
 end
 
-# do not parameterize water balance constants
-CryoGrid.parameterize(prop::WaterBalanceProperties) = prop
-
 """
     HydraulicProperties
 
 Default material hydraulic properties.
 """
 Utils.@properties HydraulicProperties(
-    kw_sat = 1e-5u"m/s",
+    kw_sat = param(1e-5, units=u"m/s"),
 )
-
-function CryoGrid.parameterize(prop::HydraulicProperties)
-    return HydraulicProperties(
-        map(values(prop)) do val
-            # this currently assumes that all properties have a strictly positive domain!
-            CryoGrid.parameterize(val, domain=StrictlyPositive)
-        end
-    )
-end
 
 """
     WaterFlow

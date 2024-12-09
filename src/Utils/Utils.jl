@@ -172,22 +172,36 @@ function pstrip(obj; keep_units=false)
 end
 
 # TODO: this should be in ModelParameters.jl, not here.
-function Unitful.uconvert(u::Unitful.Units, p::Param)
+function Unitful.uconvert(u::Unitful.Units, p::paraType) where {paraType<:AbstractParam}
     nt = parent(p)
     @set! nt.val = ustrip(u, stripparams(p))
     @set! nt.units = u
-    return Param(nt)
+    return paraType(nt)
 end
 """
     ModelParameters.stripunits(obj)
 
-Additional override for `stripunits` which reconstructs `obj` with all fields that have unitful quantity
+Additional dispatch for `stripunits` which reconstructs `obj` with all fields that have unitful quantity
 types converted to base SI units and then stripped to be unit free.
 """
 function ModelParameters.stripunits(obj)
     values = Flatten.flatten(obj, Flatten.flattenable, Unitful.AbstractQuantity, Flatten.IGNORE)
     return Flatten.reconstruct(obj, map(ustrip ∘ normalize_units, values), Unitful.AbstractQuantity, Flatten.IGNORE)
 end
+
+"""
+    ModelParameters.stripparams(::Type{paraType}, obj) where {paraType<:AbstractParam}
+
+Additional dispatch for `stripparams` which allows specification of a specific type.
+"""
+function ModelParameters.stripparams(::Type{paraType}, obj) where {paraType<:AbstractParam}
+    IgnoreTypes = ignored_types(obj)
+    selected_params = Flatten.flatten(obj, Flatten.flattenable, paraType, IgnoreTypes)
+    return Flatten._reconstruct(obj, map(stripparams, selected_params), Flatten.flattenable, paraType, IgnoreTypes, 1)[1]
+end
+
+ignored_types(obj) = ModelParameters.IGNORE
+
 # pretty print Param types
 Base.show(io::IO, mime::MIME"text/plain", p::Param) = print(io, "Param($(p.val))")
 

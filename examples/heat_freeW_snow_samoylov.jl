@@ -7,7 +7,7 @@ using CryoGrid
 using OrdinaryDiffEq
 
 # First we set up the model:
-forcings = loadforcings(CryoGrid.Presets.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
+forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile = SoilProfile(
     0.0u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.75),
     0.1u"m" => SimpleSoil(por=0.80,sat=1.0,org=0.25),
@@ -15,14 +15,14 @@ soilprofile = SoilProfile(
     3.0u"m" => SimpleSoil(por=0.50,sat=1.0,org=0.0),
     10.0u"m" => SimpleSoil(por=0.30,sat=1.0,org=0.0),
 );
-initT = initializer(:T, CryoGrid.Presets.SamoylovDefault.tempprofile)
+initT = initializer(:T, CryoGrid.SamoylovDefault.tempprofile)
 initsat = initializer(:sat, 1.0)
 z_top = -2.0u"m"
 z_sub = keys(soilprofile)
 z_bot = 1000.0u"m"
 upperbc = WaterHeatBC(
-    SurfaceWaterBalance(forcings),
-    TemperatureBC(forcings.Tair)
+    SurfaceWaterBalance(),
+    TemperatureBC(Input(:Tair))
 )
 snowpack = Snowpack(
     para=Snow.Bulk(),
@@ -39,8 +39,8 @@ strat = @Stratigraphy(
     ground_layers...,
     z_bot => Bottom(GeothermalHeatFlux(0.053u"J/s/m^2"))
 );
-modelgrid = CryoGrid.Presets.DefaultGrid_5cm
-tile = Tile(strat, modelgrid, initT, initsat)
+modelgrid = CryoGrid.DefaultGrid_5cm
+tile = Tile(strat, modelgrid, forcings, initT, initsat)
 # define time span, 2 years + 3 months
 tspan = (DateTime(2010,9,30), DateTime(2012,9,30))
 u0, du0 = @time initialcondition!(tile, tspan)

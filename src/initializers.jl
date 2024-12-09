@@ -3,9 +3,6 @@ Base.isless(init1::Initializer, init2::Initializer) = false
 # add varname dispatch for initializer types
 CryoGrid.varname(::VarInitializer{varname}) where {varname} = varname
 
-# default behavior is to not automatically parameterize initializers
-CryoGrid.parameterize(init::VarInitializer) = init
-
 # default to invoking initializer
 CryoGrid.initialcondition!(init::VarInitializer, layer::Layer, state) = init(layer, state)
 

@@ -18,7 +18,7 @@ forcingunits(::ForcingFormatJSON) = Dict(
     :Ptot => u"mm/d",
 )
 
-function loadforcings(format::ForcingFormatJSON{1}, filename::String)
+function loadforcings(format::ForcingFormatJSON{1}, filename::String, kwargs...)
     dict = open(filename, "r") do file; JSON3.read(file) end
     # convert JSON3 dict for data field to Julia dict
     data = Dict(dict[:data]...)
@@ -37,11 +37,11 @@ function loadforcings(format::ForcingFormatJSON{1}, filename::String)
         end
     end
     forcings = map(names, vals_with_units) do name, values
-        name => InterpolatedForcing(Array(ts), values, name)
+        name => DimArray(values, (Ti(Array(ts)),); name)
     end
-    return Forcings((; forcings...))
+    return Interpolated1D(DimStack((; forcings...)); kwargs...)
 end
-function loadforcings(format::ForcingFormatJSON{2}, filename::String)
+function loadforcings(format::ForcingFormatJSON{2}, filename::String; kwargs...)
     dict = open(filename, "r") do file; JSON3.read(file) end
     # convert JSON3 dict for data field to Julia dict
     data = Dict(dict[:data]...)
@@ -58,7 +58,7 @@ function loadforcings(format::ForcingFormatJSON{2}, filename::String)
         end
     end
     forcings = map(names, vals_with_units) do name, values
-        name => InterpolatedForcing(Array(ts), values, name)
+        name => DimArray(values, (Ti(Array(ts)),); name)
     end
-    return Forcings((; forcings...))
+    return Interpolated1D(DimStack((; forcings...)); kwargs...)
 end

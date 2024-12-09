@@ -219,7 +219,7 @@ function CryoGrid.computediagnostic!(sub::SubSurface, water::WaterBalance, state
     evapotranspiration!(sub, water, state)
 end
 
-function CryoGrid.computefluxes!(sub::SubSurface, water::WaterBalance, state)
+function CryoGrid.computeprognostic!(sub::SubSurface, water::WaterBalance, state)
     wateradvection!(sub, water, state)
     waterdiffusion!(sub, water, state)
     balancefluxes!(sub, water, state)
@@ -255,7 +255,7 @@ function CryoGrid.initialcondition!(sub::SubSurface, water::WaterBalance{NoFlow}
     end
 end
 
-CryoGrid.computefluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
+CryoGrid.computeprognostic!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 
 CryoGrid.resetfluxes!(::SubSurface, ::WaterBalance{NoFlow}, state) = nothing
 

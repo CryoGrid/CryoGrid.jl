@@ -73,10 +73,10 @@ function loadforcings(::ForcingFormatNCD{NCDTopoPyScale}, filepath::String)
             # note that this is loading the data entirely into memory;
             # may need to consider in the future lazy loading via DiskArray and/or the NetCDF package.
             # NetCDF.jl currently seems to have a bug where the data types are not inferred correctly.
-            Symbol(name) => InterpolatedForcing(timestamps, var.*units, Symbol(standard_name))
+            Symbol(name) => DimArray(var.*units, (Ti(timestamps),); name=Symbol(standard_name))
         end
         metadata = (; title, source, creator_name, date_created, latitude, longitude, elevation, calendar)
         # note the (;x...) syntax creates a named tuple from a collection of pairs, Symbol => value
-        return Forcings((;forcings...), metadata)
+        return DimStack((;forcings...); metadata)
     end
 end

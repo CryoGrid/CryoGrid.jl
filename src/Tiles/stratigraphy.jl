@@ -33,7 +33,7 @@ struct Stratigraphy{N,TLayers<:NamedTuple,TBoundaries}
         @nospecialize(sub::Tuple{Vararg{Pair{<:Number}}}),
         @nospecialize(bot::Pair{<:Number,<:Bottom})
     )
-        updateparam(p::Param) = Param(merge(parent(p), (layer=:strat,)))
+        updateparam(p::paraType) where {paraType<:AbstractParam} = paraType(merge(parent(p), (layer=:strat,)))
         updateparam(x) = x
         # check subsurface layers
         @assert length(sub) > 0 "At least one subsurface layer must be specified"
@@ -93,7 +93,9 @@ Base.NamedTuple(strat::Stratigraphy) = layers(strat)
 function Base.show(io::IO, ::MIME"text/plain", strat::Stratigraphy)
     print(io, "Stratigraphy:\n")
     for (k,v,b) in zip(keys(strat), values(strat), boundaries(strat))
-        print(repeat(" ", Base.indent_width), "$b: $k :: $(nameof(typeof(v)))\n")
+        procs = isa(processes(v), Tuple) ? processes(v) : (processes(v),)
+        procnames = map(p -> string(nameof(typeof(p))), procs)
+        print(repeat(" ", Base.indent_width), "$(b*u"m"): $k :: $(nameof(typeof(v))) with processes $(join(procnames, ", "))\n")
     end
 end
 
@@ -219,9 +221,9 @@ that `getproperty` would return the appropriate state object for the i'th layer 
     return expr
 end
 
-function CryoGrid.computefluxes!(strat::Stratigraphy, state)
+function CryoGrid.computeprognostic!(strat::Stratigraphy, state)
     fastiterate(namedlayers(strat)) do named_layer
-        CryoGrid.computefluxes!(named_layer.val, getproperty(state, nameof(named_layer)))
+        CryoGrid.computeprognostic!(named_layer.val, getproperty(state, nameof(named_layer)))
     end
 end
 
