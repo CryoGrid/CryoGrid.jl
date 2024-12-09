@@ -89,7 +89,7 @@ prob_func = make_prob_func(prior_ensemble)
 ensprob = EnsembleProblem(prob; prob_func, output_func, safetycopy=true)
 # solve each trajectory with LiteImplicitEuler and multithreading;
 # alternatively, one can specify EnsembleDistributed() for process or slurm parallelization or EnsembleSerial() for sequential execution.
-enssol = @time solve(ensprob, LiteImplicitEuler(), EnsembleThreads(), trajectories=size(prior_ensemble,2))
+enssol = @time solve(ensprob, LiteImplicitEuler(), EnsembleThreads(), trajectories=size(prior_ensemble,2));
 
 # Now we will extract permafrost temperatures at 20m depth and plot the ensemble.
 T20m_ens = reduce(hcat, map(out -> out.T[Z(Near(20.0u"m"))], enssol))
@@ -98,8 +98,8 @@ Plots.plot(T20m_ens, leg=nothing, c=:black, alpha=0.5, ylabel="Permafrost temper
 alt_ens = reduce(hcat, map(out -> Diagnostics.active_layer_thickness(out.T), enssol))
 Plots.plot(alt_ens, leg=nothing, c=:black, alpha=0.5, ylabel="Active layer thickness")
 
-# Method 2: Simple (sequential) for-loop; this could also be parallelized with pmap or @distributed
-# multithreading with @threads is also possible, but in this case, one should call deepcopy(prob) to prevent cache collisions
+# Method 2: Simple (sequential) for-loop; this could also be parallelized with pmap or @distributed.
+# Multithreading with @threads is also possible, but then it will be necessary to call `deepcopy(prob)` to prevent cache collisions
 
 using ProgressMeter
 
