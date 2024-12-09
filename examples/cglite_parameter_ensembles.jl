@@ -73,7 +73,8 @@ function make_prob_func(ensmeble::AbstractMatrix)
 end
 
 function output_func(sol, i)
-    # return CryoGridOutput; false indicates that the run does not need to be repeated
+    ## return output and repeat signal;
+    ## false indicates that the run does not need to be repeated
     return CryoGridOutput(sol), false
 end
 
@@ -105,8 +106,8 @@ using ProgressMeter
 
 @showprogress for i in axes(prior_ensemble)[2]
     p_i = prior_ensemble[:,i]
-    # solve with parameters p_i
+    ## solve with parameters p_i
     sol_i = solve(prob, LiteImplicitEuler(), p=p_i)
-    # here we would need to process the output and store the results;
-    # omitted in this example for brevity
+    ## here we would need to process the output and store the results;
+    ## omitted in this example for brevity
 end
