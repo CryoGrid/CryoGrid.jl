@@ -27,7 +27,6 @@ The `CryoGrid` module provided by CryoGrid.jl is organized into a series of subm
 |`Tiles`|Defines the `Tile` and `Stratigraphy` types for constructing 1D land models.|`Utils`,`Numerics`,`InputOutput`|
 |`DiffEq`|Provides dispatches and utilities for integrating with solvers from the SciML `OrdinaryDiffEq` package.|`Utils`,`Numerics`,`InputOutput`|
 |`LiteImplicit`|Provides an implementation of the `CryoGridLite` solver scheme from Langer et al. 2023.|`Utils`,`Numerics`|
-|`Presets`|Provides pre-defined stratigraphies, forcings, and layer configurations to facilitate rapid prototyping.|`Utils`,`Numerics`,`InputOutput`,`Heat`,`Hydrology`,`Soils`|
 
 Note that all submodules depend on the top-level `CryoGrid` module which declares all of the "core" types and [method interfaces](https://docs.julialang.org/en/v1/manual/interfaces/) for defining model behavior. Each submodule may additionally define its own method interfaces related to its own specific process(es) or layer(s).
 
