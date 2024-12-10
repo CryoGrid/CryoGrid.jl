@@ -23,7 +23,7 @@ function water_energy_advection!(jH, jw, T, cw::Real, L::Real)
             T₁ = T[i-1],
             T₂ = T[i];
             jH_w = advectiveflux(jw, T₁, T₂, cw, L)
-            state.jH[i] += jH_w
+            jH[i] += jH_w
         end
     end
 end
