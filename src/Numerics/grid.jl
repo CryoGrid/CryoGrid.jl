@@ -120,12 +120,12 @@ function updategrid!(grid::Grid{Edges}, z0, thick::AbstractVector)
     return grid
 end
 
-function currentgrid(statevars::NamedTuple, initialgrid::Grid, u, t)
+function currentgrid(state::NamedTuple, initialgrid::Grid, u, t)
     # retrieve grid data from StateVars
-    midpoints = retrieve(statevars.midpoints, u, t)
-    edges = retrieve(statevars.edges, u, t)
-    cellthick = retrieve(statevars.cellthick, u, t)
-    celldist = retrieve(statevars.celldist, u, t)
+    midpoints = retrieve(state.midpoints, u, t)
+    edges = retrieve(state.edges, u, t)
+    cellthick = retrieve(state.cellthick, u, t)
+    celldist = retrieve(state.celldist, u, t)
     return Grid(Edges, (edges=edges, cells=midpoints), (edges=cellthick, cells=celldist), initialgrid.geometry, initialgrid.bounds)
 end
 

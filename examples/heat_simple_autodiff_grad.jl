@@ -8,6 +8,7 @@ using CryoGrid
 # Set up forcings and boundary conditions similarly to other examples:
 forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
 soilprofile, tempprofile = CryoGrid.SamoylovDefault
+soilprofile = SoilProfile(0.0u"m" => SimpleSoil())
 grid = CryoGrid.DefaultGrid_5cm
 initT = initializer(:T, tempprofile)
 tile = CryoGrid.SoilHeatTile(

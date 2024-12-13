@@ -313,11 +313,11 @@ Returns a tuple of all variables defined in the tile.
 CryoGrid.variables(tile::Tile) = Tuple(unique(Flatten.flatten(tile.state.vars, Flatten.flattenable, Var)))
 
 """
-    parameters(tile::Tile; kwargs...)
+    parameters(tile::Tile; include_all=false, kwargs...)
 
 Extracts all parameters from `tile`.
 """
-parameters(tile::Tile; kwargs...) = CryoGridParams(tile; kwargs...)
+parameters(tile::Tile; include_all=true, kwargs...) = CryoGridParams(include_all ? tile : stripparams(FixedParam, tile); kwargs...)
 
 """
     withaxes(u::AbstractArray, ::Tile)
