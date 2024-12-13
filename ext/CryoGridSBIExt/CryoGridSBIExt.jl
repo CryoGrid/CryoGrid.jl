@@ -9,6 +9,9 @@ using Dates
 using IntervalSets
 using ModelParameters
 
+# resolve ambiguous import warning
+using ModelParameters: params
+
 import Random
 
 SimulationBasedInference.default_time_converter(::CryoGridProblem) = CryoGrid.convert_t
