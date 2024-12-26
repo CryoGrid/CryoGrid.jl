@@ -28,7 +28,7 @@ function DiffEqBase.__init(
     args...;
     dt=24*3600.0,
     dtmax=dt,
-    dtmin=1.0,
+    dtmin=one(dt),
     saveat=dt,
     kwargs...
 )
