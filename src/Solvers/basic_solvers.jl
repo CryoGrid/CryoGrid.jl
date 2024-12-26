@@ -74,6 +74,6 @@ function perform_step!(integrator::CryoGridIntegrator{CGEuler})
     # set next dt
     # compute maximum timestep
     dtmax = CryoGrid.timestep(tile, du, u, p, t₀)
-    integrator.dt = dtmax
+    integrator.dt = max(min(dtmax, integrator.opts.dtmax), integrator.opts.dtmin)
     return nothing
 end

@@ -47,7 +47,8 @@ Constructor for `CryoGridProblem` that automatically generates all necessary cal
 function CryoGridProblem(
     tile::Tile,
     u0::ComponentVector,
-    tspan::NTuple{2,Float64};
+    tspan::NTuple{2,Float64},
+    p::Union{Nothing,AbstractVector}=nothing;
     diagnostic_stepsize=3600.0,
     saveat=3600.0,
     savevars=(),
@@ -68,7 +69,7 @@ function CryoGridProblem(
     # strip all "fixed" parameters
     tile = stripparams(FixedParam, tile)
     # retrieve variable parameters
-    p = length(ModelParameters.params(tile)) > 0 ? parameters(tile) : nothing
+    tilepara = length(ModelParameters.params(tile)) > 0 ? parameters(tile) : nothing
     du0 = zero(u0)
     # remove units
     tile = stripunits(tile)
@@ -95,6 +96,8 @@ function CryoGridProblem(
     tile.data.outputs = savevals
     # build mass matrix
     mass_matrix = Numerics.build_mass_matrix(tile.state)
+    # get params
+    p = isnothing(p) && !isnothing(tilepara) ? ustrip.(vec(tilepara)) : p
 	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
 	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
 end

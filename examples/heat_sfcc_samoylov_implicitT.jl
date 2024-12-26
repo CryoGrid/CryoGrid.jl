@@ -38,7 +38,7 @@ tile = Tile(strat, modelgrid, forcings, ssinit);
 tspan = (DateTime(2000,10,1), DateTime(2002,10,1))
 u0, du0 = initialcondition!(tile, tspan);
 prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600, savevars=(:T,:θw,:∂H∂T), step_limiter=nothing)
-integrator = init(prob, ImplicitEuler(autodiff=false))
+integrator = init(prob, ImplicitEuler())
 # test one step
 @time step!(integrator)
 last_t = integrator.t

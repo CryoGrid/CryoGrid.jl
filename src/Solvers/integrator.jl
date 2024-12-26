@@ -52,7 +52,7 @@ function DiffEqBase.sensitivity_solution(sol::CryoGridSolution, u, t)
 end
 
 Base.@kwdef mutable struct CryoGridIntegratorOptions{Tt,Tsaveat,Ttstops}
-    dtmax::Tt = 24*3600.0
+    dtmax::Tt = 3600.0
     dtmin::Tt = one(typeof(dtmax))
     saveat::Tsaveat = typeof(dtmax)[]
     tstops::Ttstops = SortedSet{typeof(dtmin)}()
