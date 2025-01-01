@@ -1,7 +1,7 @@
 using CryoGrid
 using CryoGrid.Utils
+using DataStructures: OrderedDict
 using ForwardDiff
-
 using Reexport
 
 export CryoGridIntegrator, CryoGridIntegratorOptions, CryoGridSolution

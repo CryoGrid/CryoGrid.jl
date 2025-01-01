@@ -28,6 +28,8 @@ using DiffEqBase
 # re-export DiffEqCallbacks
 @reexport using DiffEqCallbacks
 
+import CommonSolve
+
 export TDMASolver
 include("linsolve.jl")
 

@@ -28,7 +28,7 @@ export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
 export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
-export applyunits, normalize_units, normalize_temperature, pstrip
+export applyunits, normalize_units, normalize_temperature, pstrip, adstrip
 export fastmap, fastiterate, structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 
 # Variable/parameter domains
@@ -160,6 +160,14 @@ function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
     end
     return x
 end
+
+"""
+    adstrip(x)
+
+Strips autodiff type wrappers from `x`.
+"""
+adstrip(x) = x
+adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x)
 
 """
     pstrip(obj; keep_units=false)

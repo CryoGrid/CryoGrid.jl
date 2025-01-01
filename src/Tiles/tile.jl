@@ -10,7 +10,6 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip} <: AbstractTile{iip
     inits::TInits # initializers
     events::TEvents # events
     inputs::TInputs # inputs
-    data::TileData # output data
     metadata::Dict # metadata
     function Tile(
         strat::TStrat,
@@ -19,15 +18,14 @@ struct Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip} <: AbstractTile{iip
         inits::TInits,
         events::TEvents,
         inputs::TInputs,
-        data::TileData=TileData(),
         metadata::Dict=Dict(),
         iip::Bool=true) where
         {TStrat<:Stratigraphy,TGrid<:Grid{Edges},TStates<:StateVars,TInits<:Tuple,TEvents<:NamedTuple,TInputs<:InputProvider}
-        new{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}(strat, grid, state, inits, events, inputs, data, metadata)
+        new{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}(strat, grid, state, inits, events, inputs, metadata)
     end
 end
 ConstructionBase.constructorof(::Type{Tile{TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip}}) where {TStrat,TGrid,TStates,TInits,TEvents,TInputs,iip} =
-    (strat, grid, state, inits, events, inputs, data, metadata) -> Tile(strat, grid, state, inits, events, inputs, data, metadata, iip)
+    (strat, grid, state, inits, events, inputs, metadata) -> Tile(strat, grid, state, inits, events, inputs, metadata, iip)
 # mark only stratigraphy and initializers fields as flattenable
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:strat}}) = true
 Flatten.flattenable(::Type{<:Tile}, ::Type{Val{:inits}}) = true
@@ -92,7 +90,7 @@ function Tile(
             _addlayerfield(init, Symbol(:init))
         end
     end
-    tile = Tile(strat, grid, states, inits, (;events...), inputs, TileData(), metadata, iip)
+    tile = Tile(strat, grid, states, inits, (;events...), inputs, metadata, iip)
     _validate_inputs(tile, inputs)
     return tile
 end
@@ -282,29 +280,6 @@ getstate(integrator::SciMLBase.DEIntegrator) = Tiles.getstate(Tile(integrator), 
 """
 Numerics.getvar(var::Symbol, integrator::SciMLBase.DEIntegrator; interp=true) = Numerics.getvar(Val{var}(), Tile(integrator), integrator.u; interp)
 
-# """
-#     parameterize(tile::Tile)
-
-# Adds parameter information to all nested types in `tile` by recursively calling `parameterize`.
-# """
-# function CryoGrid.parameterize(tile::Tile)
-#     ctor = ConstructionBase.constructorof(typeof(tile))
-#     new_layers = map(namedlayers(tile.strat)) do named_layer
-#         name = nameof(named_layer)
-#         layer = CryoGrid.parameterize(named_layer.val)
-#         name => _addlayerfield(layer, name)
-#     end
-#     new_inits = map(tile.inits) do init
-#         _addlayerfield(CryoGrid.parameterize(init), :init)
-#     end
-#     new_events = map(keys(tile.events)) do name
-#         evs = map(CryoGrid.parameterize, getproperty(tile.events, name))
-#         name => _addlayerfield(evs, name)
-#     end
-#     new_strat = Stratigraphy(boundaries(tile.strat), (;new_layers...))
-#     return ctor(new_strat, tile.grid, tile.state, new_inits, (;new_events...), tile.data, tile.metadata)
-# end
-
 """
     variables(tile::Tile)
 
@@ -413,6 +388,6 @@ function _validate_inputs(@nospecialize(tile::Tile), inputprovider::InputProvide
 end
 
 # helper method that returns a Union type of all types that should be ignored by Flatten.flatten
-@inline Utils.ignored_types(::Tile{TStrat,TGrid,TStates}) where {TStrat,TGrid,TStates} = Union{TGrid,TStates,TileData,Unitful.Quantity,Numerics.ForwardDiff.Dual}
+@inline Utils.ignored_types(::Tile{TStrat,TGrid,TStates}) where {TStrat,TGrid,TStates} = Union{TGrid,TStates,Unitful.Quantity,Numerics.ForwardDiff.Dual}
 
 # ===================================================================== #

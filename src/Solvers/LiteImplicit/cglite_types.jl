@@ -22,7 +22,7 @@ struct LiteImplicitEulerCache{Tu,TA} <: SciMLBase.DECache
     D::TA
 end
 
-function DiffEqBase.__init(
+function CommonSolve.init(
     prob::CryoGridProblem,
     alg::LiteImplicitEuler,
     args...;
@@ -43,12 +43,6 @@ function DiffEqBase.__init(
     # evaluate tile at initial condition
     tile = Tiles.materialize(Tile(prob.f), prob.p, t0)
     tile(zero(u0), u0, prob.p, t0, dt)
-    # reset SavedValues on tile.data
-    initialsave = prob.savefunc(tile, u0, similar(u0))
-    savevals = SavedValues(Float64, typeof(initialsave))
-    push!(savevals.saveval, initialsave)
-    push!(savevals.t, t0)
-    tile.data.outputs = savevals
     sol = CryoGridSolution(prob, u_storage, t_storage, alg, ReturnCode.Default)
     cache = LiteImplicitEulerCache(
         similar(prob.u0), # should have ComponentArray type
@@ -64,5 +58,8 @@ function DiffEqBase.__init(
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
     opts = CryoGridIntegratorOptions(; saveat=CryoGrid.expandtstep(saveat, prob.tspan), dtmax, dtmin, kwargs...)
-    return CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0, convert(eltype(prob.tspan), dt), 1, 1)
+    integrator = CryoGridIntegrator(alg, cache, opts, sol, copy(u0), p, t0, convert(eltype(prob.tspan), dt), 1, 1)
+    # save initial state
+    prob.savefunc(u0, t0, integrator)
+    return integrator
 end

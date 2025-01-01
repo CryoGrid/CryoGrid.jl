@@ -13,7 +13,17 @@ struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.Abstrac
     savefunc::Tsf
     isoutofdomain::Tdf
     kwargs::Tkw
-    CryoGridProblem{iip}(f::TF, u0::Tu, tspan::NTuple{2,Tt}, p::Tp, cbs::Tcb, saveat::Tsv, savefunc::Tsf, iood::Tdf, kwargs::Tkw) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tcb,Tdf,Tkw} =
+    CryoGridProblem{iip}(
+        f::TF,
+        u0::Tu,
+        tspan::NTuple{2,Tt},
+        p::Tp,
+        cbs::Tcb,
+        saveat::Tsv,
+        savefunc::Tsf,
+        iood::Tdf,
+        kwargs::Tkw
+    ) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tcb,Tdf,Tkw} =
         new{iip,Tu,Tt,Tp,TF,Tsv,Tsf,Tcb,Tdf,Tkw}(f, u0, tspan, p, cbs, saveat, savefunc, iood, kwargs)
 end
 
@@ -21,6 +31,7 @@ end
     CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...)
 """
 CryoGridProblem(tile::Tile, u0::ComponentVector, tspan::NTuple{2,DateTime}, args...;kwargs...) = CryoGridProblem(tile, u0, convert_tspan(tspan), args...;kwargs...)
+
 """
     CryoGridProblem(
         tile::Tile,
@@ -51,10 +62,9 @@ function CryoGridProblem(
     p::Union{Nothing,AbstractVector}=nothing;
     diagnostic_stepsize=3600.0,
     saveat=3600.0,
-    savevars=(),
-    save_everystep=false,
     save_start=true,
-    save_end=true,
+    save_everystep=false,
+    savevars=(),
     step_limiter=timestep,
     safety_factor=1,
     max_step=true,
@@ -64,8 +74,6 @@ function CryoGridProblem(
     function_kwargs=(),
     prob_kwargs...
 )
-    getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
-    savefunc(u, t, integrator) = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
     # strip all "fixed" parameters
     tile = stripparams(FixedParam, tile)
     # retrieve variable parameters
@@ -74,10 +82,10 @@ function CryoGridProblem(
     # remove units
     tile = stripunits(tile)
     # set up saving callback
-    stateproto = getsavestate(tile, u0, du0)
-    savevals = SavedValues(Float64, typeof(stateproto))
     saveat = expandtstep(saveat, tspan)
-    savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
+    savecache = InputOutput.SaveCache(Float64[], [])
+    savefunc = saving_function(savecache, savevars...)
+    savingcallback = FunctionCallingCallback(savefunc; funcat=saveat, func_start=save_start, func_everystep=save_everystep)
     diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_stepsize:tspan[end], diagnosticstep!)
     defaultcallbacks = (savingcallback, diagnostic_step_callback)
     # add step limiter to default callbacks, if defined
@@ -92,14 +100,12 @@ function CryoGridProblem(
     # add user callbacks
     usercallbacks = isnothing(callback) ? () : callback
     callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
-    # note that this implicitly discards any existing saved values in the model setup's state history
-    tile.data.outputs = savevals
     # build mass matrix
     mass_matrix = Numerics.build_mass_matrix(tile.state)
     # get params
     p = isnothing(p) && !isnothing(tilepara) ? ustrip.(vec(tilepara)) : p
 	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
-	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, getsavestate, isoutofdomain, prob_kwargs)
+	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, prob_kwargs)
 end
 
 function SciMLBase.remake(
@@ -124,6 +130,34 @@ function SciMLBase.remake(
         u0 = _u0
     end
     return CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
+end
+
+CommonSolve.init(prob::CryoGridProblem, alg, args...; kwargs...) = error("init not defined for CryoGridProblem with solver $(typeof(alg))")
+
+function CommonSolve.solve(prob::CryoGridProblem, alg, args...; kwargs...)
+    integrator = init(prob, alg, args...; kwargs...)
+    return solve!(integrator)
+end
+
+SciMLBase.ODEProblem(prob::CryoGridProblem) = ODEProblem(
+    prob.f,
+    prob.u0,
+    prob.tspan,
+    prob.p;
+    callback=prob.callbacks,
+    isoutofdomain=prob.isoutofdomain,
+    prob.kwargs...
+)
+
+DiffEqBase.get_concrete_problem(prob::CryoGridProblem, isadapt; kwargs...) = prob
+
+function saving_function(cache::InputOutput.SaveCache, savevars...)
+    getsavestate(tile::Tile, u, du) = deepcopy(Tiles.getvars(tile.state, Tiles.withaxes(u, tile), Tiles.withaxes(du, tile), savevars...))
+    return function(u, t, integrator)
+        state = getsavestate(Tile(integrator), Tiles.withaxes(u, Tile(integrator)), get_du(integrator))
+        InputOutput.save!(cache, state, adstrip(t))
+        return state
+    end
 end
 
 """
@@ -169,11 +203,6 @@ function diagnosticstep!(integrator::SciMLBase.DEIntegrator)
     # set whether or not the prognostic state u was modified
     DiffEqBase.u_modified!(integrator, u_modified)
 end
-
-# overrides to make SciML problem interface work
-SciMLBase.ODEProblem(prob::CryoGridProblem) = ODEProblem(prob.f, prob.u0, prob.tspan, prob.p; callback=prob.callbacks, isoutofdomain=prob.isoutofdomain, prob.kwargs...)
-
-DiffEqBase.get_concrete_problem(prob::CryoGridProblem, isadapt; kwargs...) = prob
 
 # callback building functions
 function _makecallbacks(tile::Tile)

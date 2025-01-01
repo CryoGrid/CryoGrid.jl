@@ -7,7 +7,7 @@ using CryoGrid.Utils
 using Base: @propagate_inbounds
 using ComponentArrays
 using ConstructionBase
-using DataStructures: DefaultDict, OrderedDict
+using DataStructures: DefaultDict
 using Dates
 using DimensionalData
 using Downloads
