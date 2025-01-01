@@ -48,8 +48,19 @@ Utils.@properties SEBParams(
     # surface propertiess; includes soil and snow by default;
     # this can be easily extended by the user to include other layers by adding more
     # fields to `SEBParams` and then implementing `surfaceproperties` for those layers.
-    soil = SurfaceProperties(),
-    snow = SurfaceProperties(α=0.8, ϵ=0.99, z₀=5e-4),
+    soil = SurfaceProperties(
+        α = param(0.2, desc="Initial snow-free surface albedo"),
+        ϵ = param(0.97, desc="Initial snow-free surface emissivity"),
+        z₀ = param(1e-3, units=u"m", desc="Initial snow-free surface roughness length"),
+        rₛ = param(50.0, units=u"s/m", desc="Initial snow-free surface resistance against evapotranspiration and sublimation"),
+    ),
+    
+    snow = SurfaceProperties(
+        α = param(0.8, desc="Initial snow-covered surface albedo"),
+        ϵ = param(0.99, desc="Initial snow-covered surface emissivity"),
+        z₀ = param(5e-4, desc="Initial snow-covered surface roughness length"),
+        rₛ = param(50.0, units=u"s/m", desc="Initial snow-covered surface resistance against evapotranspiration and sublimation"),
+    ),
 
     # "natural" constant
     σ = 5.6704e-8u"J/(s*m^2*K^4)",   # Stefan-Boltzmann constant
