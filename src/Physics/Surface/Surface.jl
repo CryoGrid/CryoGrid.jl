@@ -17,6 +17,7 @@ import Flatten
 
 # Surface energy balance
 export SurfaceEnergyBalance, SEBParams
+export relative_to_specific_humidity, vapor_pressure
 include("SEB/seb.jl")
 
 export SurfaceWaterBalance
