@@ -81,12 +81,14 @@ function CommonSolve.init(
     kwargs...
 )
     ode_prob = ODEProblem(prob)
-    integrator = init(ode_prob, alg, args...; kwargs...)
-    return CryoGridDiffEqIntegrator(prob, integrator)
+    ode_integrator = init(ode_prob, alg, args...; kwargs...)
+    integrator = CryoGridDiffEqIntegrator(prob, ode_integrator)
+    return integrator
 end
 
 function CommonSolve.step!(integrator::CryoGridDiffEqIntegrator, args...; kwargs...)
-    return step!(integrator.integrator, args...; kwargs...)
+    rv = step!(integrator.integrator, args...; kwargs...)
+    return rv
 end
 
 function CommonSolve.solve!(integrator::CryoGridDiffEqIntegrator)

@@ -97,7 +97,8 @@ function CommonSolve.solve!(integrator::CryoGridIntegrator)
         integrator.sol.retcode = ReturnCode.Success
     end
     # if no save points are specified, save final state
-    if isempty(integrator.sol.prob.saveat)
+    prob = integrator.sol.prob
+    if isempty(prob.savecfg.saveat)
         prob.savefunc(integrator.u, integrator.t, integrator)
         push!(integrator.sol.u, integrator.u)
         push!(integrator.sol.t, integrator.t)
@@ -161,7 +162,7 @@ function InputOutput.CryoGridOutput(sol::AbstractCryoGridSolution, tspan::NTuple
     save_interval = ClosedInterval(tspan...)
     tile = Tile(sol.prob.f) # Tile
     grid = Grid(tile.grid.*u"m")
-    savecache = sol.prob.savefunc.cache
+    savecache = sol.prob.savecache
     ts = savecache.t # use save cache time points
     # check if last value is duplicated
     ts = ts[end] == ts[end-1] ? ts[1:end-1] : ts

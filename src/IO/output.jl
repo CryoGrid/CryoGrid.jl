@@ -99,3 +99,10 @@ function reset!(cache::SaveCache)
     resize!(cache.t, 0)
     resize!(cache.vals, 0)
 end
+
+struct SaveConfig
+    savevars::Tuple
+    saveat::Vector{Float64}
+    save_start::Bool
+    save_everystep::Bool
+end

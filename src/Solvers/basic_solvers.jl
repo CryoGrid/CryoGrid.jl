@@ -37,7 +37,7 @@ function CommonSolve.init(prob::CryoGridProblem, alg::CGEuler, args...; dt=60.0,
     )
     p = isnothing(prob.p) ? prob.p : collect(prob.p)
     if isnothing(saveat)
-        saveat = prob.saveat
+        saveat = prob.savecfg.saveat
     elseif isa(saveat, Number)
         saveat = collect(prob.tspan[1]:saveat:prob.tspan[2])
     end
