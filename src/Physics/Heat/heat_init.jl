@@ -13,9 +13,9 @@ Base.@kwdef struct PermafrostTemperatureInit{TT1,TT2,TTb,TTm,Tz1,Tz2,Tz3,Tz4} <:
     Tm::TTm = 0.0u"°C" # melting point
     Tbot::TTb = 10.0u"°C" # bottom temperature
     z0::Tz1 = 0.0u"m" # surface depth
-    z_thaw::Tz3 = 0.5u"m" # thaw depth (top of permafrost)
-    z_pf::Tz2 = 20.0u"m" # depth of peramfrost temperature
-    z_base::Tz4 = 500.0u"m" # depth of permafrost base
+    thaw_depth_offset::Tz3 = 0.5u"m" # thaw depth relative to z0
+    perm_depth_offset::Tz2 = 20.0u"m" # depth offset of peramfrost temperature Tpf, relative to z_thaw
+    base_depth_offset::Tz4 = 480.0u"m" # depth offset of permafrost base, relative to z_pf
 end
 
 (init::PermafrostTemperatureInit)(::SubSurface, state) = init(state.T, state.grid)
@@ -33,9 +33,9 @@ function (init::PermafrostTemperatureInit)(T::AbstractVector, grid::Grid)
     Tbot = ustrip(init.Tbot)
     Tm = ustrip(init.Tm)
     z0 = ustrip(init.z0)
-    z_deep = ustrip(init.z_pf)
-    z_thaw = ustrip(init.z_thaw)
-    z_base = ustrip(init.z_base)
+    z_thaw = ustrip(init.thaw_depth_offset)
+    z_deep = z_thaw + ustrip(init.perm_depth_offset)
+    z_base = z_deep + ustrip(init.base_depth_offset)
     z_bot = parent(grid)[end]
     Ts = [T0, Tm, Tpf, Tm, Tbot]
     zs = [z0, z_thaw, z_deep, z_base, z_bot]
