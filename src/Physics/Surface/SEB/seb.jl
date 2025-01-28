@@ -19,7 +19,7 @@ struct Iterative <: SolutionScheme end
 Equations from Westermann 2016, but use nonlinear solver.
 """
 Base.@kwdef struct Numerical{TSolver} <: SolutionScheme
-    solver::TSolver = SimpleNewtonRaphson()
+    solver::TSolver = SimpleNewtonRaphson(autodiff=AutoFiniteDiff())
 end
 Flatten.flattenable(::Type{<:Numerical}, ::Type) = false
 
