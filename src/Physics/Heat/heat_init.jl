@@ -67,14 +67,19 @@ function steadystate!(sub::SubSurface, state, T0, Qgeo, maxiters::Int, convergen
     z = cells(state.grid)
     ΔT = Inf
     while i < maxiters && ΔT > convergence_thresh
-        T_new = T0 .+ z*Qgeo ./ state.kc
+        T_new = adstrip.(T0 .+ z*Qgeo ./ state.kc)
         ΔT = maximum(abs.(T_new .- state.T))
-        state.T .= T_new
-        # recompute initial condition and diagnostic state
+        state.T .= one(eltype(state.T))*T_new
+        # recompute initial condition and diagnostic state variables
         initialcondition!(sub, state)
         computediagnostic!(sub, state)
         i += 1
     end
+    # compute final temperature profile
+    @. state.T = T0 + z*Qgeo / state.kc
+    # recompute initial condition and diagnostic state variables
+    initialcondition!(sub, state)
+    computediagnostic!(sub, state)
     # return temperature profile
     return state.T
 end
