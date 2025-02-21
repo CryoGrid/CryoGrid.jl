@@ -162,6 +162,14 @@ function ffill!(x::AbstractVector{T}) where {E,T<:Union{Missing,E}}
 end
 
 """
+    adstrip(x)
+
+Strips autodiff type wrappers from `x`.
+"""
+adstrip(x) = x
+adstrip(x::ForwardDiff.Dual) = ForwardDiff.value(x)
+
+"""
     pstrip(obj; keep_units=false)
 
 Strips `Param` types and units from `obj`. If `keep_units=true`, then `Param` types will be stripped but units preserved.
