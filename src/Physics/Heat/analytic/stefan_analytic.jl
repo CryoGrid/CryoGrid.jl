@@ -104,10 +104,12 @@ function (sol::StefanSolution)(x, t)
     end
 end
 function SciMLBase.solve(prob::StefanProblem, alg=SimpleNonlinearSolve.SimpleNewtonRaphson(); p=prob.p, x0=prob.x0, t0=prob.t0)
-    prob = StefanProblem(ComponentVector(p), x0, t0)
+    pvec = ComponentVector(values(p))
+    prob = StefanProblem(StefanParameters(;pvec...), x0, t0)
     f(u,p) = stefan_residual(u, p.T_m, p.T_l, p.T_s, p.k_l, p.c_l, p.k_s, p.c_s, p.ρ, p.θwi, p.Lf)
-    nlprob = SimpleNonlinearSolve.NonlinearProblem(f, ustrip(1/(p.Lf*p.θwi)), p)
+    λ₀ = 1/(pvec.Lf*pvec.θwi)
+    nlprob = SimpleNonlinearSolve.NonlinearProblem(f, ustrip(λ₀), ustrip.(pvec))
     nlsol = SciMLBase.solve(nlprob, alg)
-    λ = nlsol.u
+    λ = nlsol.u*one(λ₀)
     return StefanSolution(prob, nlsol, λ)
 end
