@@ -8,7 +8,6 @@ using DataStructures
 using DiffEqBase, DiffEqCallbacks
 using Interpolations
 
-import CommonSolve
 import SciMLBase
 
 export LiteImplicitEuler

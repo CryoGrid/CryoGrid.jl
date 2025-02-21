@@ -1,3 +1,8 @@
+mutable struct TileData
+    outputs::Any
+    TileData() = new(missing)
+end
+
 """
     AbstractTile{iip}
 

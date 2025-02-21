@@ -42,7 +42,6 @@ using ModelParameters
 using Reexport
 using Requires
 
-import CommonSolve
 import Flatten
 import Interpolations
 
@@ -111,6 +110,9 @@ export ConstantBC, PeriodicBC, ConstantValue, PeriodicValue, ConstantFlux, Perio
 export volumetricfractions
 include("Physics/Physics.jl")
 
+include("Diagnostics/Diagnostics.jl")
+@reexport using .Diagnostics
+
 # Coupling
 include("coupling.jl")
 
@@ -121,10 +123,6 @@ include("problem.jl")
 # Solvers
 export CGEuler, CryoGridIntegrator, CryoGridSolution
 include("Solvers/Solvers.jl")
-
-# Diagnostics
-include("Diagnostics/Diagnostics.jl")
-@reexport using .Diagnostics
 
 # Built-in model definitions
 export SoilHeatTile, SamoylovDefault
