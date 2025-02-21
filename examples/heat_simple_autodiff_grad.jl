@@ -4,7 +4,6 @@
 #
 # TODO: add more detail/background
 using CryoGrid
-CryoGrid.debug(true)
 
 # Set up forcings and boundary conditions similarly to other examples:
 forcings = loadforcings(CryoGrid.Forcings.Samoylov_ERA_obs_fitted_1979_2014_spinup_extended_2044);
@@ -14,7 +13,7 @@ soilprofile = SoilProfile(0.0u"m" => SimpleSoil(; freezecurve))
 grid = CryoGrid.DefaultGrid_5cm
 initT = initializer(:T, tempprofile)
 tile = CryoGrid.SoilHeatTile(
-    :H,
+    :T,
     TemperatureBC(Input(:Tair), NFactor(nf=Param(0.5), nt=Param(0.9))),
     GeothermalHeatFlux(0.053u"W/m^2"),
     soilprofile,
@@ -22,30 +21,17 @@ tile = CryoGrid.SoilHeatTile(
     initT;
     grid=grid
 )
-tspan = (DateTime(2010,9,1),DateTime(2010,10,1))
+tspan = (DateTime(2010,9,1),DateTime(2011,10,1))
 u0, du0 = @time initialcondition!(tile, tspan);
 
 # We can retrieve the parameters of the system from `tile`:
 para = CryoGrid.parameters(tile)
 
 # Create the `CryoGridProblem`.
-prob = CryoGridProblem(tile, u0, tspan, saveat=3600.0, savevars=(:T,))
-
-function testfunc(prob)
-    function(p)
-        newprob = remake(prob, p=p)
-        sol = solve(newprob, Euler(), dt=300.0)
-        out = CryoGridOutput(sol)
-        y = mean(ustrip.(Array(out.T)))
-        return y
-    end
-end
-
-f = testfunc(prob)
-grad = @time ForwardDiff.gradient(f, vec(prob.p))
+prob = CryoGridProblem(tile, u0, tspan, saveat=3600.0)
 
 # Solve the forward problem with default parameter settings:
-sol = @time solve(prob);
+sol = @time solve(prob)
 out = CryoGridOutput(sol)
 
 # Import relevant packages for automatic differentiation.

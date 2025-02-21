@@ -3,15 +3,14 @@
 
 Represents a CryoGrid discretized PDE forward model configuration using the `SciMLBase`/`DiffEqBase` problem interface.
 """
-struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tsc,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
+struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tcb,Tdf,Tkw} <: SciMLBase.AbstractODEProblem{Tu,Tt,iip}
     f::TT
     u0::Tu
     tspan::NTuple{2,Tt}
     p::Tp
     callbacks::Tcb
-    savecfg::Tsv
+    saveat::Tsv
     savefunc::Tsf
-    savecache::Tsc
     isoutofdomain::Tdf
     kwargs::Tkw
     CryoGridProblem{iip}(
@@ -20,13 +19,12 @@ struct CryoGridProblem{iip,Tu,Tt,Tp,TT,Tsv,Tsf,Tsc,Tcb,Tdf,Tkw} <: SciMLBase.Abs
         tspan::NTuple{2,Tt},
         p::Tp,
         cbs::Tcb,
-        savecfg::Tsv,
+        saveat::Tsv,
         savefunc::Tsf,
-        savecache::Tsc,
         iood::Tdf,
         kwargs::Tkw
-    ) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tsc,Tcb,Tdf,Tkw} =
-        new{iip,Tu,Tt,Tp,TF,Tsv,Tsf,Tsc,Tcb,Tdf,Tkw}(f, u0, tspan, p, cbs, savecfg, savefunc, savecache, iood, kwargs)
+    ) where {iip,TF,Tu,Tt,Tp,Tsv,Tsf,Tcb,Tdf,Tkw} =
+        new{iip,Tu,Tt,Tp,TF,Tsv,Tsf,Tcb,Tdf,Tkw}(f, u0, tspan, p, cbs, saveat, savefunc, iood, kwargs)
 end
 
 """
@@ -83,8 +81,13 @@ function CryoGridProblem(
     du0 = zero(u0)
     # remove units
     tile = stripunits(tile)
+    # set up saving callback
+    saveat = expandtstep(saveat, tspan)
+    savecache = InputOutput.SaveCache(Float64[], [])
+    savefunc = saving_function(savecache, savevars...)
+    savingcallback = FunctionCallingCallback(savefunc; funcat=saveat, func_start=save_start, func_everystep=save_everystep)
     diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_stepsize:tspan[end], diagnosticstep!)
-    defaultcallbacks = (diagnostic_step_callback,)
+    defaultcallbacks = (savingcallback, diagnostic_step_callback)
     # add step limiter to default callbacks, if defined
     if !isnothing(step_limiter)
         defaultcallbacks = (
@@ -96,18 +99,13 @@ function CryoGridProblem(
     layercallbacks = _makecallbacks(tile)
     # add user callbacks
     usercallbacks = isnothing(callback) ? () : callback
-    callbacks = Callbacks(defaultcallbacks, layercallbacks, usercallbacks)
+    callbacks = CallbackSet(defaultcallbacks..., layercallbacks..., usercallbacks...)
     # build mass matrix
     mass_matrix = Numerics.build_mass_matrix(tile.state)
     # get params
     p = isnothing(p) && !isnothing(tilepara) ? ustrip.(vec(tilepara)) : p
 	func = odefunction(tile, u0, p, tspan; mass_matrix, specialization, function_kwargs...)
-    # set up saving config
-    saveat = expandtstep(saveat, tspan)
-    saveconfig = InputOutput.SaveConfig(savevars, saveat, save_start, save_everystep)
-    savecache = InputOutput.SaveCache(Float64[], [])
-    savefunc = saving_function(savecache, savevars...)
-	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveconfig, savefunc, savecache, isoutofdomain, prob_kwargs)
+	return CryoGridProblem{true}(func, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, prob_kwargs)
 end
 
 function SciMLBase.remake(
@@ -116,13 +114,11 @@ function SciMLBase.remake(
     u0=nothing,
     tspan=prob.tspan,
     p=prob.p,
-    savevars=prob.savecfg.savevars,
-    saveat=prob.savecfg.saveat,
-    save_start=prob.savecfg.save_start,
-    save_everystep=prob.savecfg.save_everystep,
+    callbacks=prob.callbacks,
+    saveat=prob.saveat,
+    savefunc=prob.savefunc,
     isoutofdomain=prob.isoutofdomain,
     kwargs=prob.kwargs,
-    callbacks=nothing,
 ) where iip
     # always re-run initialcondition! with the given tspan and parameters
     _u0, du0 = initialcondition!(Tile(f), tspan, p)
@@ -133,15 +129,7 @@ function SciMLBase.remake(
     else
         u0 = _u0
     end
-    # create new save cache
-    saveat = expandtstep(saveat, tspan)
-    savecfg = InputOutput.SaveConfig(savevars, saveat, save_start, save_everystep)
-    savecache = InputOutput.SaveCache(Float64[], [])
-    savefunc = saving_function(savecache, savevars...)
-    # rebuild Callbacks struct with new user callbacks if provided
-    callbacks = isnothing(callbacks) ? prob.callbacks : Callbacks(prob.callbacks.default, prob.callbacks.layer, callbacks)
-    # construct new CryoGridProblem
-    return CryoGridProblem{iip}(f, u0, tspan, p, callbacks, savecfg, savefunc, savecache, isoutofdomain, kwargs)
+    return CryoGridProblem{iip}(f, u0, tspan, p, callbacks, saveat, savefunc, isoutofdomain, kwargs)
 end
 
 CommonSolve.init(prob::CryoGridProblem, alg, args...; kwargs...) = error("init not defined for CryoGridProblem with solver $(typeof(alg))")
@@ -151,30 +139,15 @@ function CommonSolve.solve(prob::CryoGridProblem, alg, args...; kwargs...)
     return solve!(integrator)
 end
 
-function SciMLBase.ODEProblem(prob::CryoGridProblem)
-    savingcallback = FunctionCallingCallback(
-        prob.savefunc;
-        funcat=prob.savecfg.saveat,
-        func_start=prob.savecfg.save_start,
-        func_everystep=prob.savecfg.save_everystep
-    )
-    callbacks = CallbackSet(
-        savingcallback,
-        prob.callbacks.default...,
-        prob.callbacks.layer...,
-        prob.callbacks.user...
-    )
-    odeprob = ODEProblem(
-        prob.f,
-        prob.u0,
-        prob.tspan,
-        prob.p;
-        callback=callbacks,
-        isoutofdomain=prob.isoutofdomain,
-        prob.kwargs...
-    )
-    return odeprob
-end
+SciMLBase.ODEProblem(prob::CryoGridProblem) = ODEProblem(
+    prob.f,
+    prob.u0,
+    prob.tspan,
+    prob.p;
+    callback=prob.callbacks,
+    isoutofdomain=prob.isoutofdomain,
+    prob.kwargs...
+)
 
 DiffEqBase.get_concrete_problem(prob::CryoGridProblem, isadapt; kwargs...) = prob
 
@@ -231,14 +204,7 @@ function diagnosticstep!(integrator::SciMLBase.DEIntegrator)
     DiffEqBase.u_modified!(integrator, u_modified)
 end
 
-# Callback utilities
-
-struct Callbacks
-    default
-    layer
-    user
-end
-
+# callback building functions
 function _makecallbacks(tile::Tile)
     eventname(::Event{name}) where name = name
     isgridevent(::GridContinuousEvent) = true
