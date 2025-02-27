@@ -28,7 +28,7 @@ export @UFloat_str, @UT_str, @setscalar, @threaded, @sym_str, @pstrip
 include("macros.jl")
 
 export StrictlyPositive, StrictlyNegative, Nonnegative, Nonpositive
-export applyunits, normalize_units, normalize_temperature, pstrip
+export applyunits, normalize_units, normalize_temperature, adstrip, pstrip
 export fastmap, fastiterate, structiterate, getscalar, tuplejoin, convert_t, convert_tspan, haskeys
 
 # Variable/parameter domains
