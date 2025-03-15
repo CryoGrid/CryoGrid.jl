@@ -7,8 +7,6 @@
 
 A partial implementation of the CryoGrid permafrost model in Julia, with a focus on parameter estimation and uncertainty quantification.
 
-Part of the broader research project: [Quantifying and explaining uncertainty in permafrost modeling under a warming climate](https://drive.google.com/file/d/1wB_EXtlO_PMXFSzZ-bRV8cg0a0DGDtAB/view?usp=sharing)
-
 Author: Brian Groenke (brian.groenke@awi.de)
 
 ## Key features
