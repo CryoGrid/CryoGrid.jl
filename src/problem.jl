@@ -74,8 +74,8 @@ function CryoGridProblem(
     # remove units
     tile = stripunits(tile)
     # set up saving callback
-    stateproto = getsavestate(tile, u0, du0)
-    savevals = SavedValues(Float64, typeof(stateproto))
+    # stateproto = getsavestate(tile, u0, du0)
+    savevals = SavedValues(Float64, Any)
     saveat = expandtstep(saveat, tspan)
     savingcallback = SavingCallback(savefunc, savevals; saveat=saveat, save_start=save_start, save_end=save_end, save_everystep=save_everystep)
     diagnostic_step_callback = PresetTimeCallback(tspan[1]:diagnostic_stepsize:tspan[end], diagnosticstep!)
@@ -115,7 +115,8 @@ function SciMLBase.remake(
     kwargs=prob.kwargs,
 ) where iip
     # always re-run initialcondition! with the given tspan and parameters
-    _u0, du0 = initialcondition!(Tile(f), tspan, p)
+    tile = Tile(f)
+    _u0, du0 = initialcondition!(tile, tspan, p)
     # if u0 was explicitly given, use it instead of the computed value
     if !isnothing(u0)
         # evaluate Tile on new initial state

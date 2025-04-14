@@ -16,7 +16,7 @@ lowerbc = GeothermalHeatFlux(0.053u"W/m^2")
 tile = CryoGrid.SoilHeatTile(upperbc, lowerbc, soilprofile, forcings, initT; grid=grid)
 tspan = (DateTime(2010,10,30),DateTime(2011,10,30))
 u0, du0 = @time initialcondition!(tile, tspan)
-prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,));
+prob = CryoGridProblem(tile, u0, tspan, saveat=3*3600.0, savevars=(:T,:H,:C,:θw,:∂H∂T));
 
 # ... then solve it with the built-in forward Euler integrator.
 sol = @time solve(prob);

@@ -9,7 +9,7 @@ using CryoGrid.Numerics
 using CryoGrid.Utils
 
 using Setfield
-using SimpleNonlinearSolve
+using NonlinearSolve
 using StaticArrays: @SVector
 using Unitful
 

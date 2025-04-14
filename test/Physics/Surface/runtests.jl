@@ -3,7 +3,7 @@ using CryoGrid.Hydrology
 using CryoGrid.Surface
 using CryoGrid.Utils
 
-using SimpleNonlinearSolve
+using NonlinearSolve
 using Test
 
 include("seb_tests.jl")
