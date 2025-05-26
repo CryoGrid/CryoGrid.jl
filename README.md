@@ -9,6 +9,10 @@ A partial implementation of the CryoGrid permafrost model in Julia, with a focus
 
 Author: Brian Groenke (brian.groenke@awi.de)
 
+
+> [!WARNING]  
+> As of May 2025, this model code is no longer being developed and will only receieve occasiaional maintenance updates. Please keep this in mind when deciding whether or not to use this software in your research. If you are interested in becoming a maintainer of the package, please feel free to reach out.
+
 ## Key features
 - Fast and modular interface for defining multi-physics permafrost models including:
     - Two-phase heat and water transport in porous media (i.e. soil and snow)
