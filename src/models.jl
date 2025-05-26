@@ -11,11 +11,12 @@ function SoilHeatTile(
     inputs::InputProvider,
     inits::CryoGrid.Initializer...;
     grid::Grid=DefaultGrid_5cm,
+    fcsolver=SFCCPreSolver(FreezeCurves.SFCCPreSolverCache1D()),
     tile_kwargs...
 )
     strat = Stratigraphy(
         grid[1] => Top(upperbc),
-        Tuple(d => Ground(para, heat=HeatBalance(heatop), water=nothing) for (i,(d,para)) in enumerate(soilprofile)),
+        Tuple(d => Ground(para, heat=HeatBalance(heatop), water=nothing, fcsolver=fcsolver) for (i,(d,para)) in enumerate(soilprofile)),
         grid[end] => Bottom(lowerbc)
     )
     return Tile(strat, PresetGrid(grid), inputs, inits...; tile_kwargs...)
