@@ -97,7 +97,7 @@ makedocs(
               "Developer guide" => [
               "Concepts" => "dev/concepts.md",
               "Debugging" => "dev/debugging.md",
-              "Contributing" => "dev/contributing.md",
+              # "Contributing" => "dev/contributing.md",
               ],
               "Examples" => example_docpages,
               "API" => [
