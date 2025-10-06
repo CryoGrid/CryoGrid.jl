@@ -26,7 +26,7 @@ soilprofile = SoilProfile(
 initT = initializer(:T, CryoGrid.SamoylovDefault.tempprofile);
 
 # We choose the default grid discretization with 5 cm spacing at the surface.
-grid = CryoGrid.DefaultGrid_5cm;
+grid = CryoGrid.DefaultGrid_10cm;
 
 # Now we construct the Tile using the built-in model configuration `SoilHeatTile` which defines a
 # standalone soil straigraphy with only heat conduction and no water flow.
@@ -41,19 +41,24 @@ tile = CryoGrid.SoilHeatTile(
 );
 
 # Here we define the time span:
-tspan = (DateTime(2010,12,31),DateTime(2011,12,31));
+tspan = (DateTime(2010,12,31),DateTime(2012,12,31));
 
 # Evaluate the initial condition
 u0, du0 = initialcondition!(tile, tspan);
 
 # Here we construct a CryoGridProblem with tile, initial condition, and timespan.
-prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,));
+prob = CryoGridProblem(tile, u0, tspan, saveat=24*3600.0, savevars=(:T,), step_limiter=nothing);
 
 # Solve the configured problem with the built-in forward Euler method.
 # note that, due to compile time, this may take 1-2 minutes when executed in a fresh Julia
 # session. Subsequent solves will be much faster.
-sol = @time solve(prob);
+sol = @time solve(prob, Euler(), dt=900.0);
 out = CryoGridOutput(sol)
+
+dts = []
+for integrator in init(prob, Euler(), dt=900.0)
+    push!(dts, integrator.dt)
+end
 
 # Now we plot the reuslts!
 import Plots
