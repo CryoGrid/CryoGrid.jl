@@ -37,7 +37,7 @@ end
     T_profile_observable = TemperatureProfileObservable(:Ts, [0.1,0.5,1.0,5.0,10.0], tspan, Day(1))
     T_var_observable = LayerVarObservable(:Ts, :ground1, :T, cells(tile.grid), tspan, Day(1))
     alt_profile_observable = ActiveLayerThicknessObservable(:alt, tspan)
-    forward_prob = SimulatorForwardProblem(prob, T_profile_observable, alt_profile_observable)
+    forward_prob = SimulatorForwardProblem(prob, T_profile_observable, alt_profile_observable; p = [])
     forward_sol = solve(forward_prob, Euler(), dt=120.0)
     model_Ts = SBI.getvalue(T_profile_observable)
     model_alt = SBI.getvalue(alt_profile_observable)

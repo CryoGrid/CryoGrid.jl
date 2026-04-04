@@ -4,11 +4,11 @@
 Create a `SimulatorObservable` that records temperature profiles at depths `zs` over `tspan`.
 """
 function TemperatureProfileObservable(name::Symbol, zs::AbstractVector, tspan::NTuple{2,DateTime}, p::Period; kwargs...)
-    SimulatorObservable(
+    return SimulatorObservable(
         integrator -> collect(map(getvar(Val{:T}(), Tile(integrator), integrator.u; interp=true), ustrip.(zs))),
         (length(zs),),
         name = name,
-        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2], time_converter=CryoGrid.convert_t),
+        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2], time_converter=time_converter),
         kwargs...
     )
 end
@@ -28,7 +28,7 @@ function ActiveLayerThicknessObservable(name::Symbol, tspan::NTuple{2,DateTime};
             tspan[1]+samplerate,
             tspan[1]+Year(1):Year(1):tspan[2],
             samplerate=samplerate,
-            time_converter=CryoGrid.convert_t,
+            time_converter=time_converter,
             reducer = maximum,
         ),
         kwargs...
@@ -41,11 +41,11 @@ end
 Create a `SimulatorObservable` for the state variable `varname` defined on `layername`.
 """
 function LayerVarObservable(name::Symbol, layername::Symbol, varname::Symbol, grid::Grid, tspan::NTuple{2,DateTime}, p::Period=Day(1); kwargs...)
-    SimulatorObservable(
+    return SimulatorObservable(
         integrator -> getproperty(getproperty(getstate(integrator), layername), varname),
         (length(collect(grid)),),
         name = name,
-        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2], time_converter=CryoGrid.convert_t),
+        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2], time_converter=time_converter),
         kwargs...
     )
 end
@@ -60,3 +60,5 @@ function sample_thawdepth(integrator)
     td = Diagnostics.thawdepth(T)
     return Vector(td[:,1])
 end
+
+time_converter(::Type{T}, t) where {T<:Union{Number, TimeType}} = CryoGrid.convert_t(t)
