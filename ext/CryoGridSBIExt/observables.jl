@@ -20,8 +20,12 @@ function ActiveLayerThicknessObservable(name::Symbol, tspan::NTuple{2,DateTime};
         sample_thawdepth,
         (1,),
         name = name,
-        output = TimeSampled(tspan[1]+samplerate, tspan[1]+Year(1):Year(1):tspan[2], samplerate=samplerate),
-        time_converter = CryoGrid.convert_t,
+        output = TimeSampled(
+            tspan[1]+samplerate,
+            tspan[1]+Year(1):Year(1):tspan[2],
+            samplerate=samplerate,
+            time_converter=CryoGrid.convert_t
+        ),
         reducer = maximum,
         kwargs...
     )
@@ -32,8 +36,7 @@ function LayerVarObservable(name::Symbol, layername::Symbol, varname::Symbol, gr
         integrator -> getproperty(getproperty(getstate(integrator), layername), varname),
         (length(collect(grid)),),
         name = name,
-        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2]),
-        time_converter = CryoGrid.convert_t,
+        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2], time_converter=CryoGrid.convert_t),
         kwargs...
     )
 end
