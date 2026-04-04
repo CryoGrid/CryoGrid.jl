@@ -10,6 +10,7 @@ function TemperatureProfileObservable(name::Symbol, zs::AbstractVector, tspan::N
         tspan[1],
         tspan[1]+p:p:tspan[2],
         (Z(zs),);
+        time_converter = CryoGrid.convert_t,
         kwargs...
     )
 end
@@ -22,6 +23,7 @@ function ActiveLayerThicknessObservable(name::Symbol, tspan::NTuple{2,DateTime};
         tspan[1]+samplerate,
         tspan[1]+Year(1):Year(1):tspan[2],
         (1,);
+        time_converter = CryoGrid.convert_t,
         reducer=maximum,
         samplerate,
         kwargs...
@@ -35,6 +37,7 @@ function LayerVarObservable(name::Symbol, layername::Symbol, varname::Symbol, gr
         tspan[1],
         tspan[1]+p:p:tspan[2],
         (Z(collect(grid)),);
+        time_converter = CryoGrid.convert_t,
         kwargs...
     )
 end

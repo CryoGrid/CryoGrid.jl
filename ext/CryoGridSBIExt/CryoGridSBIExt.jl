@@ -14,8 +14,6 @@ using ModelParameters: params
 
 import Random
 
-SimulationBasedInference.default_time_converter(::CryoGridProblem) = CryoGrid.convert_t
-
 include("utils.jl")
 
 export TemperatureProfileObservable, ActiveLayerThicknessObservable, LayerVarObservable
