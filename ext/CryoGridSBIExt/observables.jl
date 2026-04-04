@@ -5,11 +5,10 @@ Special case of `TileStateObservable` for temperature profiles.
 """
 function TemperatureProfileObservable(name::Symbol, zs::AbstractVector, tspan::NTuple{2,DateTime}, p::Period; kwargs...)
     SimulatorObservable(
-        name,
         integrator -> collect(map(getvar(Val{:T}(), Tile(integrator), integrator.u; interp=true), ustrip.(zs))),
-        tspan[1],
-        tspan[1]+p:p:tspan[2],
-        (Z(zs),);
+        (length(zs),),
+        name = name,
+        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2]),
         time_converter = CryoGrid.convert_t,
         kwargs...
     )
@@ -18,25 +17,22 @@ end
 function ActiveLayerThicknessObservable(name::Symbol, tspan::NTuple{2,DateTime}; samplerate=Hour(12), kwargs...)
     @assert Date(tspan[2]) - Date(tspan[1]) >= Day(365) "Active layer thickness requires tspan of >= 1 year"
     return SimulatorObservable(
-        name,
         sample_thawdepth,
-        tspan[1]+samplerate,
-        tspan[1]+Year(1):Year(1):tspan[2],
-        (1,);
+        (1,),
+        name = name,
+        output = TimeSampled(tspan[1]+samplerate, tspan[1]+Year(1):Year(1):tspan[2], samplerate=samplerate),
         time_converter = CryoGrid.convert_t,
-        reducer=maximum,
-        samplerate,
+        reducer = maximum,
         kwargs...
     )
 end
 
 function LayerVarObservable(name::Symbol, layername::Symbol, varname::Symbol, grid::Grid, tspan::NTuple{2,DateTime}, p::Period=Day(1); kwargs...)
     SimulatorObservable(
-        name,
         integrator -> getproperty(getproperty(getstate(integrator), layername), varname),
-        tspan[1],
-        tspan[1]+p:p:tspan[2],
-        (Z(collect(grid)),);
+        (length(collect(grid)),),
+        name = name,
+        output = TimeSampled(tspan[1], tspan[1]+p:p:tspan[2]),
         time_converter = CryoGrid.convert_t,
         kwargs...
     )
