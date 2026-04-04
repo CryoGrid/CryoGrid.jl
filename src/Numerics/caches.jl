@@ -12,7 +12,7 @@ struct DiffCache{T,TCache} <: StateVarCache{T}
     cache::TCache
     function DiffCache(name::Symbol, A::AbstractArray{T}; chunk_size::Int=ForwardDiff.DEFAULT_CHUNK_THRESHOLD) where {T}
         # use dual cache for automatic compatibility with ForwardDiff
-        cache = Prealloc.dualcache(A, chunk_size)
+        cache = Prealloc.DiffCache(A, chunk_size)
         new{T,typeof(cache)}(name, cache)
     end
 end
